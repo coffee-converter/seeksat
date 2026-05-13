@@ -15,9 +15,15 @@ export function parseDmsToDecimal(str) {
   const deg = parseFloat(m[1]);
   const min = m[2] ? parseFloat(m[2]) : 0;
   const sec = m[3] ? parseFloat(m[3]) : 0;
+  if (min >= 60 || sec >= 60) {
+    throw new Error(`parseDmsToDecimal: minutes/seconds out of range in "${str}"`);
+  }
   const hemi = m[4] && m[4].toUpperCase();
-  const baseSign = deg < 0 ? -1 : 1;
   const hemiSign = (hemi === 'S' || hemi === 'W') ? -1 : 1;
+  if (deg < 0 && hemiSign === -1) {
+    throw new Error(`parseDmsToDecimal: ambiguous sign (negative degree + ${hemi} hemisphere) in "${str}"`);
+  }
+  const baseSign = deg < 0 ? -1 : 1;
   return baseSign * hemiSign * (Math.abs(deg) + min / 60 + sec / 3600);
 }
 

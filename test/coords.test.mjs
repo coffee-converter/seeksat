@@ -50,3 +50,15 @@ test('parseDecToDegrees: negative declination', () => {
   const v = parseDecToDegrees(`-12 30 45`);
   assert.ok(close(v, -12.5125, 1e-5), `got ${v}`);
 });
+
+test('parseDmsToDecimal: minutes >= 60 throws', () => {
+  assert.throws(() => parseDmsToDecimal(`42°75'0"N`), /out of range/);
+});
+
+test('parseDmsToDecimal: seconds >= 60 throws', () => {
+  assert.throws(() => parseDmsToDecimal(`40°30'60.0"N`), /out of range/);
+});
+
+test('parseDmsToDecimal: negative degrees + S/W hemisphere throws', () => {
+  assert.throws(() => parseDmsToDecimal(`-40°30'15.9"S`), /ambiguous sign/);
+});
