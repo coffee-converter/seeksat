@@ -1,0 +1,31 @@
+{
+  "timestampUTC": "2026-05-11T15:32:29Z",
+  "observations": [
+    {
+      "id": "coffee",
+      "name": "Coffee",
+      "color": "#ff9b54",
+      "latDeg": 42.154417,
+      "lonDeg": -88.199972,
+      "elevM": 0,
+      "dir": { "mode": "radec", "raHours": 5.5145586, "decDeg": 41.852791 },
+      "rawLat": "42°09'15.9\"N",
+      "rawLon": "88°11'59.9\"W",
+      "rawV1": "5h 30m 52.4110s",
+      "rawV2": "41° 51' 10.0489\""
+    },
+    {
+      "id": "seafoam",
+      "name": "SEA FOAM",
+      "color": "#7fe5d1",
+      "latDeg": 43.092667,
+      "lonDeg": -88.021694,
+      "elevM": 0,
+      "dir": { "mode": "radec", "raHours": 5.8132692, "decDeg": 39.428422 },
+      "rawLat": "43°05'33.6\"N",
+      "rawLon": "88°01'18.1\"W",
+      "rawV1": "5h 48m 47.7690s",
+      "rawV2": "39° 25' 42.3185\""
+    }
+  ]
+}
