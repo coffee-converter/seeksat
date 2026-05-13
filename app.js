@@ -376,6 +376,7 @@ addBtn.addEventListener("click", () => {
 });
 
 const elTri = document.getElementById("result-triangulated");
+const elSlant = document.getElementById("result-slant");
 const elRes = document.getElementById("result-residuals");
 
 function setBlock(el, headerText, lines) {
@@ -392,6 +393,7 @@ function setBlock(el, headerText, lines) {
 function renderResultPanel() {
   if (!state.triangulated) {
     elTri.textContent = "Need >= 2 valid observations.";
+    elSlant.textContent = "";
     elRes.textContent = "";
     return;
   }
@@ -404,8 +406,19 @@ function renderResultPanel() {
   setBlock(elTri, "Triangulated", [
     `lat  ${latDeg.toFixed(5)}°`,
     `lon  ${lonDeg.toFixed(5)}°`,
-    `alt  ${altKm.toFixed(2)} km`,
+    `alt  ${altKm.toFixed(2)} km above WGS84`,
   ]);
+
+  const slantLines = state.observations.map((obs) => {
+    const o = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
+    const d = Math.hypot(
+      state.triangulated[0] - o[0],
+      state.triangulated[1] - o[1],
+      state.triangulated[2] - o[2],
+    );
+    return `${obs.name.padEnd(10)} ${(d / 1000).toFixed(2)} km`;
+  });
+  setBlock(elSlant, "Slant range", slantLines);
 
   const lines = state.residuals.map((r, i) => {
     const name = state.observations[i]?.name ?? `Obs ${i}`;
