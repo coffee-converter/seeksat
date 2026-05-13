@@ -35,11 +35,11 @@ const viewer = new Cesium.Viewer("cesium-container", {
   shouldAnimate: true, // needed for CallbackProperty animations later
 });
 
-// No Cesium Ion auth — swap in OpenStreetMap tiles for the globe.
+// No Cesium Ion auth — Esri World Imagery (satellite photo, no token required).
 viewer.imageryLayers.removeAll();
 viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
-  url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  credit: "© OpenStreetMap contributors",
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  credit: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
   maximumLevel: 19,
 }));
 
