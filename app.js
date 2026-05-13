@@ -34,12 +34,18 @@ const viewer = new Cesium.Viewer("cesium-container", {
   shouldAnimate: true, // needed for CallbackProperty animations later
 });
 
-// Photoreal Earth defaults are already on; turn on stars + atmosphere + lighting explicitly.
-viewer.scene.skyBox.show = true;
+// No Cesium Ion auth — swap in OpenStreetMap tiles for the globe.
+viewer.imageryLayers.removeAll();
+viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
+  url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  credit: "© OpenStreetMap contributors",
+  maximumLevel: 19,
+}));
+
+// Atmosphere + lighting on, stars off (cleaner against panels).
+viewer.scene.skyBox.show = false;
 viewer.scene.skyAtmosphere.show = true;
 viewer.scene.globe.enableLighting = true;
-
-// Dark canvas behind the globe.
 viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");
 
 // Hide the Cesium logo overlay (optional but cleaner UI).
