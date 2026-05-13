@@ -3,16 +3,16 @@
 // Returns { point: [x,y,z] | null, residuals: number[] }.
 
 function solve3(A, b) {
-  const [a, b2, c] = A[0];
+  const [a, m01, c] = A[0];
   const [d, e, f] = A[1];
   const [g, h, i] = A[2];
-  const det = a*(e*i - f*h) - b2*(d*i - f*g) + c*(d*h - e*g);
+  const det = a*(e*i - f*h) - m01*(d*i - f*g) + c*(d*h - e*g);
   if (Math.abs(det) < 1e-30) return null;
   const inv = 1 / det;
   return [
-    inv * ( b[0]*(e*i - f*h) - b2*(b[1]*i - f*b[2]) + c*(b[1]*h - e*b[2]) ),
+    inv * ( b[0]*(e*i - f*h) - m01*(b[1]*i - f*b[2]) + c*(b[1]*h - e*b[2]) ),
     inv * ( a*(b[1]*i - f*b[2]) - b[0]*(d*i - f*g) + c*(d*b[2] - b[1]*g) ),
-    inv * ( a*(e*b[2] - b[1]*h) - b2*(d*b[2] - b[1]*g) + b[0]*(d*h - e*g) ),
+    inv * ( a*(e*b[2] - b[1]*h) - m01*(d*b[2] - b[1]*g) + b[0]*(d*h - e*g) ),
   ];
 }
 
