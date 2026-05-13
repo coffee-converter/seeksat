@@ -329,7 +329,7 @@ function reparseObsFromDom() {
       name: get("name") || `Obs ${idx + 1}`,
       color: prev.color || PALETTE[idx % PALETTE.length],
       latDeg, lonDeg,
-      elevM: Number(get("elev") || 0),
+      elevM: Number(get("elev")) || 0,
       dir,
       rawLat: get("lat"), rawLon: get("lon"),
       rawV1: v1, rawV2: v2,
