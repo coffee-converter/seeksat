@@ -12,6 +12,9 @@ import {
   gmstFromDate,
   eciToEcefRotate,
   enuToEcefRotate,
+  parseDmsToDecimal,
+  parseRaToHours,
+  parseDecToDegrees,
 } from "./coords.js";
 import { triangulateRays } from "./triangulate.js";
 
@@ -208,4 +211,164 @@ function frameAll() {
   });
 }
 
+const PALETTE = ["#ff9b54", "#7fe5d1", "#c084fc", "#facc15", "#f87171"];
+
+const tsInput = document.getElementById("ts-utc");
+const tsLocal = document.getElementById("ts-local");
+const tbody   = document.querySelector("#obs-table tbody");
+const addBtn  = document.getElementById("add-obs");
+
+function makeInput(field, value, attrs = {}) {
+  const el = document.createElement("input");
+  el.type = "text";
+  el.dataset.field = field;
+  el.value = String(value ?? "");
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+function makeCell(child) {
+  const td = document.createElement("td");
+  if (child) td.appendChild(child);
+  return td;
+}
+
+function buildObsRow(obs, idx) {
+  const tr = document.createElement("tr");
+  tr.dataset.idx = String(idx);
+
+  // Name cell: swatch + name input
+  const nameTd = document.createElement("td");
+  const swatch = document.createElement("span");
+  swatch.className = "color-swatch";
+  swatch.style.background = obs.color;
+  nameTd.appendChild(swatch);
+  nameTd.appendChild(makeInput("name", obs.name));
+  tr.appendChild(nameTd);
+
+  tr.appendChild(makeCell(makeInput("lat", obs.rawLat ?? obs.latDeg)));
+  tr.appendChild(makeCell(makeInput("lon", obs.rawLon ?? obs.lonDeg)));
+  tr.appendChild(makeCell(makeInput("elev", obs.elevM ?? 0)));
+
+  // Mode <select>
+  const modeTd = document.createElement("td");
+  const sel = document.createElement("select");
+  sel.dataset.field = "mode";
+  for (const [val, label] of [["radec", "RA/Dec"], ["altaz", "Alt/Az"]]) {
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = label;
+    if (obs.dir.mode === val) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  modeTd.appendChild(sel);
+  tr.appendChild(modeTd);
+
+  const v1Default = obs.dir.mode === "radec"
+    ? (obs.rawV1 ?? String(obs.dir.raHours))
+    : (obs.rawV1 ?? String(obs.dir.azDeg));
+  const v2Default = obs.dir.mode === "radec"
+    ? (obs.rawV2 ?? String(obs.dir.decDeg))
+    : (obs.rawV2 ?? String(obs.dir.altDeg));
+  tr.appendChild(makeCell(makeInput("v1", v1Default)));
+  tr.appendChild(makeCell(makeInput("v2", v2Default)));
+
+  // Remove button
+  const btnTd = document.createElement("td");
+  const rm = document.createElement("button");
+  rm.type = "button";
+  rm.className = "remove";
+  rm.textContent = "✕";
+  rm.title = "Remove";
+  btnTd.appendChild(rm);
+  tr.appendChild(btnTd);
+
+  return tr;
+}
+
+function renderObsRows() {
+  tbody.replaceChildren(...state.observations.map(buildObsRow));
+}
+
+function renderTimestampLocal() {
+  const d = new Date(state.timestampUTC);
+  tsLocal.textContent = Number.isNaN(d.getTime())
+    ? "(invalid)"
+    : "(" + d.toLocaleString() + ")";
+}
+
+function reparseObsFromDom() {
+  const rows = [...tbody.querySelectorAll("tr")];
+  const next = rows.map((tr, idx) => {
+    const prev = state.observations[idx] || {};
+    const get = (n) => tr.querySelector(`[data-field=${n}]`).value;
+    const mode = get("mode");
+    const v1 = get("v1");
+    const v2 = get("v2");
+    let dir;
+    try {
+      if (mode === "radec") {
+        dir = { mode, raHours: parseRaToHours(v1), decDeg: parseDecToDegrees(v2) };
+      } else {
+        dir = { mode, azDeg: parseDmsToDecimal(v1), altDeg: parseDmsToDecimal(v2) };
+      }
+    } catch (e) {
+      console.warn(`Observation ${idx}: bad direction (${e.message})`);
+      return null;
+    }
+    let latDeg, lonDeg;
+    try {
+      latDeg = parseDmsToDecimal(get("lat"));
+      lonDeg = parseDmsToDecimal(get("lon"));
+    } catch (e) {
+      console.warn(`Observation ${idx}: bad lat/lon (${e.message})`);
+      return null;
+    }
+    return {
+      id: prev.id || `obs-${idx}`,
+      name: get("name") || `Obs ${idx + 1}`,
+      color: prev.color || PALETTE[idx % PALETTE.length],
+      latDeg, lonDeg,
+      elevM: Number(get("elev") || 0),
+      dir,
+      rawLat: get("lat"), rawLon: get("lon"),
+      rawV1: v1, rawV2: v2,
+    };
+  }).filter(Boolean);
+
+  if (next.length >= 2) {
+    state.observations = next;
+    state.timestampUTC = tsInput.value;
+    renderTimestampLocal();
+    recompute();
+  }
+}
+
+tbody.addEventListener("input", reparseObsFromDom);
+tbody.addEventListener("change", reparseObsFromDom);
+tsInput.addEventListener("input", reparseObsFromDom);
+
+tbody.addEventListener("click", (ev) => {
+  if (ev.target.classList && ev.target.classList.contains("remove")) {
+    const idx = Number(ev.target.closest("tr").dataset.idx);
+    state.observations.splice(idx, 1);
+    renderObsRows();
+    if (state.observations.length >= 2) recompute();
+  }
+});
+
+addBtn.addEventListener("click", () => {
+  const idx = state.observations.length;
+  state.observations.push({
+    id: `obs-${idx}`,
+    name: `Obs ${idx + 1}`,
+    color: PALETTE[idx % PALETTE.length],
+    latDeg: 0, lonDeg: 0, elevM: 0,
+    dir: { mode: "radec", raHours: 0, decDeg: 0 },
+  });
+  renderObsRows();
+});
+
+renderObsRows();
+renderTimestampLocal();
 recompute();
