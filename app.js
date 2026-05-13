@@ -369,6 +369,52 @@ addBtn.addEventListener("click", () => {
   renderObsRows();
 });
 
+const elTri = document.getElementById("result-triangulated");
+const elRes = document.getElementById("result-residuals");
+
+function setBlock(el, headerText, lines) {
+  el.replaceChildren();
+  const hdr = document.createElement("span");
+  hdr.className = "label";
+  hdr.textContent = headerText;
+  el.appendChild(hdr);
+  for (const line of lines) {
+    el.appendChild(document.createTextNode("\n" + line));
+  }
+}
+
+function renderResultPanel() {
+  if (!state.triangulated) {
+    elTri.textContent = "Need >= 2 valid observations.";
+    elRes.textContent = "";
+    return;
+  }
+  const cart = Cesium.Cartographic.fromCartesian(
+    Cesium.Cartesian3.fromElements(...state.triangulated)
+  );
+  const latDeg = Cesium.Math.toDegrees(cart.latitude);
+  const lonDeg = Cesium.Math.toDegrees(cart.longitude);
+  const altKm  = cart.height / 1000;
+  setBlock(elTri, "Triangulated", [
+    `lat  ${latDeg.toFixed(5)}°`,
+    `lon  ${lonDeg.toFixed(5)}°`,
+    `alt  ${altKm.toFixed(2)} km`,
+  ]);
+
+  const lines = state.residuals.map((r, i) => {
+    const name = state.observations[i]?.name ?? `Obs ${i}`;
+    return `${name.padEnd(10)} ${(r / 1000).toFixed(3)} km`;
+  });
+  setBlock(elRes, "Per-ray residuals", lines);
+}
+
+// Compose renderResultPanel onto recompute.
+const _recompute1 = recompute;
+recompute = function () {
+  _recompute1();
+  renderResultPanel();
+};
+
 renderObsRows();
 renderTimestampLocal();
 recompute();
