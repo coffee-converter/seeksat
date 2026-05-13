@@ -42,3 +42,68 @@ export function parseRaToHours(str) {
 export function parseDecToDegrees(str) {
   return parseDmsToDecimal(str);
 }
+
+export function raDecToEciDir(raHours, decDeg) {
+  const ra = raHours * HOUR;
+  const dec = decDeg * DEG;
+  const cd = Math.cos(dec);
+  return [cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec)];
+}
+
+export function altAzToEnuDir(altDeg, azDeg) {
+  const alt = altDeg * DEG;
+  const az = azDeg * DEG;
+  const ca = Math.cos(alt);
+  return [Math.sin(az) * ca, Math.cos(az) * ca, Math.sin(alt)];
+}
+
+const WGS84_A = 6378137.0;
+const WGS84_F = 1 / 298.257223563;
+const WGS84_E2 = WGS84_F * (2 - WGS84_F);
+
+export function geodeticToEcef(latDeg, lonDeg, elevM = 0) {
+  const lat = latDeg * DEG;
+  const lon = lonDeg * DEG;
+  const sinLat = Math.sin(lat);
+  const cosLat = Math.cos(lat);
+  const N = WGS84_A / Math.sqrt(1 - WGS84_E2 * sinLat * sinLat);
+  return [
+    (N + elevM) * cosLat * Math.cos(lon),
+    (N + elevM) * cosLat * Math.sin(lon),
+    (N * (1 - WGS84_E2) + elevM) * sinLat,
+  ];
+}
+
+// GMST in radians via IAU 1982 model. Accurate to a few arc-seconds
+// for ISS-altitude work -- well below amateur eyeball angular noise.
+export function gmstFromDate(jsDate) {
+  const jd = jsDate.getTime() / 86400000 + 2440587.5;
+  const T = (jd - 2451545.0) / 36525.0;
+  let gmstSec = 67310.54841
+    + (876600 * 3600 + 8640184.812866) * T
+    + 0.093104 * T * T
+    - 6.2e-6 * T * T * T;
+  gmstSec = ((gmstSec % 86400) + 86400) % 86400;
+  return (gmstSec / 86400) * 2 * Math.PI;
+}
+
+// Rotate an ECI vector to ECEF via R_z(-GMST).
+export function eciToEcefRotate(v, gmst) {
+  const c = Math.cos(gmst);
+  const s = Math.sin(gmst);
+  return [c * v[0] + s * v[1], -s * v[0] + c * v[1], v[2]];
+}
+
+// Rotate a local ENU vector at (lat, lon) into ECEF.
+export function enuToEcefRotate(v, latDeg, lonDeg) {
+  const lat = latDeg * DEG;
+  const lon = lonDeg * DEG;
+  const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
+  const sinLon = Math.sin(lon), cosLon = Math.cos(lon);
+  const [e, n, u] = v;
+  return [
+    -sinLon * e - sinLat * cosLon * n + cosLat * cosLon * u,
+     cosLon * e - sinLat * sinLon * n + cosLat * sinLon * u,
+                  cosLat * n          + sinLat * u,
+  ];
+}
