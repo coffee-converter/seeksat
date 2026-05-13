@@ -11,18 +11,16 @@
   <div id="cesium-container"></div>
 
   <section id="panel-observations" class="panel panel-left">
-    <header><h2>Observations</h2></header>
-    <div class="timestamp-row">
-      <label>UTC <input id="ts-utc" type="text" value="2026-05-11T15:32:29Z" /></label>
-      <span id="ts-local" class="hint"></span>
-    </div>
-    <table id="obs-table">
-      <thead>
-        <tr><th>Name</th><th>Lat</th><th>Lon</th><th>Elev (m)</th><th>Mode</th><th>v1</th><th>v2</th><th aria-label="Actions"></th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <button id="add-obs" type="button">+ Add observation</button>
+    <details id="obs-details" open>
+      <summary><h2>Observations</h2></summary>
+      <div class="timestamp-row">
+        <label>UTC <input id="ts-utc" type="text" value="2026-05-12T03:32:29Z" /></label>
+        <span id="ts-local" class="hint"></span>
+      </div>
+      <div id="obs-list"></div>
+      <button id="add-obs" type="button">+ Add observation</button>
+      <p class="footnote">Adds/edits/deletes are session-only and don't write to <code>data/monday.json</code>.</p>
+    </details>
   </section>
 
   <section id="panel-result" class="panel panel-right">
