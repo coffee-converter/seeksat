@@ -88,7 +88,7 @@ function ensureElev(obs) {
     const current = state.observations.find(o => o.id === id);
     if (current && current.elevM == null) {
       current.elevM = elev;
-      renderObsRows();
+      renderObsList();
       recompute();
     }
   });
@@ -236,7 +236,7 @@ const PALETTE = ["#ff9b54", "#7fe5d1", "#c084fc", "#facc15", "#f87171"];
 
 const tsInput = document.getElementById("ts-utc");
 const tsLocal = document.getElementById("ts-local");
-const tbody   = document.querySelector("#obs-table tbody");
+const obsList = document.getElementById("obs-list");
 const addBtn  = document.getElementById("add-obs");
 
 function makeInput(field, value, attrs = {}) {
@@ -248,31 +248,35 @@ function makeInput(field, value, attrs = {}) {
   return el;
 }
 
-function makeCell(child) {
-  const td = document.createElement("td");
-  if (child) td.appendChild(child);
-  return td;
+function makeFieldLabel(text, child) {
+  const lbl = document.createElement("label");
+  lbl.appendChild(document.createTextNode(text));
+  lbl.appendChild(child);
+  return lbl;
 }
 
-function buildObsRow(obs, idx) {
-  const tr = document.createElement("tr");
-  tr.dataset.idx = String(idx);
+function buildObsCard(obs, idx) {
+  const card = document.createElement("div");
+  card.className = "obs-card";
+  card.dataset.idx = String(idx);
 
-  // Name cell: swatch + name input
-  const nameTd = document.createElement("td");
+  // Header: swatch + name + delete
+  const header = document.createElement("div");
+  header.className = "obs-card-header";
   const swatch = document.createElement("span");
   swatch.className = "color-swatch";
   swatch.style.background = obs.color;
-  nameTd.appendChild(swatch);
-  nameTd.appendChild(makeInput("name", obs.name));
-  tr.appendChild(nameTd);
-
-  tr.appendChild(makeCell(makeInput("lat", obs.rawLat ?? obs.latDeg)));
-  tr.appendChild(makeCell(makeInput("lon", obs.rawLon ?? obs.lonDeg)));
-  tr.appendChild(makeCell(makeInput("elev", obs.elevM == null ? "" : obs.elevM)));
+  header.appendChild(swatch);
+  header.appendChild(makeInput("name", obs.name));
+  const rm = document.createElement("button");
+  rm.type = "button";
+  rm.className = "remove";
+  rm.textContent = "✕";
+  rm.title = "Remove observation";
+  header.appendChild(rm);
+  card.appendChild(header);
 
   // Mode <select>
-  const modeTd = document.createElement("td");
   const sel = document.createElement("select");
   sel.dataset.field = "mode";
   for (const [val, label] of [["radec", "RA/Dec"], ["altaz", "Alt/Az"]]) {
@@ -282,8 +286,6 @@ function buildObsRow(obs, idx) {
     if (obs.dir.mode === val) opt.selected = true;
     sel.appendChild(opt);
   }
-  modeTd.appendChild(sel);
-  tr.appendChild(modeTd);
 
   const v1Default = obs.dir.mode === "radec"
     ? (obs.rawV1 ?? String(obs.dir.raHours))
@@ -291,24 +293,24 @@ function buildObsRow(obs, idx) {
   const v2Default = obs.dir.mode === "radec"
     ? (obs.rawV2 ?? String(obs.dir.decDeg))
     : (obs.rawV2 ?? String(obs.dir.altDeg));
-  tr.appendChild(makeCell(makeInput("v1", v1Default)));
-  tr.appendChild(makeCell(makeInput("v2", v2Default)));
+  const v1Label = obs.dir.mode === "radec" ? "RA" : "Az";
+  const v2Label = obs.dir.mode === "radec" ? "Dec" : "Alt";
 
-  // Remove button
-  const btnTd = document.createElement("td");
-  const rm = document.createElement("button");
-  rm.type = "button";
-  rm.className = "remove";
-  rm.textContent = "✕";
-  rm.title = "Remove";
-  btnTd.appendChild(rm);
-  tr.appendChild(btnTd);
+  const grid = document.createElement("div");
+  grid.className = "obs-grid";
+  grid.appendChild(makeFieldLabel("Lat", makeInput("lat", obs.rawLat ?? obs.latDeg)));
+  grid.appendChild(makeFieldLabel("Lon", makeInput("lon", obs.rawLon ?? obs.lonDeg)));
+  grid.appendChild(makeFieldLabel("Elev (m)", makeInput("elev", obs.elevM == null ? "" : obs.elevM)));
+  grid.appendChild(makeFieldLabel("Mode", sel));
+  grid.appendChild(makeFieldLabel(v1Label, makeInput("v1", v1Default)));
+  grid.appendChild(makeFieldLabel(v2Label, makeInput("v2", v2Default)));
+  card.appendChild(grid);
 
-  return tr;
+  return card;
 }
 
-function renderObsRows() {
-  tbody.replaceChildren(...state.observations.map(buildObsRow));
+function renderObsList() {
+  obsList.replaceChildren(...state.observations.map(buildObsCard));
 }
 
 function renderTimestampLocal() {
@@ -319,7 +321,7 @@ function renderTimestampLocal() {
 }
 
 function reparseObsFromDom() {
-  const rows = [...tbody.querySelectorAll("tr")];
+  const rows = [...obsList.querySelectorAll(".obs-card")];
   const next = rows.map((tr, idx) => {
     const prev = state.observations[idx] || {};
     const get = (n) => tr.querySelector(`[data-field=${n}]`).value;
@@ -365,15 +367,15 @@ function reparseObsFromDom() {
   }
 }
 
-tbody.addEventListener("input", reparseObsFromDom);
-tbody.addEventListener("change", reparseObsFromDom);
+obsList.addEventListener("input", reparseObsFromDom);
+obsList.addEventListener("change", reparseObsFromDom);
 tsInput.addEventListener("input", reparseObsFromDom);
 
-tbody.addEventListener("click", (ev) => {
+obsList.addEventListener("click", (ev) => {
   if (ev.target.classList && ev.target.classList.contains("remove")) {
-    const idx = Number(ev.target.closest("tr").dataset.idx);
+    const idx = Number(ev.target.closest(".obs-card").dataset.idx);
     state.observations.splice(idx, 1);
-    renderObsRows();
+    renderObsList();
     if (state.observations.length >= 2) recompute();
   }
 });
@@ -381,13 +383,13 @@ tbody.addEventListener("click", (ev) => {
 addBtn.addEventListener("click", () => {
   const idx = state.observations.length;
   state.observations.push({
-    id: `obs-${idx}`,
+    id: `obs-${Date.now()}-${idx}`,
     name: `Obs ${idx + 1}`,
     color: PALETTE[idx % PALETTE.length],
-    latDeg: 0, lonDeg: 0, elevM: 0,
+    latDeg: 0, lonDeg: 0,
     dir: { mode: "radec", raHours: 0, decDeg: 0 },
   });
-  renderObsRows();
+  renderObsList();
 });
 
 const elTri = document.getElementById("result-triangulated");
@@ -605,6 +607,6 @@ function topDown() {
   });
 }
 
-renderObsRows();
+renderObsList();
 renderTimestampLocal();
 recompute();

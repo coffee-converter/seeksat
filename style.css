@@ -37,15 +37,64 @@ html, body { width: 100%; height: 100%; background: #0a0e1a; color: #e0e0e0;
 .timestamp-row input { width: 200px; }
 .hint { color: #8899bb; font-size: 11px; }
 
-#obs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-#obs-table th { text-align: left; color: #8899bb; font-weight: 500;
-  padding: 4px 4px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-#obs-table td { padding: 3px 2px; vertical-align: top; }
-#obs-table input { width: 100%; min-width: 70px; }
-#obs-table input[data-field=name] { min-width: 60px; }
-#obs-table input[data-field=v1], #obs-table input[data-field=v2] { min-width: 110px; }
-.color-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block;
-  vertical-align: middle; margin-right: 4px; border: 1px solid rgba(255,255,255,0.15); }
+#obs-details summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center;
+}
+#obs-details summary::-webkit-details-marker { display: none; }
+#obs-details summary::before {
+  content: "▾"; color: #7eb8ff; margin-right: 6px; font-size: 11px;
+  display: inline-block; transition: transform 0.15s;
+}
+#obs-details:not([open]) summary::before { transform: rotate(-90deg); }
+#obs-details summary h2 { margin-bottom: 0; }
+
+#obs-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+
+.obs-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.obs-card-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.color-swatch {
+  width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.18); display: inline-block;
+}
+.obs-card-header input[data-field=name] {
+  flex: 1; background: transparent; border: 1px solid transparent;
+  font-weight: 600; font-size: 13px; font-family: inherit;
+  padding: 3px 6px; color: #e0e0e0;
+}
+.obs-card-header input[data-field=name]:hover,
+.obs-card-header input[data-field=name]:focus {
+  background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
+  outline: none;
+}
+.obs-card-header .remove {
+  background: transparent; border: none; color: #8899bb; cursor: pointer;
+  font-size: 14px; padding: 3px 7px; margin: 0; border-radius: 4px;
+}
+.obs-card-header .remove:hover {
+  background: rgba(248,113,113,0.12); color: #f87171;
+}
+
+.obs-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 8px;
+}
+.obs-grid label {
+  display: flex; flex-direction: column; gap: 3px;
+  font-size: 9px; color: #8899bb; text-transform: uppercase;
+  letter-spacing: 0.06em; font-weight: 500;
+}
+.obs-grid label input,
+.obs-grid label select { width: 100%; box-sizing: border-box; }
+
+.footnote { color: #6a7a9a; font-size: 10px; margin-top: 6px; line-height: 1.4; }
+.footnote code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px;
+  background: rgba(255,255,255,0.04); padding: 1px 4px; border-radius: 3px; }
 
 .result-block { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
   background: rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 6px;
