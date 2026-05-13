@@ -415,6 +415,110 @@ recompute = function () {
   renderResultPanel();
 };
 
+import { tlePositionEcef } from "./truth.js";
+
+const tleL1 = document.getElementById("tle-line1");
+const tleL2 = document.getElementById("tle-line2");
+const tleL3 = document.getElementById("tle-line3");
+const elTruth = document.getElementById("result-truth");
+
+const truthLayer = { entity: null, miss: null };
+
+function clearTruthLayer() {
+  if (truthLayer.entity) viewer.entities.remove(truthLayer.entity);
+  if (truthLayer.miss) viewer.entities.remove(truthLayer.miss);
+  truthLayer.entity = null;
+  truthLayer.miss = null;
+}
+
+function pickTleLines() {
+  const l1 = tleL1.value.trim();
+  const l2 = tleL2.value.trim();
+  const l3 = tleL3.value.trim();
+  if (l1.startsWith("1 ") && l2.startsWith("2 ")) return [l1, l2];
+  if (l2.startsWith("1 ") && l3.startsWith("2 ")) return [l2, l3];
+  return null;
+}
+
+function renderTruth() {
+  clearTruthLayer();
+  elTruth.textContent = "";
+  const lines = pickTleLines();
+  if (!lines) return;
+  const [line1, line2] = lines;
+
+  let pos;
+  try {
+    pos = tlePositionEcef(line1, line2, new Date(state.timestampUTC));
+  } catch (e) {
+    elTruth.textContent = `TLE error: ${e.message}`;
+    return;
+  }
+  if (!pos) {
+    elTruth.textContent = "TLE propagation returned no position.";
+    return;
+  }
+
+  truthLayer.entity = viewer.entities.add({
+    position: Cesium.Cartesian3.fromElements(...pos),
+    point: {
+      pixelSize: 12,
+      color: Cesium.Color.fromCssColorString("#7eb8ff").withAlpha(0.6),
+      outlineColor: Cesium.Color.fromCssColorString("#7eb8ff"),
+      outlineWidth: 2,
+    },
+    label: {
+      text: "Truth (TLE)",
+      font: "12px sans-serif",
+      pixelOffset: new Cesium.Cartesian2(14, 10),
+      fillColor: Cesium.Color.fromCssColorString("#7eb8ff"),
+      showBackground: true,
+      backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
+      backgroundPadding: new Cesium.Cartesian2(6, 4),
+    },
+  });
+
+  if (state.triangulated) {
+    const miss = Math.hypot(
+      pos[0] - state.triangulated[0],
+      pos[1] - state.triangulated[1],
+      pos[2] - state.triangulated[2],
+    );
+    truthLayer.miss = viewer.entities.add({
+      polyline: {
+        positions: [
+          Cesium.Cartesian3.fromElements(...state.triangulated),
+          Cesium.Cartesian3.fromElements(...pos),
+        ],
+        width: 2,
+        material: new Cesium.PolylineDashMaterialProperty({
+          color: Cesium.Color.fromCssColorString("#cfe0ff"),
+          dashLength: 12,
+        }),
+        arcType: Cesium.ArcType.NONE,
+      },
+    });
+    const cart = Cesium.Cartographic.fromCartesian(
+      Cesium.Cartesian3.fromElements(...pos)
+    );
+    setBlock(elTruth, "Truth (TLE)", [
+      `lat  ${Cesium.Math.toDegrees(cart.latitude).toFixed(5)}°`,
+      `lon  ${Cesium.Math.toDegrees(cart.longitude).toFixed(5)}°`,
+      `alt  ${(cart.height / 1000).toFixed(2)} km`,
+      `Δ    ${(miss / 1000).toFixed(2)} km`,
+    ]);
+  }
+}
+
+[tleL1, tleL2, tleL3].forEach(el => el.addEventListener("input", renderTruth));
+
+// Compose renderTruth onto recompute.
+const _recompute2 = recompute;
+recompute = function () {
+  _recompute2();
+  renderTruth();
+};
+
 renderObsRows();
 renderTimestampLocal();
 recompute();
