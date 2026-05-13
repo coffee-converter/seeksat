@@ -519,6 +519,58 @@ recompute = function () {
   renderTruth();
 };
 
+document.getElementById("camera-controls").addEventListener("click", (ev) => {
+  const cam = ev.target?.dataset?.cam;
+  if (!cam) return;
+  switch (cam) {
+    case "frame":   return frameAll();
+    case "coffee":  return viewFromObserver(0);
+    case "seafoam": return viewFromObserver(1);
+    case "top":     return topDown();
+  }
+});
+
+function viewFromObserver(idx) {
+  const obs = state.observations[idx];
+  if (!obs || !state.triangulated) return;
+  const origin = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
+  const target = state.triangulated;
+  const dir = [target[0]-origin[0], target[1]-origin[1], target[2]-origin[2]];
+  const L = Math.hypot(...dir);
+  const dirUnit = [dir[0]/L, dir[1]/L, dir[2]/L];
+  // Stand back ~50 m behind the observer along the sightline.
+  const camPos = [
+    origin[0] - dirUnit[0]*50,
+    origin[1] - dirUnit[1]*50,
+    origin[2] - dirUnit[2]*50,
+  ];
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromElements(...camPos),
+    orientation: {
+      direction: Cesium.Cartesian3.fromElements(...dirUnit),
+      up: Cesium.Cartesian3.normalize(
+        Cesium.Cartesian3.fromElements(...origin), new Cesium.Cartesian3()),
+    },
+    duration: 1.2,
+  });
+}
+
+function topDown() {
+  if (!state.triangulated) return frameAll();
+  const cart = Cesium.Cartographic.fromCartesian(
+    Cesium.Cartesian3.fromElements(...state.triangulated)
+  );
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(
+      Cesium.Math.toDegrees(cart.longitude),
+      Cesium.Math.toDegrees(cart.latitude),
+      2_000_000
+    ),
+    orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+    duration: 1.2,
+  });
+}
+
 renderObsRows();
 renderTimestampLocal();
 recompute();
