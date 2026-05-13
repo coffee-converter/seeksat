@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISS Triangulation</title>
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="cesium-container"></div>
+
+  <section id="panel-observations" class="panel panel-left">
+    <header><h2>Observations</h2></header>
+    <div class="timestamp-row">
+      <label>UTC <input id="ts-utc" type="text" value="2026-05-11T15:32:29Z" /></label>
+      <span id="ts-local" class="hint"></span>
+    </div>
+    <table id="obs-table">
+      <thead>
+        <tr><th>Name</th><th>Lat</th><th>Lon</th><th>Elev (m)</th><th>Mode</th><th>v1</th><th>v2</th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button id="add-obs" type="button">+ Add observation</button>
+  </section>
+
+  <section id="panel-result" class="panel panel-right">
+    <header><h2>Result</h2></header>
+    <div id="result-triangulated" class="result-block"></div>
+    <div id="result-residuals" class="result-block"></div>
+    <details id="tle-details">
+      <summary>Compare to TLE truth</summary>
+      <textarea id="tle-line1" placeholder="ISS (ZARYA)"></textarea>
+      <textarea id="tle-line2" placeholder="1 25544U ..."></textarea>
+      <textarea id="tle-line3" placeholder="2 25544 ..."></textarea>
+      <div id="result-truth" class="result-block"></div>
+    </details>
+  </section>
+
+  <nav id="camera-controls">
+    <button data-cam="frame">Frame all</button>
+    <button data-cam="coffee">From Coffee</button>
+    <button data-cam="seafoam">From SeaFoam</button>
+    <button data-cam="top">Top down</button>
+  </nav>
+
+  <footer id="credit">
+    ISS triangulation · Coffee + SEA FOAM · 2026-05-11 10:32:29 CDT
+  </footer>
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+  <script src="https://unpkg.com/satellite.js@5.0.0/dist/satellite.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
