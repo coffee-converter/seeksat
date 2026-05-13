@@ -17,6 +17,7 @@ import {
   parseDecToDegrees,
 } from "./coords.js";
 import { triangulateRays } from "./triangulate.js";
+import { lookupElev } from "./elevation.js";
 
 const Cesium = window.Cesium;
 
@@ -80,6 +81,19 @@ function clearLayer() {
   layer.triangulated = null;
 }
 
+function ensureElev(obs) {
+  if (obs.elevM != null) return;
+  const id = obs.id;
+  lookupElev(obs.latDeg, obs.lonDeg).then(elev => {
+    const current = state.observations.find(o => o.id === id);
+    if (current && current.elevM == null) {
+      current.elevM = elev;
+      renderObsRows();
+      recompute();
+    }
+  });
+}
+
 function buildRay(obs, jsDate) {
   const origin = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
   let dirEcef;
@@ -94,6 +108,7 @@ function buildRay(obs, jsDate) {
 }
 
 let recompute = function () {
+  for (const obs of state.observations) ensureElev(obs);
   clearLayer();
   const jsDate = new Date(state.timestampUTC);
   if (Number.isNaN(jsDate.getTime()) || state.observations.length < 2) {
@@ -254,7 +269,7 @@ function buildObsRow(obs, idx) {
 
   tr.appendChild(makeCell(makeInput("lat", obs.rawLat ?? obs.latDeg)));
   tr.appendChild(makeCell(makeInput("lon", obs.rawLon ?? obs.lonDeg)));
-  tr.appendChild(makeCell(makeInput("elev", obs.elevM ?? 0)));
+  tr.appendChild(makeCell(makeInput("elev", obs.elevM == null ? "" : obs.elevM)));
 
   // Mode <select>
   const modeTd = document.createElement("td");
@@ -335,7 +350,7 @@ function reparseObsFromDom() {
       name: get("name") || `Obs ${idx + 1}`,
       color: prev.color || PALETTE[idx % PALETTE.length],
       latDeg, lonDeg,
-      elevM: Number(get("elev")) || 0,
+      elevM: get("elev").trim() === "" ? null : (Number(get("elev")) || 0),
       dir,
       rawLat: get("lat"), rawLon: get("lon"),
       rawV1: v1, rawV2: v2,
