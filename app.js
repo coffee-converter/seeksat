@@ -248,11 +248,22 @@ function makeInput(field, value, attrs = {}) {
   return el;
 }
 
-function makeFieldLabel(text, child) {
-  const lbl = document.createElement("label");
-  lbl.appendChild(document.createTextNode(text));
-  lbl.appendChild(child);
-  return lbl;
+function makeField(labelText, child) {
+  const wrap = document.createElement("label");
+  wrap.className = "field";
+  const lbl = document.createElement("span");
+  lbl.className = "field-label";
+  lbl.textContent = labelText;
+  wrap.appendChild(lbl);
+  wrap.appendChild(child);
+  return wrap;
+}
+
+function makeRow(...children) {
+  const row = document.createElement("div");
+  row.className = "obs-row";
+  for (const c of children) row.appendChild(c);
+  return row;
 }
 
 function buildObsCard(obs, idx) {
@@ -296,15 +307,18 @@ function buildObsCard(obs, idx) {
   const v1Label = obs.dir.mode === "radec" ? "RA" : "Az";
   const v2Label = obs.dir.mode === "radec" ? "Dec" : "Alt";
 
-  const grid = document.createElement("div");
-  grid.className = "obs-grid";
-  grid.appendChild(makeFieldLabel("Lat", makeInput("lat", obs.rawLat ?? obs.latDeg)));
-  grid.appendChild(makeFieldLabel("Lon", makeInput("lon", obs.rawLon ?? obs.lonDeg)));
-  grid.appendChild(makeFieldLabel("Elev (m)", makeInput("elev", obs.elevM == null ? "" : obs.elevM)));
-  grid.appendChild(makeFieldLabel("Mode", sel));
-  grid.appendChild(makeFieldLabel(v1Label, makeInput("v1", v1Default)));
-  grid.appendChild(makeFieldLabel(v2Label, makeInput("v2", v2Default)));
-  card.appendChild(grid);
+  card.appendChild(makeRow(
+    makeField("Lat", makeInput("lat", obs.rawLat ?? obs.latDeg)),
+    makeField("Lon", makeInput("lon", obs.rawLon ?? obs.lonDeg)),
+    makeField("Elev", makeInput("elev", obs.elevM == null ? "" : obs.elevM)),
+  ));
+  const dirRow = makeRow(
+    makeField("Mode", sel),
+    makeField(v1Label, makeInput("v1", v1Default)),
+    makeField(v2Label, makeInput("v2", v2Default)),
+  );
+  dirRow.classList.add("mode-row");
+  card.appendChild(dirRow);
 
   return card;
 }
