@@ -35,7 +35,7 @@ function bisect(predicate, t0, t1, wasTrue) {
     if (v === wasTrue) lo = mid; else hi = mid;
   }
   // hi is now the first sample where the value has flipped
-  return wasTrue ? hi : hi;
+  return hi;
 }
 
 // Convenience: walk windows using the full predicate (observers, issEcef, date).
