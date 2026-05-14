@@ -3,7 +3,7 @@
   "observations": [
     {
       "id": "coffee",
-      "name": "Coffee",
+      "name": "CoffeeConverter",
       "color": "#ff9b54",
       "latDeg": 42.154417,
       "lonDeg": -88.199972,
