@@ -36,7 +36,7 @@
 }
 
 .window-row {
-  display: grid; grid-template-columns: 1fr 55px 45px 45px;
+  display: grid; grid-template-columns: 1fr 55px 40px 65px;
   gap: 6px; padding: 5px 6px; cursor: pointer;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
   border-radius: 4px;
