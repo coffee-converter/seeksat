@@ -91,12 +91,14 @@ function addObserver(name, latDeg, lonDeg) {
   // Combined sightline + altitude label entity, visible only while ISS is
   // visible from THIS observer (alt >= 10°, ISS sunlit, observer in twilight).
   const obsPos = Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0);
+  // Visibility predicate evaluated per frame. Entity.show isn't reliably a
+  // Property in Cesium 1.x, so we use polyline.show + label.show instead.
+  const visibleNow = (time) => {
+    const d = Cesium.JulianDate.toDate(time);
+    const issEcef = issEcefAt(d);
+    return !!(issEcef && isVisibleAtAll([obs], issEcef, d));
+  };
   const visEntity = viewer.entities.add({
-    show: new Cesium.CallbackProperty((time) => {
-      const d = Cesium.JulianDate.toDate(time);
-      const issEcef = issEcefAt(d);
-      return !!(issEcef && isVisibleAtAll([obs], issEcef, d));
-    }, false),
     position: new Cesium.CallbackProperty((time) => {
       const d = Cesium.JulianDate.toDate(time);
       const issEcef = issEcefAt(d);
@@ -105,6 +107,7 @@ function addObserver(name, latDeg, lonDeg) {
       return Cesium.Cartesian3.midpoint(obsPos, issPos, new Cesium.Cartesian3());
     }, false),
     polyline: {
+      show: new Cesium.CallbackProperty(visibleNow, false),
       positions: new Cesium.CallbackProperty((time) => {
         const d = Cesium.JulianDate.toDate(time);
         const issEcef = issEcefAt(d);
@@ -119,6 +122,7 @@ function addObserver(name, latDeg, lonDeg) {
       arcType: Cesium.ArcType.NONE,
     },
     label: {
+      show: new Cesium.CallbackProperty(visibleNow, false),
       text: new Cesium.CallbackProperty((time) => {
         const d = Cesium.JulianDate.toDate(time);
         const issEcef = issEcefAt(d);
