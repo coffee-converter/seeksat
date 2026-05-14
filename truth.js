@@ -19,7 +19,7 @@ export function tlePositionEcef(line1, line2, jsDate) {
 // (snapshot in the Earth-fixed frame at the observation moment), so the
 // drawn polyline shows the geometric orbit shape rather than a wobbly
 // ground track. Returns an array of [x,y,z] in meters.
-export function tleOrbitTrackEcef(line1, line2, jsCenterDate, periodMin = 93, samples = 144) {
+export function tleOrbitTrackEcef(line1, line2, jsCenterDate, periodMin = 93, samples = 360) {
   if (!sat) throw new Error("satellite.js not loaded");
   const satrec = sat.twoline2satrec(line1.trim(), line2.trim());
   const periodMs = periodMin * 60 * 1000;
