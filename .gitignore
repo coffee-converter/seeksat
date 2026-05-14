@@ -1,3 +1,10 @@
 .DS_Store
 node_modules/
 *.log
+
+# Large source assets used to generate the committed cubemap faces.
+# Keep the 6 final JPGs in git; keep the EXR sources / intermediates out.
+assets/stars/raw/
+assets/stars/*.exr
+assets/stars/*.tif
+assets/stars/cube_strip*

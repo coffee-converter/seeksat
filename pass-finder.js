@@ -8,39 +8,13 @@ import { sunPositionEcef } from "./pass-finder/sun.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
 import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
+import * as sat from "https://cdn.jsdelivr.net/npm/satellite.js@7.0.0/+esm";
+import { makeViewer, wireSimTime } from "./viewer-setup.js";
+import { wireCameraControls } from "./camera-controls.js";
 
 const Cesium = window.Cesium;
-const sat = window.satellite;
-
-const viewer = new Cesium.Viewer("cesium-container", {
-  baseLayerPicker: false,
-  geocoder: false,
-  homeButton: false,
-  sceneModePicker: false,
-  navigationHelpButton: false,
-  animation: false,
-  timeline: false,
-  fullscreenButton: false,
-  infoBox: false,
-  selectionIndicator: false,
-  shouldAnimate: false,
-});
-
-// Use Esri imagery (no Cesium Ion auth needed).
-viewer.imageryLayers.removeAll();
-viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
-  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  credit: "Tiles © Esri, Maxar, Earthstar Geographics",
-  maximumLevel: 19,
-}));
-
-viewer.scene.skyBox.show = true;
-viewer.scene.skyAtmosphere.show = true;
-viewer.scene.globe.enableLighting = true;
-viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");
-viewer.cesiumWidget.creditContainer.style.display = "none";
-viewer.scene.msaaSamples = 4;
-viewer.scene.postProcessStages.fxaa.enabled = true;
+const viewer = makeViewer("cesium-container");
+wireSimTime(viewer);
 
 window.__viewer = viewer;
 console.log("Pass finder viewer ready");
@@ -479,6 +453,19 @@ state.windows = [];
 state.activeWindowIdx = -1;
 state.searchEndMs = null;
 
+// Default the clock to "now" running at real time so the page shows the
+// current ISS position as soon as it loads. startTime stays at "now" so
+// Reset returns here; stopTime far enough out that real-time playback
+// doesn't bump into ClockRange.CLAMPED before the user runs a search.
+{
+  const nowJd = Cesium.JulianDate.fromDate(new Date());
+  viewer.clock.startTime = nowJd;
+  viewer.clock.stopTime  = Cesium.JulianDate.addDays(nowJd, 7, new Cesium.JulianDate());
+  viewer.clock.currentTime = nowJd;
+  viewer.clock.multiplier = state.multiplier;
+  viewer.clock.shouldAnimate = true;
+}
+
 const horizonSelect = document.getElementById("horizon-select");
 const speedSelect = document.getElementById("speed-select");
 const findBtn = document.getElementById("find-passes");
@@ -709,7 +696,7 @@ function jumpToWindow(i) {
   viewer.clock.shouldAnimate = false;
   invalidateOrbitCache(); // force orbit refresh at the jumped time
   renderWindowsList();
-  frameAll(); // pull observers + ISS into view for the moment we jumped to
+  cameraCtrl.frameAll(); // pull observers + ISS into view for the moment we jumped to
 }
 
 findBtn.addEventListener("click", () => {
@@ -738,13 +725,6 @@ const playBtn = document.getElementById("play-btn");
 const pauseBtn = document.getElementById("pause-btn");
 const resetBtn = document.getElementById("reset-btn");
 
-// Bottom-center sim-time readout: updates every clock tick (~60Hz).
-const simTimeEl = document.getElementById("sim-time");
-viewer.clock.onTick.addEventListener((clock) => {
-  const d = Cesium.JulianDate.toDate(clock.currentTime);
-  simTimeEl.textContent = d.toISOString().slice(0, 19).replace("T", " ") + " UTC";
-});
-
 playBtn.addEventListener("click", () => {
   viewer.clock.shouldAnimate = true;
 });
@@ -758,122 +738,21 @@ resetBtn.addEventListener("click", () => {
   renderWindowsList();
 });
 
-// Camera presets
-document.getElementById("camera-controls").addEventListener("click", (ev) => {
-  const cam = ev.target?.dataset?.cam;
-  if (!cam) return;
-  // Re-framing presets release any orbit lock + stop auto-rotate first.
-  if (cam === "frame" || cam === "top") {
-    stopAutoRotate();
-    unlockOrbit();
-  }
-  if (cam === "frame") frameAll();
-  else if (cam === "top") topDown();
-  else if (cam === "orbit") toggleOrbitLock();
-  else if (cam === "rotate") toggleAutoRotate(ev.target);
+// Camera presets share their wiring with the triangulation page; we just
+// describe what counts as the orbit anchor (observers' centroid) and what
+// points need to stay in frame (observers + ISS at the current clock time).
+const cameraCtrl = wireCameraControls(viewer, {
+  getOrbitAnchor: () => {
+    if (!state.observers.length) return Cesium.Cartesian3.fromDegrees(0, 0, 0);
+    const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;
+    const avgLon = state.observers.reduce((s, o) => s + o.lonDeg, 0) / state.observers.length;
+    return Cesium.Cartesian3.fromDegrees(avgLon, avgLat, 0);
+  },
+  getFramePositions: () => {
+    const ps = state.observers.map(o =>
+      Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
+    const issEcef = issEcefAt(Cesium.JulianDate.toDate(viewer.clock.currentTime));
+    if (issEcef) ps.push(Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]));
+    return ps;
+  },
 });
-
-function frameAll() {
-  // Cancel any in-flight camera move so re-clicking a window (or clicking the
-  // same window twice) always re-runs the animation rather than no-op'ing.
-  viewer.camera.cancelFlight();
-  const positions = state.observers.map(o =>
-    Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
-  // Include the ISS at its current clock time so it stays in frame.
-  const issEcef = issEcefAt(Cesium.JulianDate.toDate(viewer.clock.currentTime));
-  if (issEcef) {
-    positions.push(Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]));
-  }
-  if (positions.length === 0) {
-    viewer.camera.flyHome(1.2);
-    return;
-  }
-  if (positions.length === 1) {
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(
-        state.observers[0].lonDeg, state.observers[0].latDeg, 5_000_000
-      ),
-      duration: 1.2,
-    });
-    return;
-  }
-  const bs = Cesium.BoundingSphere.fromPoints(positions);
-  viewer.camera.flyToBoundingSphere(bs, {
-    duration: 1.2,
-    offset: new Cesium.HeadingPitchRange(
-      Cesium.Math.toRadians(20),
-      Cesium.Math.toRadians(-30),
-      bs.radius * 3.5
-    ),
-  });
-}
-
-function topDown() {
-  const positions = state.observers.map(o =>
-    Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
-  const issEcef = issEcefAt(Cesium.JulianDate.toDate(viewer.clock.currentTime));
-  if (issEcef) {
-    positions.push(Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]));
-  }
-  if (!positions.length) { viewer.camera.flyHome(1.2); return; }
-  const bs = Cesium.BoundingSphere.fromPoints(positions);
-  // Project the bounding-sphere center to the ground for a top-down look-at.
-  const centerCart = Cesium.Cartographic.fromCartesian(bs.center);
-  const altitude = Math.max(2_000_000, 2.2 * bs.radius);
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(
-      Cesium.Math.toDegrees(centerCart.longitude),
-      Cesium.Math.toDegrees(centerCart.latitude),
-      altitude
-    ),
-    orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
-    duration: 1.2,
-  });
-}
-
-// Anchor for orbit lock + auto-rotate: average observer location (or Earth
-// center as a fallback). Earth-fixed so the camera frame stays stable as the
-// ISS moves through the scene.
-function orbitAnchor() {
-  if (!state.observers.length) return Cesium.Cartesian3.fromDegrees(0, 0, 0);
-  const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;
-  const avgLon = state.observers.reduce((s, o) => s + o.lonDeg, 0) / state.observers.length;
-  return Cesium.Cartesian3.fromDegrees(avgLon, avgLat, 0);
-}
-
-let orbitLocked = false;
-function lockOrbit() {
-  viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(orbitAnchor()));
-  orbitLocked = true;
-  const btn = document.querySelector('[data-cam="orbit"]');
-  if (btn) btn.classList.add("active");
-}
-function unlockOrbit() {
-  if (!orbitLocked) return;
-  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-  orbitLocked = false;
-  const btn = document.querySelector('[data-cam="orbit"]');
-  if (btn) btn.classList.remove("active");
-}
-function toggleOrbitLock() {
-  if (orbitLocked) unlockOrbit(); else lockOrbit();
-}
-
-let rotateAnim = null;
-function stopAutoRotate() {
-  if (rotateAnim) cancelAnimationFrame(rotateAnim);
-  rotateAnim = null;
-  const b = document.querySelector('[data-cam="rotate"]');
-  if (b) b.classList.remove("active");
-}
-function toggleAutoRotate(btn) {
-  if (rotateAnim) { stopAutoRotate(); return; }
-  // Auto-rotate piggybacks on orbit-lock so users can zoom/nudge while spinning.
-  if (!orbitLocked) lockOrbit();
-  btn.classList.add("active");
-  function step() {
-    viewer.camera.rotateRight(0.004);
-    rotateAnim = requestAnimationFrame(step);
-  }
-  step();
-}

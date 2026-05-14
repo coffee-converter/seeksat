@@ -19,22 +19,14 @@ import {
 import { triangulateRays } from "./triangulate.js";
 import { lookupElev } from "./elevation.js";
 import { correctRefraction } from "./refraction.js";
+import { makeViewer, wireSimTime } from "./viewer-setup.js";
+import { wireCameraControls } from "./camera-controls.js";
 
 const Cesium = window.Cesium;
 
-const viewer = new Cesium.Viewer("cesium-container", {
-  baseLayerPicker: false,
-  geocoder: false,
-  homeButton: false,
-  sceneModePicker: false,
-  navigationHelpButton: false,
-  animation: false,
-  timeline: false,
-  fullscreenButton: false,
-  infoBox: false,
-  selectionIndicator: false,
-  shouldAnimate: false, // clock is pinned to the observation moment
-});
+// Build the viewer without imagery — we install our own provider via the
+// imagery-picker dropdown below.
+const viewer = makeViewer("cesium-container", { imagery: false });
 
 // No Cesium Ion auth — list of free imagery providers with no token required.
 const IMAGERY_PROVIDERS = [
@@ -83,34 +75,7 @@ imagerySelect.value = "esri-imagery";
 imagerySelect.addEventListener("change", () => setImagery(imagerySelect.value));
 setImagery("esri-imagery");
 
-// High-res Tycho-2 8K cubemap, hosted locally in assets/stars/.
-// Source: NASA/GSFC Scientific Visualization Studio, Tycho-2 Catalogue,
-// originally distributed via Cesium/AGI sample assets.
-const STARS_BASE = "./assets/stars";
-viewer.scene.skyBox = new Cesium.SkyBox({
-  sources: {
-    positiveX: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_px.jpg`,
-    negativeX: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_mx.jpg`,
-    positiveY: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_py.jpg`,
-    negativeY: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_my.jpg`,
-    positiveZ: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_pz.jpg`,
-    negativeZ: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_mz.jpg`,
-  },
-});
-
-// Stars on, anchored to ICRF (rotate with time so observation moment is accurate).
-viewer.scene.skyBox.show = true;
-viewer.scene.skyAtmosphere.show = true;
-viewer.scene.globe.enableLighting = true;
-viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");
-
-// Anti-aliasing — MSAA (WebGL 2) for primary geometry edges, FXAA for any
-// remaining shader-edge artifacts. Smooths the jagged Earth limb.
-viewer.scene.msaaSamples = 4;
-viewer.scene.postProcessStages.fxaa.enabled = true;
-
-// Hide the Cesium logo overlay (optional but cleaner UI).
-viewer.cesiumWidget.creditContainer.style.display = "none";
+wireSimTime(viewer, { precision: 4 }); // observation timestamp has 4-decimal sub-seconds
 
 window.__viewer = viewer; // for debugging in dev console
 console.log("Cesium viewer ready");
@@ -322,25 +287,6 @@ function formatTriangulatedLabel() {
   return `Triangulated · ${(cart.height / 1000).toFixed(1)} km`;
 }
 
-function frameAll() {
-  if (layer.observers.length) setObserverVisibility(-1);
-  const positions = state.observations.map(o =>
-    Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, (o.elevM || 0))
-  );
-  if (state.triangulated) {
-    positions.push(Cesium.Cartesian3.fromElements(...state.triangulated));
-  }
-  if (positions.length === 0) return;
-  const bs = Cesium.BoundingSphere.fromPoints(positions);
-  viewer.camera.flyToBoundingSphere(bs, {
-    duration: 1.2,
-    offset: new Cesium.HeadingPitchRange(
-      Cesium.Math.toRadians(20),
-      Cesium.Math.toRadians(-30),
-      bs.radius * 3.5
-    ),
-  });
-}
 
 const PALETTE = ["#ff9b54", "#7fe5d1", "#c084fc", "#facc15", "#f87171"];
 
@@ -716,68 +662,26 @@ recompute = function () {
   renderTruth();
 };
 
-document.getElementById("camera-controls").addEventListener("click", (ev) => {
-  const cam = ev.target?.dataset?.cam;
-  if (!cam) return;
-  // Camera presets that re-frame should release the orbit lock + stop auto-rotation.
-  if (cam === "frame" || cam === "coffee" || cam === "seafoam" || cam === "top") {
-    stopAutoRotate();
-    unlockOrbit();
-  }
-  switch (cam) {
-    case "frame":   return frameAll();
-    case "coffee":  return viewFromObserver(0);
-    case "seafoam": return viewFromObserver(1);
-    case "top":     return topDown();
-    case "orbit":   return toggleOrbitLock(ev.target);
-    case "rotate":  return toggleAutoRotate(ev.target);
-  }
+const cameraCtrl = wireCameraControls(viewer, {
+  getOrbitAnchor: () => state.triangulated
+    ? Cesium.Cartesian3.fromElements(...state.triangulated)
+    : null,
+  getFramePositions: () => {
+    const ps = state.observations.map(o =>
+      Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, o.elevM || 0));
+    if (state.triangulated) ps.push(Cesium.Cartesian3.fromElements(...state.triangulated));
+    return ps;
+  },
+  getTopDownCenter: () => state.triangulated
+    ? Cesium.Cartesian3.fromElements(...state.triangulated)
+    : null,
+  topDownAltitude: () => 2_000_000,
+  beforePreset: () => { if (layer.observers.length) setObserverVisibility(-1); },
+  extraHandlers: {
+    coffee:  () => viewFromObserver(0),
+    seafoam: () => viewFromObserver(1),
+  },
 });
-
-let orbitLocked = false;
-function lockOrbit() {
-  if (!state.triangulated) return false;
-  const target = Cesium.Cartesian3.fromElements(...state.triangulated);
-  // Anchor the camera's reference frame to the triangulated point WITHOUT moving
-  // the camera. While the transform is set, default mouse controls become orbital:
-  // left-drag = rotate around point, wheel = zoom toward point, middle-drag = tilt.
-  viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(target));
-  orbitLocked = true;
-  const btn = document.querySelector('[data-cam="orbit"]');
-  if (btn) btn.classList.add("active");
-  return true;
-}
-function unlockOrbit() {
-  if (!orbitLocked) return;
-  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-  orbitLocked = false;
-  const btn = document.querySelector('[data-cam="orbit"]');
-  if (btn) btn.classList.remove("active");
-}
-function toggleOrbitLock() {
-  if (orbitLocked) unlockOrbit(); else lockOrbit();
-}
-
-let rotateAnim = null;
-function stopAutoRotate(btn) {
-  if (rotateAnim) cancelAnimationFrame(rotateAnim);
-  rotateAnim = null;
-  const b = btn ?? document.querySelector('[data-cam="rotate"]');
-  if (b) b.classList.remove("active");
-}
-function toggleAutoRotate(btn) {
-  if (rotateAnim) { stopAutoRotate(btn); return; }
-  if (!state.triangulated) return;
-  // Auto-rotate piggybacks on orbit-lock mode so the user can zoom / nudge with
-  // the mouse while the camera spins.
-  if (!orbitLocked) lockOrbit();
-  btn.classList.add("active");
-  function step() {
-    viewer.camera.rotateRight(0.004); // ~14°/sec at 60fps
-    rotateAnim = requestAnimationFrame(step);
-  }
-  step();
-}
 
 function setObserverVisibility(hiddenIdx) {
   for (let i = 0; i < layer.observers.length; i++) {
@@ -788,43 +692,60 @@ function setObserverVisibility(hiddenIdx) {
 function viewFromObserver(idx) {
   const obs = state.observations[idx];
   if (!obs || !state.triangulated) return;
-  setObserverVisibility(idx);
+  // Keep all observers visible — camera sits 50 m behind the observer so the
+  // pin/label is in the foreground rather than blocking the lens.
   const origin = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
   const target = state.triangulated;
   const dir = [target[0]-origin[0], target[1]-origin[1], target[2]-origin[2]];
   const L = Math.hypot(...dir);
   const dirUnit = [dir[0]/L, dir[1]/L, dir[2]/L];
-  // Stand back ~50 m behind the observer along the sightline.
-  const camPos = [
-    origin[0] - dirUnit[0]*50,
-    origin[1] - dirUnit[1]*50,
-    origin[2] - dirUnit[2]*50,
+  // Local geodetic up at the observer (ECEF). Spherical-Earth approximation is
+  // accurate enough here for camera placement (sub-meter at WGS84 scales).
+  const R = Math.hypot(...origin);
+  const up = [origin[0]/R, origin[1]/R, origin[2]/R];
+  // Project the sightline onto the local horizontal plane so "behind the
+  // observer along the sightline" doesn't mean "underground" when the ISS is
+  // high overhead. Step 50 m back horizontally and lift the camera 3 m up so
+  // it sits at roughly eye level rather than dipping into surface imagery.
+  const dotUp = dirUnit[0]*up[0] + dirUnit[1]*up[1] + dirUnit[2]*up[2];
+  const dh = [
+    dirUnit[0] - dotUp*up[0],
+    dirUnit[1] - dotUp*up[1],
+    dirUnit[2] - dotUp*up[2],
   ];
+  const Lh = Math.hypot(...dh) || 1;
+  const dirHoriz = [dh[0]/Lh, dh[1]/Lh, dh[2]/Lh];
+  const camPos = [
+    origin[0] - dirHoriz[0]*50 + up[0]*3,
+    origin[1] - dirHoriz[1]*50 + up[1]*3,
+    origin[2] - dirHoriz[2]*50 + up[2]*3,
+  ];
+  // View center = angular bisector of (camera→observer) and (camera→ISS) so
+  // the observer/ground sit in the lower frame and the ISS sits in the upper.
+  // Aiming straight at the ISS would push the ground off the bottom edge.
+  const toObs = [origin[0]-camPos[0], origin[1]-camPos[1], origin[2]-camPos[2]];
+  const Lo = Math.hypot(...toObs);
+  const toIss = [target[0]-camPos[0], target[1]-camPos[1], target[2]-camPos[2]];
+  const Li = Math.hypot(...toIss);
+  const sum = [
+    toObs[0]/Lo + toIss[0]/Li,
+    toObs[1]/Lo + toIss[1]/Li,
+    toObs[2]/Lo + toIss[2]/Li,
+  ];
+  const Ls = Math.hypot(...sum);
+  const aimUnit = [sum[0]/Ls, sum[1]/Ls, sum[2]/Ls];
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromElements(...camPos),
     orientation: {
-      direction: Cesium.Cartesian3.fromElements(...dirUnit),
-      up: Cesium.Cartesian3.normalize(
-        Cesium.Cartesian3.fromElements(...origin), new Cesium.Cartesian3()),
+      direction: Cesium.Cartesian3.fromElements(...aimUnit),
+      up: Cesium.Cartesian3.fromElements(...up),
     },
     duration: 1.2,
-  });
-}
-
-function topDown() {
-  if (!state.triangulated) return frameAll();
-  if (layer.observers.length) setObserverVisibility(-1);
-  const cart = Cesium.Cartographic.fromCartesian(
-    Cesium.Cartesian3.fromElements(...state.triangulated)
-  );
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(
-      Cesium.Math.toDegrees(cart.longitude),
-      Cesium.Math.toDegrees(cart.latitude),
-      2_000_000
-    ),
-    orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
-    duration: 1.2,
+    // Both endpoints sit a few meters above the surface. Cap the arc at
+    // ~5000 ft so the camera rises gently rather than arcing up to several
+    // km, which used to trigger Cesium's auto-pitch-adjust and made the
+    // mid-flight view stare straight at the ground.
+    maximumHeight: 15240, // 50,000 ft
   });
 }
 
@@ -832,4 +753,4 @@ renderObsList();
 tsInput.value = state.timestampUTC; // show the precise value from data file
 renderTimestampLocal();
 recompute();
-frameAll(); // initial framing only; edits afterward leave the view alone
+cameraCtrl.frameAll(); // initial framing only; edits afterward leave the view alone
