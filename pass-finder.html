@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISS Pass Finder</title>
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" />
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./pass-finder.css" />
+</head>
+<body>
+  <div id="cesium-container"></div>
+
+  <section id="panel-observers" class="panel panel-left">
+    <details id="observers-details" open>
+      <summary><h2>Observers</h2></summary>
+      <div id="obs-list"></div>
+      <div class="add-row">
+        <input id="add-latlon" type="text" placeholder="lat, lon (e.g. 42°09'15.9&quot;N, 88°11'59.9&quot;W)" />
+        <button id="add-latlon-btn" type="button">Add</button>
+      </div>
+      <div class="add-row">
+        <input id="add-geocode" type="text" placeholder="place name (e.g. Brookfield, WI)" />
+        <button id="add-geocode-btn" type="button">Geocode</button>
+      </div>
+      <button id="click-place-toggle" type="button" class="toggle">Click on globe to place</button>
+    </details>
+  </section>
+
+  <section id="panel-search" class="panel panel-right">
+    <details id="tle-details" open>
+      <summary><h2>TLE</h2></summary>
+      <div id="tle-status" class="hint">fetching…</div>
+      <textarea id="tle-name" placeholder="ISS (ZARYA)"></textarea>
+      <textarea id="tle-l1" placeholder="1 25544U ..."></textarea>
+      <textarea id="tle-l2" placeholder="2 25544 ..."></textarea>
+      <button id="tle-refetch" type="button">Refetch from Celestrak</button>
+    </details>
+
+    <div class="control-row">
+      <label>Horizon
+        <select id="horizon-select">
+          <option value="3">3 days</option>
+          <option value="7" selected>7 days</option>
+          <option value="14">14 days</option>
+          <option value="30">30 days</option>
+        </select>
+      </label>
+      <label>Speed
+        <select id="speed-select">
+          <option value="1000">×1000</option>
+          <option value="4000" selected>×4000</option>
+          <option value="10000">×10000</option>
+          <option value="30000">×30000</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="control-row">
+      <button id="find-passes" type="button" class="primary">Find passes</button>
+      <button id="find-more" type="button">Find more</button>
+    </div>
+
+    <div class="control-row playback">
+      <button id="play-btn" type="button">▶ Play</button>
+      <button id="pause-btn" type="button">⏸ Pause</button>
+      <button id="reset-btn" type="button">⏮ Reset</button>
+    </div>
+
+    <h3>Windows</h3>
+    <div id="windows-list" class="result-block">No search yet.</div>
+  </section>
+
+  <nav id="camera-controls">
+    <button data-cam="frame">Frame all</button>
+    <button data-cam="top">Top down</button>
+    <button data-cam="rotate">Auto-rotate</button>
+  </nav>
+
+  <footer id="credit">ISS Multi-Observer Pass Finder</footer>
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+  <script src="https://unpkg.com/satellite.js@5.0.0/dist/satellite.min.js"></script>
+  <script type="module" src="./pass-finder.js"></script>
+</body>
+</html>

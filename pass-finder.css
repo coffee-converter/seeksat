@@ -1,0 +1,53 @@
+/* pass-finder.css — page-specific layout, extends style.css */
+
+#panel-observers, #panel-search { max-height: calc(100vh - 32px); overflow: auto; }
+#panel-search { max-width: 380px; }
+
+.add-row { display: flex; gap: 6px; margin-top: 8px; }
+.add-row input { flex: 1; }
+.add-row button { margin-top: 0; }
+
+.toggle { width: 100%; margin-top: 10px; }
+.toggle.active {
+  background: rgba(126, 184, 255, 0.35);
+  border-color: rgba(126, 184, 255, 0.7);
+}
+
+.control-row {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 10px; flex-wrap: wrap;
+}
+.control-row label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: #8899bb; text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.control-row.playback button { margin-top: 0; }
+.control-row button.primary {
+  background: rgba(126, 184, 255, 0.3);
+  border-color: rgba(126, 184, 255, 0.65);
+}
+
+#panel-search h3 {
+  font-size: 11px; color: #7eb8ff; text-transform: uppercase;
+  letter-spacing: 0.08em; margin-top: 14px; margin-bottom: 6px;
+}
+
+.window-row {
+  display: grid; grid-template-columns: 1fr 60px 50px;
+  gap: 6px; padding: 5px 6px; cursor: pointer;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
+  border-radius: 4px;
+}
+.window-row:hover { background: rgba(126,184,255,0.12); }
+.window-row.active { background: rgba(126,184,255,0.25); }
+.window-row .time { color: #e0e0e0; }
+.window-row .dur { color: #8899bb; }
+.window-row .alt { text-align: right; }
+.window-row .alt.good { color: #ffffff; }
+.window-row .alt.ok { color: #cfe0ff; }
+.window-row .alt.poor { color: #8899bb; }
+
+#tle-status { margin-bottom: 6px; }
+#tle-status.error { color: #f87171; }
+#tle-status.ok { color: #7fe5d1; }
