@@ -2,6 +2,7 @@
 
 import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
 import { geocodeOne } from "./pass-finder/geocode.js";
+import { fetchIssTle } from "./pass-finder/tle.js";
 
 const Cesium = window.Cesium;
 const sat = window.satellite;
@@ -181,3 +182,47 @@ handler.setInputAction((click) => {
   const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
   addObserver(null, Cesium.Math.toDegrees(cartographic.latitude), Cesium.Math.toDegrees(cartographic.longitude));
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+// ---------------------------------------------------------------------------
+// Task 9: TLE panel (fetch on load, edit, refetch)
+// ---------------------------------------------------------------------------
+
+const tleNameEl = document.getElementById("tle-name");
+const tleL1El = document.getElementById("tle-l1");
+const tleL2El = document.getElementById("tle-l2");
+const tleStatusEl = document.getElementById("tle-status");
+const tleRefetchBtn = document.getElementById("tle-refetch");
+
+state.tle = null;
+
+async function loadTle() {
+  tleStatusEl.textContent = "fetching from Celestrak…";
+  tleStatusEl.className = "hint";
+  const t = await fetchIssTle();
+  if (t) {
+    tleNameEl.value = t.name;
+    tleL1El.value = t.line1;
+    tleL2El.value = t.line2;
+    state.tle = t;
+    tleStatusEl.textContent = `fetched ${new Date().toUTCString()}`;
+    tleStatusEl.className = "hint ok";
+  } else {
+    tleStatusEl.textContent = "fetch failed — paste a TLE below.";
+    tleStatusEl.className = "hint error";
+  }
+}
+
+function readTleFromUi() {
+  const name = tleNameEl.value.trim();
+  const line1 = tleL1El.value.trim();
+  const line2 = tleL2El.value.trim();
+  if (!line1.startsWith("1 ") || !line2.startsWith("2 ")) return null;
+  return { name, line1, line2 };
+}
+
+tleRefetchBtn.addEventListener("click", loadTle);
+[tleNameEl, tleL1El, tleL2El].forEach(el => el.addEventListener("input", () => {
+  state.tle = readTleFromUi();
+}));
+
+loadTle();
