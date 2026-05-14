@@ -828,6 +828,7 @@ function topDown() {
 }
 
 renderObsList();
+tsInput.value = state.timestampUTC; // show the precise value from data file
 renderTimestampLocal();
 recompute();
 frameAll(); // initial framing only; edits afterward leave the view alone
