@@ -109,15 +109,18 @@ const layer = {
   observers: [],
   rays: [],
   triangulated: null,
+  normal: null,
 };
 
 function clearLayer() {
   for (const e of layer.observers) viewer.entities.remove(e);
   for (const e of layer.rays) viewer.entities.remove(e);
   if (layer.triangulated) viewer.entities.remove(layer.triangulated);
+  if (layer.normal) viewer.entities.remove(layer.normal);
   layer.observers = [];
   layer.rays = [];
   layer.triangulated = null;
+  layer.normal = null;
 }
 
 function ensureElev(obs) {
@@ -217,6 +220,32 @@ let recompute = function () {
         arcType: Cesium.ArcType.NONE, // straight line through space
       },
     }));
+  }
+
+  // Faint dashed plumb line from triangulated point to its ground projection.
+  if (state.triangulated) {
+    const cart = Cesium.Cartographic.fromCartesian(
+      Cesium.Cartesian3.fromElements(...state.triangulated)
+    );
+    const groundEcef = Cesium.Cartesian3.fromDegrees(
+      Cesium.Math.toDegrees(cart.longitude),
+      Cesium.Math.toDegrees(cart.latitude),
+      0
+    );
+    layer.normal = viewer.entities.add({
+      polyline: {
+        positions: [
+          Cesium.Cartesian3.fromElements(...state.triangulated),
+          groundEcef,
+        ],
+        width: 1.5,
+        material: new Cesium.PolylineDashMaterialProperty({
+          color: Cesium.Color.fromCssColorString("#cfe0ff").withAlpha(0.45),
+          dashLength: 10,
+        }),
+        arcType: Cesium.ArcType.NONE,
+      },
+    });
   }
 
   // Triangulated marker with gentle pulse.
