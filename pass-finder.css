@@ -36,7 +36,7 @@
 }
 
 .window-row {
-  display: grid; grid-template-columns: 24px 1fr 55px 65px 65px;
+  display: grid; grid-template-columns: 30px 1fr 55px 65px 65px;
   align-items: center;
   gap: 6px; padding: 5px 6px; cursor: pointer;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
@@ -45,14 +45,17 @@
 .window-row:hover { background: rgba(126,184,255,0.12); }
 .window-row.active { background: rgba(126,184,255,0.25); }
 .window-row .rating {
-  font-weight: 800; font-size: 13px; text-align: center;
-  letter-spacing: 0.02em;
+  font-weight: 800; font-size: 17px; text-align: center;
+  letter-spacing: 0.02em; line-height: 1;
 }
 .window-row .rating.A { color: #34d399; }  /* excellent */
 .window-row .rating.B { color: #a3e635; }  /* good */
 .window-row .rating.C { color: #facc15; }  /* marginal */
 .window-row .rating.D { color: #f87171; }  /* poor */
-.window-row .time { color: #e0e0e0; }
+.window-row .time { color: #e0e0e0; white-space: nowrap; }
+.window-row .time.prime { color: #7fe5d1; }   /* prime evening locally */
+.window-row .time.ok    { color: #facc15; }   /* okay (late/early) */
+.window-row .time.poor  { color: #f87171; }   /* dead-of-night locally */
 .window-row .dur { color: #8899bb; }
 .window-row .dur.good { color: #7fe5d1; }  /* ≥3 min */
 .window-row .dur.ok   { color: #facc15; }  /* 1–3 min */
@@ -70,3 +73,14 @@
 #tle-status { margin-bottom: 6px; }
 #tle-status.error { color: #f87171; }
 #tle-status.ok { color: #7fe5d1; }
+
+#sim-time {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 1000;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
+  color: #cfe0ff; letter-spacing: 0.04em;
+  background: rgba(10,14,26,0.7); padding: 6px 12px; border-radius: 6px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(100, 140, 255, 0.25);
+  white-space: nowrap; pointer-events: none;
+}

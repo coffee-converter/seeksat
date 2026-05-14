@@ -48,10 +48,11 @@
       </label>
       <label>Speed
         <select id="speed-select">
-          <option value="1">×1 (real time)</option>
+          <option value="1" selected>×1 (real time)</option>
+          <option value="10">×10</option>
           <option value="60">×60</option>
           <option value="1000">×1000</option>
-          <option value="4000" selected>×4000</option>
+          <option value="4000">×4000</option>
           <option value="10000">×10000</option>
           <option value="30000">×30000</option>
         </select>
@@ -76,9 +77,11 @@
   <nav id="camera-controls">
     <button data-cam="frame">Frame all</button>
     <button data-cam="top">Top down</button>
+    <button data-cam="orbit" title="Lock camera to observers' centroid; mouse drag orbits, wheel zooms">Orbit point</button>
     <button data-cam="rotate">Auto-rotate</button>
   </nav>
 
+  <div id="sim-time">—</div>
   <footer id="credit">ISS Multi-Observer Pass Finder</footer>
 
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>

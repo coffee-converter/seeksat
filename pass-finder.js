@@ -3,7 +3,8 @@
 import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
 import { geocodeOne } from "./pass-finder/geocode.js";
 import { fetchIssTle } from "./pass-finder/tle.js";
-import { isVisibleAtAll, issAltitudeDeg } from "./pass-finder/visibility.js";
+import { isVisibleAtAll, issAltitudeDeg, issIlluminated } from "./pass-finder/visibility.js";
+import { sunPositionEcef } from "./pass-finder/sun.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
 import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
@@ -340,7 +341,16 @@ function ensureIssEntity() {
     }, false),
     point: {
       pixelSize: 14,
-      color: Cesium.Color.WHITE,
+      // Dim the ISS dot when it's in Earth's shadow (not naked-eye visible
+      // anywhere on the planet at that instant).
+      color: new Cesium.CallbackProperty((time) => {
+        const d = Cesium.JulianDate.toDate(time);
+        const p = issEcefAt(d);
+        if (!p) return Cesium.Color.WHITE;
+        return issIlluminated(p, sunPositionEcef(d))
+          ? Cesium.Color.WHITE
+          : Cesium.Color.fromCssColorString("#5a6678");
+      }, false),
       outlineColor: Cesium.Color.fromCssColorString("#7eb8ff"),
       outlineWidth: 3,
     },
@@ -464,7 +474,7 @@ loadTle();
 // ---------------------------------------------------------------------------
 
 state.horizonDays = 7;
-state.multiplier = 4000;
+state.multiplier = 1;
 state.windows = [];
 state.activeWindowIdx = -1;
 state.searchEndMs = null;
@@ -545,7 +555,8 @@ function renderWindowsList() {
     }
     if (!Number.isFinite(minAlt)) { minAlt = 0; maxAlt = 0; }
     const cloud = cloudRange(peakMs); // { min, max } or null
-    const rating = computeRating(durSec, minAlt, cloud ? cloud.max : null);
+    const timeFactor = worstLocalTimeScore(peakMs); // 0-1 across observers
+    const rating = computeRating(durSec, minAlt, cloud ? cloud.max : null, timeFactor);
 
     const row = document.createElement("div");
     row.className = "window-row";
@@ -558,10 +569,11 @@ function renderWindowsList() {
     r.title = rating.tooltip;
     row.appendChild(r);
 
-    // Time column (UTC)
+    // Time column (UTC, peak/best moment) — colored by worst observer's local time-of-day
     const time = document.createElement("span");
     time.className = "time";
-    time.textContent = new Date(w.startMs).toISOString().slice(5, 16).replace("T", " ");
+    time.textContent = new Date(peakMs).toISOString().slice(5, 19).replace("T", " ");
+    time.classList.add(timeFactor >= 0.85 ? "prime" : timeFactor >= 0.5 ? "ok" : "poor");
     row.appendChild(time);
 
     // Duration column
@@ -599,23 +611,55 @@ function renderWindowsList() {
 }
 
 // Overall pass rating: how likely is a successful joint sighting?
-// Combines three independent factors multiplicatively — any one being bad
-// (very short, very low, very cloudy) kills the rating, which matches reality:
-// you can't see a great-altitude pass through overcast skies, nor a brief
-// horizon-grazer in clear skies. Cloud-unknown gets a 0.7 neutral factor.
-function computeRating(durSec, minAltDeg, maxCloudPct) {
+// Combines four independent factors multiplicatively — any one being bad
+// (very short, very low, very cloudy, or dead-of-night locally) kills the
+// rating. Cloud-unknown gets a 0.7 neutral factor. Thresholds were adjusted
+// down vs the 3-factor version since a 4th sub-1 factor depresses overall.
+function computeRating(durSec, minAltDeg, maxCloudPct, timeFactor) {
   const dF = Math.min(1, Math.max(0, durSec / 90));            // 30s→0.33, 60s→0.67, 90s+→1
   const aF = Math.min(1, Math.max(0, (minAltDeg - 10) / 30));  // 10°→0, 40°+→1
   const cF = (maxCloudPct == null) ? 0.7
            : Math.min(1, Math.max(0, 1 - maxCloudPct / 100));
-  const score = dF * aF * cF;
+  const tF = Math.min(1, Math.max(0, timeFactor));
+  const score = dF * aF * cF * tF;
   let grade, label;
-  if (score >= 0.55) { grade = "A"; label = "Excellent"; }
-  else if (score >= 0.30) { grade = "B"; label = "Good"; }
-  else if (score >= 0.12) { grade = "C"; label = "Marginal"; }
+  if (score >= 0.40) { grade = "A"; label = "Excellent"; }
+  else if (score >= 0.20) { grade = "B"; label = "Good"; }
+  else if (score >= 0.08) { grade = "C"; label = "Marginal"; }
   else { grade = "D"; label = "Poor"; }
-  const tooltip = `${label} (score ${score.toFixed(2)} = dur ${dF.toFixed(2)} × alt ${aF.toFixed(2)} × clear ${cF.toFixed(2)}${maxCloudPct == null ? " est." : ""})`;
+  const tooltip = `${label} (score ${score.toFixed(2)} = dur ${dF.toFixed(2)} × alt ${aF.toFixed(2)} × clear ${cF.toFixed(2)} × time ${tF.toFixed(2)}${maxCloudPct == null ? " cloud est." : ""})`;
   return { grade, score, tooltip };
+}
+
+// Per-observer time-of-day preference for naked-eye viewing, 0-1.
+// Peaks during prime evening (7-11pm), troughs in the dead of night (3-4am).
+// Uses longitude/15 as the local-time offset — close enough for "people are
+// awake or asleep" purposes without an IANA timezone lookup.
+function localTimeScore(localHour) {
+  const h = ((localHour % 24) + 24) % 24;
+  if (h >= 19 && h < 23) return 1.0;                   // 7-11pm: prime
+  if (h >= 23 && h < 24) return 1.0 - (h - 23) * 0.3;  // 11pm-mid: 1.0→0.7
+  if (h >= 0  && h < 1)  return 0.7 - h * 0.2;         // 12-1am: 0.7→0.5
+  if (h >= 1  && h < 4)  return 0.5 - (h - 1) * 0.083; // 1-4am: 0.5→0.25
+  if (h >= 4  && h < 5)  return 0.25;                  // 4-5am: trough
+  if (h >= 5  && h < 7)  return 0.25 + (h - 5) * 0.225;// 5-7am: 0.25→0.7
+  if (h >= 18 && h < 19) return 0.85;                  // 6-7pm: dusk
+  return 0.5;                                          // daytime (filtered by sun predicate)
+}
+
+// Worst-observer time-of-day score at a given moment. Used as the rating's
+// time factor so a pass that's prime-evening for one observer but 3am for
+// another is correctly penalized.
+function worstLocalTimeScore(peakMs) {
+  if (!state.observers.length) return 1.0;
+  const d = new Date(peakMs);
+  const utcHour = d.getUTCHours() + d.getUTCMinutes()/60 + d.getUTCSeconds()/3600;
+  let worst = 1.0;
+  for (const obs of state.observers) {
+    const s = localTimeScore(utcHour + obs.lonDeg / 15);
+    if (s < worst) worst = s;
+  }
+  return worst;
 }
 
 // Cloud cover range across observers at a given ms: returns { min, max }
@@ -659,8 +703,9 @@ function bestMomentMs(w) {
 function jumpToWindow(i) {
   state.activeWindowIdx = i;
   const w = state.windows[i];
-  const peakMs = bestMomentMs(w);
-  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(peakMs));
+  // Park the clock at the window's start so the user can play through the
+  // whole simultaneously-visible interval; the table shows the peak time.
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(w.startMs));
   viewer.clock.shouldAnimate = false;
   invalidateOrbitCache(); // force orbit refresh at the jumped time
   renderWindowsList();
@@ -693,6 +738,13 @@ const playBtn = document.getElementById("play-btn");
 const pauseBtn = document.getElementById("pause-btn");
 const resetBtn = document.getElementById("reset-btn");
 
+// Bottom-center sim-time readout: updates every clock tick (~60Hz).
+const simTimeEl = document.getElementById("sim-time");
+viewer.clock.onTick.addEventListener((clock) => {
+  const d = Cesium.JulianDate.toDate(clock.currentTime);
+  simTimeEl.textContent = d.toISOString().slice(0, 19).replace("T", " ") + " UTC";
+});
+
 playBtn.addEventListener("click", () => {
   viewer.clock.shouldAnimate = true;
 });
@@ -710,8 +762,14 @@ resetBtn.addEventListener("click", () => {
 document.getElementById("camera-controls").addEventListener("click", (ev) => {
   const cam = ev.target?.dataset?.cam;
   if (!cam) return;
+  // Re-framing presets release any orbit lock + stop auto-rotate first.
+  if (cam === "frame" || cam === "top") {
+    stopAutoRotate();
+    unlockOrbit();
+  }
   if (cam === "frame") frameAll();
   else if (cam === "top") topDown();
+  else if (cam === "orbit") toggleOrbitLock();
   else if (cam === "rotate") toggleAutoRotate(ev.target);
 });
 
@@ -773,24 +831,46 @@ function topDown() {
   });
 }
 
+// Anchor for orbit lock + auto-rotate: average observer location (or Earth
+// center as a fallback). Earth-fixed so the camera frame stays stable as the
+// ISS moves through the scene.
+function orbitAnchor() {
+  if (!state.observers.length) return Cesium.Cartesian3.fromDegrees(0, 0, 0);
+  const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;
+  const avgLon = state.observers.reduce((s, o) => s + o.lonDeg, 0) / state.observers.length;
+  return Cesium.Cartesian3.fromDegrees(avgLon, avgLat, 0);
+}
+
+let orbitLocked = false;
+function lockOrbit() {
+  viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(orbitAnchor()));
+  orbitLocked = true;
+  const btn = document.querySelector('[data-cam="orbit"]');
+  if (btn) btn.classList.add("active");
+}
+function unlockOrbit() {
+  if (!orbitLocked) return;
+  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  orbitLocked = false;
+  const btn = document.querySelector('[data-cam="orbit"]');
+  if (btn) btn.classList.remove("active");
+}
+function toggleOrbitLock() {
+  if (orbitLocked) unlockOrbit(); else lockOrbit();
+}
+
 let rotateAnim = null;
+function stopAutoRotate() {
+  if (rotateAnim) cancelAnimationFrame(rotateAnim);
+  rotateAnim = null;
+  const b = document.querySelector('[data-cam="rotate"]');
+  if (b) b.classList.remove("active");
+}
 function toggleAutoRotate(btn) {
-  if (rotateAnim) {
-    cancelAnimationFrame(rotateAnim);
-    rotateAnim = null;
-    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-    btn.classList.remove("active");
-    return;
-  }
+  if (rotateAnim) { stopAutoRotate(); return; }
+  // Auto-rotate piggybacks on orbit-lock so users can zoom/nudge while spinning.
+  if (!orbitLocked) lockOrbit();
   btn.classList.add("active");
-  // Rotate around the average observer if observers exist, else Earth center.
-  let center = Cesium.Cartesian3.fromDegrees(0, 0, 0);
-  if (state.observers.length) {
-    const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;
-    const avgLon = state.observers.reduce((s, o) => s + o.lonDeg, 0) / state.observers.length;
-    center = Cesium.Cartesian3.fromDegrees(avgLon, avgLat, 0);
-  }
-  viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center));
   function step() {
     viewer.camera.rotateRight(0.004);
     rotateAnim = requestAnimationFrame(step);
