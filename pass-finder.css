@@ -4,6 +4,119 @@
    inside #cesium-container, so the body itself should never scroll. */
 html, body { overflow: hidden; }
 
+/* Full-page loader. Covers everything while Cesium boots, the TLE
+   fetches, observers seed, and the initial search runs. Fades out once
+   the first runSearch completes so the user sees a fully-populated page
+   instead of pins/labels popping in one at a time. */
+#page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background: #0a0e1a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  color: #cfe0ff;
+  transition: opacity 0.35s ease;
+}
+#page-loader.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+#page-loader .loader-label {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7eb8ff;
+  animation: loader-pulse 1.6s ease-in-out infinite;
+}
+
+/* Logo-style wireframe globe + orbiting ISS. Pure SVG with chunky
+   strokes; the only animation is a single <g> rotating around the
+   globe center to move the ISS along its orbit. */
+#page-loader .loader-svg {
+  width: 220px;
+  height: 220px;
+  display: block;
+}
+#page-loader .loader-globe-wire {
+  fill: none;
+  stroke: #7eb8ff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#page-loader .loader-orbit-ring {
+  fill: none;
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 3;
+  stroke-dasharray: 3 9;
+  stroke-linecap: round;
+}
+#page-loader .loader-iss {
+  fill: #ffffff;
+  filter:
+    drop-shadow(0 0 3px #ffffff)
+    drop-shadow(0 0 8px rgba(126, 184, 255, 0.9))
+    drop-shadow(0 0 16px rgba(126, 184, 255, 0.5));
+}
+#page-loader .loader-iss-group {
+  transform-origin: 110px 110px;
+  animation: loader-iss-orbit 2.6s linear infinite;
+}
+@keyframes loader-iss-orbit {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes loader-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Pane toggle: rectangular pill on the left edge. When the panel is open
+   it sits flush against the panel's right edge; when collapsed it slides
+   to the viewport's left edge along with the panel, staying visible so
+   the user can re-open the panel. */
+#panel-toggle {
+  position: absolute;
+  top: 50%;
+  left: calc(16px + 360px); /* panel left + width */
+  transform: translateY(-50%);
+  width: 22px;
+  height: 56px;
+  z-index: 1100;
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  color: #cfe0ff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  backdrop-filter: blur(12px);
+  transition: left 0.25s ease;
+}
+#panel-toggle::before { content: "◂"; }
+#panel-toggle:hover { background: rgba(126, 184, 255, 0.18); }
+
+/* Panel slide animation — applies on the transform property only so the
+   panel's other geometry (max-height etc.) remains immediate. */
+#panel-left { transition: transform 0.25s ease; }
+
+body.panel-collapsed #panel-left {
+  transform: translateX(calc(-100% - 32px));
+  pointer-events: none;
+}
+body.panel-collapsed #panel-toggle {
+  left: 16px;
+  border-left: 1px solid rgba(100, 140, 255, 0.3);
+  border-radius: 8px;
+}
+body.panel-collapsed #panel-toggle::before { content: "▸"; }
+
 /* Single left panel holds Observers / Windows / TLE; the windows section
    flex-grows so the user always sees the top of the panel regardless of
    how many passes the list contains. Leaves room at the bottom for the
@@ -26,14 +139,75 @@ html, body { overflow: hidden; }
   z-index: 999;
 }
 #panel-left > details { flex: 0 0 auto; }
+
+/* Compact collapsible headers: chevron + label on a single row, with a
+   thin divider between sections so the three blocks read as distinct
+   regions rather than running together. */
+#panel-left > details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  user-select: none;
+}
+#panel-left > details > summary::-webkit-details-marker { display: none; }
+#panel-left > details > summary::before {
+  content: "▾";
+  color: #7eb8ff;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-block;
+  transition: transform 0.15s;
+  width: 14px;
+  text-align: center;
+}
+#panel-left > details:not([open]) > summary::before { transform: rotate(-90deg); }
+#panel-left > details > summary h2 {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+/* Section dividers: a hairline between each child of the left panel.
+   First-child gets no top border so the panel's own padding does the work. */
+#panel-left > * + * {
+  border-top: 1px solid rgba(126, 184, 255, 0.12);
+  padding-top: 8px;
+}
+
 #windows-section {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 120px;
+  /* Bleed past the panel's 16px horizontal padding so each row uses the
+     full panel width — the panel border becomes the visual gutter. */
+  margin-left: -16px;
+  margin-right: -16px;
 }
-#windows-section > #windows-list { flex: 1 1 auto; overflow-y: auto; }
+#windows-section > #windows-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  background: transparent; /* override .result-block panel-fill */
+  padding: 0;
+  margin-bottom: 0;
+  /* Parent grid defines the column widths; each .window-row participates
+     via grid-template-columns: subgrid so all rows share a single set of
+     column tracks — numeric columns line up across the list.
+     Columns hug their widest content (rating/time/dur/alt/cloud) and any
+     leftover row width is distributed as inter-column space via
+     justify-content: space-between — gives every column an equal visual
+     gap, including between rating and time. */
+  display: grid;
+  grid-template-columns: auto auto auto auto auto;
+  justify-content: space-between;
+  align-content: start;
+  column-gap: 0;
+  row-gap: 0;
+}
 
 /* Single bottom-center strip: playback + speed + sim-time + camera presets. */
 #bottom-controls {
@@ -43,23 +217,25 @@ html, body { overflow: hidden; }
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   z-index: 1000;
   background: rgba(10, 14, 26, 0.92);
   border: 1px solid rgba(100, 140, 255, 0.3);
-  border-radius: 12px;
-  padding: 8px 14px;
+  border-radius: 10px;
+  padding: 4px 10px;
   backdrop-filter: blur(12px);
 }
-#bottom-controls .ctl-group { display: flex; gap: 6px; }
+#bottom-controls .ctl-group { display: flex; gap: 4px; }
 #bottom-controls button {
   background: rgba(10, 14, 26, 0.6);
   border: 1px solid rgba(100, 140, 255, 0.3);
   color: #cfe0ff;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 5px;
   cursor: pointer;
   font-size: 12px;
+  white-space: nowrap;
+  line-height: 1.4;
 }
 #bottom-controls button:hover { background: rgba(126, 184, 255, 0.18); }
 #bottom-controls button.active {
@@ -84,6 +260,11 @@ html, body { overflow: hidden; }
   position: static; transform: none; bottom: auto; left: auto;
   background: transparent; border: none; backdrop-filter: none;
   padding: 0; font-size: 12px;
+}
+/* Same override for #camera-controls — its default rule pins it to the
+   bottom-right viewport corner, which overlaps the strip when reused here. */
+#bottom-controls #camera-controls {
+  position: static; bottom: auto; right: auto;
 }
 
 .add-row { display: flex; gap: 6px; margin-top: 8px; }
@@ -117,11 +298,66 @@ html, body { overflow: hidden; }
 }
 
 .window-row {
-  display: grid; grid-template-columns: 26px 102px 50px 60px 1fr;
+  display: grid;
+  /* Inherit the 5 column tracks (and their space-between distribution)
+     from #windows-list so every row's columns line up vertically — and
+     pick up the same even spacing between them. */
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: center;
-  gap: 6px; padding: 5px 6px; cursor: pointer;
+  padding: 5px 14px; cursor: pointer;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
   border-radius: 4px;
+}
+.window-row > * { white-space: nowrap; }
+/* All numeric columns right-align so they hit the same rightward anchor
+   in each cell — combined with subgrid this gives the columns a
+   consistent vertical edge across rows. */
+.window-row .dur,
+.window-row .alt,
+.window-row .cloud { text-align: right; }
+
+/* Column header row. Sticky so it stays visible while the list scrolls. */
+.window-row.header {
+  position: sticky; top: 0; z-index: 1;
+  cursor: default;
+  padding-top: 4px; padding-bottom: 4px;
+  background: rgba(10, 14, 26, 0.92);
+  border-bottom: 1px solid rgba(126, 184, 255, 0.18);
+  border-radius: 0;
+}
+.window-row.header > span {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8899bb;
+}
+.window-row.header > span:nth-child(3),
+.window-row.header > span:nth-child(4),
+.window-row.header > span:nth-child(5) { text-align: right; }
+.window-row.header:hover { background: rgba(10, 14, 26, 0.92); }
+
+.window-empty {
+  grid-column: 1 / -1;
+  padding: 18px 14px;
+  color: #8899bb;
+  font-size: 11px;
+  text-align: center;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+/* "PASSES" section heading — matches the visual weight of the collapsible
+   summary headings, but without the chevron (the list is always shown). */
+#windows-section > .section-heading {
+  font-size: 12px;
+  line-height: 1.2;
+  color: #7eb8ff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+  padding: 2px 16px 6px;
 }
 .window-row:hover { background: rgba(126,184,255,0.12); }
 .window-row.active { background: rgba(126,184,255,0.25); }
