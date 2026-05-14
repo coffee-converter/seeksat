@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ISS Pass Finder</title>
-  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" />
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Widgets/widgets.css" />
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./pass-finder.css" />
 </head>
@@ -84,8 +84,8 @@
   <div id="sim-time">—</div>
   <footer id="credit">ISS Multi-Observer Pass Finder</footer>
 
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
-  <script src="https://unpkg.com/satellite.js@5.0.0/dist/satellite.min.js"></script>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Cesium.js"></script>
+  <!-- satellite.js v7 is ESM-only and loaded via import in pass-finder.js / truth.js -->
   <script type="module" src="./pass-finder.js"></script>
 </body>
 </html>

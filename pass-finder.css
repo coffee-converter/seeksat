@@ -3,7 +3,7 @@
 /* Leave room at the bottom for #camera-controls (~50px) and #credit so
    neither panel can extend over them. */
 #panel-observers, #panel-search { max-height: calc(100vh - 110px); overflow: auto; }
-#panel-search { max-width: 380px; }
+#panel-search { max-width: 420px; }
 
 .add-row { display: flex; gap: 6px; margin-top: 8px; }
 .add-row input { flex: 1; }
@@ -36,7 +36,7 @@
 }
 
 .window-row {
-  display: grid; grid-template-columns: 30px 1fr 55px 65px 65px;
+  display: grid; grid-template-columns: 26px 102px 50px 60px 1fr;
   align-items: center;
   gap: 6px; padding: 5px 6px; cursor: pointer;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
@@ -73,14 +73,3 @@
 #tle-status { margin-bottom: 6px; }
 #tle-status.error { color: #f87171; }
 #tle-status.ok { color: #7fe5d1; }
-
-#sim-time {
-  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-  z-index: 1000;
-  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
-  color: #cfe0ff; letter-spacing: 0.04em;
-  background: rgba(10,14,26,0.7); padding: 6px 12px; border-radius: 6px;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(100, 140, 255, 0.25);
-  white-space: nowrap; pointer-events: none;
-}
