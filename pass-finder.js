@@ -5,6 +5,7 @@ import { geocodeOne } from "./pass-finder/geocode.js";
 import { fetchIssTle } from "./pass-finder/tle.js";
 import { isVisibleAtAll } from "./pass-finder/visibility.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
+import { tleOrbitTrackEcef } from "./truth.js";
 
 const Cesium = window.Cesium;
 const sat = window.satellite;
@@ -293,14 +294,38 @@ function ensureIssEntity() {
   });
 }
 
-// Refresh satrec whenever TLE inputs change.
-[tleNameEl, tleL1El, tleL2El].forEach(el => el.addEventListener("input", refreshSatrec));
+function updateOrbit(centerJsDate) {
+  if (!satrec) return;
+  if (orbitEntity) { viewer.entities.remove(orbitEntity); orbitEntity = null; }
+  const t = readTleFromUi();
+  if (!t) return;
+  const pts = tleOrbitTrackEcef(t.line1, t.line2, centerJsDate);
+  if (pts.length < 2) return;
+  orbitEntity = viewer.entities.add({
+    polyline: {
+      positions: pts.map(p => Cesium.Cartesian3.fromElements(p[0], p[1], p[2])),
+      width: 1.5,
+      material: new Cesium.PolylineDashMaterialProperty({
+        color: Cesium.Color.fromCssColorString("#7eb8ff").withAlpha(0.45),
+        dashLength: 12,
+      }),
+      arcType: Cesium.ArcType.NONE,
+    },
+  });
+}
+
+// Refresh satrec whenever TLE inputs change. Re-render orbit on TLE edits too.
+[tleNameEl, tleL1El, tleL2El].forEach(el => el.addEventListener("input", () => {
+  refreshSatrec();
+  updateOrbit(Cesium.JulianDate.toDate(viewer.clock.currentTime));
+}));
 // Also after initial fetch.
 const _loadTle = loadTle;
 loadTle = async function () {
   await _loadTle();
   refreshSatrec();
   ensureIssEntity();
+  updateOrbit(Cesium.JulianDate.toDate(viewer.clock.currentTime));
 };
 loadTle();
 
@@ -410,6 +435,7 @@ function jumpToWindow(i) {
   const w = state.windows[i];
   viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(w.startMs));
   viewer.clock.shouldAnimate = false;
+  updateOrbit(new Date(w.startMs));
   renderWindowsList();
 }
 
