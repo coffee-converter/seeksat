@@ -22,12 +22,12 @@ export function tlePositionEcef(line1, line2, jsDate) {
 export function tleOrbitTrackEcef(line1, line2, jsCenterDate, periodMin = 93, samples = 144) {
   if (!sat) throw new Error("satellite.js not loaded");
   const satrec = sat.twoline2satrec(line1.trim(), line2.trim());
-  const halfMs = periodMin * 60 * 1000;
-  const dt = (2 * halfMs) / (samples - 1);
+  const periodMs = periodMin * 60 * 1000;
+  const dt = periodMs / (samples - 1);
   const gmstCenter = sat.gstime(jsCenterDate);
   const points = [];
   for (let i = 0; i < samples; i++) {
-    const t = new Date(jsCenterDate.getTime() - halfMs + i * dt);
+    const t = new Date(jsCenterDate.getTime() - periodMs / 2 + i * dt);
     const pv = sat.propagate(satrec, t);
     if (!pv || !pv.position) continue;
     const ecf = sat.eciToEcf(pv.position, gmstCenter);
