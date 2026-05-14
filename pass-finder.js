@@ -147,6 +147,9 @@ function addObserver(name, latDeg, lonDeg) {
     if (state.windows && state.windows.length) renderWindowsList();
   });
 
+  // If a search has been run, re-run with the new observer set.
+  rerunSearchIfActive();
+
   return obs;
 }
 
@@ -159,6 +162,7 @@ function removeObserver(id) {
   viewer.entities.remove(entry.visEntity);
   observerLayer.splice(idx, 1);
   renderObsList();
+  rerunSearchIfActive();
 }
 
 function renderObsList() {
@@ -479,12 +483,15 @@ speedSelect.addEventListener("change", () => {
   viewer.clock.multiplier = state.multiplier;
 });
 
+let searchGen = 0;
+
 function runSearch(startMs, endMs) {
   if (!satrec) { alert("No TLE loaded."); return; }
   if (!state.observers.length) { alert("Add at least one observer first."); return; }
   windowsListEl.textContent = "searching…";
-  // Defer to next tick to let the UI paint.
+  const gen = ++searchGen; // invalidates any older deferred searches
   setTimeout(() => {
+    if (gen !== searchGen) return; // a newer search superseded us
     const wins = findVisibilityWindows(
       state.observers, satrec, isVisibleAtAll, sat,
       startMs, endMs, 60_000
@@ -494,6 +501,18 @@ function runSearch(startMs, endMs) {
     renderWindowsList();
     setupClockForSearch(startMs, endMs);
   }, 0);
+}
+
+// If a search has been run, re-run it from "now" with the current observer
+// set. Called whenever observers are added or removed so the window list
+// reflects the live configuration.
+function rerunSearchIfActive() {
+  if (state.searchEndMs == null || !state.observers.length || !satrec) return;
+  state.windows = [];
+  state.activeWindowIdx = -1;
+  const startMs = Date.now();
+  const endMs = startMs + state.horizonDays * 86_400_000;
+  runSearch(startMs, endMs);
 }
 
 function setupClockForSearch(startMs, endMs) {
@@ -645,6 +664,7 @@ function jumpToWindow(i) {
   viewer.clock.shouldAnimate = false;
   invalidateOrbitCache(); // force orbit refresh at the jumped time
   renderWindowsList();
+  frameAll(); // pull observers + ISS into view for the moment we jumped to
 }
 
 findBtn.addEventListener("click", () => {
