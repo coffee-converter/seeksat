@@ -456,28 +456,21 @@ function renderWindowsList() {
     row.appendChild(dur);
     const alt = document.createElement("span");
     alt.className = "alt";
-    // Peak alt: evaluate at midpoint as a quick estimate.
-    const midMs = (w.startMs + w.endMs) / 2;
-    const issEcef = issEcefAt(new Date(midMs));
-    let peakDeg = 0;
-    if (issEcef) {
+    // Best simultaneous min-altitude: at the window's best moment (when the
+    // worst-positioned observer's altitude is highest), what is that altitude?
+    const peakMs = bestMomentMs(w);
+    const issEcef = issEcefAt(new Date(peakMs));
+    let bestMinAltDeg = 0;
+    if (issEcef && state.observers.length) {
+      bestMinAltDeg = Infinity;
       for (const obs of state.observers) {
-        const obsEcef = geodeticToEcef(obs.latDeg, obs.lonDeg, 0);
-        const lat = obs.latDeg * Math.PI / 180, lon = obs.lonDeg * Math.PI / 180;
-        const dx = issEcef[0] - obsEcef[0];
-        const dy = issEcef[1] - obsEcef[1];
-        const dz = issEcef[2] - obsEcef[2];
-        const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
-        const sinLon = Math.sin(lon), cosLon = Math.cos(lon);
-        const e = -sinLon*dx + cosLon*dy;
-        const n = -sinLat*cosLon*dx - sinLat*sinLon*dy + cosLat*dz;
-        const u = cosLat*cosLon*dx + cosLat*sinLon*dy + sinLat*dz;
-        const a = Math.atan2(u, Math.hypot(e, n)) * 180 / Math.PI;
-        if (peakDeg === 0 || a < peakDeg) peakDeg = a;
+        const a = issAltitudeDeg(obs, issEcef);
+        if (a < bestMinAltDeg) bestMinAltDeg = a;
       }
+      if (!Number.isFinite(bestMinAltDeg)) bestMinAltDeg = 0;
     }
-    alt.textContent = `${peakDeg.toFixed(0)}°`;
-    alt.classList.add(peakDeg >= 50 ? "good" : peakDeg >= 20 ? "ok" : "poor");
+    alt.textContent = `${bestMinAltDeg.toFixed(0)}°`;
+    alt.classList.add(bestMinAltDeg >= 50 ? "good" : bestMinAltDeg >= 20 ? "ok" : "poor");
     row.appendChild(alt);
     row.addEventListener("click", () => jumpToWindow(i));
     windowsListEl.appendChild(row);
