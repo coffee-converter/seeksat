@@ -369,7 +369,10 @@ function ensureIssEntity() {
 // between recomputes so we're not allocating 360 positions every frame.
 let orbitCachedPositions = [];
 let orbitCacheCenterMs = null;
-const ORBIT_REFRESH_MS = 10_000; // simulated-time interval between recomputes
+// Simulated-time interval between orbit recomputes. Low enough that Earth's
+// rotation in this window (0.0021° ≈ 250 m of horizontal offset at 400 km)
+// is invisible — so the dot stays on the line at all playback speeds.
+const ORBIT_REFRESH_MS = 500;
 
 function invalidateOrbitCache() { orbitCacheCenterMs = null; }
 
