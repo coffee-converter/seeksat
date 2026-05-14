@@ -501,26 +501,8 @@ function renderWindowsList() {
     return;
   }
   state.windows.forEach((w, i) => {
-    const row = document.createElement("div");
-    row.className = "window-row";
-    if (i === state.activeWindowIdx) row.classList.add("active");
-    const time = document.createElement("span");
-    time.className = "time";
-    const d = new Date(w.startMs);
-    time.textContent = d.toISOString().slice(5, 16).replace("T", " ");
-    row.appendChild(time);
-    const dur = document.createElement("span");
-    dur.className = "dur";
+    // Pre-compute the values that drive multiple columns AND the rating.
     const durSec = Math.round((w.endMs - w.startMs) / 1000);
-    const mm = Math.floor(durSec / 60), ss = durSec % 60;
-    dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
-    dur.classList.add(durSec >= 180 ? "good" : durSec >= 60 ? "ok" : "poor");
-    row.appendChild(dur);
-    const alt = document.createElement("span");
-    alt.className = "alt";
-    // Altitude range across observers at the window's best moment. The "best
-    // moment" maximizes the minimum altitude across all observers; we then
-    // report both ends of the per-observer range at that moment.
     const peakMs = bestMomentMs(w);
     const issEcef = issEcefAt(new Date(peakMs));
     let minAlt = Infinity, maxAlt = -Infinity;
@@ -532,32 +514,78 @@ function renderWindowsList() {
       }
     }
     if (!Number.isFinite(minAlt)) { minAlt = 0; maxAlt = 0; }
-    const lo = Math.round(minAlt), hi = Math.round(maxAlt);
-    alt.textContent = lo === hi ? `${hi}°` : `${lo}–${hi}°`;
-    // Color by WORST observer's altitude (the minimum) — low altitude = poor pass.
+    const cloud = cloudRange(peakMs); // { min, max } or null
+    const rating = computeRating(durSec, minAlt, cloud ? cloud.max : null);
+
+    const row = document.createElement("div");
+    row.className = "window-row";
+    if (i === state.activeWindowIdx) row.classList.add("active");
+
+    // Rating column (bold, color-coded by overall sighting odds)
+    const r = document.createElement("span");
+    r.className = `rating ${rating.grade}`;
+    r.textContent = rating.grade;
+    r.title = rating.tooltip;
+    row.appendChild(r);
+
+    // Time column (UTC)
+    const time = document.createElement("span");
+    time.className = "time";
+    time.textContent = new Date(w.startMs).toISOString().slice(5, 16).replace("T", " ");
+    row.appendChild(time);
+
+    // Duration column
+    const dur = document.createElement("span");
+    dur.className = "dur";
+    const mm = Math.floor(durSec / 60), ss = durSec % 60;
+    dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
+    dur.classList.add(durSec >= 180 ? "good" : durSec >= 60 ? "ok" : "poor");
+    row.appendChild(dur);
+
+    // Altitude range (worst-observer color)
+    const alt = document.createElement("span");
+    alt.className = "alt";
+    const altLo = Math.round(minAlt), altHi = Math.round(maxAlt);
+    alt.textContent = altLo === altHi ? `${altHi}°` : `${altLo}–${altHi}°`;
     alt.classList.add(minAlt >= 30 ? "good" : minAlt >= 15 ? "ok" : "poor");
     row.appendChild(alt);
 
-    // Cloud cover at the window's peak moment, aggregated as the MAX across
-    // observers (the worst-weather observer dictates whether the pass is
-    // viewable). Shows "—" while forecasts are loading or unavailable.
-    const cloud = document.createElement("span");
-    cloud.className = "cloud";
-    const range = cloudRange(peakMs);
-    if (range === null) {
-      cloud.textContent = "—";
-      cloud.classList.add("na");
+    // Cloud cover range (worst-observer color)
+    const cl = document.createElement("span");
+    cl.className = "cloud";
+    if (cloud === null) {
+      cl.textContent = "—";
+      cl.classList.add("na");
     } else {
-      const lo = Math.round(range.min), hi = Math.round(range.max);
-      cloud.textContent = lo === hi ? `${hi}%` : `${lo}–${hi}%`;
-      // Color by the WORST observer (max cover) — defines whether anyone
-      // is clouded out.
-      cloud.classList.add(hi < 30 ? "clear" : hi < 60 ? "partial" : "overcast");
+      const clLo = Math.round(cloud.min), clHi = Math.round(cloud.max);
+      cl.textContent = clLo === clHi ? `${clHi}%` : `${clLo}–${clHi}%`;
+      cl.classList.add(clHi < 30 ? "clear" : clHi < 60 ? "partial" : "overcast");
     }
-    row.appendChild(cloud);
+    row.appendChild(cl);
+
     row.addEventListener("click", () => jumpToWindow(i));
     windowsListEl.appendChild(row);
   });
+}
+
+// Overall pass rating: how likely is a successful joint sighting?
+// Combines three independent factors multiplicatively — any one being bad
+// (very short, very low, very cloudy) kills the rating, which matches reality:
+// you can't see a great-altitude pass through overcast skies, nor a brief
+// horizon-grazer in clear skies. Cloud-unknown gets a 0.7 neutral factor.
+function computeRating(durSec, minAltDeg, maxCloudPct) {
+  const dF = Math.min(1, Math.max(0, durSec / 240));           // 4 min saturates
+  const aF = Math.min(1, Math.max(0, (minAltDeg - 10) / 30));  // 10°→0, 40°+→1
+  const cF = (maxCloudPct == null) ? 0.7
+           : Math.min(1, Math.max(0, 1 - maxCloudPct / 100));
+  const score = dF * aF * cF;
+  let grade, label;
+  if (score >= 0.55) { grade = "A"; label = "Excellent"; }
+  else if (score >= 0.30) { grade = "B"; label = "Good"; }
+  else if (score >= 0.12) { grade = "C"; label = "Marginal"; }
+  else { grade = "D"; label = "Poor"; }
+  const tooltip = `${label} (score ${score.toFixed(2)} = dur ${dF.toFixed(2)} × alt ${aF.toFixed(2)} × clear ${cF.toFixed(2)}${maxCloudPct == null ? " est." : ""})`;
+  return { grade, score, tooltip };
 }
 
 // Cloud cover range across observers at a given ms: returns { min, max }
