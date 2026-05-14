@@ -6,6 +6,7 @@ import { fetchIssTle } from "./pass-finder/tle.js";
 import { isVisibleAtAll, issAltitudeDeg } from "./pass-finder/visibility.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
+import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
 
 const Cesium = window.Cesium;
 const sat = window.satellite;
@@ -52,6 +53,7 @@ const PALETTE = ["#ff9b54", "#7fe5d1", "#c084fc", "#facc15", "#f87171", "#34d399
 const state = {
   observers: [],
   clickToPlace: false,
+  cloudForecasts: new Map(), // obs.id -> { startMs, hours[] } | null
 };
 
 const obsListEl = document.getElementById("obs-list");
@@ -134,6 +136,13 @@ function addObserver(name, latDeg, lonDeg) {
 
   observerLayer.push({ pin: ent, visEntity });
   renderObsList();
+
+  // Kick off cloud-cover forecast for this location (cached by lat/lon).
+  fetchCloudForecast(latDeg, lonDeg).then(f => {
+    state.cloudForecasts.set(obs.id, f);
+    if (state.windows && state.windows.length) renderWindowsList();
+  });
+
   return obs;
 }
 
@@ -520,9 +529,37 @@ function renderWindowsList() {
     alt.textContent = `${bestMinAltDeg.toFixed(0)}°`;
     alt.classList.add(bestMinAltDeg >= 50 ? "good" : bestMinAltDeg >= 20 ? "ok" : "poor");
     row.appendChild(alt);
+
+    // Cloud cover at the window's peak moment, aggregated as the MAX across
+    // observers (the worst-weather observer dictates whether the pass is
+    // viewable). Shows "—" while forecasts are loading or unavailable.
+    const cloud = document.createElement("span");
+    cloud.className = "cloud";
+    const agg = aggregateCloud(peakMs);
+    if (agg === null) {
+      cloud.textContent = "—";
+      cloud.classList.add("na");
+    } else {
+      cloud.textContent = `${agg.toFixed(0)}%`;
+      cloud.classList.add(agg < 30 ? "clear" : agg < 60 ? "partial" : "overcast");
+    }
+    row.appendChild(cloud);
     row.addEventListener("click", () => jumpToWindow(i));
     windowsListEl.appendChild(row);
   });
+}
+
+// Aggregate cloud cover across observers at a given ms: returns the MAX (worst)
+// across observers, or null if any observer's forecast isn't loaded yet.
+function aggregateCloud(ms) {
+  let worst = -1;
+  for (const obs of state.observers) {
+    const f = state.cloudForecasts.get(obs.id);
+    const c = cloudAt(f, ms);
+    if (c == null) return null;
+    if (c > worst) worst = c;
+  }
+  return worst < 0 ? null : worst;
 }
 
 // Best moment in a window = where the MINIMUM altitude across all observers is
@@ -639,14 +676,23 @@ function frameAll() {
 }
 
 function topDown() {
-  if (state.observers.length === 0) {
-    viewer.camera.flyHome(1.2);
-    return;
+  const positions = state.observers.map(o =>
+    Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
+  const issEcef = issEcefAt(Cesium.JulianDate.toDate(viewer.clock.currentTime));
+  if (issEcef) {
+    positions.push(Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]));
   }
-  const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;
-  const avgLon = state.observers.reduce((s, o) => s + o.lonDeg, 0) / state.observers.length;
+  if (!positions.length) { viewer.camera.flyHome(1.2); return; }
+  const bs = Cesium.BoundingSphere.fromPoints(positions);
+  // Project the bounding-sphere center to the ground for a top-down look-at.
+  const centerCart = Cesium.Cartographic.fromCartesian(bs.center);
+  const altitude = Math.max(2_000_000, 2.2 * bs.radius);
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(avgLon, avgLat, 8_000_000),
+    destination: Cesium.Cartesian3.fromDegrees(
+      Cesium.Math.toDegrees(centerCart.longitude),
+      Cesium.Math.toDegrees(centerCart.latitude),
+      altitude
+    ),
     orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
     duration: 1.2,
   });

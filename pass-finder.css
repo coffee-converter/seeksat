@@ -1,6 +1,8 @@
 /* pass-finder.css — page-specific layout, extends style.css */
 
-#panel-observers, #panel-search { max-height: calc(100vh - 32px); overflow: auto; }
+/* Leave room at the bottom for #camera-controls (~50px) and #credit so
+   neither panel can extend over them. */
+#panel-observers, #panel-search { max-height: calc(100vh - 110px); overflow: auto; }
 #panel-search { max-width: 380px; }
 
 .add-row { display: flex; gap: 6px; margin-top: 8px; }
@@ -34,7 +36,7 @@
 }
 
 .window-row {
-  display: grid; grid-template-columns: 1fr 60px 50px;
+  display: grid; grid-template-columns: 1fr 55px 45px 45px;
   gap: 6px; padding: 5px 6px; cursor: pointer;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
   border-radius: 4px;
@@ -47,6 +49,11 @@
 .window-row .alt.good { color: #ffffff; }
 .window-row .alt.ok { color: #cfe0ff; }
 .window-row .alt.poor { color: #8899bb; }
+.window-row .cloud { text-align: right; }
+.window-row .cloud.clear { color: #7fe5d1; }
+.window-row .cloud.partial { color: #facc15; }
+.window-row .cloud.overcast { color: #f87171; }
+.window-row .cloud.na { color: #6a7a9a; }
 
 #tle-status { margin-bottom: 6px; }
 #tle-status.error { color: #f87171; }
