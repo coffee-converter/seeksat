@@ -43,6 +43,40 @@ const state = {
 const obsListEl = document.getElementById("obs-list");
 const observerLayer = []; // Cesium entities, parallel to state.observers
 
+// Screen-space declutter for observer labels (both pin labels at the
+// observer position AND alt/az midpoint labels). Recomputed each frame
+// in preRender: collect screen positions of all visible labels, sort
+// top-to-bottom, then greedily push each one down until it no longer
+// overlaps any previously placed label. Each entity's pixelOffset
+// CallbackProperty reads its dy from this map keyed by "pin:<id>" or
+// "mid:<id>".
+const labelOffsets = new Map();
+
+// Approximate label box dimensions used by the declutter algorithm. Real
+// widths vary with text, but a single conservative estimate is fine —
+// the goal is preventing perceptible overlap, not pixel-perfect packing.
+// Pin label spans 1 line (just name + clouds) or 2 lines (when alt/az
+// also appears), so use the worst-case 2-line height as the canonical
+// reservation — small over-spacing for the 1-line case is fine.
+const PIN_LABEL_W = 180, PIN_LABEL_H = 42;
+
+// Candidate offset slots (added to a label's natural pixel position) tried
+// in priority order. The first slot that doesn't collide with any
+// previously-placed label wins, so most labels stay at their natural
+// position and only conflicting ones get bumped to a small set of nearby
+// alternates — keeps every label close to its anchor (no long stack
+// drift like an always-down algorithm).
+const PIN_CANDIDATES = [
+  { dx: 0,    dy:   0 },   // natural (upper-right of pin)
+  { dx: 0,    dy:  46 },
+  { dx: 0,    dy: -46 },
+  { dx: 0,    dy:  92 },
+  { dx: 0,    dy: -92 },
+  { dx: -204, dy:   0 },   // flip to upper-left of pin
+  { dx: -204, dy:  46 },
+  { dx: -204, dy: -46 },
+];
+
 function newObsId() { return `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`; }
 
 function addObserver(name, latDeg, lonDeg) {
@@ -60,7 +94,25 @@ function addObserver(name, latDeg, lonDeg) {
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
     },
     label: {
-      text: obs.name,
+      // Pin label = observer name + current cloud cover on line 1, then
+      // alt/az on line 2 whenever the ISS is currently visible from this
+      // observer. Consolidated here so the user has one crisp single-
+      // color label per observer instead of separate midpoint label
+      // boxes that need to be decluttered against the pins.
+      text: new Cesium.CallbackProperty((time) => {
+        const ms = Cesium.JulianDate.toDate(time).getTime();
+        const f = state.cloudForecasts.get(obs.id);
+        const c = f ? cloudAt(f, ms) : null;
+        const line1 = c == null ? obs.name : `${obs.name} · ${Math.round(c)}% clouds`;
+        const d = Cesium.JulianDate.toDate(time);
+        const issEcef = issEcefAt(d);
+        if (issEcef && isVisibleAtAll([obs], issEcef, d)) {
+          const { alt, az } = issAltAzDeg(obs, issEcef);
+          const azStr = String(Math.round(az) % 360).padStart(3, "0");
+          return `${line1}\nalt ${alt.toFixed(1)}°  az ${azStr}°`;
+        }
+        return line1;
+      }, false),
       show: new Cesium.CallbackProperty(
         () => isInFrontOfEarth(Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0)),
         false,
@@ -68,7 +120,11 @@ function addObserver(name, latDeg, lonDeg) {
       font: "12px sans-serif",
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      pixelOffset: new Cesium.Cartesian2(12, -10),
+      pixelOffset: new Cesium.CallbackProperty(() => {
+        const o = labelOffsets.get(`pin:${obs.id}`);
+        if (!o) return new Cesium.Cartesian2(12, -10);
+        return new Cesium.Cartesian2(12 + o.dx, -10 + o.dy);
+      }, false),
       fillColor: Cesium.Color.fromCssColorString(color),
       showBackground: true,
       backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
@@ -108,30 +164,6 @@ function addObserver(name, latDeg, lonDeg) {
         color: Cesium.Color.fromCssColorString(color),
       }),
       arcType: Cesium.ArcType.NONE,
-    },
-    label: {
-      show: new Cesium.CallbackProperty((time) => {
-        if (!visibleNow(time)) return false;
-        const d = Cesium.JulianDate.toDate(time);
-        const issEcef = issEcefAt(d);
-        if (!issEcef) return false;
-        const issPos = Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]);
-        const mid = Cesium.Cartesian3.midpoint(obsPos, issPos, new Cesium.Cartesian3());
-        return isInFrontOfEarth(mid);
-      }, false),
-      text: new Cesium.CallbackProperty((time) => {
-        const d = Cesium.JulianDate.toDate(time);
-        const issEcef = issEcefAt(d);
-        if (!issEcef) return "";
-        const { alt, az } = issAltAzDeg(obs, issEcef);
-        return `alt ${alt.toFixed(1)}°\naz ${az.toFixed(0)}°`;
-      }, false),
-      font: "11px sans-serif",
-      fillColor: Cesium.Color.fromCssColorString(color),
-      showBackground: true,
-      backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.78)"),
-      backgroundPadding: new Cesium.Cartesian2(5, 3),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
 
@@ -326,6 +358,80 @@ function issEcefAt(jsDate) {
   return [ecf.x * 1000, ecf.y * 1000, ecf.z * 1000];
 }
 
+// Recompute label declutter offsets each frame.
+//
+// Candidate-slot algorithm (per-label):
+//   1. Project each visible label to screen space (its natural position).
+//   2. Try a small ordered list of nearby candidate slots — natural slot
+//      first, then a handful of cardinal/diagonal offsets near the
+//      anchor.
+//   3. The first slot that doesn't overlap any previously-placed label
+//      wins; the label's offset is stored as { dx, dy } in labelOffsets.
+//
+// Result: each label stays at or very near its natural anchor unless
+// it actually collides with something, and even then it only moves to a
+// nearby slot — no long downward "drift" like the previous always-down
+// stacker. O(N²·K) per frame for N labels and K candidates (small N, K
+// ≤ ~10 here).
+function updateLabelOffsets() {
+  labelOffsets.clear();
+  if (!state.observers.length) return;
+  const time = viewer.clock.currentTime;
+  const d = Cesium.JulianDate.toDate(time);
+  const issEcef = issEcefAt(d);
+  const issPos = issEcef
+    ? Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2])
+    : null;
+  const scene = viewer.scene;
+
+  const items = [];
+  for (const obs of state.observers) {
+    const obsPos = Cesium.Cartesian3.fromDegrees(obs.lonDeg, obs.latDeg, 0);
+    if (isInFrontOfEarth(obsPos)) {
+      const sp = Cesium.SceneTransforms.worldToWindowCoordinates(scene, obsPos);
+      if (sp) {
+        items.push({
+          type: "pin",
+          key: `pin:${obs.id}`,
+          x: sp.x + 12, y: sp.y - 10,
+          w: PIN_LABEL_W, h: PIN_LABEL_H,
+        });
+      }
+    }
+    // (Midpoint labels removed — alt/az now lives in the pin label as
+    // a conditional second line, so the only declutter targets are pin
+    // labels themselves.)
+  }
+  if (!items.length) return;
+
+  const placed = [];
+  for (const it of items) {
+    const cands = PIN_CANDIDATES;
+    // Default to the last candidate so we always produce some placement
+    // even if every slot collides — labels overlapping is preferable to
+    // crashing the layout pass.
+    let chosen = cands[cands.length - 1];
+    for (const c of cands) {
+      const px = it.x + c.dx;
+      const py = it.y + c.dy;
+      let collides = false;
+      for (const p of placed) {
+        const minSepX = (p.w + it.w) / 2;
+        const minSepY = (p.h + it.h) / 2;
+        if (Math.abs(p.x - px) < minSepX && Math.abs(p.y - py) < minSepY) {
+          collides = true;
+          break;
+        }
+      }
+      if (!collides) { chosen = c; break; }
+    }
+    placed.push({ x: it.x + chosen.dx, y: it.y + chosen.dy, w: it.w, h: it.h });
+    labelOffsets.set(it.key, { dx: chosen.dx, dy: chosen.dy });
+  }
+}
+
+viewer.scene.preRender.addEventListener(updateLabelOffsets);
+
 function ensureIssEntity() {
   if (issEntity) return;
   issEntity = viewer.entities.add({
@@ -507,6 +613,12 @@ state.searchEndMs = null;
 const speedSelect = document.getElementById("speed-select");
 const windowsListEl = document.getElementById("windows-list");
 
+// Pane toggle — slides #panel-left off-screen, swaps the toggle's icon
+// via the .panel-collapsed body class (all visual changes are CSS-driven).
+document.getElementById("panel-toggle").addEventListener("click", () => {
+  document.body.classList.toggle("panel-collapsed");
+});
+
 speedSelect.addEventListener("change", () => {
   state.multiplier = Number(speedSelect.value);
   viewer.clock.multiplier = state.multiplier;
@@ -518,7 +630,18 @@ let _autoSelectedFirst = false; // ensures we auto-jump to the first window once
 function runSearch(startMs, endMs) {
   if (!satrec) return; // wait for TLE
   if (!state.observers.length) return; // wait for observers
-  windowsListEl.textContent = "searching…";
+  // Only show the "searching…" placeholder if the list is currently empty
+  // (initial load or after clearing observers). On subsequent searches the
+  // old results stay visible until renderWindowsList atomically swaps in
+  // the new ones — avoids a jarring blank/flash on observer add/remove.
+  const hasResults = !!windowsListEl.querySelector(".window-row:not(.header)");
+  if (!hasResults) {
+    windowsListEl.replaceChildren();
+    const searching = document.createElement("div");
+    searching.className = "window-empty";
+    searching.textContent = "searching…";
+    windowsListEl.appendChild(searching);
+  }
   const gen = ++searchGen; // invalidates any older deferred searches
   setTimeout(() => {
     if (gen !== searchGen) return; // a newer search superseded us
@@ -537,14 +660,42 @@ function runSearch(startMs, endMs) {
       _autoSelectedFirst = true;
       jumpToWindow(0);
     }
+    // First completed search → page is "ready": TLE loaded, observers
+    // placed, windows rendered, camera framed (or about to be). Fade the
+    // full-page loader out so the user sees a populated scene rather
+    // than pins/labels/panels popping in piecemeal.
+    dismissPageLoader();
   }, 0);
 }
+
+let _pageLoaderDismissed = false;
+function dismissPageLoader() {
+  if (_pageLoaderDismissed) return;
+  _pageLoaderDismissed = true;
+  document.getElementById("page-loader")?.classList.add("hidden");
+}
+// Safety net: if something goes wrong (TLE fetch fails, no observers,
+// etc.) and runSearch never fires, drop the loader after a few seconds
+// so the user isn't stuck on a black screen.
+setTimeout(dismissPageLoader, 5000);
 
 // Auto-search whenever observers AND TLE are available, starting "now" and
 // running for state.horizonDays. Called on observer add/remove and after
 // TLE load. No-op if either prerequisite is missing.
 function rerunSearchIfActive() {
-  if (!state.observers.length || !satrec) return;
+  if (!state.observers.length) {
+    // No observers → nothing to search. Clear state + list so the prior
+    // results don't linger after the user removes the last observer.
+    state.windows = [];
+    state.activeWindowIdx = -1;
+    windowsListEl.replaceChildren();
+    const empty = document.createElement("div");
+    empty.className = "window-empty";
+    empty.textContent = "add an observer to begin";
+    windowsListEl.appendChild(empty);
+    return;
+  }
+  if (!satrec) return;
   state.windows = [];
   state.activeWindowIdx = -1;
   const startMs = Date.now();
@@ -565,8 +716,22 @@ function setupClockForSearch(startMs, endMs) {
 
 function renderWindowsList() {
   windowsListEl.replaceChildren();
+  // Column header row — uses subgrid like data rows so labels align with
+  // their column. Always rendered (even when empty) so the headings act
+  // as a stable orientation cue for the list area.
+  const hdr = document.createElement("div");
+  hdr.className = "window-row header";
+  for (const label of ["", "Time (UTC)", "Dur", "Alt", "Clouds"]) {
+    const c = document.createElement("span");
+    c.textContent = label;
+    hdr.appendChild(c);
+  }
+  windowsListEl.appendChild(hdr);
   if (!state.windows.length) {
-    windowsListEl.textContent = "no simultaneous passes found";
+    const empty = document.createElement("div");
+    empty.className = "window-empty";
+    empty.textContent = "no simultaneous passes found";
+    windowsListEl.appendChild(empty);
     return;
   }
   state.windows.forEach((w, i) => {

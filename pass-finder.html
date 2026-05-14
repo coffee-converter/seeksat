@@ -9,11 +9,48 @@
   <link rel="stylesheet" href="./pass-finder.css" />
 </head>
 <body>
+  <!-- Full-page loader covers everything until the initial search has
+       rendered + the camera has framed the first pass — prevents the
+       awkward pop-in of pins, labels, and panels during boot. JS removes
+       this once the first runSearch completes. -->
+  <div id="page-loader">
+    <svg class="loader-svg" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- Wireframe globe: outer circle + a couple of ellipses standing
+           in for meridians/parallels. Chunky monochrome strokes, no fill,
+           reads as a logo mark. -->
+      <g class="loader-globe-wire">
+        <circle cx="110" cy="110" r="46" />
+        <ellipse cx="110" cy="110" rx="46" ry="16" />
+        <ellipse cx="110" cy="110" rx="46" ry="32" />
+        <ellipse cx="110" cy="110" rx="22" ry="46" />
+        <line x1="110" y1="64" x2="110" y2="156" />
+      </g>
+      <!-- Orbit trajectory: dashed ring so it reads as a path rather than
+           another solid wireframe element. -->
+      <circle class="loader-orbit-ring" cx="110" cy="110" r="92" />
+      <!-- ISS dot, parked at top of the orbit; the parent <g> rotates
+           around the globe center to move it along the orbit. -->
+      <g class="loader-iss-group">
+        <circle class="loader-iss" cx="110" cy="18" r="5.5" />
+      </g>
+    </svg>
+    <span class="loader-label">Loading pass finder…</span>
+  </div>
+
   <div id="cesium-container"></div>
+
+  <!-- Pane toggle: slides #panel-left off-left when clicked; button tracks
+       the panel edge so it's always reachable. -->
+  <button id="panel-toggle" type="button" aria-label="Toggle side panel"></button>
 
   <!-- Single left panel: Observers (collapsible) / Windows (always-visible,
        flex-grows + scrolls) / TLE (collapsible) -->
   <section id="panel-left" class="panel">
+    <div id="windows-section">
+      <h2 class="section-heading">Passes</h2>
+      <div id="windows-list" class="result-block"><div class="window-empty">loading…</div></div>
+    </div>
+
     <details id="observers-details">
       <summary><h2>Observers</h2></summary>
       <div id="obs-list"></div>
@@ -27,10 +64,6 @@
       </div>
       <button id="click-place-toggle" type="button" class="toggle">Click on globe to place</button>
     </details>
-
-    <div id="windows-section">
-      <div id="windows-list" class="result-block">add an observer to begin.</div>
-    </div>
 
     <details id="tle-details">
       <summary><h2>TLE</h2></summary>
@@ -63,10 +96,10 @@
     </label>
     <div id="sim-time">—</div>
     <div id="camera-controls" class="ctl-group">
-      <button data-cam="frame">Frame all</button>
-      <button data-cam="top">Top down</button>
-      <button data-cam="orbit" title="Lock camera to observers' centroid; mouse drag orbits, wheel zooms">Orbit point</button>
-      <button data-cam="rotate">Auto-rotate</button>
+      <button data-cam="frame" title="Frame all observers">Frame</button>
+      <button data-cam="top" title="Top-down view">Top</button>
+      <button data-cam="orbit" title="Lock camera to observers' centroid; mouse drag orbits, wheel zooms">Orbit</button>
+      <button data-cam="rotate" title="Auto-rotate camera">Rotate</button>
     </div>
   </nav>
 
