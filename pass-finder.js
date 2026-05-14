@@ -604,7 +604,7 @@ function renderWindowsList() {
 // you can't see a great-altitude pass through overcast skies, nor a brief
 // horizon-grazer in clear skies. Cloud-unknown gets a 0.7 neutral factor.
 function computeRating(durSec, minAltDeg, maxCloudPct) {
-  const dF = Math.min(1, Math.max(0, durSec / 240));           // 4 min saturates
+  const dF = Math.min(1, Math.max(0, durSec / 90));            // 30s→0.33, 60s→0.67, 90s+→1
   const aF = Math.min(1, Math.max(0, (minAltDeg - 10) / 30));  // 10°→0, 40°+→1
   const cF = (maxCloudPct == null) ? 0.7
            : Math.min(1, Math.max(0, 1 - maxCloudPct / 100));
