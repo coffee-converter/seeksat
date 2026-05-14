@@ -350,14 +350,38 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 
 /* "PASSES" section heading — matches the visual weight of the collapsible
    summary headings, but without the chevron (the list is always shown). */
-#windows-section > .section-heading {
+#windows-section > .section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 16px 6px;
+}
+#windows-section .section-heading {
   font-size: 12px;
   line-height: 1.2;
   color: #7eb8ff;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin: 0;
-  padding: 2px 16px 6px;
+  padding: 0;
+}
+#share-btn {
+  background: rgba(126, 184, 255, 0.12);
+  border: 1px solid rgba(126, 184, 255, 0.4);
+  color: #cfe0ff;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 0;
+}
+#share-btn:hover { background: rgba(126, 184, 255, 0.22); }
+#share-btn.copied {
+  background: rgba(127, 229, 209, 0.22);
+  border-color: rgba(127, 229, 209, 0.5);
+  color: #7fe5d1;
 }
 .window-row:hover { background: rgba(126,184,255,0.12); }
 .window-row.active { background: rgba(126,184,255,0.25); }

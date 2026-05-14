@@ -47,7 +47,10 @@
        flex-grows + scrolls) / TLE (collapsible) -->
   <section id="panel-left" class="panel">
     <div id="windows-section">
-      <h2 class="section-heading">Passes</h2>
+      <div class="section-heading-row">
+        <h2 class="section-heading">Passes</h2>
+        <button id="share-btn" type="button" title="Copy a link to this observer setup">Share</button>
+      </div>
       <div id="windows-list" class="result-block"><div class="window-empty">loading…</div></div>
     </div>
 
@@ -85,8 +88,8 @@
     <label class="speed-label">
       Speed
       <select id="speed-select">
-        <option value="1" selected>×1</option>
-        <option value="10">×10</option>
+        <option value="1">×1</option>
+        <option value="10" selected>×10</option>
         <option value="60">×60</option>
         <option value="1000">×1000</option>
         <option value="4000">×4000</option>
