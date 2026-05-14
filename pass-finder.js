@@ -539,13 +539,16 @@ function renderWindowsList() {
     // viewable). Shows "—" while forecasts are loading or unavailable.
     const cloud = document.createElement("span");
     cloud.className = "cloud";
-    const agg = aggregateCloud(peakMs);
-    if (agg === null) {
+    const range = cloudRange(peakMs);
+    if (range === null) {
       cloud.textContent = "—";
       cloud.classList.add("na");
     } else {
-      cloud.textContent = `${agg.toFixed(0)}%`;
-      cloud.classList.add(agg < 30 ? "clear" : agg < 60 ? "partial" : "overcast");
+      const lo = Math.round(range.min), hi = Math.round(range.max);
+      cloud.textContent = lo === hi ? `${hi}%` : `${lo}–${hi}%`;
+      // Color by the WORST observer (max cover) — defines whether anyone
+      // is clouded out.
+      cloud.classList.add(hi < 30 ? "clear" : hi < 60 ? "partial" : "overcast");
     }
     row.appendChild(cloud);
     row.addEventListener("click", () => jumpToWindow(i));
@@ -553,17 +556,19 @@ function renderWindowsList() {
   });
 }
 
-// Aggregate cloud cover across observers at a given ms: returns the MAX (worst)
-// across observers, or null if any observer's forecast isn't loaded yet.
-function aggregateCloud(ms) {
-  let worst = -1;
+// Cloud cover range across observers at a given ms: returns { min, max }
+// (each 0-100), or null if any observer's forecast isn't loaded yet.
+function cloudRange(ms) {
+  let min = Infinity, max = -Infinity;
   for (const obs of state.observers) {
     const f = state.cloudForecasts.get(obs.id);
     const c = cloudAt(f, ms);
     if (c == null) return null;
-    if (c > worst) worst = c;
+    if (c < min) min = c;
+    if (c > max) max = c;
   }
-  return worst < 0 ? null : worst;
+  if (!Number.isFinite(min)) return null;
+  return { min, max };
 }
 
 // Best moment in a window = where the MINIMUM altitude across all observers is
