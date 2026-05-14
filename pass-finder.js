@@ -86,7 +86,28 @@ function addObserver(name, latDeg, lonDeg) {
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
-  observerLayer.push(ent);
+  // Sightline that appears only while ISS is visible from THIS observer:
+  // alt >= 10°, ISS in sunlight, observer in twilight (sun alt <= -6°).
+  const obsPos = Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0);
+  const visLine = viewer.entities.add({
+    polyline: {
+      positions: new Cesium.CallbackProperty((time) => {
+        const d = Cesium.JulianDate.toDate(time);
+        const issEcef = issEcefAt(d);
+        if (!issEcef) return [];
+        if (!isVisibleAtAll([obs], issEcef, d)) return [];
+        return [obsPos, Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2])];
+      }, false),
+      width: 2,
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.25,
+        color: Cesium.Color.fromCssColorString(color),
+      }),
+      arcType: Cesium.ArcType.NONE,
+    },
+  });
+
+  observerLayer.push({ pin: ent, visLine });
   renderObsList();
   return obs;
 }
@@ -95,7 +116,9 @@ function removeObserver(id) {
   const idx = state.observers.findIndex(o => o.id === id);
   if (idx < 0) return;
   state.observers.splice(idx, 1);
-  viewer.entities.remove(observerLayer[idx]);
+  const entry = observerLayer[idx];
+  viewer.entities.remove(entry.pin);
+  viewer.entities.remove(entry.visLine);
   observerLayer.splice(idx, 1);
   renderObsList();
 }
