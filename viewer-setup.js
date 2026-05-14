@@ -34,11 +34,20 @@ export function makeViewer(containerId, opts = {}) {
   // opts.imagery=false and managing their own layers.
   if (opts.imagery !== false) {
     viewer.imageryLayers.removeAll();
-    viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
+    const layer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
       url: ESRI_IMAGERY_URL,
       credit: "Tiles © Esri, Maxar, Earthstar Geographics",
       maximumLevel: 19,
     }));
+    // brightness multiplies imagery RGB; contrast bump keeps the sunlit
+    // hemisphere vivid at the lower brightness (the contrast curve in
+    // Cesium's imagery filter crushes blacks while preserving highlights
+    // — exactly what we want for a stronger day/night gap). saturation
+    // slightly below 1 gives the night a mildly greyed-out feel without
+    // making the day side look washed out.
+    layer.brightness = 0.55;
+    layer.contrast = 1.15;
+    layer.saturation = 0.92;
   }
 
   // NASA SVS Deep Star Map 2020 cubemap.
@@ -56,6 +65,44 @@ export function makeViewer(containerId, opts = {}) {
   viewer.scene.skyBox.show = true;
   viewer.scene.skyAtmosphere.show = true;
   viewer.scene.globe.enableLighting = opts.lighting ?? true;
+  // Force the day/night terminator to stay visible at every zoom level.
+  //
+  // By default Cesium turns OFF the sun-direction lighting calculation
+  // as the camera approaches the surface (lightingFadeOutDistance, which
+  // defaults to ~½π × earthRadius ≈ 10,000 km), so imagery stays bright
+  // and readable when zoomed in — which also flattens the day/night
+  // terminator. Setting the fade-out to ~0 keeps real Lambert lighting
+  // active at all camera distances, giving a natural twilight gradient
+  // and a dark unlit hemisphere.
+  //
+  // Note: we deliberately leave nightFadeOut/InDistance at their
+  // defaults. Forcing them small pushes the entire night side into the
+  // "dim earth glow" appearance regardless of camera position, which
+  // also greys out twilight zones near the terminator — not what we want.
+  viewer.scene.globe.lightingFadeOutDistance = 1;
+  viewer.scene.globe.lightingFadeInDistance = 100;
+  // Push the night-atmosphere fade distances out past any reasonable
+  // camera range so the hard transition between "lit-atmosphere night"
+  // (close) and "dim-glow night" (far) never happens — Lambert shading
+  // handles the day/night appearance uniformly at every zoom level
+  // instead.
+  viewer.scene.globe.nightFadeOutDistance = 1e9;
+  viewer.scene.globe.nightFadeInDistance = 2e9;
+  // lambertDiffuseMultiplier moderate (high values saturated quickly and
+  // didn't visibly sharpen the terminator more); the real darkening
+  // comes from the imagery-layer brightness reduction above.
+  viewer.scene.globe.lambertDiffuseMultiplier = 3;
+  // Atmosphere settings widen the day/night gap rather than eliminating
+  // both. dynamicAtmosphereLighting=true makes the ground atmosphere
+  // track the actual sun direction (lifting the DAY side without lifting
+  // the night) — the previous false setting + intensity=0 dimmed the day
+  // side too. Moderate intensity gives a visible bonus lift to lit terrain.
+  viewer.scene.globe.atmosphereLightIntensity = 4;
+  viewer.scene.globe.showGroundAtmosphere = true;
+  viewer.scene.globe.dynamicAtmosphereLighting = true;
+  // Disable scene fog — Cesium's distance fog brightens distant terrain
+  // and contributes to the brightness step seen at certain zooms.
+  viewer.scene.fog.enabled = false;
   viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");
   viewer.scene.msaaSamples = 4;
   viewer.scene.postProcessStages.fxaa.enabled = true;

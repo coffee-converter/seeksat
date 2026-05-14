@@ -3,7 +3,7 @@
 import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
 import { geocodeOne } from "./pass-finder/geocode.js";
 import { fetchIssTle } from "./pass-finder/tle.js";
-import { isVisibleAtAll, issAltitudeDeg, issAltAzDeg, issIlluminated } from "./pass-finder/visibility.js";
+import { isVisibleAtAll, issAltitudeDeg, issAltAzDeg, issIlluminated, sunAltitudeDeg } from "./pass-finder/visibility.js";
 import { sunPositionEcef } from "./pass-finder/sun.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
@@ -169,6 +169,7 @@ function addObserver(name, latDeg, lonDeg) {
 
   observerLayer.push({ pin: ent, visEntity });
   renderObsList();
+  persistState();
 
   // Kick off cloud-cover forecast for this location (cached by lat/lon).
   fetchCloudForecast(latDeg, lonDeg).then(f => {
@@ -191,6 +192,7 @@ function removeObserver(id) {
   viewer.entities.remove(entry.visEntity);
   observerLayer.splice(idx, 1);
   renderObsList();
+  persistState();
   rerunSearchIfActive();
 }
 
@@ -455,6 +457,17 @@ function ensureIssEntity() {
       }, false),
       outlineColor: Cesium.Color.fromCssColorString("#7eb8ff"),
       outlineWidth: 3,
+      // Render on top of all other geometry (the colored pass-gradient
+      // polyline shares world positions with the ISS and would otherwise
+      // z-fight). Visibility behind the planet is handled by the `show`
+      // callback below instead of depth testing.
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      show: new Cesium.CallbackProperty((time) => {
+        const d = Cesium.JulianDate.toDate(time);
+        const p = issEcefAt(d);
+        if (!p) return false;
+        return isInFrontOfEarth(Cesium.Cartesian3.fromElements(p[0], p[1], p[2]));
+      }, false),
     },
     label: {
       show: new Cesium.CallbackProperty((time) => {
@@ -559,6 +572,110 @@ function ensureOrbitEntity() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Active pass gradient: a thick, colored overlay on the ISS orbit track that
+// spans the visibility window of the currently-selected pass. The color at
+// each point along the arc reflects the instantaneous quality of the pass
+// (altitude × twilight × cloud), so the user can see at a glance WHERE in
+// the arc the pass peaks and how it fades on either side.
+//
+// Rendered as N short polyline entities (one per sample segment) — each
+// gets a single solid material color, so the segments together form a
+// smooth gradient line along the ISS path.
+// ---------------------------------------------------------------------------
+
+const PASS_GRADIENT_SAMPLES = 60;
+let activePassEntities = [];
+
+// Same A/B/C/D palette the rating column uses, interpolated continuously.
+// score ∈ [0, 1].
+function ratingColorAt(score) {
+  const stops = [
+    { t: 0,    r: 248, g: 113, b: 113 }, // D red    (#f87171)
+    { t: 0.34, r: 250, g: 204, b:  21 }, // C yellow (#facc15)
+    { t: 0.67, r: 163, g: 230, b:  53 }, // B lime   (#a3e635)
+    { t: 1,    r:  52, g: 211, b: 153 }, // A green  (#34d399)
+  ];
+  const s = Math.max(0, Math.min(1, score));
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i], b = stops[i + 1];
+    if (s <= b.t) {
+      const u = (s - a.t) / (b.t - a.t);
+      return Cesium.Color.fromBytes(
+        Math.round(a.r + (b.r - a.r) * u),
+        Math.round(a.g + (b.g - a.g) * u),
+        Math.round(a.b + (b.b - a.b) * u),
+      );
+    }
+  }
+  return Cesium.Color.WHITE;
+}
+
+// Instantaneous joint-visibility quality at one moment of the pass.
+// For each observer compute alt-factor × twilight-factor × cloud-factor
+// (mirrors computeRating's per-pass version but applied to a point in
+// time, not the worst across the whole window). The score is the
+// MINIMUM across observers — matches the simultaneous-visibility model:
+// the pass is only as good as the worst observer at that moment.
+function computeInstantQuality(observers, issEcef, jsDate) {
+  if (!observers.length) return 0;
+  const ms = jsDate.getTime();
+  let worst = Infinity;
+  for (const obs of observers) {
+    const altDeg = issAltitudeDeg(obs, issEcef);
+    const sunAlt = sunAltitudeDeg(obs, jsDate);
+    const cloudPct = cloudAt(state.cloudForecasts.get(obs.id), ms);
+    // Match computeRating's per-factor curves.
+    const aF = Math.min(1, Math.max(0, (altDeg - 10) / 30));   // 10°→0, 40°+→1
+    const tF = Math.min(1, Math.max(0, (-6 - sunAlt) / 12));    // -6°→0, -18°→1
+    const cF = cloudPct == null ? 0.7 : Math.pow(1 - cloudPct / 100, 2);
+    const q = aF * tF * cF;
+    if (q < worst) worst = q;
+  }
+  return worst === Infinity ? 0 : worst;
+}
+
+function clearActivePassGradient() {
+  for (const ent of activePassEntities) viewer.entities.remove(ent);
+  activePassEntities = [];
+}
+
+function renderActivePassGradient(win) {
+  clearActivePassGradient();
+  if (!win || !satrec || !state.observers.length) return;
+  const totalMs = win.endMs - win.startMs;
+  if (totalMs <= 0) return;
+  // Sample ISS positions + per-sample quality along the window.
+  const samples = [];
+  for (let i = 0; i <= PASS_GRADIENT_SAMPLES; i++) {
+    const t = win.startMs + totalMs * (i / PASS_GRADIENT_SAMPLES);
+    const d = new Date(t);
+    const issEcef = issEcefAt(d);
+    if (!issEcef) continue;
+    samples.push({
+      pos: Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]),
+      quality: computeInstantQuality(state.observers, issEcef, d),
+    });
+  }
+  // Draw each segment between adjacent samples with color from the
+  // midpoint quality. Solid color material (not glow — glow's white core
+  // washes the color out) keeps the gradient vivid against the dashed
+  // full-orbit guide underneath.
+  for (let i = 0; i < samples.length - 1; i++) {
+    const a = samples[i], b = samples[i + 1];
+    const segQ = (a.quality + b.quality) / 2;
+    const ent = viewer.entities.add({
+      polyline: {
+        positions: [a.pos, b.pos],
+        width: 9,
+        material: new Cesium.ColorMaterialProperty(ratingColorAt(segQ).withAlpha(0.95)),
+        arcType: Cesium.ArcType.NONE,
+      },
+    });
+    activePassEntities.push(ent);
+  }
+}
+
 // Refresh satrec whenever TLE inputs change. Invalidate orbit cache so it
 // picks up the new TLE on the next frame.
 [tleNameEl, tleL1El, tleL2El].forEach(el => el.addEventListener("input", () => {
@@ -580,19 +697,109 @@ loadTle = async function () {
 };
 loadTle();
 
-// Seed three default observers so the page is useful as soon as it loads.
-// They're added synchronously here; the auto-search kicks off once the TLE
-// fetch completes (see the loadTle wrapper above).
-addObserver("Chicago",    41.8781, -87.6298);
-addObserver("Milwaukee",  43.0389, -87.9065);
-addObserver("Cincinnati", 39.1031, -84.5120);
+// Shareable state + persistence.
+//
+// All shareable state goes into a single base64url-encoded JSON blob
+// behind ?s=...  Compact JSON shape:
+//   { o: [[name, lat, lon], ...], t?: passStartMs }
+// where `t` (if present) is the start time of a specific pass window
+// the user had selected — when someone opens the link, we jump to the
+// window matching that start time so they land exactly where the
+// sharer was looking.
+//
+// Sources of truth on load, in priority order:
+//   1. URL ?s=... (sharable links beat localStorage so opening
+//      someone else's link doesn't pick up your own saved observers)
+//   2. localStorage entry under LS_STATE_KEY
+//   3. The seeded Chicago/Milwaukee/Cincinnati defaults
+const LS_STATE_KEY = "iss-triangulation/state/v1";
+
+// Time-of-pass that was on the URL when the page loaded — consumed by
+// the first runSearch to jump to the matching window instead of #0.
+let _pendingPassTimeMs = null;
+
+// URL-safe base64 (a.k.a. base64url): +/= replaced so it survives in
+// query strings without needing further URL-encoding.
+function b64urlEncode(str) {
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64urlDecode(b64) {
+  const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+  return atob(b64.replace(/-/g, "+").replace(/_/g, "/") + pad);
+}
+
+function encodeStateBlob() {
+  const obj = {
+    o: state.observers.map(o => [o.name, +o.latDeg.toFixed(5), +o.lonDeg.toFixed(5)]),
+  };
+  if (state.activeWindowIdx >= 0 && state.windows[state.activeWindowIdx]) {
+    obj.t = state.windows[state.activeWindowIdx].startMs;
+  }
+  return b64urlEncode(JSON.stringify(obj));
+}
+
+function decodeStateBlob(blob) {
+  if (!blob) return null;
+  try {
+    const obj = JSON.parse(b64urlDecode(blob));
+    const observers = Array.isArray(obj.o)
+      ? obj.o
+          .map(e => Array.isArray(e) && e.length >= 3
+            ? { name: String(e[0] || "Observer"), latDeg: +e[1], lonDeg: +e[2] }
+            : null)
+          .filter(o => o && Number.isFinite(o.latDeg) && Number.isFinite(o.lonDeg))
+      : [];
+    return {
+      observers,
+      passTimeMs: Number.isFinite(obj.t) ? Number(obj.t) : null,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function persistState() {
+  const blob = encodeStateBlob();
+  try {
+    localStorage.setItem(LS_STATE_KEY, blob);
+  } catch (_) { /* private browsing etc. — silently skip */ }
+  const url = new URL(window.location.href);
+  if (state.observers.length) {
+    url.search = `?s=${blob}`;
+  } else {
+    url.search = "";
+  }
+  history.replaceState(null, "", url);
+}
+
+function loadInitialObservers() {
+  const urlBlob = new URLSearchParams(window.location.search).get("s");
+  const fromUrl = decodeStateBlob(urlBlob);
+  if (fromUrl && fromUrl.observers.length) {
+    for (const o of fromUrl.observers) addObserver(o.name, o.latDeg, o.lonDeg);
+    _pendingPassTimeMs = fromUrl.passTimeMs;
+    return;
+  }
+  const fromStorage = decodeStateBlob(
+    (() => { try { return localStorage.getItem(LS_STATE_KEY); } catch (_) { return null; } })()
+  );
+  if (fromStorage && fromStorage.observers.length) {
+    for (const o of fromStorage.observers) addObserver(o.name, o.latDeg, o.lonDeg);
+    return;
+  }
+  addObserver("Chicago",    41.8781, -87.6298);
+  addObserver("Milwaukee",  43.0389, -87.9065);
+  addObserver("Cincinnati", 39.1031, -84.5120);
+}
+
+loadInitialObservers();
 
 // ---------------------------------------------------------------------------
 // Task 11: Search controls + windows-list rendering + click-to-jump
 // ---------------------------------------------------------------------------
 
 state.horizonDays = 30;
-state.multiplier = 1;
+state.multiplier = 10;
 state.windows = [];
 state.activeWindowIdx = -1;
 state.searchEndMs = null;
@@ -617,6 +824,23 @@ const windowsListEl = document.getElementById("windows-list");
 // via the .panel-collapsed body class (all visual changes are CSS-driven).
 document.getElementById("panel-toggle").addEventListener("click", () => {
   document.body.classList.toggle("panel-collapsed");
+});
+
+// Share button — copies the current URL (kept in sync with observers by
+// persistObservers) to the clipboard, with a brief "Copied!" confirmation.
+const shareBtn = document.getElementById("share-btn");
+shareBtn.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    shareBtn.textContent = "Copied!";
+    shareBtn.classList.add("copied");
+  } catch (_) {
+    shareBtn.textContent = "Copy failed";
+  }
+  setTimeout(() => {
+    shareBtn.textContent = "Share";
+    shareBtn.classList.remove("copied");
+  }, 1500);
 });
 
 speedSelect.addEventListener("change", () => {
@@ -658,7 +882,16 @@ function runSearch(startMs, endMs) {
     // observers doesn't yank the camera away from the user's selection.
     if (!_autoSelectedFirst && state.windows.length) {
       _autoSelectedFirst = true;
-      jumpToWindow(0);
+      // If the URL carried a specific pass time (?s=...t=...), jump to
+      // the matching window so the sharer's selection survives; else
+      // land on the upcoming pass like before.
+      let idx = 0;
+      if (_pendingPassTimeMs != null) {
+        const matched = findWindowIndexNearTime(_pendingPassTimeMs);
+        if (matched !== -1) idx = matched;
+        _pendingPassTimeMs = null;
+      }
+      jumpToWindow(idx);
     }
     // First completed search → page is "ready": TLE loaded, observers
     // placed, windows rendered, camera framed (or about to be). Fade the
@@ -688,6 +921,7 @@ function rerunSearchIfActive() {
     // results don't linger after the user removes the last observer.
     state.windows = [];
     state.activeWindowIdx = -1;
+    clearActivePassGradient();
     windowsListEl.replaceChildren();
     const empty = document.createElement("div");
     empty.className = "window-empty";
@@ -698,6 +932,7 @@ function rerunSearchIfActive() {
   if (!satrec) return;
   state.windows = [];
   state.activeWindowIdx = -1;
+  clearActivePassGradient();
   const startMs = Date.now();
   const endMs = startMs + state.horizonDays * 86_400_000;
   runSearch(startMs, endMs);
@@ -905,7 +1140,24 @@ function jumpToWindow(i) {
   viewer.clock.shouldAnimate = false;
   invalidateOrbitCache(); // force orbit refresh at the jumped time
   renderWindowsList();
+  renderActivePassGradient(w); // colored overlay on the orbit for THIS pass
   cameraCtrl.frameAll(); // pull observers + ISS into view for the moment we jumped to
+  // Keep the URL up to date so the Share link always points at the
+  // currently-selected pass.
+  persistState();
+}
+
+// Find the index of the window whose start time is closest to targetMs.
+// Used when loading a shared URL with a ?s=...t=... blob to land on the
+// same window the sharer was looking at. Returns -1 if no windows exist.
+function findWindowIndexNearTime(targetMs) {
+  if (!state.windows.length) return -1;
+  let bestIdx = -1, bestDelta = Infinity;
+  for (let i = 0; i < state.windows.length; i++) {
+    const delta = Math.abs(state.windows[i].startMs - targetMs);
+    if (delta < bestDelta) { bestDelta = delta; bestIdx = i; }
+  }
+  return bestIdx;
 }
 
 // ---------------------------------------------------------------------------
