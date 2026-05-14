@@ -716,6 +716,9 @@ document.getElementById("camera-controls").addEventListener("click", (ev) => {
 });
 
 function frameAll() {
+  // Cancel any in-flight camera move so re-clicking a window (or clicking the
+  // same window twice) always re-runs the animation rather than no-op'ing.
+  viewer.camera.cancelFlight();
   const positions = state.observers.map(o =>
     Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
   // Include the ISS at its current clock time so it stays in frame.
