@@ -294,16 +294,39 @@ function ensureIssEntity() {
   });
 }
 
-function updateOrbit(centerJsDate) {
-  if (!satrec) return;
-  if (orbitEntity) { viewer.entities.remove(orbitEntity); orbitEntity = null; }
+// Orbit polyline: animated. The positions are recomputed each time the clock
+// moves more than ~10 simulated seconds, so the orbit ring stays centered on
+// the current moment as the ISS races forward. Cache the Cartesian3 array
+// between recomputes so we're not allocating 360 positions every frame.
+let orbitCachedPositions = [];
+let orbitCacheCenterMs = null;
+const ORBIT_REFRESH_MS = 10_000; // simulated-time interval between recomputes
+
+function invalidateOrbitCache() { orbitCacheCenterMs = null; }
+
+function recomputeOrbitFor(jsDate) {
+  if (!satrec) { orbitCachedPositions = []; return; }
   const t = readTleFromUi();
-  if (!t) return;
-  const pts = tleOrbitTrackEcef(t.line1, t.line2, centerJsDate);
-  if (pts.length < 2) return;
+  if (!t) { orbitCachedPositions = []; return; }
+  const pts = tleOrbitTrackEcef(t.line1, t.line2, jsDate);
+  orbitCachedPositions = pts.map(p =>
+    Cesium.Cartesian3.fromElements(p[0], p[1], p[2])
+  );
+}
+
+function ensureOrbitEntity() {
+  if (orbitEntity) return;
   orbitEntity = viewer.entities.add({
     polyline: {
-      positions: pts.map(p => Cesium.Cartesian3.fromElements(p[0], p[1], p[2])),
+      positions: new Cesium.CallbackProperty((time) => {
+        const ms = Cesium.JulianDate.toDate(time).getTime();
+        if (orbitCacheCenterMs === null
+            || Math.abs(ms - orbitCacheCenterMs) > ORBIT_REFRESH_MS) {
+          recomputeOrbitFor(new Date(ms));
+          orbitCacheCenterMs = ms;
+        }
+        return orbitCachedPositions;
+      }, false),
       width: 1.5,
       material: new Cesium.PolylineDashMaterialProperty({
         color: Cesium.Color.fromCssColorString("#7eb8ff").withAlpha(0.45),
@@ -314,10 +337,11 @@ function updateOrbit(centerJsDate) {
   });
 }
 
-// Refresh satrec whenever TLE inputs change. Re-render orbit on TLE edits too.
+// Refresh satrec whenever TLE inputs change. Invalidate orbit cache so it
+// picks up the new TLE on the next frame.
 [tleNameEl, tleL1El, tleL2El].forEach(el => el.addEventListener("input", () => {
   refreshSatrec();
-  updateOrbit(Cesium.JulianDate.toDate(viewer.clock.currentTime));
+  invalidateOrbitCache();
 }));
 // Also after initial fetch.
 const _loadTle = loadTle;
@@ -325,7 +349,8 @@ loadTle = async function () {
   await _loadTle();
   refreshSatrec();
   ensureIssEntity();
-  updateOrbit(Cesium.JulianDate.toDate(viewer.clock.currentTime));
+  ensureOrbitEntity();
+  invalidateOrbitCache();
 };
 loadTle();
 
@@ -459,7 +484,7 @@ function jumpToWindow(i) {
   const peakMs = bestMomentMs(w);
   viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(peakMs));
   viewer.clock.shouldAnimate = false;
-  updateOrbit(new Date(peakMs));
+  invalidateOrbitCache(); // force orbit refresh at the jumped time
   renderWindowsList();
 }
 
