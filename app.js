@@ -18,6 +18,7 @@ import {
 } from "./coords.js";
 import { triangulateRays } from "./triangulate.js";
 import { lookupElev } from "./elevation.js";
+import { correctRefraction } from "./refraction.js";
 
 const Cesium = window.Cesium;
 
@@ -122,6 +123,7 @@ const state = {
   observations: monday.observations,
   triangulated: null, // [x,y,z] ECEF (meters)
   residuals: [],
+  refractionEnabled: false,
 };
 
 // Render layer references so we can clear and redraw on every recompute.
@@ -156,6 +158,12 @@ function ensureElev(obs) {
   });
 }
 
+function observerUpEcef(latDeg, lonDeg) {
+  const lat = latDeg * Math.PI / 180;
+  const lon = lonDeg * Math.PI / 180;
+  return [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)];
+}
+
 function buildRay(obs, jsDate) {
   const origin = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
   let dirEcef;
@@ -165,6 +173,9 @@ function buildRay(obs, jsDate) {
   } else {
     const dirEnu = altAzToEnuDir(obs.dir.altDeg, obs.dir.azDeg);
     dirEcef = enuToEcefRotate(dirEnu, obs.latDeg, obs.lonDeg);
+  }
+  if (state.refractionEnabled) {
+    dirEcef = correctRefraction(dirEcef, observerUpEcef(obs.latDeg, obs.lonDeg));
   }
   return { origin, dir: dirEcef };
 }
@@ -485,6 +496,12 @@ function reparseObsFromDom() {
 obsList.addEventListener("input", reparseObsFromDom);
 obsList.addEventListener("change", reparseObsFromDom);
 tsInput.addEventListener("input", reparseObsFromDom);
+
+const refractionCheckbox = document.getElementById("opt-refraction");
+refractionCheckbox.addEventListener("change", () => {
+  state.refractionEnabled = refractionCheckbox.checked;
+  recompute();
+});
 
 obsList.addEventListener("click", (ev) => {
   if (ev.target.classList && ev.target.classList.contains("remove")) {
