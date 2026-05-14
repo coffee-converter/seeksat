@@ -20,6 +20,7 @@ export async function geocodeOne(query) {
       };
     })
     .catch(err => {
+      cache.delete(key); // allow retry on transient failure
       console.warn(`geocode failed for "${query}": ${err.message}`);
       return null;
     });
