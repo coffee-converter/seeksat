@@ -82,6 +82,20 @@ imagerySelect.value = "esri-imagery";
 imagerySelect.addEventListener("change", () => setImagery(imagerySelect.value));
 setImagery("esri-imagery");
 
+// High-res Tycho-2 8K cubemap from Flowm/cesium-assets fork, served via jsDelivr.
+// Source: NASA/GSFC Scientific Visualization Studio, Tycho-2 Catalogue.
+const STARS_BASE = "https://cdn.jsdelivr.net/gh/Flowm/cesium-assets@master/stars/TychoSkymapII.t3_08192x04096";
+viewer.scene.skyBox = new Cesium.SkyBox({
+  sources: {
+    positiveX: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_px.jpg`,
+    negativeX: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_mx.jpg`,
+    positiveY: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_py.jpg`,
+    negativeY: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_my.jpg`,
+    positiveZ: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_pz.jpg`,
+    negativeZ: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_mz.jpg`,
+  },
+});
+
 // Stars on, anchored to ICRF (rotate with time so observation moment is accurate).
 viewer.scene.skyBox.show = true;
 viewer.scene.skyAtmosphere.show = true;
@@ -166,10 +180,11 @@ let recompute = function () {
   state.triangulated = result.point;
   state.residuals = result.residuals;
 
-  // Observer pins.
+  // Observer pins — anchor at sea level (elev 0) so the dot sits on the
+  // rendered globe surface (Cesium's ellipsoid imagery has no 3D terrain).
+  // Math still uses the observer's real elevation for the ray direction.
   for (const obs of state.observations) {
-    const ecef = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
-    const pos = Cesium.Cartesian3.fromElements(...ecef);
+    const pos = Cesium.Cartesian3.fromDegrees(obs.lonDeg, obs.latDeg, 0);
     const color = Cesium.Color.fromCssColorString(obs.color);
     layer.observers.push(viewer.entities.add({
       name: obs.name,
@@ -209,10 +224,12 @@ let recompute = function () {
       origin[1] + dir[1] * rayLength,
       origin[2] + dir[2] * rayLength,
     ];
+    // Visually start the ray at sea level (matches the observer dot);
+    // the few hundred meters of offset along the same direction is invisible.
     layer.rays.push(viewer.entities.add({
       polyline: {
         positions: [
-          Cesium.Cartesian3.fromElements(...origin),
+          Cesium.Cartesian3.fromDegrees(obs.lonDeg, obs.latDeg, 0),
           Cesium.Cartesian3.fromElements(...end),
         ],
         width: 3,
