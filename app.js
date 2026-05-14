@@ -706,6 +706,7 @@ if (monday.defaultTle) {
   tleL1.value = monday.defaultTle.name ?? "";
   tleL2.value = monday.defaultTle.line1 ?? "";
   tleL3.value = monday.defaultTle.line2 ?? "";
+  document.getElementById("tle-details").open = true;
 }
 
 // Compose renderTruth onto recompute.
