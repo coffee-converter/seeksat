@@ -2,8 +2,18 @@
 
 /* Leave room at the bottom for #camera-controls (~50px) and #credit so
    neither panel can extend over them. */
-#panel-observers, #panel-search { max-height: calc(100vh - 110px); overflow: auto; }
-#panel-search { max-width: 420px; }
+#panel-observers { max-height: calc(100vh - 110px); overflow: auto; }
+/* The right panel uses flex so the top section (TLE + controls) stays fixed
+   and only the windows list scrolls when long. */
+#panel-search {
+  max-width: 420px;
+  max-height: calc(100vh - 110px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#panel-search > h3 { flex: 0 0 auto; }
+#panel-search > #windows-list { flex: 1 1 auto; overflow-y: auto; min-height: 100px; }
 
 .add-row { display: flex; gap: 6px; margin-top: 8px; }
 .add-row input { flex: 1; }

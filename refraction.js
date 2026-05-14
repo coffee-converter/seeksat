@@ -17,6 +17,16 @@ export function bennettRefractionArcmin(apparentAltDeg) {
   return 1 / Math.tan(arg);
 }
 
+// Saemundsson (1986) inverse: given GEOMETRIC altitude (the true elevation
+// of the object above the horizontal plane), returns the apparent (refracted)
+// altitude that an observer would actually see. Refraction lifts low objects
+// up — ~34' at the horizon, ~5' at 10°, ~1' at 45°.
+export function apparentAltDeg(geomAltDeg) {
+  if (geomAltDeg <= -2) return geomAltDeg; // way below horizon, ignore
+  const arg = (geomAltDeg + 10.3 / (geomAltDeg + 5.11)) * DEG;
+  return geomAltDeg + (1.02 / Math.tan(arg)) / 60;
+}
+
 // Apply refraction correction to an observed direction vector in ECEF.
 // `dir` is the unit apparent direction.
 // `up` is the unit local-zenith vector in ECEF at the observer.
