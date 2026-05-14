@@ -312,8 +312,6 @@ let recompute = function () {
       },
     });
   }
-
-  frameAll();
 };
 
 function formatTriangulatedLabel() {
@@ -720,13 +718,43 @@ recompute = function () {
 document.getElementById("camera-controls").addEventListener("click", (ev) => {
   const cam = ev.target?.dataset?.cam;
   if (!cam) return;
+  if (cam !== "rotate") stopAutoRotate(); // any preset cancels auto-rotate
   switch (cam) {
     case "frame":   return frameAll();
     case "coffee":  return viewFromObserver(0);
     case "seafoam": return viewFromObserver(1);
     case "top":     return topDown();
+    case "rotate":  return toggleAutoRotate(ev.target);
   }
 });
+
+let rotateAnim = null;
+function stopAutoRotate(btn) {
+  if (rotateAnim) cancelAnimationFrame(rotateAnim);
+  rotateAnim = null;
+  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); // release the anchor
+  const b = btn ?? document.querySelector('[data-cam="rotate"]');
+  if (b) b.classList.remove("active");
+}
+function toggleAutoRotate(btn) {
+  if (rotateAnim) { stopAutoRotate(btn); return; }
+  if (!state.triangulated) return;
+  const target = Cesium.Cartesian3.fromElements(...state.triangulated);
+  const transform = Cesium.Transforms.eastNorthUpToFixedFrame(target);
+  const distance = Cesium.Cartesian3.distance(viewer.camera.positionWC, target);
+  let heading = 0;
+  const pitch = -Math.PI / 6;
+  btn.classList.add("active");
+  function step() {
+    heading += 0.004; // ~14°/sec at 60fps
+    viewer.camera.lookAtTransform(
+      transform,
+      new Cesium.HeadingPitchRange(heading, pitch, distance)
+    );
+    rotateAnim = requestAnimationFrame(step);
+  }
+  step();
+}
 
 function setObserverVisibility(hiddenIdx) {
   for (let i = 0; i < layer.observers.length; i++) {
@@ -780,3 +808,4 @@ function topDown() {
 renderObsList();
 renderTimestampLocal();
 recompute();
+frameAll(); // initial framing only; edits afterward leave the view alone
