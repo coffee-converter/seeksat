@@ -7,12 +7,14 @@
 
 import { geodeticToEcef } from "../coords.js";
 import { sunPositionEcef } from "./sun.js";
+import { apparentAltDeg } from "../refraction.js";
 
 const DEG = Math.PI / 180;
 const R_EARTH = 6_371_000; // mean radius, meters — used for shadow cylinder.
 
-// Project ECEF vector v into observer's ENU and return altitude in degrees.
-function altitudeAtObserverDeg(obs, ecefVec) {
+// Project ECEF vector v into observer's ENU and return altitude/azimuth in
+// degrees. Azimuth is measured from north, clockwise (E=90, S=180, W=270).
+function altAzAtObserverDeg(obs, ecefVec) {
   const obsEcef = geodeticToEcef(obs.latDeg, obs.lonDeg, 0);
   // Vector from observer to point, in ECEF.
   const dx = ecefVec[0] - obsEcef[0];
@@ -24,17 +26,21 @@ function altitudeAtObserverDeg(obs, ecefVec) {
   const lat = obs.latDeg * DEG, lon = obs.lonDeg * DEG;
   const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
   const sinLon = Math.sin(lon), cosLon = Math.cos(lon);
-  // East basis = (-sinLon, cosLon, 0)
-  // North basis = (-sinLat*cosLon, -sinLat*sinLon, cosLat)
-  // Up basis = (cosLat*cosLon, cosLat*sinLon, sinLat)
   const e = -sinLon*dx + cosLon*dy;
   const n = -sinLat*cosLon*dx - sinLat*sinLon*dy + cosLat*dz;
   const u = cosLat*cosLon*dx + cosLat*sinLon*dy + sinLat*dz;
-  return Math.atan2(u, Math.hypot(e, n)) / DEG;
+  const alt = Math.atan2(u, Math.hypot(e, n)) / DEG;
+  let az = Math.atan2(e, n) / DEG;
+  if (az < 0) az += 360;
+  return { alt, az };
 }
 
 export function issAltitudeDeg(obs, issEcef) {
-  return altitudeAtObserverDeg(obs, issEcef);
+  return altAzAtObserverDeg(obs, issEcef).alt;
+}
+
+export function issAltAzDeg(obs, issEcef) {
+  return altAzAtObserverDeg(obs, issEcef);
 }
 
 export function sunAltitudeDeg(obs, jsDate) {
@@ -65,15 +71,18 @@ export function issIlluminated(issEcef, sunDir) {
   return perp >= R_EARTH;
 }
 
-// Combined predicate: every observer sees an illuminated ISS in their twilight sky.
+// Combined predicate: every observer sees an illuminated ISS in their twilight
+// sky. Uses apparent (refraction-corrected) altitude for the threshold check —
+// refraction lifts low objects ~5' at 10° altitude, ~34' at the horizon, so
+// the geometric and apparent thresholds differ noticeably near the limit.
 export function isVisibleAtAll(observers, issEcef, jsDate, opts = {}) {
   const minIssAltDeg = opts.minIssAltDeg ?? 10;
   const maxSunAltDeg = opts.maxSunAltDeg ?? -6;
   const sunDir = sunPositionEcef(jsDate);
   if (!issIlluminated(issEcef, sunDir)) return false;
   for (const obs of observers) {
-    if (issAltitudeDeg(obs, issEcef) < minIssAltDeg) return false;
-    if (sunAltitudeDeg(obs, jsDate) > maxSunAltDeg) return false;
+    if (apparentAltDeg(issAltitudeDeg(obs, issEcef)) < minIssAltDeg) return false;
+    if (apparentAltDeg(sunAltitudeDeg(obs, jsDate)) > maxSunAltDeg) return false;
   }
   return true;
 }

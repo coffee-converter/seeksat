@@ -3,7 +3,7 @@
 import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
 import { geocodeOne } from "./pass-finder/geocode.js";
 import { fetchIssTle } from "./pass-finder/tle.js";
-import { isVisibleAtAll, issAltitudeDeg, issIlluminated } from "./pass-finder/visibility.js";
+import { isVisibleAtAll, issAltitudeDeg, issAltAzDeg, issIlluminated } from "./pass-finder/visibility.js";
 import { sunPositionEcef } from "./pass-finder/sun.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
@@ -18,6 +18,15 @@ wireSimTime(viewer);
 
 window.__viewer = viewer;
 console.log("Pass finder viewer ready");
+
+// Used by entity-show callbacks to hide labels/markers that are on the far
+// side of the globe from the camera. `cameraPosition` is updated each call
+// before isPointVisible because the camera moves every frame.
+const _occluder = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84);
+function isInFrontOfEarth(pointEcef) {
+  _occluder.cameraPosition = viewer.camera.positionWC;
+  return _occluder.isPointVisible(pointEcef);
+}
 
 // ---------------------------------------------------------------------------
 // Task 8: Observer state + UI
@@ -52,6 +61,10 @@ function addObserver(name, latDeg, lonDeg) {
     },
     label: {
       text: obs.name,
+      show: new Cesium.CallbackProperty(
+        () => isInFrontOfEarth(Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0)),
+        false,
+      ),
       font: "12px sans-serif",
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
@@ -97,12 +110,21 @@ function addObserver(name, latDeg, lonDeg) {
       arcType: Cesium.ArcType.NONE,
     },
     label: {
-      show: new Cesium.CallbackProperty(visibleNow, false),
+      show: new Cesium.CallbackProperty((time) => {
+        if (!visibleNow(time)) return false;
+        const d = Cesium.JulianDate.toDate(time);
+        const issEcef = issEcefAt(d);
+        if (!issEcef) return false;
+        const issPos = Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]);
+        const mid = Cesium.Cartesian3.midpoint(obsPos, issPos, new Cesium.Cartesian3());
+        return isInFrontOfEarth(mid);
+      }, false),
       text: new Cesium.CallbackProperty((time) => {
         const d = Cesium.JulianDate.toDate(time);
         const issEcef = issEcefAt(d);
         if (!issEcef) return "";
-        return `${issAltitudeDeg(obs, issEcef).toFixed(1)}°`;
+        const { alt, az } = issAltAzDeg(obs, issEcef);
+        return `alt ${alt.toFixed(1)}°\naz ${az.toFixed(0)}°`;
       }, false),
       font: "11px sans-serif",
       fillColor: Cesium.Color.fromCssColorString(color),
@@ -329,6 +351,12 @@ function ensureIssEntity() {
       outlineWidth: 3,
     },
     label: {
+      show: new Cesium.CallbackProperty((time) => {
+        const d = Cesium.JulianDate.toDate(time);
+        const p = issEcefAt(d);
+        if (!p) return false;
+        return isInFrontOfEarth(Cesium.Cartesian3.fromElements(p[0], p[1], p[2]));
+      }, false),
       text: new Cesium.CallbackProperty((time) => {
         const d = Cesium.JulianDate.toDate(time);
         const p = issEcefAt(d);
@@ -440,14 +468,24 @@ loadTle = async function () {
   ensureOrbitEntity();
   ensureGpLineEntity();
   invalidateOrbitCache();
+  // Kick off the auto-search now that the TLE is available (if observers
+  // were already placed; otherwise the next addObserver will trigger it).
+  rerunSearchIfActive();
 };
 loadTle();
+
+// Seed three default observers so the page is useful as soon as it loads.
+// They're added synchronously here; the auto-search kicks off once the TLE
+// fetch completes (see the loadTle wrapper above).
+addObserver("Chicago",    41.8781, -87.6298);
+addObserver("Milwaukee",  43.0389, -87.9065);
+addObserver("Cincinnati", 39.1031, -84.5120);
 
 // ---------------------------------------------------------------------------
 // Task 11: Search controls + windows-list rendering + click-to-jump
 // ---------------------------------------------------------------------------
 
-state.horizonDays = 7;
+state.horizonDays = 30;
 state.multiplier = 1;
 state.windows = [];
 state.activeWindowIdx = -1;
@@ -466,15 +504,9 @@ state.searchEndMs = null;
   viewer.clock.shouldAnimate = true;
 }
 
-const horizonSelect = document.getElementById("horizon-select");
 const speedSelect = document.getElementById("speed-select");
-const findBtn = document.getElementById("find-passes");
-const findMoreBtn = document.getElementById("find-more");
 const windowsListEl = document.getElementById("windows-list");
 
-horizonSelect.addEventListener("change", () => {
-  state.horizonDays = Number(horizonSelect.value);
-});
 speedSelect.addEventListener("change", () => {
   state.multiplier = Number(speedSelect.value);
   viewer.clock.multiplier = state.multiplier;
@@ -500,11 +532,11 @@ function runSearch(startMs, endMs) {
   }, 0);
 }
 
-// If a search has been run, re-run it from "now" with the current observer
-// set. Called whenever observers are added or removed so the window list
-// reflects the live configuration.
+// Auto-search whenever observers AND TLE are available, starting "now" and
+// running for state.horizonDays. Called on observer add/remove and after
+// TLE load. No-op if either prerequisite is missing.
 function rerunSearchIfActive() {
-  if (state.searchEndMs == null || !state.observers.length || !satrec) return;
+  if (!state.observers.length || !satrec) return;
   state.windows = [];
   state.activeWindowIdx = -1;
   const startMs = Date.now();
@@ -513,12 +545,14 @@ function rerunSearchIfActive() {
 }
 
 function setupClockForSearch(startMs, endMs) {
+  // Update the clock's range to span the search, but DON'T touch
+  // currentTime — the user's scrubbed position (or a previously-clicked
+  // window) must survive across re-searches (observer add/remove) and
+  // "Find more" extensions. Reset the clock via the Reset button.
   viewer.clock.startTime = Cesium.JulianDate.fromDate(new Date(startMs));
   viewer.clock.stopTime = Cesium.JulianDate.fromDate(new Date(endMs));
-  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(startMs));
-  viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
+  viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
   viewer.clock.multiplier = state.multiplier;
-  viewer.clock.shouldAnimate = false;
 }
 
 function renderWindowsList() {
@@ -605,8 +639,10 @@ function renderWindowsList() {
 function computeRating(durSec, minAltDeg, maxCloudPct, timeFactor) {
   const dF = Math.min(1, Math.max(0, durSec / 90));            // 30s→0.33, 60s→0.67, 90s+→1
   const aF = Math.min(1, Math.max(0, (minAltDeg - 10) / 30));  // 10°→0, 40°+→1
-  const cF = (maxCloudPct == null) ? 0.7
-           : Math.min(1, Math.max(0, 1 - maxCloudPct / 100));
+  // Squared cloud factor so partial cover hurts more than linear would
+  // suggest: 30%→0.49, 50%→0.25, 70%→0.09, 100%→0. Unknown gets 0.5.
+  const cF = (maxCloudPct == null) ? 0.5
+           : Math.pow(Math.min(1, Math.max(0, 1 - maxCloudPct / 100)), 2);
   const tF = Math.min(1, Math.max(0, timeFactor));
   const score = dF * aF * cF * tF;
   let grade, label;
@@ -699,24 +735,6 @@ function jumpToWindow(i) {
   cameraCtrl.frameAll(); // pull observers + ISS into view for the moment we jumped to
 }
 
-findBtn.addEventListener("click", () => {
-  state.windows = [];
-  state.activeWindowIdx = -1;
-  const startMs = Date.now();
-  const endMs = startMs + state.horizonDays * 86_400_000;
-  runSearch(startMs, endMs);
-});
-
-findMoreBtn.addEventListener("click", () => {
-  if (!state.searchEndMs) {
-    findBtn.click();
-    return;
-  }
-  const startMs = state.searchEndMs;
-  const endMs = startMs + state.horizonDays * 86_400_000;
-  runSearch(startMs, endMs);
-});
-
 // ---------------------------------------------------------------------------
 // Task 12: Playback controls + camera presets
 // ---------------------------------------------------------------------------
@@ -732,7 +750,7 @@ pauseBtn.addEventListener("click", () => {
   viewer.clock.shouldAnimate = false;
 });
 resetBtn.addEventListener("click", () => {
-  viewer.clock.currentTime = viewer.clock.startTime;
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date());
   viewer.clock.shouldAnimate = false;
   state.activeWindowIdx = -1;
   renderWindowsList();
