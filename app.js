@@ -135,10 +135,11 @@ let recompute = function () {
       },
       label: {
         text: obs.name, font: "12px sans-serif",
-        pixelOffset: new Cesium.Cartesian2(12, -8),
+        pixelOffset: new Cesium.Cartesian2(20, -18),
         fillColor: color, showBackground: true,
         backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
         backgroundPadding: new Cesium.Cartesian2(6, 4),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     }));
   }
@@ -193,11 +194,12 @@ let recompute = function () {
       label: {
         text: formatTriangulatedLabel(),
         font: "12px sans-serif",
-        pixelOffset: new Cesium.Cartesian2(14, -10),
+        pixelOffset: new Cesium.Cartesian2(22, -20),
         fillColor: Cesium.Color.WHITE,
         showBackground: true,
         backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
         backgroundPadding: new Cesium.Cartesian2(6, 4),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
   }
@@ -520,11 +522,12 @@ function renderTruth() {
     label: {
       text: "Truth (TLE)",
       font: "12px sans-serif",
-      pixelOffset: new Cesium.Cartesian2(14, 10),
+      pixelOffset: new Cesium.Cartesian2(22, 20),
       fillColor: Cesium.Color.fromCssColorString("#7eb8ff"),
       showBackground: true,
       backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
       backgroundPadding: new Cesium.Cartesian2(6, 4),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
 
