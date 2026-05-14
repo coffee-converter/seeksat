@@ -314,6 +314,34 @@ function recomputeOrbitFor(jsDate) {
   );
 }
 
+let gpLineEntity = null;
+function ensureGpLineEntity() {
+  if (gpLineEntity) return;
+  gpLineEntity = viewer.entities.add({
+    polyline: {
+      positions: new Cesium.CallbackProperty((time) => {
+        const d = Cesium.JulianDate.toDate(time);
+        const p = issEcefAt(d);
+        if (!p) return [];
+        const issPos = Cesium.Cartesian3.fromElements(p[0], p[1], p[2]);
+        const cart = Cesium.Cartographic.fromCartesian(issPos);
+        const groundPos = Cesium.Cartesian3.fromDegrees(
+          Cesium.Math.toDegrees(cart.longitude),
+          Cesium.Math.toDegrees(cart.latitude),
+          0
+        );
+        return [issPos, groundPos];
+      }, false),
+      width: 1.5,
+      material: new Cesium.PolylineDashMaterialProperty({
+        color: Cesium.Color.fromCssColorString("#cfe0ff").withAlpha(0.45),
+        dashLength: 10,
+      }),
+      arcType: Cesium.ArcType.NONE,
+    },
+  });
+}
+
 function ensureOrbitEntity() {
   if (orbitEntity) return;
   orbitEntity = viewer.entities.add({
@@ -350,6 +378,7 @@ loadTle = async function () {
   refreshSatrec();
   ensureIssEntity();
   ensureOrbitEntity();
+  ensureGpLineEntity();
   invalidateOrbitCache();
 };
 loadTle();
