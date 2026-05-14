@@ -3,7 +3,7 @@
 import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
 import { geocodeOne } from "./pass-finder/geocode.js";
 import { fetchIssTle } from "./pass-finder/tle.js";
-import { isVisibleAtAll } from "./pass-finder/visibility.js";
+import { isVisibleAtAll, issAltitudeDeg } from "./pass-finder/visibility.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
 
@@ -430,12 +430,36 @@ function renderWindowsList() {
   });
 }
 
+// Best moment in a window = where the MINIMUM altitude across all observers is
+// MAXIMIZED. That's the instant when every observer simultaneously sees the
+// ISS as high as it gets given the geometry.
+function bestMomentMs(w) {
+  const stepMs = 5000;
+  let bestMs = w.startMs;
+  let bestMinAlt = -Infinity;
+  for (let t = w.startMs; t <= w.endMs; t += stepMs) {
+    const issEcef = issEcefAt(new Date(t));
+    if (!issEcef) continue;
+    let minAlt = Infinity;
+    for (const obs of state.observers) {
+      const a = issAltitudeDeg(obs, issEcef);
+      if (a < minAlt) minAlt = a;
+    }
+    if (minAlt > bestMinAlt) {
+      bestMinAlt = minAlt;
+      bestMs = t;
+    }
+  }
+  return bestMs;
+}
+
 function jumpToWindow(i) {
   state.activeWindowIdx = i;
   const w = state.windows[i];
-  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(w.startMs));
+  const peakMs = bestMomentMs(w);
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(peakMs));
   viewer.clock.shouldAnimate = false;
-  updateOrbit(new Date(w.startMs));
+  updateOrbit(new Date(peakMs));
   renderWindowsList();
 }
 
