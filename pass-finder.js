@@ -231,6 +231,14 @@ document.getElementById("add-geocode-btn").addEventListener("click", async () =>
   inp.value = "";
 });
 
+// Enter key in either input triggers its matching button.
+document.getElementById("add-latlon").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); document.getElementById("add-latlon-btn").click(); }
+});
+document.getElementById("add-geocode").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); document.getElementById("add-geocode-btn").click(); }
+});
+
 // Click on globe to place
 const clickToggleBtn = document.getElementById("click-place-toggle");
 clickToggleBtn.addEventListener("click", () => {
