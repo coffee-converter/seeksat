@@ -35,13 +35,52 @@ const viewer = new Cesium.Viewer("cesium-container", {
   shouldAnimate: true, // needed for CallbackProperty animations later
 });
 
-// No Cesium Ion auth — Esri World Imagery (satellite photo, no token required).
-viewer.imageryLayers.removeAll();
-viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
-  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  credit: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
-  maximumLevel: 19,
-}));
+// No Cesium Ion auth — list of free imagery providers with no token required.
+const IMAGERY_PROVIDERS = [
+  { id: "esri-imagery",       label: "Esri Imagery (satellite)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    credit: "Tiles © Esri, Maxar, Earthstar Geographics", maximumLevel: 19 },
+  { id: "esri-topo",          label: "Esri Topographic",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    credit: "Tiles © Esri", maximumLevel: 19 },
+  { id: "esri-natgeo",        label: "Esri National Geographic",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
+    credit: "Tiles © Esri, National Geographic", maximumLevel: 12 },
+  { id: "esri-dark",          label: "Esri Dark Gray Canvas",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    credit: "Tiles © Esri", maximumLevel: 16 },
+  { id: "esri-light",         label: "Esri Light Gray Canvas",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    credit: "Tiles © Esri", maximumLevel: 16 },
+  { id: "osm",                label: "OpenStreetMap",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    credit: "© OpenStreetMap contributors", maximumLevel: 19 },
+  { id: "carto-dark",         label: "CartoDB Dark Matter",
+    url: "https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
+    credit: "© CartoDB", maximumLevel: 19 },
+  { id: "carto-voyager",      label: "CartoDB Voyager",
+    url: "https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png",
+    credit: "© CartoDB", maximumLevel: 19 },
+];
+
+function setImagery(id) {
+  const p = IMAGERY_PROVIDERS.find(x => x.id === id) ?? IMAGERY_PROVIDERS[0];
+  viewer.imageryLayers.removeAll();
+  viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
+    url: p.url, credit: p.credit, maximumLevel: p.maximumLevel,
+  }));
+}
+
+const imagerySelect = document.getElementById("imagery-select");
+for (const p of IMAGERY_PROVIDERS) {
+  const opt = document.createElement("option");
+  opt.value = p.id;
+  opt.textContent = p.label;
+  imagerySelect.appendChild(opt);
+}
+imagerySelect.value = "esri-imagery";
+imagerySelect.addEventListener("change", () => setImagery(imagerySelect.value));
+setImagery("esri-imagery");
 
 // Atmosphere + lighting on, stars off (cleaner against panels).
 viewer.scene.skyBox.show = false;
