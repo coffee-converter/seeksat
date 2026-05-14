@@ -86,16 +86,27 @@ function addObserver(name, latDeg, lonDeg) {
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
-  // Sightline that appears only while ISS is visible from THIS observer:
-  // alt >= 10°, ISS in sunlight, observer in twilight (sun alt <= -6°).
+  // Combined sightline + altitude label entity, visible only while ISS is
+  // visible from THIS observer (alt >= 10°, ISS sunlit, observer in twilight).
   const obsPos = Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0);
-  const visLine = viewer.entities.add({
+  const visEntity = viewer.entities.add({
+    show: new Cesium.CallbackProperty((time) => {
+      const d = Cesium.JulianDate.toDate(time);
+      const issEcef = issEcefAt(d);
+      return !!(issEcef && isVisibleAtAll([obs], issEcef, d));
+    }, false),
+    position: new Cesium.CallbackProperty((time) => {
+      const d = Cesium.JulianDate.toDate(time);
+      const issEcef = issEcefAt(d);
+      if (!issEcef) return Cesium.Cartesian3.ZERO;
+      const issPos = Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]);
+      return Cesium.Cartesian3.midpoint(obsPos, issPos, new Cesium.Cartesian3());
+    }, false),
     polyline: {
       positions: new Cesium.CallbackProperty((time) => {
         const d = Cesium.JulianDate.toDate(time);
         const issEcef = issEcefAt(d);
-        if (!issEcef) return [];
-        if (!isVisibleAtAll([obs], issEcef, d)) return [];
+        if (!issEcef) return [obsPos, obsPos];
         return [obsPos, Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2])];
       }, false),
       width: 2,
@@ -105,9 +116,23 @@ function addObserver(name, latDeg, lonDeg) {
       }),
       arcType: Cesium.ArcType.NONE,
     },
+    label: {
+      text: new Cesium.CallbackProperty((time) => {
+        const d = Cesium.JulianDate.toDate(time);
+        const issEcef = issEcefAt(d);
+        if (!issEcef) return "";
+        return `${issAltitudeDeg(obs, issEcef).toFixed(1)}°`;
+      }, false),
+      font: "11px sans-serif",
+      fillColor: Cesium.Color.fromCssColorString(color),
+      showBackground: true,
+      backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.78)"),
+      backgroundPadding: new Cesium.Cartesian2(5, 3),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
   });
 
-  observerLayer.push({ pin: ent, visLine });
+  observerLayer.push({ pin: ent, visEntity });
   renderObsList();
   return obs;
 }
@@ -118,7 +143,7 @@ function removeObserver(id) {
   state.observers.splice(idx, 1);
   const entry = observerLayer[idx];
   viewer.entities.remove(entry.pin);
-  viewer.entities.remove(entry.visLine);
+  viewer.entities.remove(entry.visEntity);
   observerLayer.splice(idx, 1);
   renderObsList();
 }
