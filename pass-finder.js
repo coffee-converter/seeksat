@@ -430,3 +430,99 @@ findMoreBtn.addEventListener("click", () => {
   const endMs = startMs + state.horizonDays * 86_400_000;
   runSearch(startMs, endMs);
 });
+
+// ---------------------------------------------------------------------------
+// Task 12: Playback controls + camera presets
+// ---------------------------------------------------------------------------
+
+const playBtn = document.getElementById("play-btn");
+const pauseBtn = document.getElementById("pause-btn");
+const resetBtn = document.getElementById("reset-btn");
+
+playBtn.addEventListener("click", () => {
+  viewer.clock.shouldAnimate = true;
+});
+pauseBtn.addEventListener("click", () => {
+  viewer.clock.shouldAnimate = false;
+});
+resetBtn.addEventListener("click", () => {
+  viewer.clock.currentTime = viewer.clock.startTime;
+  viewer.clock.shouldAnimate = false;
+  state.activeWindowIdx = -1;
+  renderWindowsList();
+});
+
+// Camera presets
+document.getElementById("camera-controls").addEventListener("click", (ev) => {
+  const cam = ev.target?.dataset?.cam;
+  if (!cam) return;
+  if (cam === "frame") frameAll();
+  else if (cam === "top") topDown();
+  else if (cam === "rotate") toggleAutoRotate(ev.target);
+});
+
+function frameAll() {
+  const positions = state.observers.map(o =>
+    Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
+  if (positions.length === 0) {
+    viewer.camera.flyHome(1.2);
+    return;
+  }
+  if (positions.length === 1) {
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(
+        state.observers[0].lonDeg, state.observers[0].latDeg, 5_000_000
+      ),
+      duration: 1.2,
+    });
+    return;
+  }
+  const bs = Cesium.BoundingSphere.fromPoints(positions);
+  viewer.camera.flyToBoundingSphere(bs, {
+    duration: 1.2,
+    offset: new Cesium.HeadingPitchRange(
+      Cesium.Math.toRadians(20),
+      Cesium.Math.toRadians(-30),
+      bs.radius * 3.5
+    ),
+  });
+}
+
+function topDown() {
+  if (state.observers.length === 0) {
+    viewer.camera.flyHome(1.2);
+    return;
+  }
+  const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;
+  const avgLon = state.observers.reduce((s, o) => s + o.lonDeg, 0) / state.observers.length;
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(avgLon, avgLat, 8_000_000),
+    orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+    duration: 1.2,
+  });
+}
+
+let rotateAnim = null;
+function toggleAutoRotate(btn) {
+  if (rotateAnim) {
+    cancelAnimationFrame(rotateAnim);
+    rotateAnim = null;
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    btn.classList.remove("active");
+    return;
+  }
+  btn.classList.add("active");
+  // Rotate around the average observer if observers exist, else Earth center.
+  let center = Cesium.Cartesian3.fromDegrees(0, 0, 0);
+  if (state.observers.length) {
+    const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;
+    const avgLon = state.observers.reduce((s, o) => s + o.lonDeg, 0) / state.observers.length;
+    center = Cesium.Cartesian3.fromDegrees(avgLon, avgLat, 0);
+  }
+  viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center));
+  function step() {
+    viewer.camera.rotateRight(0.004);
+    rotateAnim = requestAnimationFrame(step);
+  }
+  step();
+}
