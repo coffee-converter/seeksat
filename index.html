@@ -44,9 +44,15 @@
     <button data-cam="top">Top down</button>
   </nav>
 
-  <footer id="credit">
-    ISS triangulation · Coffee + SEA FOAM · 2026-05-11 10:32:29 CDT
-  </footer>
+  <div id="bottom-left">
+    <div id="imagery-picker">
+      <span class="picker-label">Globe</span>
+      <select id="imagery-select"></select>
+    </div>
+    <footer id="credit">
+      ISS triangulation · Coffee + SEA FOAM · 2026-05-11 10:32:29 CDT
+    </footer>
+  </div>
 
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
   <script src="https://unpkg.com/satellite.js@5.0.0/dist/satellite.min.js"></script>
