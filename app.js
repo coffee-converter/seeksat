@@ -135,7 +135,9 @@ let recompute = function () {
       },
       label: {
         text: obs.name, font: "12px sans-serif",
-        pixelOffset: new Cesium.Cartesian2(20, -18),
+        horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cesium.Cartesian2(12, -10),
         fillColor: color, showBackground: true,
         backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
         backgroundPadding: new Cesium.Cartesian2(6, 4),
@@ -194,7 +196,9 @@ let recompute = function () {
       label: {
         text: formatTriangulatedLabel(),
         font: "12px sans-serif",
-        pixelOffset: new Cesium.Cartesian2(22, -20),
+        horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cesium.Cartesian2(14, -12),
         fillColor: Cesium.Color.WHITE,
         showBackground: true,
         backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
@@ -522,7 +526,9 @@ function renderTruth() {
     label: {
       text: "Truth (TLE)",
       font: "12px sans-serif",
-      pixelOffset: new Cesium.Cartesian2(22, 20),
+      horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+      verticalOrigin: Cesium.VerticalOrigin.TOP,
+      pixelOffset: new Cesium.Cartesian2(14, 12),
       fillColor: Cesium.Color.fromCssColorString("#7eb8ff"),
       showBackground: true,
       backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
