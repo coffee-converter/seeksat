@@ -17,6 +17,11 @@
         <label>UTC <input id="ts-utc" type="text" value="2026-05-12T03:32:29Z" /></label>
         <span id="ts-local" class="hint"></span>
       </div>
+      <label class="opt-row">
+        <input type="checkbox" id="opt-refraction" />
+        <span>Correct for atmospheric refraction</span>
+        <span class="hint">(Bennett 1982)</span>
+      </label>
       <div id="obs-list"></div>
       <button id="add-obs" type="button">+ Add observation</button>
       <p class="footnote">Adds/edits/deletes are session-only and don't write to <code>data/monday.json</code>.</p>
