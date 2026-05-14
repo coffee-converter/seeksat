@@ -517,21 +517,24 @@ function renderWindowsList() {
     row.appendChild(dur);
     const alt = document.createElement("span");
     alt.className = "alt";
-    // Best simultaneous min-altitude: at the window's best moment (when the
-    // worst-positioned observer's altitude is highest), what is that altitude?
+    // Altitude range across observers at the window's best moment. The "best
+    // moment" maximizes the minimum altitude across all observers; we then
+    // report both ends of the per-observer range at that moment.
     const peakMs = bestMomentMs(w);
     const issEcef = issEcefAt(new Date(peakMs));
-    let bestMinAltDeg = 0;
+    let minAlt = Infinity, maxAlt = -Infinity;
     if (issEcef && state.observers.length) {
-      bestMinAltDeg = Infinity;
       for (const obs of state.observers) {
         const a = issAltitudeDeg(obs, issEcef);
-        if (a < bestMinAltDeg) bestMinAltDeg = a;
+        if (a < minAlt) minAlt = a;
+        if (a > maxAlt) maxAlt = a;
       }
-      if (!Number.isFinite(bestMinAltDeg)) bestMinAltDeg = 0;
     }
-    alt.textContent = `${bestMinAltDeg.toFixed(0)}°`;
-    alt.classList.add(bestMinAltDeg >= 50 ? "good" : bestMinAltDeg >= 20 ? "ok" : "poor");
+    if (!Number.isFinite(minAlt)) { minAlt = 0; maxAlt = 0; }
+    const lo = Math.round(minAlt), hi = Math.round(maxAlt);
+    alt.textContent = lo === hi ? `${hi}°` : `${lo}–${hi}°`;
+    // Color by WORST observer's altitude (the minimum) — low altitude = poor pass.
+    alt.classList.add(minAlt >= 30 ? "good" : minAlt >= 15 ? "ok" : "poor");
     row.appendChild(alt);
 
     // Cloud cover at the window's peak moment, aggregated as the MAX across
