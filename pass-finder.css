@@ -45,6 +45,9 @@
 .window-row.active { background: rgba(126,184,255,0.25); }
 .window-row .time { color: #e0e0e0; }
 .window-row .dur { color: #8899bb; }
+.window-row .dur.good { color: #7fe5d1; }  /* ≥3 min */
+.window-row .dur.ok   { color: #facc15; }  /* 1–3 min */
+.window-row .dur.poor { color: #f87171; }  /* <1 min */
 .window-row .alt { text-align: right; }
 .window-row .alt.good { color: #7fe5d1; }  /* high alt: green */
 .window-row .alt.ok   { color: #facc15; }  /* mid alt: yellow */

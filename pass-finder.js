@@ -514,6 +514,7 @@ function renderWindowsList() {
     const durSec = Math.round((w.endMs - w.startMs) / 1000);
     const mm = Math.floor(durSec / 60), ss = durSec % 60;
     dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
+    dur.classList.add(durSec >= 180 ? "good" : durSec >= 60 ? "ok" : "poor");
     row.appendChild(dur);
     const alt = document.createElement("span");
     alt.className = "alt";
