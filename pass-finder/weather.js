@@ -35,9 +35,15 @@ export function fetchCloudForecast(latDeg, lonDeg) {
 
 // Sample cloud cover (0-100) at a given ms. Returns null if the forecast is
 // unavailable, still loading, or the requested time is outside the horizon.
+// Linearly interpolates between hourly samples (Open-Meteo reports values at
+// the hour timestamp, not bucket averages, so interp is the right call).
 export function cloudAt(forecast, ms) {
   if (!forecast) return null;
-  const hourIdx = Math.floor((ms - forecast.startMs) / 3_600_000);
+  const offset = (ms - forecast.startMs) / 3_600_000;
+  const hourIdx = Math.floor(offset);
   if (hourIdx < 0 || hourIdx >= forecast.hours.length) return null;
-  return forecast.hours[hourIdx];
+  const next = forecast.hours[hourIdx + 1];
+  if (next == null) return forecast.hours[hourIdx]; // last hour: no next sample
+  const frac = offset - hourIdx;
+  return forecast.hours[hourIdx] * (1 - frac) + next * frac;
 }

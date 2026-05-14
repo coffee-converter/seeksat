@@ -16,16 +16,24 @@ test('cloudAt: out-of-range (after last hour) returns null', () => {
   assert.equal(cloudAt(f, 1_000_000 + 3 * 3_600_000), null);
 });
 
-test('cloudAt: returns first hour value for ms inside first hour', () => {
+test('cloudAt: returns exact hour value at hour timestamps', () => {
   const f = { startMs: 1_000_000, hours: [50, 60, 70] };
   assert.equal(cloudAt(f, 1_000_000), 50);
-  assert.equal(cloudAt(f, 1_000_000 + 30 * 60_000), 50); // 30 min in
+  assert.equal(cloudAt(f, 1_000_000 + 1 * 3_600_000), 60);
 });
 
-test('cloudAt: crosses hour boundary to next bucket', () => {
+test('cloudAt: linearly interpolates between adjacent hour samples', () => {
   const f = { startMs: 1_000_000, hours: [50, 60, 70] };
-  assert.equal(cloudAt(f, 1_000_000 + 1 * 3_600_000), 60);
+  // 30 min into hour 0: halfway between 50 and 60 → 55
+  assert.equal(cloudAt(f, 1_000_000 + 30 * 60_000), 55);
+  // 15 min into hour 1: 25% of the way from 60 to 70 → 62.5
+  assert.equal(cloudAt(f, 1_000_000 + 75 * 60_000), 62.5);
+});
+
+test('cloudAt: inside last hour returns last-hour value (no next sample to interp)', () => {
+  const f = { startMs: 1_000_000, hours: [50, 60, 70] };
   assert.equal(cloudAt(f, 1_000_000 + 2 * 3_600_000), 70);
+  assert.equal(cloudAt(f, 1_000_000 + 2.5 * 3_600_000), 70);
 });
 
 test('UTC parse trap: "YYYY-MM-DDTHH:MM" alone parses as local; "+Z" forces UTC', () => {
