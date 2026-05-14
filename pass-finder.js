@@ -609,6 +609,11 @@ document.getElementById("camera-controls").addEventListener("click", (ev) => {
 function frameAll() {
   const positions = state.observers.map(o =>
     Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
+  // Include the ISS at its current clock time so it stays in frame.
+  const issEcef = issEcefAt(Cesium.JulianDate.toDate(viewer.clock.currentTime));
+  if (issEcef) {
+    positions.push(Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]));
+  }
   if (positions.length === 0) {
     viewer.camera.flyHome(1.2);
     return;
