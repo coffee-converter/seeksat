@@ -222,7 +222,7 @@ function readTleFromUi() {
   return { name, line1, line2 };
 }
 
-tleRefetchBtn.addEventListener("click", loadTle);
+tleRefetchBtn.addEventListener("click", () => loadTle());
 [tleNameEl, tleL1El, tleL2El].forEach(el => el.addEventListener("input", () => {
   state.tle = readTleFromUi();
 }));
