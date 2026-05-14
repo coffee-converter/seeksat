@@ -32,7 +32,7 @@ const viewer = new Cesium.Viewer("cesium-container", {
   fullscreenButton: false,
   infoBox: false,
   selectionIndicator: false,
-  shouldAnimate: true, // needed for CallbackProperty animations later
+  shouldAnimate: false, // clock is pinned to the observation moment
 });
 
 // No Cesium Ion auth — list of free imagery providers with no token required.
@@ -82,8 +82,8 @@ imagerySelect.value = "esri-imagery";
 imagerySelect.addEventListener("change", () => setImagery(imagerySelect.value));
 setImagery("esri-imagery");
 
-// Atmosphere + lighting on, stars off (cleaner against panels).
-viewer.scene.skyBox.show = false;
+// Stars on, anchored to ICRF (rotate with time so observation moment is accurate).
+viewer.scene.skyBox.show = true;
 viewer.scene.skyAtmosphere.show = true;
 viewer.scene.globe.enableLighting = true;
 viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");
@@ -158,6 +158,9 @@ let recompute = function () {
     state.residuals = [];
     return;
   }
+  // Pin the Cesium clock to the observation moment so the skybox stars
+  // (rendered in ICRF) align with the actual sky for that timestamp.
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(jsDate);
   const rays = state.observations.map(o => buildRay(o, jsDate));
   const result = triangulateRays(rays);
   state.triangulated = result.point;
@@ -253,9 +256,9 @@ let recompute = function () {
     layer.triangulated = viewer.entities.add({
       position: Cesium.Cartesian3.fromElements(...state.triangulated),
       point: {
-        pixelSize: new Cesium.CallbackProperty((t) => {
-          const sec = Cesium.JulianDate.secondsDifference(t, viewer.clock.startTime);
-          return 12 + 4 * Math.abs(Math.sin(sec * 2));
+        pixelSize: new Cesium.CallbackProperty(() => {
+          // Use wall-clock time so the pulse runs even when the Cesium clock is paused.
+          return 12 + 4 * Math.abs(Math.sin(Date.now() / 500));
         }, false),
         color: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.fromCssColorString("#7eb8ff"),
