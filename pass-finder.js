@@ -195,7 +195,7 @@ const tleRefetchBtn = document.getElementById("tle-refetch");
 
 state.tle = null;
 
-async function loadTle() {
+let loadTle = async function () {
   tleStatusEl.textContent = "fetching from Celestrak…";
   tleStatusEl.className = "hint";
   const t = await fetchIssTle();
@@ -210,7 +210,7 @@ async function loadTle() {
     tleStatusEl.textContent = "fetch failed — paste a TLE below.";
     tleStatusEl.className = "hint error";
   }
-}
+};
 
 function readTleFromUi() {
   const name = tleNameEl.value.trim();
@@ -225,4 +225,79 @@ tleRefetchBtn.addEventListener("click", loadTle);
   state.tle = readTleFromUi();
 }));
 
+// ---------------------------------------------------------------------------
+// Task 10: ISS entity + clock-driven position (CallbackProperty)
+// ---------------------------------------------------------------------------
+
+let issEntity = null;
+let orbitEntity = null;
+let satrec = null;
+
+function refreshSatrec() {
+  const t = readTleFromUi();
+  if (!t) { satrec = null; return; }
+  try {
+    satrec = sat.twoline2satrec(t.line1, t.line2);
+  } catch (e) {
+    console.warn("TLE parse error:", e.message);
+    satrec = null;
+  }
+}
+
+function issEcefAt(jsDate) {
+  if (!satrec) return null;
+  const pv = sat.propagate(satrec, jsDate);
+  if (!pv || !pv.position) return null;
+  const gmst = sat.gstime(jsDate);
+  const ecf = sat.eciToEcf(pv.position, gmst);
+  return [ecf.x * 1000, ecf.y * 1000, ecf.z * 1000];
+}
+
+function ensureIssEntity() {
+  if (issEntity) return;
+  issEntity = viewer.entities.add({
+    position: new Cesium.CallbackProperty((time) => {
+      const d = Cesium.JulianDate.toDate(time);
+      const p = issEcefAt(d);
+      if (!p) return Cesium.Cartesian3.ZERO;
+      return Cesium.Cartesian3.fromElements(p[0], p[1], p[2]);
+    }, false),
+    point: {
+      pixelSize: 14,
+      color: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.fromCssColorString("#7eb8ff"),
+      outlineWidth: 3,
+    },
+    label: {
+      text: new Cesium.CallbackProperty((time) => {
+        const d = Cesium.JulianDate.toDate(time);
+        const p = issEcefAt(d);
+        if (!p) return "ISS";
+        const cart = Cesium.Cartographic.fromCartesian(
+          Cesium.Cartesian3.fromElements(p[0], p[1], p[2])
+        );
+        return `ISS · ${(cart.height / 1000).toFixed(0)} km`;
+      }, false),
+      font: "12px sans-serif",
+      horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      pixelOffset: new Cesium.Cartesian2(14, -12),
+      fillColor: Cesium.Color.WHITE,
+      showBackground: true,
+      backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
+      backgroundPadding: new Cesium.Cartesian2(6, 4),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+}
+
+// Refresh satrec whenever TLE inputs change.
+[tleNameEl, tleL1El, tleL2El].forEach(el => el.addEventListener("input", refreshSatrec));
+// Also after initial fetch.
+const _loadTle = loadTle;
+loadTle = async function () {
+  await _loadTle();
+  refreshSatrec();
+  ensureIssEntity();
+};
 loadTle();
