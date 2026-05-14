@@ -36,7 +36,7 @@
 }
 
 .window-row {
-  display: grid; grid-template-columns: 1fr 55px 40px 65px;
+  display: grid; grid-template-columns: 1fr 55px 65px 65px;
   gap: 6px; padding: 5px 6px; cursor: pointer;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
   border-radius: 4px;
@@ -46,9 +46,9 @@
 .window-row .time { color: #e0e0e0; }
 .window-row .dur { color: #8899bb; }
 .window-row .alt { text-align: right; }
-.window-row .alt.good { color: #ffffff; }
-.window-row .alt.ok { color: #cfe0ff; }
-.window-row .alt.poor { color: #8899bb; }
+.window-row .alt.good { color: #7fe5d1; }  /* high alt: green */
+.window-row .alt.ok   { color: #facc15; }  /* mid alt: yellow */
+.window-row .alt.poor { color: #f87171; }  /* low alt (10-15°): red */
 .window-row .cloud { text-align: right; }
 .window-row .cloud.clear { color: #7fe5d1; }
 .window-row .cloud.partial { color: #facc15; }
