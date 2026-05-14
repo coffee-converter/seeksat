@@ -1,0 +1,43 @@
+// pass-finder/weather.js -- Open-Meteo hourly cloud-cover forecast.
+//
+// Free, no API key, CORS-enabled, up to 16-day forecast horizon.
+// Times come back as plain UTC strings (no offset suffix) when we request
+// timezone=UTC — we append "Z" to force JS Date to parse as UTC instead of
+// local time.
+
+const cache = new Map(); // rounded "lat,lon" -> Promise<{ startMs, hours[] } | null>
+
+export function fetchCloudForecast(latDeg, lonDeg) {
+  const key = `${latDeg.toFixed(2)},${lonDeg.toFixed(2)}`;
+  if (cache.has(key)) return cache.get(key);
+  const url = "https://api.open-meteo.com/v1/forecast"
+    + `?latitude=${latDeg}&longitude=${lonDeg}`
+    + "&hourly=cloud_cover&timezone=UTC&forecast_days=16";
+  const promise = fetch(url)
+    .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+    .then(data => {
+      const times = data?.hourly?.time;
+      const cover = data?.hourly?.cloud_cover;
+      if (!Array.isArray(times) || !Array.isArray(cover) || !times.length) {
+        throw new Error("malformed forecast");
+      }
+      const startMs = new Date(times[0] + "Z").getTime();
+      return { startMs, hours: cover };
+    })
+    .catch(err => {
+      cache.delete(key); // allow retry on transient failure
+      console.warn(`cloud forecast failed for ${key}: ${err.message}`);
+      return null;
+    });
+  cache.set(key, promise);
+  return promise;
+}
+
+// Sample cloud cover (0-100) at a given ms. Returns null if the forecast is
+// unavailable, still loading, or the requested time is outside the horizon.
+export function cloudAt(forecast, ms) {
+  if (!forecast) return null;
+  const hourIdx = Math.floor((ms - forecast.startMs) / 3_600_000);
+  if (hourIdx < 0 || hourIdx >= forecast.hours.length) return null;
+  return forecast.hours[hourIdx];
+}
