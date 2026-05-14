@@ -718,39 +718,61 @@ recompute = function () {
 document.getElementById("camera-controls").addEventListener("click", (ev) => {
   const cam = ev.target?.dataset?.cam;
   if (!cam) return;
-  if (cam !== "rotate") stopAutoRotate(); // any preset cancels auto-rotate
+  // Camera presets that re-frame should release the orbit lock + stop auto-rotation.
+  if (cam === "frame" || cam === "coffee" || cam === "seafoam" || cam === "top") {
+    stopAutoRotate();
+    unlockOrbit();
+  }
   switch (cam) {
     case "frame":   return frameAll();
     case "coffee":  return viewFromObserver(0);
     case "seafoam": return viewFromObserver(1);
     case "top":     return topDown();
+    case "orbit":   return toggleOrbitLock(ev.target);
     case "rotate":  return toggleAutoRotate(ev.target);
   }
 });
+
+let orbitLocked = false;
+function lockOrbit() {
+  if (!state.triangulated) return false;
+  const target = Cesium.Cartesian3.fromElements(...state.triangulated);
+  // Anchor the camera's reference frame to the triangulated point WITHOUT moving
+  // the camera. While the transform is set, default mouse controls become orbital:
+  // left-drag = rotate around point, wheel = zoom toward point, middle-drag = tilt.
+  viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(target));
+  orbitLocked = true;
+  const btn = document.querySelector('[data-cam="orbit"]');
+  if (btn) btn.classList.add("active");
+  return true;
+}
+function unlockOrbit() {
+  if (!orbitLocked) return;
+  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  orbitLocked = false;
+  const btn = document.querySelector('[data-cam="orbit"]');
+  if (btn) btn.classList.remove("active");
+}
+function toggleOrbitLock() {
+  if (orbitLocked) unlockOrbit(); else lockOrbit();
+}
 
 let rotateAnim = null;
 function stopAutoRotate(btn) {
   if (rotateAnim) cancelAnimationFrame(rotateAnim);
   rotateAnim = null;
-  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); // release the anchor
   const b = btn ?? document.querySelector('[data-cam="rotate"]');
   if (b) b.classList.remove("active");
 }
 function toggleAutoRotate(btn) {
   if (rotateAnim) { stopAutoRotate(btn); return; }
   if (!state.triangulated) return;
-  const target = Cesium.Cartesian3.fromElements(...state.triangulated);
-  const transform = Cesium.Transforms.eastNorthUpToFixedFrame(target);
-  const distance = Cesium.Cartesian3.distance(viewer.camera.positionWC, target);
-  let heading = 0;
-  const pitch = -Math.PI / 6;
+  // Auto-rotate piggybacks on orbit-lock mode so the user can zoom / nudge with
+  // the mouse while the camera spins.
+  if (!orbitLocked) lockOrbit();
   btn.classList.add("active");
   function step() {
-    heading += 0.004; // ~14°/sec at 60fps
-    viewer.camera.lookAtTransform(
-      transform,
-      new Cesium.HeadingPitchRange(heading, pitch, distance)
-    );
+    viewer.camera.rotateRight(0.004); // ~14°/sec at 60fps
     rotateAnim = requestAnimationFrame(step);
   }
   step();
