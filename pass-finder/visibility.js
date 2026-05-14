@@ -5,7 +5,7 @@
 //   issEcef:  [x,y,z] in meters
 //   jsDate:   Date
 
-import { geodeticToEcef, enuToEcefRotate } from "../coords.js";
+import { geodeticToEcef } from "../coords.js";
 import { sunPositionEcef } from "./sun.js";
 
 const DEG = Math.PI / 180;
