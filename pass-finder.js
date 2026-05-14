@@ -3,6 +3,8 @@
 import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
 import { geocodeOne } from "./pass-finder/geocode.js";
 import { fetchIssTle } from "./pass-finder/tle.js";
+import { isVisibleAtAll } from "./pass-finder/visibility.js";
+import { findVisibilityWindows } from "./pass-finder/search.js";
 
 const Cesium = window.Cesium;
 const sat = window.satellite;
@@ -301,3 +303,130 @@ loadTle = async function () {
   ensureIssEntity();
 };
 loadTle();
+
+// ---------------------------------------------------------------------------
+// Task 11: Search controls + windows-list rendering + click-to-jump
+// ---------------------------------------------------------------------------
+
+state.horizonDays = 7;
+state.multiplier = 4000;
+state.windows = [];
+state.activeWindowIdx = -1;
+state.searchEndMs = null;
+
+const horizonSelect = document.getElementById("horizon-select");
+const speedSelect = document.getElementById("speed-select");
+const findBtn = document.getElementById("find-passes");
+const findMoreBtn = document.getElementById("find-more");
+const windowsListEl = document.getElementById("windows-list");
+
+horizonSelect.addEventListener("change", () => {
+  state.horizonDays = Number(horizonSelect.value);
+});
+speedSelect.addEventListener("change", () => {
+  state.multiplier = Number(speedSelect.value);
+  viewer.clock.multiplier = state.multiplier;
+});
+
+function runSearch(startMs, endMs) {
+  if (!satrec) { alert("No TLE loaded."); return; }
+  if (!state.observers.length) { alert("Add at least one observer first."); return; }
+  windowsListEl.textContent = "searching…";
+  // Defer to next tick to let the UI paint.
+  setTimeout(() => {
+    const wins = findVisibilityWindows(
+      state.observers, satrec, isVisibleAtAll, sat,
+      startMs, endMs, 60_000
+    );
+    state.windows = state.windows.concat(wins);
+    state.searchEndMs = endMs;
+    renderWindowsList();
+    setupClockForSearch(startMs, endMs);
+  }, 0);
+}
+
+function setupClockForSearch(startMs, endMs) {
+  viewer.clock.startTime = Cesium.JulianDate.fromDate(new Date(startMs));
+  viewer.clock.stopTime = Cesium.JulianDate.fromDate(new Date(endMs));
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(startMs));
+  viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
+  viewer.clock.multiplier = state.multiplier;
+  viewer.clock.shouldAnimate = false;
+}
+
+function renderWindowsList() {
+  windowsListEl.replaceChildren();
+  if (!state.windows.length) {
+    windowsListEl.textContent = "no simultaneous passes found";
+    return;
+  }
+  state.windows.forEach((w, i) => {
+    const row = document.createElement("div");
+    row.className = "window-row";
+    if (i === state.activeWindowIdx) row.classList.add("active");
+    const time = document.createElement("span");
+    time.className = "time";
+    const d = new Date(w.startMs);
+    time.textContent = d.toISOString().slice(5, 16).replace("T", " ");
+    row.appendChild(time);
+    const dur = document.createElement("span");
+    dur.className = "dur";
+    const durSec = Math.round((w.endMs - w.startMs) / 1000);
+    const mm = Math.floor(durSec / 60), ss = durSec % 60;
+    dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
+    row.appendChild(dur);
+    const alt = document.createElement("span");
+    alt.className = "alt";
+    // Peak alt: evaluate at midpoint as a quick estimate.
+    const midMs = (w.startMs + w.endMs) / 2;
+    const issEcef = issEcefAt(new Date(midMs));
+    let peakDeg = 0;
+    if (issEcef) {
+      for (const obs of state.observers) {
+        const obsEcef = geodeticToEcef(obs.latDeg, obs.lonDeg, 0);
+        const lat = obs.latDeg * Math.PI / 180, lon = obs.lonDeg * Math.PI / 180;
+        const dx = issEcef[0] - obsEcef[0];
+        const dy = issEcef[1] - obsEcef[1];
+        const dz = issEcef[2] - obsEcef[2];
+        const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
+        const sinLon = Math.sin(lon), cosLon = Math.cos(lon);
+        const e = -sinLon*dx + cosLon*dy;
+        const n = -sinLat*cosLon*dx - sinLat*sinLon*dy + cosLat*dz;
+        const u = cosLat*cosLon*dx + cosLat*sinLon*dy + sinLat*dz;
+        const a = Math.atan2(u, Math.hypot(e, n)) * 180 / Math.PI;
+        if (peakDeg === 0 || a < peakDeg) peakDeg = a;
+      }
+    }
+    alt.textContent = `${peakDeg.toFixed(0)}°`;
+    alt.classList.add(peakDeg >= 50 ? "good" : peakDeg >= 20 ? "ok" : "poor");
+    row.appendChild(alt);
+    row.addEventListener("click", () => jumpToWindow(i));
+    windowsListEl.appendChild(row);
+  });
+}
+
+function jumpToWindow(i) {
+  state.activeWindowIdx = i;
+  const w = state.windows[i];
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(w.startMs));
+  viewer.clock.shouldAnimate = false;
+  renderWindowsList();
+}
+
+findBtn.addEventListener("click", () => {
+  state.windows = [];
+  state.activeWindowIdx = -1;
+  const startMs = Date.now();
+  const endMs = startMs + state.horizonDays * 86_400_000;
+  runSearch(startMs, endMs);
+});
+
+findMoreBtn.addEventListener("click", () => {
+  if (!state.searchEndMs) {
+    findBtn.click();
+    return;
+  }
+  const startMs = state.searchEndMs;
+  const endMs = startMs + state.horizonDays * 86_400_000;
+  runSearch(startMs, endMs);
+});
