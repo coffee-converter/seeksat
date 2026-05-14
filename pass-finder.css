@@ -1,19 +1,90 @@
 /* pass-finder.css — page-specific layout, extends style.css */
 
-/* Leave room at the bottom for #camera-controls (~50px) and #credit so
-   neither panel can extend over them. */
-#panel-observers { max-height: calc(100vh - 110px); overflow: auto; }
-/* The right panel uses flex so the top section (TLE + controls) stays fixed
-   and only the windows list scrolls when long. */
-#panel-search {
-  max-width: 420px;
-  max-height: calc(100vh - 110px);
+/* Lock the page to viewport size — all panels are absolutely positioned
+   inside #cesium-container, so the body itself should never scroll. */
+html, body { overflow: hidden; }
+
+/* Single left panel holds Observers / Windows / TLE; the windows section
+   flex-grows so the user always sees the top of the panel regardless of
+   how many passes the list contains. Leaves room at the bottom for the
+   #bottom-controls strip. */
+#panel-left {
+  /* class="panel" provides background/border/padding/top:16px. */
+  left: 16px;
+  width: 360px;
+  max-height: calc(100vh - 90px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  z-index: 1000;
+}
+#credit {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 999;
+}
+#panel-left > details { flex: 0 0 auto; }
+#windows-section {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 120px;
 }
-#panel-search > h3 { flex: 0 0 auto; }
-#panel-search > #windows-list { flex: 1 1 auto; overflow-y: auto; min-height: 100px; }
+#windows-section > #windows-list { flex: 1 1 auto; overflow-y: auto; }
+
+/* Single bottom-center strip: playback + speed + sim-time + camera presets. */
+#bottom-controls {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 1000;
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  border-radius: 12px;
+  padding: 8px 14px;
+  backdrop-filter: blur(12px);
+}
+#bottom-controls .ctl-group { display: flex; gap: 6px; }
+#bottom-controls button {
+  background: rgba(10, 14, 26, 0.6);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  color: #cfe0ff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+#bottom-controls button:hover { background: rgba(126, 184, 255, 0.18); }
+#bottom-controls button.active {
+  background: rgba(126, 184, 255, 0.35);
+  border-color: rgba(126, 184, 255, 0.7);
+}
+#bottom-controls .speed-label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: #8899bb; text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+#bottom-controls .speed-label select {
+  background: rgba(10, 14, 26, 0.6);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  color: #cfe0ff;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+/* Override the default #sim-time positioning (set in style.css) when it
+   lives inside the bottom-controls strip — it should sit inline, not pinned. */
+#bottom-controls #sim-time {
+  position: static; transform: none; bottom: auto; left: auto;
+  background: transparent; border: none; backdrop-filter: none;
+  padding: 0; font-size: 12px;
+}
 
 .add-row { display: flex; gap: 6px; margin-top: 8px; }
 .add-row input { flex: 1; }

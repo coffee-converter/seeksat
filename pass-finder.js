@@ -513,10 +513,11 @@ speedSelect.addEventListener("change", () => {
 });
 
 let searchGen = 0;
+let _autoSelectedFirst = false; // ensures we auto-jump to the first window once
 
 function runSearch(startMs, endMs) {
-  if (!satrec) { alert("No TLE loaded."); return; }
-  if (!state.observers.length) { alert("Add at least one observer first."); return; }
+  if (!satrec) return; // wait for TLE
+  if (!state.observers.length) return; // wait for observers
   windowsListEl.textContent = "searching…";
   const gen = ++searchGen; // invalidates any older deferred searches
   setTimeout(() => {
@@ -529,6 +530,13 @@ function runSearch(startMs, endMs) {
     state.searchEndMs = endMs;
     renderWindowsList();
     setupClockForSearch(startMs, endMs);
+    // First time the list populates, jump to the upcoming pass so the user
+    // sees a useful framing immediately. Skipped on re-searches so adding
+    // observers doesn't yank the camera away from the user's selection.
+    if (!_autoSelectedFirst && state.windows.length) {
+      _autoSelectedFirst = true;
+      jumpToWindow(0);
+    }
   }, 0);
 }
 
