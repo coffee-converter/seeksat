@@ -291,6 +291,7 @@ function formatTriangulatedLabel() {
 }
 
 function frameAll() {
+  if (layer.observers.length) setObserverVisibility(-1);
   const positions = state.observations.map(o =>
     Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, (o.elevM || 0))
   );
@@ -660,9 +661,16 @@ document.getElementById("camera-controls").addEventListener("click", (ev) => {
   }
 });
 
+function setObserverVisibility(hiddenIdx) {
+  for (let i = 0; i < layer.observers.length; i++) {
+    layer.observers[i].show = (i !== hiddenIdx);
+  }
+}
+
 function viewFromObserver(idx) {
   const obs = state.observations[idx];
   if (!obs || !state.triangulated) return;
+  setObserverVisibility(idx);
   const origin = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
   const target = state.triangulated;
   const dir = [target[0]-origin[0], target[1]-origin[1], target[2]-origin[2]];
@@ -687,6 +695,7 @@ function viewFromObserver(idx) {
 
 function topDown() {
   if (!state.triangulated) return frameAll();
+  if (layer.observers.length) setObserverVisibility(-1);
   const cart = Cesium.Cartographic.fromCartesian(
     Cesium.Cartesian3.fromElements(...state.triangulated)
   );
