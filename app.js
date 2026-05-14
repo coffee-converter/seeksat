@@ -82,9 +82,10 @@ imagerySelect.value = "esri-imagery";
 imagerySelect.addEventListener("change", () => setImagery(imagerySelect.value));
 setImagery("esri-imagery");
 
-// High-res Tycho-2 8K cubemap from Flowm/cesium-assets fork, served via jsDelivr.
-// Source: NASA/GSFC Scientific Visualization Studio, Tycho-2 Catalogue.
-const STARS_BASE = "https://cdn.jsdelivr.net/gh/Flowm/cesium-assets@master/stars/TychoSkymapII.t3_08192x04096";
+// High-res Tycho-2 8K cubemap, hosted locally in assets/stars/.
+// Source: NASA/GSFC Scientific Visualization Studio, Tycho-2 Catalogue,
+// originally distributed via Cesium/AGI sample assets.
+const STARS_BASE = "./assets/stars";
 viewer.scene.skyBox = new Cesium.SkyBox({
   sources: {
     positiveX: `${STARS_BASE}/TychoSkymapII.t3_08192x04096_80_px.jpg`,
@@ -101,6 +102,11 @@ viewer.scene.skyBox.show = true;
 viewer.scene.skyAtmosphere.show = true;
 viewer.scene.globe.enableLighting = true;
 viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");
+
+// Anti-aliasing — MSAA (WebGL 2) for primary geometry edges, FXAA for any
+// remaining shader-edge artifacts. Smooths the jagged Earth limb.
+viewer.scene.msaaSamples = 4;
+viewer.scene.postProcessStages.fxaa.enabled = true;
 
 // Hide the Cesium logo overlay (optional but cleaner UI).
 viewer.cesiumWidget.creditContainer.style.display = "none";
@@ -560,20 +566,22 @@ recompute = function () {
   renderResultPanel();
 };
 
-import { tlePositionEcef } from "./truth.js";
+import { tlePositionEcef, tleOrbitTrackEcef } from "./truth.js";
 
 const tleL1 = document.getElementById("tle-line1");
 const tleL2 = document.getElementById("tle-line2");
 const tleL3 = document.getElementById("tle-line3");
 const elTruth = document.getElementById("result-truth");
 
-const truthLayer = { entity: null, miss: null };
+const truthLayer = { entity: null, miss: null, orbit: null };
 
 function clearTruthLayer() {
   if (truthLayer.entity) viewer.entities.remove(truthLayer.entity);
   if (truthLayer.miss) viewer.entities.remove(truthLayer.miss);
+  if (truthLayer.orbit) viewer.entities.remove(truthLayer.orbit);
   truthLayer.entity = null;
   truthLayer.miss = null;
+  truthLayer.orbit = null;
 }
 
 function pickTleLines() {
@@ -602,6 +610,23 @@ function renderTruth() {
   if (!pos) {
     elTruth.textContent = "TLE propagation returned no position.";
     return;
+  }
+
+  // Orbit track: snapshot of the ISS orbit in the Earth-fixed frame at obs time.
+  try {
+    const orbit = tleOrbitTrackEcef(line1, line2, new Date(state.timestampUTC));
+    if (orbit.length >= 2) {
+      truthLayer.orbit = viewer.entities.add({
+        polyline: {
+          positions: orbit.map(p => Cesium.Cartesian3.fromElements(...p)),
+          width: 1.5,
+          material: Cesium.Color.fromCssColorString("#7eb8ff").withAlpha(0.45),
+          arcType: Cesium.ArcType.NONE,
+        },
+      });
+    }
+  } catch (e) {
+    console.warn("orbit track failed:", e.message);
   }
 
   truthLayer.entity = viewer.entities.add({
@@ -659,6 +684,14 @@ function renderTruth() {
 }
 
 [tleL1, tleL2, tleL3].forEach(el => el.addEventListener("input", renderTruth));
+
+// Pre-fill TLE inputs from data/monday.json so the truth overlay + orbit
+// track render alongside the pre-filled observation on first load.
+if (monday.defaultTle) {
+  tleL1.value = monday.defaultTle.name ?? "";
+  tleL2.value = monday.defaultTle.line1 ?? "";
+  tleL3.value = monday.defaultTle.line2 ?? "";
+}
 
 // Compose renderTruth onto recompute.
 const _recompute2 = recompute;
