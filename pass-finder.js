@@ -8,6 +8,7 @@ import { sunPositionEcef } from "./pass-finder/sun.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
 import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
+import { apparentAltDeg } from "./refraction.js";
 import * as sat from "https://cdn.jsdelivr.net/npm/satellite.js@7.0.0/+esm";
 import { makeViewer, wireSimTime } from "./viewer-setup.js";
 import { wireCameraControls } from "./camera-controls.js";
@@ -92,6 +93,15 @@ function addObserver(name, latDeg, lonDeg) {
       outlineColor: Cesium.Color.WHITE,
       outlineWidth: 2,
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      // Render on top of geometry so the dot doesn't disappear when the
+      // camera zooms in very close (depth-tested against the ground it's
+      // clamped to). Visibility-behind-planet handled via the show
+      // callback below, mirroring how the ISS dot and labels work.
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      show: new Cesium.CallbackProperty(
+        () => isInFrontOfEarth(Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0)),
+        false,
+      ),
     },
     label: {
       // Pin label = observer name + current cloud cover on line 1, then
@@ -109,7 +119,11 @@ function addObserver(name, latDeg, lonDeg) {
         if (issEcef && isVisibleAtAll([obs], issEcef, d)) {
           const { alt, az } = issAltAzDeg(obs, issEcef);
           const azStr = String(Math.round(az) % 360).padStart(3, "0");
-          return `${line1}\nalt ${alt.toFixed(1)}°  az ${azStr}°`;
+          // Instantaneous magnitude for THIS observer at THIS moment —
+          // changes through the pass as range and phase angle evolve.
+          const m = magnitudeAt(obs, issEcef, sunPositionEcef(d));
+          const magStr = m == null ? "" : `  m ${m.toFixed(1)}`;
+          return `${line1}\nalt ${alt.toFixed(1)}°  az ${azStr}°${magStr}`;
         }
         return line1;
       }, false),
@@ -587,52 +601,185 @@ function ensureOrbitEntity() {
 const PASS_GRADIENT_SAMPLES = 60;
 let activePassEntities = [];
 
-// Same A/B/C/D palette the rating column uses, interpolated continuously.
-// score ∈ [0, 1].
-function ratingColorAt(score) {
-  const stops = [
-    { t: 0,    r: 248, g: 113, b: 113 }, // D red    (#f87171)
-    { t: 0.34, r: 250, g: 204, b:  21 }, // C yellow (#facc15)
-    { t: 0.67, r: 163, g: 230, b:  53 }, // B lime   (#a3e635)
-    { t: 1,    r:  52, g: 211, b: 153 }, // A green  (#34d399)
-  ];
+// Stops for the rating gradient — used by both the orbit overlay
+// (returning Cesium.Color via ratingColorAt) and every colored column
+// in the passes list (returning a CSS rgb() string via ratingCssColor).
+// Even thirds — red below 1/3 (success unlikely), yellow at 1/3 (coin
+// flip-ish), green at 2/3+ (success very likely). 2/3 ≈ 0.67 is the
+// "very likely" threshold; anything above that is fully saturated green.
+const RATING_STOPS = [
+  { t: 0.00,        r: 248, g: 113, b: 113 }, // red    (#f87171)
+  { t: 1.0 / 3.0,   r: 250, g: 204, b:  21 }, // yellow (#facc15)
+  { t: 2.0 / 3.0,   r:  52, g: 211, b: 153 }, // green  (#34d399)
+  { t: 1.00,        r:  52, g: 211, b: 153 }, // saturate at green
+];
+
+function _interpRatingStop(score) {
   const s = Math.max(0, Math.min(1, score));
-  for (let i = 0; i < stops.length - 1; i++) {
-    const a = stops[i], b = stops[i + 1];
+  for (let i = 0; i < RATING_STOPS.length - 1; i++) {
+    const a = RATING_STOPS[i], b = RATING_STOPS[i + 1];
     if (s <= b.t) {
       const u = (s - a.t) / (b.t - a.t);
-      return Cesium.Color.fromBytes(
-        Math.round(a.r + (b.r - a.r) * u),
-        Math.round(a.g + (b.g - a.g) * u),
-        Math.round(a.b + (b.b - a.b) * u),
-      );
+      return {
+        r: Math.round(a.r + (b.r - a.r) * u),
+        g: Math.round(a.g + (b.g - a.g) * u),
+        b: Math.round(a.b + (b.b - a.b) * u),
+      };
     }
   }
-  return Cesium.Color.WHITE;
+  return RATING_STOPS[RATING_STOPS.length - 1];
 }
 
-// Instantaneous joint-visibility quality at one moment of the pass.
-// For each observer compute alt-factor × twilight-factor × cloud-factor
-// (mirrors computeRating's per-pass version but applied to a point in
-// time, not the worst across the whole window). The score is the
-// MINIMUM across observers — matches the simultaneous-visibility model:
-// the pass is only as good as the worst observer at that moment.
-function computeInstantQuality(observers, issEcef, jsDate) {
-  if (!observers.length) return 0;
-  const ms = jsDate.getTime();
-  let worst = Infinity;
+function ratingCssColor(score) {
+  const c = _interpRatingStop(score);
+  return `rgb(${c.r}, ${c.g}, ${c.b})`;
+}
+
+function ratingColorAt(score) {
+  const c = _interpRatingStop(score);
+  return Cesium.Color.fromBytes(c.r, c.g, c.b);
+}
+
+// Blend a point-forecast clear probability with a neutral 0.5 by
+// exponential skill decay. Day-1 forecasts are trusted almost fully;
+// by day 4 we're ~37% direct, ~63% neutral; by day 10 we're nearly all
+// neutral. tau = 4 days roughly matches deterministic-cloud skill
+// decay for hourly forecasts.
+function effectivePClear(cloudPct, ageDays) {
+  if (cloudPct == null) return 0.5;
+  const direct = Math.max(0, 1 - cloudPct / 100);
+  if (ageDays <= 0) return direct;
+  const skill = Math.exp(-ageDays / 4);
+  return skill * direct + (1 - skill) * 0.5;
+}
+
+// Per-observer probability that this observer can capture ISS + ≥2
+// reference stars at this instant. Three independent factors:
+//   pDark  — sky dark enough for stars (sun altitude). Linear from
+//            horizon (sun=0°) to nautical (sun=−12°), saturating at 1.
+//            Camera-reality threshold: nautical twilight is dark enough
+//            for sub-mag-3 stars in a short exposure.
+//   pAlt   — ISS high enough to image cleanly (refraction-corrected
+//            apparent altitude). 0 below ~5°, 1 by 30°.
+//   pClear — Cloud forecast P(clear), blended toward a neutral 0.5 as
+//            the forecast horizon stretches out (deterministic point
+//            forecasts lose skill quickly past day 1-2).
+// Returns 0 when the ISS isn't visible to this observer at all.
+function captureProbForObserver(obs, issEcef, jsDate, ms, nowMs) {
+  const apparentAlt = apparentAltDeg(issAltitudeDeg(obs, issEcef));
+  if (apparentAlt < 5) return 0;
+  const sunAlt = apparentAltDeg(sunAltitudeDeg(obs, jsDate));
+  if (sunAlt >= 0) return 0; // sun still up — sky too bright
+  const pDark = Math.min(1, -sunAlt / 12);
+  const pAlt = Math.min(1, Math.max(0, (apparentAlt - 5) / 25));
+  const cloudPct = cloudAt(state.cloudForecasts.get(obs.id), ms);
+  const ageDays = (ms - nowMs) / 86_400_000;
+  const pClear = effectivePClear(cloudPct, ageDays);
+  return pDark * pAlt * pClear;
+}
+
+// Joint probability that EVERY observer succeeds at the same instant.
+// Product across observers under the independent-cloud-cover assumption
+// (true for sparsely-spaced observers; slightly optimistic when clusters
+// of observers share the same cloud system, but the bias is small).
+function captureProbJoint(observers, issEcef, jsDate, ms, nowMs) {
+  let p = 1;
   for (const obs of observers) {
-    const altDeg = issAltitudeDeg(obs, issEcef);
-    const sunAlt = sunAltitudeDeg(obs, jsDate);
-    const cloudPct = cloudAt(state.cloudForecasts.get(obs.id), ms);
-    // Match computeRating's per-factor curves.
-    const aF = Math.min(1, Math.max(0, (altDeg - 10) / 30));   // 10°→0, 40°+→1
-    const tF = Math.min(1, Math.max(0, (-6 - sunAlt) / 12));    // -6°→0, -18°→1
-    const cF = cloudPct == null ? 0.7 : Math.pow(1 - cloudPct / 100, 2);
-    const q = aF * tF * cF;
-    if (q < worst) worst = q;
+    p *= captureProbForObserver(obs, issEcef, jsDate, ms, nowMs);
+    if (p === 0) return 0; // early-exit when any observer fails
   }
-  return worst === Infinity ? 0 : worst;
+  return p;
+}
+
+// Pass success probability = max joint probability over sampled moments,
+// scaled by a duration factor that captures the practical coordination
+// premium of longer passes (more time to set up, multiple-frame
+// redundancy, recoverable from transient cloud blips). We don't OR
+// across moments — geometry is deterministic and clouds are
+// near-constant within a pass, so consecutive sample probabilities are
+// heavily correlated, and a naïve "1 − ∏(1 − p)" would overcount.
+//
+// Duration sigmoid: pCoord = dur / (dur + 30). 30s → 0.50, 60s → 0.67,
+// 120s → 0.80, 240s → 0.89, asymptotic to 1 — captures diminishing
+// returns past ~2 minutes (more time doesn't keep helping forever).
+function passSuccessProbability(win, observers) {
+  if (!win || !observers.length) return 0;
+  const totalMs = win.endMs - win.startMs;
+  if (totalMs <= 0) return 0;
+  const STEP_MS = Math.max(1_000, Math.min(5_000, totalMs / 30));
+  const nowMs = Date.now();
+  let best = 0;
+  for (let t = win.startMs; t <= win.endMs; t += STEP_MS) {
+    const d = new Date(t);
+    const issEcef = issEcefAt(d);
+    if (!issEcef) continue;
+    const p = captureProbJoint(observers, issEcef, d, t, nowMs);
+    if (p > best) best = p;
+  }
+  // Duration sigmoid: more discriminating than the previous +30
+  // constant — 30s → 0.33 (yellow), 60s → 0.5 (yellow-green), 120s →
+  // 0.67 (green), 240s → 0.80, so short passes don't auto-rate green
+  // just because the geometry/cloud factors lined up.
+  const durSec = totalMs / 1000;
+  const pCoord = durSec / (durSec + 60);
+  return best * pCoord;
+}
+
+
+// Visual magnitude of the (sunlit) ISS from one observer at one instant.
+// Standard satellite-magnitude formula:
+//   m = m_std + 5·log10(range / 1000 km)  −  2.5·log10(F(α))
+// where m_std = −1.8 is the intrinsic magnitude at 1000 km / full phase,
+// α is the phase angle (satellite→sun vs satellite→observer), and
+// F(α) = (1 + cos α) / 2 is the Lambertian-sphere phase function.
+// Returns null when the observer is looking at the unlit hemisphere
+// (F ≤ 0) — in that case the satellite isn't visible at all.
+function magnitudeAt(obs, issEcef, sunDir) {
+  const obsEcef = geodeticToEcef(obs.latDeg, obs.lonDeg, 0);
+  const dx = obsEcef[0] - issEcef[0];
+  const dy = obsEcef[1] - issEcef[1];
+  const dz = obsEcef[2] - issEcef[2];
+  const range = Math.hypot(dx, dy, dz);
+  if (range <= 0) return null;
+  const inv = 1 / range;
+  // cos(α) = dot(unit_iss→obs, sun_dir). Sun is effectively at infinity,
+  // so the sun direction from the ISS is the same as from Earth.
+  const cosAlpha = (dx * sunDir[0] + dy * sunDir[1] + dz * sunDir[2]) * inv;
+  const F = (1 + cosAlpha) / 2;
+  if (F <= 0) return null;
+  return -1.8 + 5 * Math.log10(range / 1_000_000) - 2.5 * Math.log10(F);
+}
+
+// Peak joint-visibility magnitude within the window.
+// At each sampled moment we take the WORST (dimmest, highest m)
+// magnitude across the observers — the floor everyone is guaranteed to
+// see at that instant — and then across moments we take the BRIGHTEST
+// (lowest m) of those floors. This is the minimax magnitude: the
+// moment where even the dimmest observer sees the ISS at its best
+// across the joint-visibility window.
+function peakMagnitudeInWindow(win, observers) {
+  if (!win || !observers.length) return null;
+  const totalMs = win.endMs - win.startMs;
+  if (totalMs <= 0) return null;
+  const STEP_MS = Math.max(1_000, Math.min(5_000, totalMs / 30));
+  let bestOfWorsts = Infinity;
+  for (let t = win.startMs; t <= win.endMs; t += STEP_MS) {
+    const d = new Date(t);
+    const issEcef = issEcefAt(d);
+    if (!issEcef) continue;
+    const sunDir = sunPositionEcef(d);
+    let worstAtT = -Infinity;
+    let anyValid = false;
+    for (const obs of observers) {
+      const m = magnitudeAt(obs, issEcef, sunDir);
+      if (m == null) continue;
+      anyValid = true;
+      if (m > worstAtT) worstAtT = m;
+    }
+    if (!anyValid) continue;
+    if (worstAtT < bestOfWorsts) bestOfWorsts = worstAtT;
+  }
+  return bestOfWorsts === Infinity ? null : bestOfWorsts;
 }
 
 function clearActivePassGradient() {
@@ -647,6 +794,7 @@ function renderActivePassGradient(win) {
   if (totalMs <= 0) return;
   // Sample ISS positions + per-sample quality along the window.
   const samples = [];
+  const nowMs = Date.now();
   for (let i = 0; i <= PASS_GRADIENT_SAMPLES; i++) {
     const t = win.startMs + totalMs * (i / PASS_GRADIENT_SAMPLES);
     const d = new Date(t);
@@ -654,7 +802,7 @@ function renderActivePassGradient(win) {
     if (!issEcef) continue;
     samples.push({
       pos: Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]),
-      quality: computeInstantQuality(state.observers, issEcef, d),
+      quality: captureProbJoint(state.observers, issEcef, d, t, nowMs),
     });
   }
   // Draw each segment between adjacent samples with color from the
@@ -956,7 +1104,7 @@ function renderWindowsList() {
   // as a stable orientation cue for the list area.
   const hdr = document.createElement("div");
   hdr.className = "window-row header";
-  for (const label of ["", "Time (UTC)", "Dur", "Alt", "Clouds"]) {
+  for (const label of ["", "Time (UTC)", "Sun", "Dur", "Alt", "Mag", "Clouds"]) {
     const c = document.createElement("span");
     c.textContent = label;
     hdr.appendChild(c);
@@ -983,45 +1131,104 @@ function renderWindowsList() {
       }
     }
     if (!Number.isFinite(minAlt)) { minAlt = 0; maxAlt = 0; }
-    const cloud = cloudRange(peakMs); // { min, max } or null
-    const timeFactor = worstLocalTimeScore(peakMs); // 0-1 across observers
-    const rating = computeRating(durSec, minAlt, cloud ? cloud.max : null, timeFactor);
+    const cloud = cloudRange(peakMs); // { min, max } or null — display only
+    const timeFactor = worstLocalTimeScore(peakMs); // colors the time col only
+    // Rating = P(every observer captures ISS + reference stars at the
+    // same instant in the window), scaled by a duration sigmoid for
+    // coordination headroom. Displayed as percent digits, colored on
+    // the shared red→yellow→green gradient. Time-of-day is deliberately
+    // not part of this score (it's a "will the human be outside?"
+    // factor, separate from "can the capture succeed?").
+    const passP = passSuccessProbability(w, state.observers);
+    const ratingTooltip = `joint capture probability ${(passP * 100).toFixed(0)}% (best moment in window, scaled by duration headroom)`;
 
     const row = document.createElement("div");
     row.className = "window-row";
     if (i === state.activeWindowIdx) row.classList.add("active");
 
-    // Rating column (bold, color-coded by overall sighting odds)
+    // Rating column — joint capture-probability digits (no % sign, saves
+    // width), colored continuously on the same gradient the orbit
+    // overlay uses.
     const r = document.createElement("span");
-    r.className = `rating ${rating.grade}`;
-    r.textContent = rating.grade;
-    r.title = rating.tooltip;
+    r.className = "rating";
+    r.textContent = `${Math.round(passP * 100)}`;
+    r.style.color = ratingCssColor(passP);
+    r.title = ratingTooltip;
     row.appendChild(r);
 
-    // Time column (UTC, peak/best moment) — colored by worst observer's local time-of-day
+    // Time column (UTC, peak/best moment) — left intentionally uncolored
+    // so the colored columns (rating, sun, dur, alt, mag, clouds) carry
+    // the visual signal and the date/time reads as neutral context.
     const time = document.createElement("span");
     time.className = "time";
     time.textContent = new Date(peakMs).toISOString().slice(5, 19).replace("T", " ");
-    time.classList.add(timeFactor >= 0.85 ? "prime" : timeFactor >= 0.5 ? "ok" : "poor");
     row.appendChild(time);
 
-    // Duration column
+    // Sun-altitude column — worst (highest = brightest sky) observer at
+    // peak, refraction-corrected. Color is the SAME pDark score used in
+    // the rating math: pDark = −sunAlt / 12, clamped to [0, 1]. Combined
+    // with the gradient stops (yellow at 1/3, green at 2/3), that maps:
+    //   sun =   0° → 0.00  red
+    //   sun =  −4° → 0.33  yellow
+    //   sun =  −6° → 0.50  yellow→green lime
+    //   sun =  −8° → 0.67  green (saturated)
+    //   sun = −12° → 1.00  green (saturated, pDark maxed out)
+    const peakDate = new Date(peakMs);
+    let worstSunAlt = -Infinity;
+    for (const obs of state.observers) {
+      const sa = apparentAltDeg(sunAltitudeDeg(obs, peakDate));
+      if (sa > worstSunAlt) worstSunAlt = sa;
+    }
+    const sun = document.createElement("span");
+    sun.className = "sun";
+    sun.textContent = Number.isFinite(worstSunAlt) ? `${Math.round(worstSunAlt)}°` : "—";
+    if (Number.isFinite(worstSunAlt)) {
+      sun.style.color = ratingCssColor(Math.max(0, Math.min(1, -worstSunAlt / 12)));
+    } else {
+      sun.classList.add("na");
+    }
+    row.appendChild(sun);
+
+    // Duration column — color follows the coordination sigmoid
+    // dur/(dur+60) on the shared red→yellow→green gradient. A 30s pass
+    // shows yellow-orange (pCoord 0.33), 1m shows mid-yellow-green
+    // (0.50), 2m hits green (0.67), 4m+ saturated. Tightened from a
+    // previous +30 constant so short passes don't auto-rate green.
     const dur = document.createElement("span");
     dur.className = "dur";
     const mm = Math.floor(durSec / 60), ss = durSec % 60;
     dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
-    dur.classList.add(durSec >= 180 ? "good" : durSec >= 60 ? "ok" : "poor");
+    dur.style.color = ratingCssColor(durSec / (durSec + 60));
     row.appendChild(dur);
 
-    // Altitude range (worst-observer color)
+    // Altitude range — color matches captureProbForObserver's pAlt ramp
+    // (apparent altitude 5°→0, 30°→1) on the same gradient. The worst
+    // observer's altitude drives the color since that's the binding
+    // constraint on joint visibility.
     const alt = document.createElement("span");
     alt.className = "alt";
     const altLo = Math.round(minAlt), altHi = Math.round(maxAlt);
     alt.textContent = altLo === altHi ? `${altHi}°` : `${altLo}–${altHi}°`;
-    alt.classList.add(minAlt >= 30 ? "good" : minAlt >= 15 ? "ok" : "poor");
+    alt.style.color = ratingCssColor(Math.max(0, Math.min(1, (apparentAltDeg(minAlt) - 5) / 25)));
     row.appendChild(alt);
 
-    // Cloud cover range (worst-observer color)
+    // Peak magnitude — colored on the same gradient: mag = −3 → green
+    // (brilliant), 0 → yellow, +1 → red (very faint).
+    const mag = document.createElement("span");
+    mag.className = "mag";
+    const peakMag = peakMagnitudeInWindow(w, state.observers);
+    if (peakMag == null) {
+      mag.textContent = "—";
+      mag.classList.add("na");
+    } else {
+      mag.textContent = peakMag.toFixed(1);
+      mag.style.color = ratingCssColor(Math.max(0, Math.min(1, (-peakMag + 1) / 4)));
+    }
+    row.appendChild(mag);
+
+    // Cloud cover range — colored continuously on the same gradient,
+    // indexed by P(clear) = 1 − clHi/100 (worst-case cloud cover at peak
+    // moment). 0% clouds → green, 50% → yellow-lime, 100% → red.
     const cl = document.createElement("span");
     cl.className = "cloud";
     if (cloud === null) {
@@ -1030,36 +1237,13 @@ function renderWindowsList() {
     } else {
       const clLo = Math.round(cloud.min), clHi = Math.round(cloud.max);
       cl.textContent = clLo === clHi ? `${clHi}%` : `${clLo}–${clHi}%`;
-      cl.classList.add(clHi < 30 ? "clear" : clHi < 60 ? "partial" : "overcast");
+      cl.style.color = ratingCssColor(1 - clHi / 100);
     }
     row.appendChild(cl);
 
     row.addEventListener("click", () => jumpToWindow(i));
     windowsListEl.appendChild(row);
   });
-}
-
-// Overall pass rating: how likely is a successful joint sighting?
-// Combines four independent factors multiplicatively — any one being bad
-// (very short, very low, very cloudy, or dead-of-night locally) kills the
-// rating. Cloud-unknown gets a 0.7 neutral factor. Thresholds were adjusted
-// down vs the 3-factor version since a 4th sub-1 factor depresses overall.
-function computeRating(durSec, minAltDeg, maxCloudPct, timeFactor) {
-  const dF = Math.min(1, Math.max(0, durSec / 90));            // 30s→0.33, 60s→0.67, 90s+→1
-  const aF = Math.min(1, Math.max(0, (minAltDeg - 10) / 30));  // 10°→0, 40°+→1
-  // Squared cloud factor so partial cover hurts more than linear would
-  // suggest: 30%→0.49, 50%→0.25, 70%→0.09, 100%→0. Unknown gets 0.5.
-  const cF = (maxCloudPct == null) ? 0.5
-           : Math.pow(Math.min(1, Math.max(0, 1 - maxCloudPct / 100)), 2);
-  const tF = Math.min(1, Math.max(0, timeFactor));
-  const score = dF * aF * cF * tF;
-  let grade, label;
-  if (score >= 0.40) { grade = "A"; label = "Excellent"; }
-  else if (score >= 0.20) { grade = "B"; label = "Good"; }
-  else if (score >= 0.08) { grade = "C"; label = "Marginal"; }
-  else { grade = "D"; label = "Poor"; }
-  const tooltip = `${label} (score ${score.toFixed(2)} = dur ${dF.toFixed(2)} × alt ${aF.toFixed(2)} × clear ${cF.toFixed(2)} × time ${tF.toFixed(2)}${maxCloudPct == null ? " cloud est." : ""})`;
-  return { grade, score, tooltip };
 }
 
 // Per-observer time-of-day preference for naked-eye viewing, 0-1.
