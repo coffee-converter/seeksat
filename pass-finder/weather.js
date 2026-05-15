@@ -7,10 +7,10 @@
 
 // In-page cache for Open-Meteo cloud forecasts. Cached entries expire
 // after CACHE_TTL_MS so a long-open page picks up fresh data on the
-// next call — Open-Meteo's seamless model uses NOAA HRRR for US
-// short-term forecasts (hourly updates), so a ~1-hour TTL matches the
-// source's actual update cadence.
-const CACHE_TTL_MS = 50 * 60 * 1000;
+// next call. Set just below the periodic-refresh interval in
+// pass-finder.js so the refresh tick reliably crosses the TTL and
+// triggers a real network fetch each time.
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const cache = new Map(); // rounded "lat,lon" -> { promise, fetchedAt }
 
 export function fetchCloudForecast(latDeg, lonDeg) {

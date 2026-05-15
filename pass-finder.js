@@ -989,13 +989,12 @@ function loadInitialObservers() {
 
 loadInitialObservers();
 
-// Periodic cloud-forecast refresh. fetchCloudForecast caches results
-// for ~50 minutes (matching Open-Meteo's HRRR-update cadence in the
-// US), so this 60-minute interval reliably crosses the TTL boundary
-// and pulls down a fresh forecast for each observer. Re-renders the
-// passes list once new data lands so the cloud column reflects the
-// latest values.
-const CLOUD_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+// Periodic cloud-forecast refresh. Pairs with the cache's 10-minute
+// TTL — every 15-minute tick crosses the TTL and triggers a real
+// network fetch, so a long-open page keeps near-fresh data without
+// reloading. (Open-Meteo's HRRR model only updates hourly, but
+// catching the next update within 15 min of it landing is the goal.)
+const CLOUD_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 setInterval(() => {
   if (!state.observers.length) return;
   for (const obs of state.observers) {
