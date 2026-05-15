@@ -661,10 +661,17 @@ function paintPolarModalStatic(svg, obs) {
   svg.appendChild(eventsG);
 }
 
+// Polar-modal arc paints in a neutral gray rather than the observer's
+// color — in this view the arc represents the ISS path, not the
+// observer, so the observer color was easy to misread as "the
+// observer's arc is colored". The Start/Peak/End markers (green/gold/
+// red) and the obs-card icon (still observer-color) remain the
+// color-coded affordances.
+const POLAR_ARC_COLOR = "#aab8d4";
 function paintPolarModalArc(svg, obs) {
   const arc = svg.querySelector(".arc");
   if (!arc) return;
-  arc.setAttribute("stroke", obs.color);
+  arc.setAttribute("stroke", POLAR_ARC_COLOR);
   const w = state.windows?.[state.activeWindowIdx];
   if (!w) { arc.setAttribute("points", ""); return; }
   const SAMPLES = 60;
