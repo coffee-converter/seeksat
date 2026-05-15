@@ -73,12 +73,25 @@ export function wireCameraControls(viewer, {
       return;
     }
     const bs = Cesium.BoundingSphere.fromPoints(positions);
+    // Compute the range that just-tangents the bounding sphere in the
+    // narrower of the camera's horizontal/vertical FOVs. Cesium's
+    // PerspectiveFrustum.fov is the HORIZONTAL FOV; the vertical FOV
+    // is derived from aspect ratio, so on widescreen displays vertical
+    // is much narrower (~18° vs the 60° horizontal default) and is the
+    // binding constraint. A fixed multiplier of bs.radius would clip on
+    // wide aspects; this computation keeps the points inside both axes.
+    const frustum = viewer.camera.frustum;
+    const fovH = frustum.fov ?? Math.PI / 3;
+    const aspect = frustum.aspectRatio ?? 1;
+    const fovV = 2 * Math.atan(Math.tan(fovH / 2) / aspect);
+    const halfMinFov = Math.min(fovH, fovV) / 2;
+    const range = (bs.radius / Math.sin(halfMinFov)) * 1.15; // 15% margin
     viewer.camera.flyToBoundingSphere(bs, {
       duration: 1.2,
       offset: new Cesium.HeadingPitchRange(
         Cesium.Math.toRadians(20),
         Cesium.Math.toRadians(-30),
-        bs.radius * 3.5
+        range,
       ),
     });
   }
