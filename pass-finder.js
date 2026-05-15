@@ -682,9 +682,11 @@ function twilightFactor(sunAltDeg) {
 }
 
 // ISS-altitude factor from apparent (refraction-corrected) altitude.
-// 0 below ~5° (horizon haze + obstructions), 1 by 30° (clean sky overhead).
+// 0 below 5° (horizon haze + obstructions), 1 by 25° (clean overhead sky).
+// 15° → 0.5, 20° → 0.75. The previous ramp saturated at 30° which was
+// too punishing for the moderate-altitude passes most amateurs target.
 function altitudeFactor(apparentAltDeg) {
-  return Math.max(0, Math.min(1, (apparentAltDeg - 5) / 25));
+  return Math.max(0, Math.min(1, (apparentAltDeg - 5) / 20));
 }
 
 // Coordination/redundancy factor from pass duration. Sigmoid form so
@@ -715,33 +717,43 @@ function effectivePClear(cloudPct, ageDays) {
   return skill * direct + (1 - skill) * 0.5;
 }
 
-// Per-observer probability that this observer can capture ISS + ≥2
-// reference stars at this instant. Three independent factors multiplied:
-// twilightFactor(sunAlt) × altitudeFactor(issAlt) × effectivePClear(cloud).
-// Returns 0 fast when geometry rules the moment out.
-function captureProbForObserver(obs, issEcef, jsDate, ms, nowMs) {
-  const apparentAlt = apparentAltDeg(issAltitudeDeg(obs, issEcef));
-  if (apparentAlt < 5) return 0;
-  const sunAlt = apparentAltDeg(sunAltitudeDeg(obs, jsDate));
-  if (sunAlt >= 0) return 0; // sun still up — sky too bright
-  const cloudPct = cloudAt(state.cloudForecasts.get(obs.id), ms);
-  const ageDays = (ms - nowMs) / 86_400_000;
-  return twilightFactor(sunAlt)
-       * altitudeFactor(apparentAlt)
-       * effectivePClear(cloudPct, ageDays);
-}
-
 // Joint probability that EVERY observer succeeds at the same instant.
-// Product across observers under the independent-cloud-cover assumption
-// (true for sparsely-spaced observers; slightly optimistic when clusters
-// of observers share the same cloud system, but the bias is small).
+//
+// We combine factors differently based on how correlated each one is
+// across observers, instead of a naïve product (which double-counts
+// correlation and over-penalizes nearby observer clusters):
+//
+//   - twilightFactor (sky darkness): MIN across observers. Sun altitude
+//     is essentially the same for observers within a few hundred km, so
+//     the joint probability is determined by the worst-positioned
+//     observer's twilight — not by cubing nearly-identical values.
+//   - altitudeFactor (ISS height): PRODUCT across observers. Each
+//     observer's view geometry is genuinely independent, so independent
+//     successes legitimately compound.
+//   - effectivePClear (clouds): MIN across observers. Cloud systems are
+//     regional; if one nearby observer is socked in, others probably
+//     are too. The MIN reads as "the weakest-link observer caps the
+//     group."
+//
+// Returns 0 fast when any single observer fails the visibility gates
+// (ISS below 5°, or sun above the horizon).
 function captureProbJoint(observers, issEcef, jsDate, ms, nowMs) {
-  let p = 1;
+  let minDark = 1;
+  let prodAlt = 1;
+  let minClear = 1;
+  const ageDays = (ms - nowMs) / 86_400_000;
   for (const obs of observers) {
-    p *= captureProbForObserver(obs, issEcef, jsDate, ms, nowMs);
-    if (p === 0) return 0; // early-exit when any observer fails
+    const apparentAlt = apparentAltDeg(issAltitudeDeg(obs, issEcef));
+    if (apparentAlt < 5) return 0;
+    const sunAlt = apparentAltDeg(sunAltitudeDeg(obs, jsDate));
+    if (sunAlt >= 0) return 0;
+    const d = twilightFactor(sunAlt);
+    if (d < minDark) minDark = d;
+    prodAlt *= altitudeFactor(apparentAlt);
+    const c = effectivePClear(cloudAt(state.cloudForecasts.get(obs.id), ms), ageDays);
+    if (c < minClear) minClear = c;
   }
-  return p;
+  return minDark * prodAlt * minClear;
 }
 
 // Pass success probability = max joint probability over sampled moments,
