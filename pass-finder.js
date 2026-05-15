@@ -1460,6 +1460,20 @@ const cameraCtrl = wireCameraControls(viewer, {
       Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, 0));
     const issEcef = issEcefAt(Cesium.JulianDate.toDate(viewer.clock.currentTime));
     if (issEcef) ps.push(Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]));
+    // When a pass is selected, sample positions along its visibility
+    // window so the frame includes the full colored arc — not just the
+    // ISS at "now". Without this the frame is too tight when the
+    // current clock time happens to be at the pass start/end.
+    const w = state.windows?.[state.activeWindowIdx];
+    if (w) {
+      const FRAME_ARC_SAMPLES = 12;
+      const dt = w.endMs - w.startMs;
+      for (let i = 0; i <= FRAME_ARC_SAMPLES; i++) {
+        const t = w.startMs + (dt * i) / FRAME_ARC_SAMPLES;
+        const e = issEcefAt(new Date(t));
+        if (e) ps.push(Cesium.Cartesian3.fromElements(e[0], e[1], e[2]));
+      }
+    }
     return ps;
   },
 });
