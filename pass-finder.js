@@ -3,12 +3,13 @@
 import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
 import { geocodeOne } from "./pass-finder/geocode.js";
 import { fetchIssTle } from "./pass-finder/tle.js";
-import { isVisibleAtAll, issAltitudeDeg, issAltAzDeg, issIlluminated, sunAltitudeDeg } from "./pass-finder/visibility.js";
+import { isVisibleAtAll, isRadioReachable, issAltitudeDeg, issAltAzDeg, issIlluminated, sunAltitudeDeg } from "./pass-finder/visibility.js";
 import { sunPositionEcef } from "./pass-finder/sun.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
 import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
 import { fetchTimezone } from "./pass-finder/timezone.js";
+import { moonPositionEcef, moonPhaseAngle, moonIlluminatedFraction } from "./pass-finder/moon.js";
 import { apparentAltDeg } from "./refraction.js";
 import * as sat from "https://cdn.jsdelivr.net/npm/satellite.js@7.0.0/+esm";
 import { makeViewer, wireSimTime } from "./viewer-setup.js";
@@ -40,6 +41,15 @@ const state = {
   observers: [],
   clickToPlace: false,
   cloudForecasts: new Map(), // obs.id -> { startMs, hours[] } | null
+  // Mode controls both the pass filter and the rating math.
+  //   "visual": ISS sunlit + observer in twilight + ISS above 10° (any
+  //             observer fails → window closes). Score uses
+  //             twilight/altitude/clouds (captureProbJoint).
+  //   "radio":  ISS apparent alt ≥ minElevDeg for ALL observers, no
+  //             sun/illumination requirement. Score uses peak elevation
+  //             and pass duration (radioPassSuccessProbability).
+  mode: "visual",
+  minElevDeg: 10,
 };
 
 const obsListEl = document.getElementById("obs-list");
@@ -88,6 +98,17 @@ const PIN_CANDIDATES = [
 
 function newObsId() { return `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`; }
 
+// Mode-aware "can this observer see / hear the ISS right now?" used by
+// the 3D-scene sightline polyline + observer-label alt/az line.
+// Visual: ISS sunlit + observer in twilight + apparent alt ≥ 10°.
+// Radio:  apparent alt ≥ state.minElevDeg, no sun/illumination gate.
+function observerSeesIss(obs, issEcef, jsDate) {
+  if (state.mode === "radio") {
+    return isRadioReachable([obs], issEcef, jsDate, { minIssAltDeg: state.minElevDeg });
+  }
+  return isVisibleAtAll([obs], issEcef, jsDate);
+}
+
 function addObserver(name, latDeg, lonDeg) {
   const idx = state.observers.length;
   const color = PALETTE[idx % PALETTE.length];
@@ -125,7 +146,7 @@ function addObserver(name, latDeg, lonDeg) {
   const visibleNow = (time) => {
     const d = Cesium.JulianDate.toDate(time);
     const issEcef = issEcefAt(d);
-    return !!(issEcef && isVisibleAtAll([obs], issEcef, d));
+    return !!(issEcef && observerSeesIss(obs, issEcef, d));
   };
   const visEntity = viewer.entities.add({
     position: new Cesium.CallbackProperty((time) => {
@@ -400,7 +421,7 @@ function updateObserverLabelText(wrapper, obs, d, ms) {
   parts2.push(`sun ${Math.round(sunAlt)}°`);
   lines.push(parts2.join(" · "));
   const issEcef = issEcefAt(d);
-  if (issEcef && isVisibleAtAll([obs], issEcef, d)) {
+  if (issEcef && observerSeesIss(obs, issEcef, d)) {
     const { alt, az } = issAltAzDeg(obs, issEcef);
     const azStr = String(Math.round(az) % 360).padStart(3, "0");
     const m = magnitudeAt(obs, issEcef, sunPositionEcef(d));
@@ -505,10 +526,14 @@ const MODAL_SVG_STYLE = `
     paint-order: stroke;
     stroke: rgba(10, 14, 26, 0.85); stroke-width: 0.8; stroke-linejoin: round;
   }
+  .body-glyph {
+    font-size: 2.3px; font-weight: 700;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
   .meta-title { fill: #cfe0ff; font-size: 7px; font-weight: 700; letter-spacing: 0.04em; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
   .meta-sub   { fill: #8aa0c8; font-size: 5px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
   .meta-tz    { fill: #6a7a9a; font-size: 4px; font-style: italic; letter-spacing: 0.04em; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-  .event-marker { stroke: #0a0e1a; stroke-width: 0.5; }
+  .event-marker { stroke: #0a0e1a; stroke-width: 0.5; opacity: 0.78; }
   .event-block-title { font-size: 5.2px; font-weight: 700; letter-spacing: 0.06em; font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-transform: uppercase; }
   .event-block-time  { fill: #ffffff; font-size: 6.2px; font-family: 'SF Mono', 'Fira Code', Menlo, monospace; }
   .event-block-pos   { fill: #aab8d4; font-size: 4.6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -646,16 +671,20 @@ function paintPolarModalStatic(svg, obs) {
     t.textContent = `${az}°`;
     svg.appendChild(t);
   }
-  // Layer order: arc first, then stars + names (so star labels stay
-  // readable where the arc crosses them), then event markers on top.
-  // There's no live ISS dot in the modal anymore — it's a static PNG
-  // snapshot, so the Start/Peak/End markers carry the whole story.
-  const arc = document.createElementNS(SVG_NS, "polyline");
-  arc.classList.add("arc");
-  svg.appendChild(arc);
+  // Layer order: stars first (backdrop), then sun/moon (mid-layer
+  // context), then the pass arc and Start/Peak/End markers ON TOP so
+  // the trajectory and its named moments dominate visually. Star
+  // names rely on their paint-order=stroke halo to stay readable
+  // where the arc crosses them.
   const starsG = document.createElementNS(SVG_NS, "g");
   starsG.dataset.layer = "stars";
   svg.appendChild(starsG);
+  const bodiesG = document.createElementNS(SVG_NS, "g");
+  bodiesG.dataset.layer = "bodies";
+  svg.appendChild(bodiesG);
+  const arc = document.createElementNS(SVG_NS, "polyline");
+  arc.classList.add("arc");
+  svg.appendChild(arc);
   const eventsG = document.createElementNS(SVG_NS, "g");
   eventsG.dataset.layer = "events";
   svg.appendChild(eventsG);
@@ -694,6 +723,123 @@ function paintPolarModalArc(svg, obs) {
 // Orion's belt from stacking name on name. We sort labels brightest
 // first so brighter stars always win the right to a label.
 const STAR_LABEL_MIN_DIST = 14;
+
+// SVG path for the moon's illuminated portion, in moon-local coords:
+// +x points toward the sun (lit side). The terminator is an ellipse
+// with semi-axes (r·|cos i|, r); we trace the outer right-half disc
+// edge plus the half of the ellipse on the un-/over-lit side to close
+// the boundary. After drawing, the caller rotates the whole shape so
+// +x in this frame aligns with the actual sun direction in the chart.
+function moonLitPath(cx, cy, r, phaseAngleRad) {
+  const cosI = Math.cos(phaseAngleRad);
+  const termRx = r * Math.abs(cosI);
+  // SVG sweep-flag=1 means "increasing-angle direction" — for our
+  // bottom→top return arc that goes through θ=π (the LEFT side of the
+  // ellipse). sweep-flag=0 goes through θ=0 (the RIGHT side).
+  //
+  // Gibbous (cosI > 0, lit > 50%): the terminator sits on the unlit
+  //   -x side, and the lit region extends past center into the left
+  //   half → the closing arc has to bulge LEFT → sweep=1.
+  // Crescent (cosI < 0, lit < 50%): the terminator sits on the +x
+  //   side of the disc just inside the lit edge → the closing arc
+  //   bulges RIGHT, taking a bite out of the right semicircle to
+  //   produce a thin crescent → sweep=0.
+  const termSweep = cosI >= 0 ? 1 : 0;
+  return `M ${cx},${cy - r} `
+       + `A ${r},${r} 0 0,1 ${cx},${cy + r} `
+       + `A ${termRx.toFixed(3)},${r} 0 0,${termSweep} ${cx},${cy - r} Z`;
+}
+
+// Plot the sun (if above horizon) and the moon (if above horizon, with
+// correct phase + orientation pointing toward the sun's chart position)
+// on the polar modal. Painted once when the modal opens. Both bodies
+// only show when ≥ 0° apparent altitude — below-horizon bodies are
+// silently omitted.
+function paintPolarModalSunMoon(svg, obs, jsDate) {
+  const layer = svg.querySelector('[data-layer="bodies"]');
+  if (!layer) return;
+  layer.replaceChildren();
+  const { cx, cy, R } = MODAL_GEOM;
+  const sunDir = sunPositionEcef(jsDate);
+  const sunAA = starAltAzForObs(obs, sunDir);
+  const moonDir = moonPositionEcef(jsDate);
+  const moonAA = starAltAzForObs(obs, moonDir);
+  // Sun chart position is needed for orienting the moon even when the
+  // sun itself is below horizon (the lit side still faces where the
+  // sun would be).
+  const [sx, sy] = altAzToSvg(sunAA.alt, sunAA.az, cx, cy, R);
+
+  // Moon FIRST so the Sun always paints on top of it (matters when
+  // they're geometrically close — e.g. on a new-moon day). Sun and
+  // moon stay smaller than the event markers (diamonds), since they
+  // are sky CONTEXT for the chart while the markers are the chart's
+  // featured content.
+  if (moonAA.alt >= 0) {
+    const [mx, my] = altAzToSvg(moonAA.alt, moonAA.az, cx, cy, R);
+    const moonR = 1.8;
+    // Dark disc behind the lit shape so the unlit side reads as a
+    // circle (rather than empty negative space at new/crescent).
+    const dark = document.createElementNS(SVG_NS, "circle");
+    dark.setAttribute("cx", mx.toFixed(2));
+    dark.setAttribute("cy", my.toFixed(2));
+    dark.setAttribute("r", moonR);
+    dark.setAttribute("fill", "#1a1f2e");
+    dark.setAttribute("stroke", "rgba(220,225,240,0.4)");
+    dark.setAttribute("stroke-width", "0.3");
+    layer.appendChild(dark);
+    // Illuminated portion drawn in moon-local frame (+x toward sun),
+    // then rotated so +x points to the sun's chart position.
+    const litFrac = moonIlluminatedFraction(jsDate);
+    if (litFrac > 0.01) {
+      const litPath = moonLitPath(mx, my, moonR, moonPhaseAngle(jsDate));
+      const sunAngle = Math.atan2(sy - my, sx - mx) * 180 / Math.PI;
+      const lit = document.createElementNS(SVG_NS, "path");
+      lit.setAttribute("d", litPath);
+      lit.setAttribute("fill", "#e8eefc");
+      lit.setAttribute("transform", `rotate(${sunAngle.toFixed(2)} ${mx.toFixed(2)} ${my.toFixed(2)})`);
+      layer.appendChild(lit);
+    }
+    // Difference blend means the white fill inverts whatever's beneath
+    // it — the M reads dark on the bright lit hemisphere and bright
+    // on the dark unlit hemisphere automatically, including at the
+    // terminator where one stroke can span both.
+    appendBodyGlyph(layer, mx, my, "M", "#ffffff", "difference");
+  }
+
+  if (sunAA.alt >= 0) {
+    const sun = document.createElementNS(SVG_NS, "circle");
+    sun.setAttribute("cx", sx.toFixed(2));
+    sun.setAttribute("cy", sy.toFixed(2));
+    sun.setAttribute("r", 1.6);
+    sun.setAttribute("fill", "#ffe066");
+    sun.setAttribute("stroke", "#ffd633");
+    sun.setAttribute("stroke-width", "0.3");
+    layer.appendChild(sun);
+    // Same difference trick on the S — white fill inverts the yellow
+    // disc beneath it to a clearly readable dark blue-ish letter,
+    // without competing with the peak marker's gold. Small upward
+    // nudge: "central" baseline puts the S a hair low visually,
+    // since its glyph weight skews toward the bottom curve.
+    appendBodyGlyph(layer, sx, sy - 0.12, "S", "#ffffff", "difference");
+  }
+}
+
+// Single-letter identifier painted at the center of a body disc.
+// Caller picks the fill (and optionally a CSS blend mode — the moon's
+// "M" uses mix-blend-mode: difference so it inverts whatever the
+// lit/unlit fill is below it).
+function appendBodyGlyph(layer, cx, cy, letter, fill, blend) {
+  const g = document.createElementNS(SVG_NS, "text");
+  g.setAttribute("x", cx.toFixed(2));
+  g.setAttribute("y", cy.toFixed(2));
+  g.setAttribute("text-anchor", "middle");
+  g.setAttribute("dominant-baseline", "central");
+  g.setAttribute("fill", fill);
+  if (blend) g.style.mixBlendMode = blend;
+  g.classList.add("body-glyph");
+  g.textContent = letter;
+  layer.appendChild(g);
+}
 
 function paintPolarModalStars(svg, obs, jsDate) {
   const starsG = svg.querySelector('[data-layer="stars"]');
@@ -780,24 +926,44 @@ function pathTangentSvg(obs, ms) {
   return { x: dx / len, y: dy / len };
 }
 
-// SVG path for a half-disc centered at (cx, cy), radius r, split by a
-// diameter perpendicular to angle `ang`. `side` selects which half:
-//   +1 → the half on the +ang side ("forward" along the path)
-//   -1 → the half on the -ang side ("backward")
-// Built as: center → chord-endpoint-1 → arc (sweep-flag=1, increasing
-// angle) → chord-endpoint-2 → close. The +1 case sweeps through `ang`
-// itself; the -1 case sweeps through `ang+π`.
-function halfDiscPath(cx, cy, r, ang, side) {
-  const centerAngle = ang + (side > 0 ? 0 : Math.PI);
-  const a1 = centerAngle - Math.PI / 2;
-  const a2 = centerAngle + Math.PI / 2;
-  const x1 = cx + r * Math.cos(a1);
-  const y1 = cy + r * Math.sin(a1);
-  const x2 = cx + r * Math.cos(a2);
-  const y2 = cy + r * Math.sin(a2);
-  return `M ${cx.toFixed(2)},${cy.toFixed(2)} `
-       + `L ${x1.toFixed(2)},${y1.toFixed(2)} `
-       + `A ${r},${r} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;
+// Diamond-marker geometry. A diamond at (cx, cy) with half-extent r
+// is rotated by `ang` so its long diagonal points ALONG the path —
+// gives the marker a sense of direction. Vertices in moon-local
+// (before rotation): forward (+r,0), perp (0,+r), backward (−r,0),
+// anti-perp (0,−r). After rotating each by `ang`:
+function diamondVerts(cx, cy, r, ang) {
+  const cosA = Math.cos(ang), sinA = Math.sin(ang);
+  return {
+    fwd:  [cx + r * cosA,  cy + r * sinA],
+    perp: [cx - r * sinA,  cy + r * cosA],
+    back: [cx - r * cosA,  cy - r * sinA],
+    anti: [cx + r * sinA,  cy - r * cosA],
+  };
+}
+function diamondPath(cx, cy, r, ang) {
+  const v = diamondVerts(cx, cy, r, ang);
+  return `M ${v.fwd[0].toFixed(2)},${v.fwd[1].toFixed(2)} `
+       + `L ${v.perp[0].toFixed(2)},${v.perp[1].toFixed(2)} `
+       + `L ${v.back[0].toFixed(2)},${v.back[1].toFixed(2)} `
+       + `L ${v.anti[0].toFixed(2)},${v.anti[1].toFixed(2)} Z`;
+}
+// Split diamond: divided by its perpendicular diagonal into two
+// triangles. Returns the two halves + the full outline so the caller
+// can stack fill (per half) + stroke (full outline) in one place.
+function splitDiamondPaths(cx, cy, r, ang) {
+  const v = diamondVerts(cx, cy, r, ang);
+  const tri = (a, b, c) =>
+    `M ${a[0].toFixed(2)},${a[1].toFixed(2)} `
+    + `L ${b[0].toFixed(2)},${b[1].toFixed(2)} `
+    + `L ${c[0].toFixed(2)},${c[1].toFixed(2)} Z`;
+  return {
+    forward:  tri(v.fwd,  v.perp, v.anti),
+    backward: tri(v.back, v.perp, v.anti),
+    full: `M ${v.fwd[0].toFixed(2)},${v.fwd[1].toFixed(2)} `
+        + `L ${v.perp[0].toFixed(2)},${v.perp[1].toFixed(2)} `
+        + `L ${v.back[0].toFixed(2)},${v.back[1].toFixed(2)} `
+        + `L ${v.anti[0].toFixed(2)},${v.anti[1].toFixed(2)} Z`,
+  };
 }
 
 function paintPolarModalEvents(svg, obs) {
@@ -832,20 +998,20 @@ function paintPolarModalEvents(svg, obs) {
   });
 
   // ---- Marker rendering with overlap handling --------------------
-  // If two adjacent events (start↔peak or peak↔end) land within one
-  // dot-diameter of each other, render them as a single split-disc
-  // (half earlier color / half later color) instead of stacking two
-  // full circles where the upper one hides the lower. Split direction
-  // is perpendicular to the path tangent so "earlier" sits on the side
-  // the ISS came from and "later" on the side it heads toward.
-  const MARKER_R = 2;
+  // Markers are DIAMONDS so they're visually distinct from the
+  // circular sun/moon discs. If two adjacent events (start↔peak or
+  // peak↔end) land within one diamond extent of each other, render a
+  // SPLIT diamond — rotated to align one of its diagonals with the
+  // path tangent, then cut by the perpendicular diagonal into two
+  // triangles. Earlier-color sits on the inbound side, later-color on
+  // the outbound side.
+  const MARKER_R = 2.4;
   const OVERLAP_THRESHOLD = 2 * MARKER_R + 0.5;
   const consumed = new Set();
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], b = pts[i + 1];
     if (!a.valid || !b.valid) continue;
     if (Math.hypot(b.x - a.x, b.y - a.y) >= OVERLAP_THRESHOLD) continue;
-    // Path tangent sampled around the overlap midpoint
     const midMs = (a.ms + b.ms) / 2;
     let dir = pathTangentSvg(obs, midMs);
     if (!dir) {
@@ -854,45 +1020,85 @@ function paintPolarModalEvents(svg, obs) {
     }
     const ang = Math.atan2(dir.y, dir.x);
     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    // Backward half (path origin side) = earlier event color.
-    // stroke="none" on the half-discs so the chord between the two
-    // halves doesn't show as a dark seam — only the outer circle is
-    // strokeable, and we add that as a separate full circle below.
+    const sd = splitDiamondPaths(mx, my, MARKER_R, ang);
+    // Inbound (backward) triangle gets the earlier event color.
     const back = document.createElementNS(SVG_NS, "path");
-    back.setAttribute("d", halfDiscPath(mx, my, MARKER_R, ang, -1));
+    back.classList.add("event-marker");
+    back.setAttribute("d", sd.backward);
     back.setAttribute("fill", a.style.color);
     back.setAttribute("stroke", "none");
     eventsG.appendChild(back);
-    // Forward half (path destination side) = later event color
+    // Outbound (forward) triangle gets the later event color.
     const front = document.createElementNS(SVG_NS, "path");
-    front.setAttribute("d", halfDiscPath(mx, my, MARKER_R, ang, +1));
+    front.classList.add("event-marker");
+    front.setAttribute("d", sd.forward);
     front.setAttribute("fill", b.style.color);
     front.setAttribute("stroke", "none");
     eventsG.appendChild(front);
-    // Outer ring (stroke only) gives the split dot the same dark edge
-    // as un-split markers without painting through the middle.
-    const ring = document.createElementNS(SVG_NS, "circle");
-    ring.setAttribute("cx", mx.toFixed(2));
-    ring.setAttribute("cy", my.toFixed(2));
-    ring.setAttribute("r", MARKER_R);
+    // Outer diamond outline so the split shape carries the same dark
+    // edge as un-split markers.
+    const ring = document.createElementNS(SVG_NS, "path");
+    ring.classList.add("event-marker");
+    ring.setAttribute("d", sd.full);
     ring.setAttribute("fill", "none");
-    ring.setAttribute("stroke", "#0a0e1a");
-    ring.setAttribute("stroke-width", 0.5);
     eventsG.appendChild(ring);
     consumed.add(i); consumed.add(i + 1);
   }
   pts.forEach((p, i) => {
     if (!p.valid || consumed.has(i)) return;
-    const m = document.createElementNS(SVG_NS, "circle");
+    let dir = pathTangentSvg(obs, p.ms);
+    if (!dir) dir = { x: 1, y: 0 };
+    const ang = Math.atan2(dir.y, dir.x);
+    const m = document.createElementNS(SVG_NS, "path");
     m.classList.add("event-marker");
-    m.setAttribute("cx", p.x.toFixed(2));
-    m.setAttribute("cy", p.y.toFixed(2));
-    m.setAttribute("r", MARKER_R);
+    m.setAttribute("d", diamondPath(p.x, p.y, MARKER_R, ang));
     m.setAttribute("fill", p.style.color);
     eventsG.appendChild(m);
   });
 
   // ---- Info row beneath the chart (one column per event) ---------
+  // Info-row diamonds are IDENTICAL to chart markers (same size,
+  // unrotated — "along the path" of the horizontal info row), each
+  // sitting just left of its centered label. Two gray segments
+  // connect "right of START text" → "left of PEAK diamond" and
+  // "right of PEAK text" → "left of END diamond", mirroring the
+  // chart's path-arc thickness/color/alpha so the row reads as a
+  // mini route line of the pass.
+  const INFO_DIAMOND_R = MARKER_R;
+  const INFO_DIAMOND_Y = EVENT_ROW_TITLE_Y - 2;
+  // Gap between the label glyphs and the diamond beside them (kept
+  // tight so the diamond reads as belonging to that label).
+  const INFO_LABEL_GAP = 1.8;
+  // Two separate breathing-room gaps for the connector line: between
+  // the previous label's right edge and the line start, and between
+  // the line end and the next diamond's left vertex. Matching them
+  // makes the segment look centered between text and diamond.
+  const LINE_TEXT_GAP = 3.2;
+  const LINE_DIAMOND_GAP = 2.6;
+  // Approx half-width of an uppercase label rendered at the title
+  // CSS (5.2px, letter-spacing 0.06em). Empirical constant scales
+  // with character count — exact measurement would require getBBox
+  // after the title is in the DOM, which adds layout cost we don't
+  // need at this scale.
+  const halfTextWidth = (label) => label.length * 1.85;
+  const diamondCx = (i) =>
+    EVENT_COLS[i] - halfTextWidth(EVENT_STYLE[i].label)
+                  - INFO_LABEL_GAP - INFO_DIAMOND_R;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const x1 = EVENT_COLS[i] + halfTextWidth(EVENT_STYLE[i].label) + LINE_TEXT_GAP;
+    const x2 = diamondCx(i + 1) - INFO_DIAMOND_R - LINE_DIAMOND_GAP;
+    if (x2 <= x1) continue;
+    const ln = document.createElementNS(SVG_NS, "line");
+    ln.setAttribute("x1", x1);
+    ln.setAttribute("y1", INFO_DIAMOND_Y);
+    ln.setAttribute("x2", x2);
+    ln.setAttribute("y2", INFO_DIAMOND_Y);
+    ln.setAttribute("stroke", POLAR_ARC_COLOR);
+    ln.setAttribute("stroke-width", "1.6");
+    ln.setAttribute("stroke-linecap", "round");
+    ln.setAttribute("opacity", "0.65");
+    eventsG.appendChild(ln);
+  }
   pts.forEach((p, i) => {
     const ms = p.ms;
     const style = p.style;
@@ -907,17 +1113,23 @@ function paintPolarModalEvents(svg, obs) {
     const timeStr = new Date(ms).toLocaleTimeString([], timeOpts);
     const altStr = `${Math.round(altClamped)}°`;
     const azStr  = `${Math.round(((az % 360) + 360) % 360)}°`;
-    // Bullet prefix is a Unicode BLACK CIRCLE glyph (U+25CF) inside
-    // the same text element as the label, so the font handles its
-    // size + baseline alignment automatically — no separate SVG
-    // circle to keep in vertical lock with the caps.
+    // Info-row diamond: identical to the chart marker (same size,
+    // ang=0 so the long diagonal runs along the horizontal info-row
+    // line), nudged left of the centered label by a small gap.
+    const dia = document.createElementNS(SVG_NS, "path");
+    dia.classList.add("event-marker");
+    dia.setAttribute("d", diamondPath(
+      diamondCx(i), INFO_DIAMOND_Y, INFO_DIAMOND_R, 0,
+    ));
+    dia.setAttribute("fill", style.color);
+    eventsG.appendChild(dia);
     const title = document.createElementNS(SVG_NS, "text");
     title.classList.add("event-block-title");
     title.setAttribute("x", colX);
     title.setAttribute("y", EVENT_ROW_TITLE_Y);
     title.setAttribute("text-anchor", "middle");
     title.setAttribute("fill", style.color);
-    title.textContent = `●  ${style.label}`;
+    title.textContent = style.label;
     eventsG.appendChild(title);
     const time = document.createElementNS(SVG_NS, "text");
     time.classList.add("event-block-time");
@@ -950,6 +1162,7 @@ async function renderPolarModal(obs) {
   paintPolarModalEvents(polarModalSvg, obs);
   const jsDate = Cesium.JulianDate.toDate(viewer.clock.currentTime);
   paintPolarModalStars(polarModalSvg, obs, jsDate);
+  paintPolarModalSunMoon(polarModalSvg, obs, jsDate);
   const blob = await svgToPngBlob(polarModalSvg);
   const url = URL.createObjectURL(blob);
   if (_polarModalImgUrl) URL.revokeObjectURL(_polarModalImgUrl);
@@ -1721,7 +1934,10 @@ const FAINT_STARS = [
 function starDotRadius(mag) {
   if (mag == null) mag = 2.5;
   const r = 0.95 * Math.pow(10, -mag / 5);
-  return Math.max(0.18, Math.min(2.0, r));
+  // Lower max clamp keeps brightest stars (Sirius, Canopus) from
+  // dominating the chart visually — Pogson would happily render
+  // Sirius at 2.5× Vega's radius, which looks like a small planet.
+  return Math.max(0.18, Math.min(1.15, r));
 }
 // Stars are functionally at infinity, so a label needs to appear in the
 // star's direction regardless of camera position. We place each label
@@ -1957,6 +2173,9 @@ function captureProbJoint(observers, issEcef, jsDate, ms, nowMs) {
 // 120s → 0.80, 240s → 0.89, asymptotic to 1 — captures diminishing
 // returns past ~2 minutes (more time doesn't keep helping forever).
 function passSuccessProbability(win, observers) {
+  if (state.mode === "radio") {
+    return radioPassSuccessProbability(win, observers, state.minElevDeg);
+  }
   if (!win || !observers.length) return 0;
   const totalMs = win.endMs - win.startMs;
   if (totalMs <= 0) return 0;
@@ -1971,6 +2190,54 @@ function passSuccessProbability(win, observers) {
     if (p > best) best = p;
   }
   return best * coordinationFactor(totalMs / 1000);
+}
+
+// Radio-reception score. The visibility filter already guaranteed
+// every observer's apparent elevation ≥ minElevDeg throughout the
+// window, so the only remaining variables are (a) how HIGH the pass
+// gets — the worst observer's peak elevation, which limits the joint
+// best signal-to-noise — and (b) how LONG the window lasts (more time
+// = more opportunities for a QSO / better Doppler measurement).
+function peakElevFactor(deg) {
+  return Math.max(0, Math.min(1, (deg - 5) / 50));
+}
+function radioDurationFactor(sec) {
+  return sec / (sec + 120);
+}
+function radioPassSuccessProbability(win, observers, minElevDeg) {
+  if (!win || !observers.length) return 0;
+  const totalMs = win.endMs - win.startMs;
+  if (totalMs <= 0) return 0;
+  const STEP_MS = Math.max(1_000, Math.min(5_000, totalMs / 30));
+  // Worst-observer peak elevation across the window (limiting case
+  // for coordinated multi-station work).
+  let worstPeak = Infinity;
+  for (const obs of observers) {
+    let peak = -Infinity;
+    for (let t = win.startMs; t <= win.endMs; t += STEP_MS) {
+      const issEcef = issEcefAt(new Date(t));
+      if (!issEcef) continue;
+      const a = apparentAltDeg(issAltitudeDeg(obs, issEcef));
+      if (a > peak) peak = a;
+    }
+    if (peak < worstPeak) worstPeak = peak;
+  }
+  if (!Number.isFinite(worstPeak)) return 0;
+  return peakElevFactor(worstPeak) * radioDurationFactor(totalMs / 1000);
+}
+
+// Per-moment radio-link quality used by the orbit-arc gradient.
+// Worst observer's elevation factor at this instant — gradient turns
+// red where the worst observer is near the horizon, green near zenith.
+function radioCaptureAt(observers, issEcef, minElevDeg) {
+  let worst = 1;
+  for (const obs of observers) {
+    const a = apparentAltDeg(issAltitudeDeg(obs, issEcef));
+    if (a < minElevDeg) return 0;
+    const f = peakElevFactor(a);
+    if (f < worst) worst = f;
+  }
+  return worst;
 }
 
 
@@ -2048,9 +2315,12 @@ function renderActivePassGradient(win) {
     const d = new Date(t);
     const issEcef = issEcefAt(d);
     if (!issEcef) continue;
+    const quality = state.mode === "radio"
+      ? radioCaptureAt(state.observers, issEcef, state.minElevDeg)
+      : captureProbJoint(state.observers, issEcef, d, t, nowMs);
     samples.push({
       pos: Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]),
-      quality: captureProbJoint(state.observers, issEcef, d, t, nowMs),
+      quality,
     });
   }
   // Draw each segment between adjacent samples with color from the
@@ -2131,6 +2401,10 @@ function encodeStateBlob() {
   if (state.activeWindowIdx >= 0 && state.windows[state.activeWindowIdx]) {
     obj.t = state.windows[state.activeWindowIdx].startMs;
   }
+  // Mode + min-elev only encoded when non-default; keeps casual-share
+  // URLs short for visual passes (the common case).
+  if (state.mode === "radio") obj.m = "r";
+  if (state.mode === "radio" && state.minElevDeg !== 10) obj.e = state.minElevDeg;
   return b64urlEncode(JSON.stringify(obj));
 }
 
@@ -2148,30 +2422,46 @@ function decodeStateBlob(blob) {
     return {
       observers,
       passTimeMs: Number.isFinite(obj.t) ? Number(obj.t) : null,
+      mode: obj.m === "r" ? "radio" : "visual",
+      minElevDeg: Number.isFinite(obj.e) ? Math.max(0, Math.min(80, +obj.e)) : 10,
     };
   } catch (_) {
     return null;
   }
 }
 
+// localStorage only — the URL is left clean. Share button (below)
+// generates a fresh ?s=... URL on demand so the ugly blob only shows
+// up when explicitly copying a link to share with someone else.
 function persistState() {
   const blob = encodeStateBlob();
   try {
     localStorage.setItem(LS_STATE_KEY, blob);
   } catch (_) { /* private browsing etc. — silently skip */ }
+}
+
+// Build the URL a recipient would open to land on the current pass +
+// observer + mode setup. Used by the Share button.
+function buildShareUrl() {
   const url = new URL(window.location.href);
-  if (state.observers.length) {
-    url.search = `?s=${blob}`;
-  } else {
-    url.search = "";
-  }
-  history.replaceState(null, "", url);
+  url.search = state.observers.length ? `?s=${encodeStateBlob()}` : "";
+  return url.toString();
 }
 
 function loadInitialObservers() {
   const urlBlob = new URLSearchParams(window.location.search).get("s");
   const fromUrl = decodeStateBlob(urlBlob);
+  // If the URL carried a state blob, parse it then strip ?s=... so the
+  // address bar stays clean. The blob will reappear only when the user
+  // copies a share link via the Share button.
+  if (urlBlob) {
+    const cleaned = new URL(window.location.href);
+    cleaned.search = "";
+    history.replaceState(null, "", cleaned);
+  }
   if (fromUrl && fromUrl.observers.length) {
+    if (fromUrl.mode) state.mode = fromUrl.mode;
+    if (fromUrl.minElevDeg != null) state.minElevDeg = fromUrl.minElevDeg;
     for (const o of fromUrl.observers) addObserver(o.name, o.latDeg, o.lonDeg);
     _pendingPassTimeMs = fromUrl.passTimeMs;
     return;
@@ -2180,6 +2470,8 @@ function loadInitialObservers() {
     (() => { try { return localStorage.getItem(LS_STATE_KEY); } catch (_) { return null; } })()
   );
   if (fromStorage && fromStorage.observers.length) {
+    if (fromStorage.mode) state.mode = fromStorage.mode;
+    if (fromStorage.minElevDeg != null) state.minElevDeg = fromStorage.minElevDeg;
     for (const o of fromStorage.observers) addObserver(o.name, o.latDeg, o.lonDeg);
     return;
   }
@@ -2238,12 +2530,45 @@ document.getElementById("panel-toggle").addEventListener("click", () => {
   document.body.classList.toggle("panel-collapsed");
 });
 
-// Share button — copies the current URL (kept in sync with observers by
-// persistObservers) to the clipboard, with a brief "Copied!" confirmation.
+// Visual ↔ Radio mode toggle + min-elev input.
+const modeToggleEl = document.getElementById("mode-toggle");
+const minElevControlEl = document.getElementById("min-elev-control");
+const minElevInputEl = document.getElementById("min-elev-input");
+function reflectModeUi() {
+  for (const btn of modeToggleEl.querySelectorAll("button")) {
+    btn.classList.toggle("active", btn.dataset.mode === state.mode);
+  }
+  minElevControlEl.hidden = state.mode !== "radio";
+  minElevInputEl.value = String(state.minElevDeg);
+}
+reflectModeUi();
+modeToggleEl.addEventListener("click", (ev) => {
+  const m = ev.target?.dataset?.mode;
+  if (!m || m === state.mode) return;
+  state.mode = m;
+  reflectModeUi();
+  persistState();
+  rerunSearchIfActive();
+});
+let _minElevDebounce = null;
+minElevInputEl.addEventListener("input", () => {
+  const v = parseInt(minElevInputEl.value, 10);
+  if (!Number.isFinite(v)) return;
+  const clamped = Math.max(0, Math.min(60, v));
+  state.minElevDeg = clamped;
+  persistState();
+  // Debounce the search since the user might type "1" → "15" rapidly.
+  if (_minElevDebounce) clearTimeout(_minElevDebounce);
+  _minElevDebounce = setTimeout(() => { rerunSearchIfActive(); }, 300);
+});
+
+// Share button — copies a URL encoding the current setup (observers +
+// active pass + mode/min-elev) to the clipboard. The URL bar itself
+// stays clean; the ?s=... blob only materializes here, on demand.
 const shareBtn = document.getElementById("share-btn");
 shareBtn.addEventListener("click", async () => {
   try {
-    await navigator.clipboard.writeText(window.location.href);
+    await navigator.clipboard.writeText(buildShareUrl());
     shareBtn.textContent = "Copied!";
     shareBtn.classList.add("copied");
   } catch (_) {
@@ -2281,8 +2606,13 @@ function runSearch(startMs, endMs) {
   const gen = ++searchGen; // invalidates any older deferred searches
   setTimeout(() => {
     if (gen !== searchGen) return; // a newer search superseded us
+    // Predicate + opts depend on mode. Visual = sunlit + twilight +
+    // alt≥10°. Radio = alt ≥ user min-elev for every observer.
+    const predicate = state.mode === "radio"
+      ? (obs, e, d) => isRadioReachable(obs, e, d, { minIssAltDeg: state.minElevDeg })
+      : isVisibleAtAll;
     const wins = findVisibilityWindows(
-      state.observers, satrec, isVisibleAtAll, sat,
+      state.observers, satrec, predicate, sat,
       startMs, endMs, 60_000
     );
     state.windows = state.windows.concat(wins);
@@ -2363,12 +2693,20 @@ function setupClockForSearch(startMs, endMs) {
 
 function renderWindowsList() {
   windowsListEl.replaceChildren();
-  // Column header row — uses subgrid like data rows so labels align with
-  // their column. Always rendered (even when empty) so the headings act
-  // as a stable orientation cue for the list area.
+  // Mode-aware column count + labels. Visual keeps the full 7-column
+  // layout; radio swaps in two link-quality columns and drops the
+  // three columns that don't apply (Sun, Mag, Clouds = all "sky
+  // capture" factors that radio doesn't care about).
+  // Radio "Dur" column already IS "time above min-elev" (the filter
+  // guarantees every observer above the threshold for the whole window),
+  // so we don't show a redundant t>N° column. Radio = 4 columns.
+  const headerLabels = state.mode === "radio"
+    ? ["P%", "Time (UTC)", "Dur", "Peak El."]
+    : ["P%", "Time (UTC)", "Dur", "Alt", "Mag", "Sun", "Clouds"];
+  windowsListEl.style.gridTemplateColumns = headerLabels.map(() => "auto").join(" ");
   const hdr = document.createElement("div");
   hdr.className = "window-row header";
-  for (const label of ["P%", "Time (UTC)", "Dur", "Sun", "Alt", "Mag", "Clouds"]) {
+  for (const label of headerLabels) {
     const c = document.createElement("span");
     c.textContent = label;
     hdr.appendChild(c);
@@ -2428,34 +2766,53 @@ function renderWindowsList() {
     time.textContent = new Date(peakMs).toISOString().slice(5, 19).replace("T", " ");
     row.appendChild(time);
 
-    // Duration column — color follows coordinationFactor(durSec) on the
-    // shared red→yellow→green gradient. 30s pass shows yellow-orange,
-    // 1m mid yellow-green, 2m hits green, 4m+ saturated.
+    // Duration column — color formula depends on mode. Visual uses
+    // coordinationFactor (sigmoid centered ~60s, matching capture-
+    // setup time); Radio uses radioDurationFactor (centered ~120s,
+    // matching the "time to make a QSO / measure Doppler" threshold).
     const dur = document.createElement("span");
     dur.className = "dur";
     const mm = Math.floor(durSec / 60), ss = durSec % 60;
     dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
-    dur.style.color = ratingCssColor(coordinationFactor(durSec));
+    const durQuality = state.mode === "radio"
+      ? radioDurationFactor(durSec)
+      : coordinationFactor(durSec);
+    dur.style.color = ratingCssColor(durQuality);
     row.appendChild(dur);
 
-    // Sun-altitude column — worst (highest = brightest) observer at the
-    // peak moment, refraction-corrected. Color is the literal twilight
-    // factor used in the rating math: twilightFactor(sunAlt).
-    const peakDate = new Date(peakMs);
-    let worstSunAlt = -Infinity;
-    for (const obs of state.observers) {
-      const sa = apparentAltDeg(sunAltitudeDeg(obs, peakDate));
-      if (sa > worstSunAlt) worstSunAlt = sa;
+    if (state.mode === "radio") {
+      // Peak elevation — worst observer's maximum elevation across the
+      // window. Limits the joint link quality (signal at the worst
+      // station is what bounds coordinated radio work). Colored on the
+      // same peakElevFactor that drives the rating math.
+      let worstPeakElev = Infinity;
+      const STEP_MS = Math.max(1_000, Math.min(5_000, (w.endMs - w.startMs) / 30));
+      for (const obs of state.observers) {
+        let peak = -Infinity;
+        for (let t = w.startMs; t <= w.endMs; t += STEP_MS) {
+          const e = issEcefAt(new Date(t));
+          if (!e) continue;
+          const a = apparentAltDeg(issAltitudeDeg(obs, e));
+          if (a > peak) peak = a;
+        }
+        if (peak < worstPeakElev) worstPeakElev = peak;
+      }
+      const pk = document.createElement("span");
+      pk.className = "alt";
+      if (Number.isFinite(worstPeakElev)) {
+        pk.textContent = `${Math.round(worstPeakElev)}°`;
+        pk.style.color = ratingCssColor(peakElevFactor(worstPeakElev));
+      } else {
+        pk.textContent = "—";
+        pk.classList.add("na");
+      }
+      row.appendChild(pk);
+
+      // Wire row click + skip the visual columns
+      row.addEventListener("click", () => jumpToWindow(i));
+      windowsListEl.appendChild(row);
+      return;
     }
-    const sun = document.createElement("span");
-    sun.className = "sun";
-    sun.textContent = Number.isFinite(worstSunAlt) ? `${Math.round(worstSunAlt)}°` : "—";
-    if (Number.isFinite(worstSunAlt)) {
-      sun.style.color = ratingCssColor(twilightFactor(worstSunAlt));
-    } else {
-      sun.classList.add("na");
-    }
-    row.appendChild(sun);
 
     // Altitude range — value is min–max alt across observers at peak.
     // Color is the PRODUCT of altitudeFactor across observers (matches
@@ -2491,6 +2848,28 @@ function renderWindowsList() {
       mag.style.color = ratingCssColor(Math.max(0, Math.min(1, (-peakMag + 1) / 4)));
     }
     row.appendChild(mag);
+
+    // Sun-altitude column — worst (highest = brightest) observer at
+    // the peak moment, refraction-corrected. Color is the literal
+    // twilight factor used in the rating math: twilightFactor(sunAlt).
+    // Positioned after Mag so the table reads left→right as
+    // pass geometry (alt, mag) then external viewing conditions
+    // (sun, clouds).
+    const peakDate = new Date(peakMs);
+    let worstSunAlt = -Infinity;
+    for (const obs of state.observers) {
+      const sa = apparentAltDeg(sunAltitudeDeg(obs, peakDate));
+      if (sa > worstSunAlt) worstSunAlt = sa;
+    }
+    const sun = document.createElement("span");
+    sun.className = "sun";
+    sun.textContent = Number.isFinite(worstSunAlt) ? `${Math.round(worstSunAlt)}°` : "—";
+    if (Number.isFinite(worstSunAlt)) {
+      sun.style.color = ratingCssColor(twilightFactor(worstSunAlt));
+    } else {
+      sun.classList.add("na");
+    }
+    row.appendChild(sun);
 
     // Cloud cover range — gradient color indexed by P(clear), DESAT'd
     // toward gray as the forecast horizon stretches out. Uses the same
