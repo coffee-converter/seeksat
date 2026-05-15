@@ -39,6 +39,11 @@
 
   <div id="cesium-container"></div>
 
+  <!-- Overlay layer hosting one small polar-plot icon per observer.
+       Positioned absolutely per-frame to follow each observer's 3D
+       screen position; click → open the fullscreen polar modal. -->
+  <div id="observer-icons"></div>
+
   <!-- Pane toggle: slides #panel-left off-left when clicked; button tracks
        the panel edge so it's always reachable. -->
   <button id="panel-toggle" type="button" aria-label="Toggle side panel"></button>
@@ -107,7 +112,29 @@
     </div>
   </nav>
 
-  <footer id="credit">ISS Multi-Observer Pass Finder</footer>
+  <!-- Fullscreen polar-plot modal — populated dynamically when the user
+       clicks an observer card's polar plot. Bigger SVG with star dots
+       and live current-ISS position. -->
+  <div id="polar-modal" hidden>
+    <div class="polar-modal-backdrop"></div>
+    <div class="polar-modal-content">
+      <!-- The observer name + date are already part of the chart image
+           (rendered into the SVG header), so we don't repeat them here.
+           Action buttons stack in the top-right corner. -->
+      <div class="polar-modal-actions">
+        <button class="polar-modal-close" type="button" aria-label="Close">✕</button>
+        <button class="polar-modal-copy" type="button" title="Copy image to clipboard">Copy</button>
+        <button class="polar-modal-save" type="button" title="Download as PNG">Save PNG</button>
+      </div>
+      <!-- The SVG is rendered off-screen and rasterized to the <img>
+           below — that's what the user actually sees and what they get
+           via right-click → Save image / Open in new tab / Copy image.
+           Chart ring is centered at (100,100), R=90. -->
+      <svg class="polar-modal-svg" viewBox="-24 -62 248 272" aria-hidden="true"></svg>
+      <img class="polar-modal-png" alt="ISS pass sky chart" />
+      <p class="polar-modal-hint">Right-click the image to save · click outside or press Esc to close.</p>
+    </div>
+  </div>
 
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Cesium.js"></script>
   <!-- satellite.js v7 is ESM-only and loaded via import in pass-finder.js / truth.js -->
