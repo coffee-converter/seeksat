@@ -56,10 +56,10 @@ const labelOffsets = new Map();
 // Approximate label box dimensions used by the declutter algorithm. Real
 // widths vary with text, but a single conservative estimate is fine —
 // the goal is preventing perceptible overlap, not pixel-perfect packing.
-// Pin label spans 1 line (just name + clouds) or 2 lines (when alt/az
-// also appears), so use the worst-case 2-line height as the canonical
-// reservation — small over-spacing for the 1-line case is fine.
-const PIN_LABEL_W = 180, PIN_LABEL_H = 42;
+// Pin label spans 2 lines (name + clouds/sun) or 3 lines (when ISS is
+// visible and alt/az/mag also appears). Reserve the worst-case 3-line
+// height so the declutter algorithm avoids overlap in either state.
+const PIN_LABEL_W = 180, PIN_LABEL_H = 60;
 
 // Candidate offset slots (added to a label's natural pixel position) tried
 // in priority order. The first slot that doesn't collide with any
@@ -69,13 +69,13 @@ const PIN_LABEL_W = 180, PIN_LABEL_H = 42;
 // drift like an always-down algorithm).
 const PIN_CANDIDATES = [
   { dx: 0,    dy:   0 },   // natural (upper-right of pin)
-  { dx: 0,    dy:  46 },
-  { dx: 0,    dy: -46 },
-  { dx: 0,    dy:  92 },
-  { dx: 0,    dy: -92 },
+  { dx: 0,    dy:  64 },
+  { dx: 0,    dy: -64 },
+  { dx: 0,    dy: 128 },
+  { dx: 0,    dy: -128 },
   { dx: -204, dy:   0 },   // flip to upper-left of pin
-  { dx: -204, dy:  46 },
-  { dx: -204, dy: -46 },
+  { dx: -204, dy:  64 },
+  { dx: -204, dy: -64 },
 ];
 
 function newObsId() { return `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`; }
@@ -110,22 +110,31 @@ function addObserver(name, latDeg, lonDeg) {
       // color label per observer instead of separate midpoint label
       // boxes that need to be decluttered against the pins.
       text: new Cesium.CallbackProperty((time) => {
-        const ms = Cesium.JulianDate.toDate(time).getTime();
+        const d = Cesium.JulianDate.toDate(time);
+        const ms = d.getTime();
+        const lines = [obs.name];
+        // Line 2: environmental conditions at this observer — clouds
+        // (if forecast loaded) and sun altitude. Always shown so the
+        // user can read twilight depth at a glance even when no pass
+        // is up.
         const f = state.cloudForecasts.get(obs.id);
         const c = f ? cloudAt(f, ms) : null;
-        const line1 = c == null ? obs.name : `${obs.name} · ${Math.round(c)}% clouds`;
-        const d = Cesium.JulianDate.toDate(time);
+        const sunAlt = apparentAltDeg(sunAltitudeDeg(obs, d));
+        const parts2 = [];
+        if (c != null) parts2.push(`${Math.round(c)}% clouds`);
+        parts2.push(`sun ${Math.round(sunAlt)}°`);
+        lines.push(parts2.join(" · "));
+        // Line 3 (only while the ISS is currently visible from here):
+        // alt · az · instantaneous magnitude.
         const issEcef = issEcefAt(d);
         if (issEcef && isVisibleAtAll([obs], issEcef, d)) {
           const { alt, az } = issAltAzDeg(obs, issEcef);
           const azStr = String(Math.round(az) % 360).padStart(3, "0");
-          // Instantaneous magnitude for THIS observer at THIS moment —
-          // changes through the pass as range and phase angle evolve.
           const m = magnitudeAt(obs, issEcef, sunPositionEcef(d));
           const magStr = m == null ? "" : `  m ${m.toFixed(1)}`;
-          return `${line1}\nalt ${alt.toFixed(1)}°  az ${azStr}°${magStr}`;
+          lines.push(`alt ${alt.toFixed(1)}°  az ${azStr}°${magStr}`);
         }
-        return line1;
+        return lines.join("\n");
       }, false),
       show: new Cesium.CallbackProperty(
         () => isInFrontOfEarth(Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0)),
@@ -635,47 +644,91 @@ function ratingCssColor(score) {
   return `rgb(${c.r}, ${c.g}, ${c.b})`;
 }
 
+// Like ratingCssColor but desaturates toward a neutral gray as the
+// forecast skill decays — used for the clouds column, since point
+// cloud-cover forecasts past day 1-2 carry diminishing trust. The
+// skill curve matches effectivePClear (exp decay with tau = 4 days),
+// FLOORED at 1/3 so the cell never gets more than 2/3 gray: a far-out
+// cloud value retains enough color (~33%) to still hint at the forecast
+// while clearly reading as "less trustworthy" via the gray cast.
+function ratingCssColorWithSkill(score, ageDays) {
+  const c = _interpRatingStop(score);
+  const skill = Math.max(1 / 3, forecastSkill(ageDays));
+  const gray = { r: 106, g: 122, b: 154 };
+  const r = Math.round(c.r * skill + gray.r * (1 - skill));
+  const g = Math.round(c.g * skill + gray.g * (1 - skill));
+  const b = Math.round(c.b * skill + gray.b * (1 - skill));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 function ratingColorAt(score) {
   const c = _interpRatingStop(score);
   return Cesium.Color.fromBytes(c.r, c.g, c.b);
 }
 
-// Blend a point-forecast clear probability with a neutral 0.5 by
-// exponential skill decay. Day-1 forecasts are trusted almost fully;
-// by day 4 we're ~37% direct, ~63% neutral; by day 10 we're nearly all
-// neutral. tau = 4 days roughly matches deterministic-cloud skill
-// decay for hourly forecasts.
+// ---------------------------------------------------------------------------
+// Probability-factor curves — single source of truth for both the rating
+// math AND the gradient coloring of the passes-list columns. The number
+// you see colored in any column IS the value that contributed to the
+// joint capture probability for that pass.
+// ---------------------------------------------------------------------------
+
+// Sky-darkness factor from sun altitude (apparent, refraction-corrected).
+// Linear from horizon (sun = 0°) to nautical (sun = −12°), saturating at 1.
+// Camera-reality threshold: nautical twilight is dark enough for sub-mag-3
+// reference stars in a short exposure, even when the eye still sees glow.
+function twilightFactor(sunAltDeg) {
+  return Math.max(0, Math.min(1, -sunAltDeg / 12));
+}
+
+// ISS-altitude factor from apparent (refraction-corrected) altitude.
+// 0 below ~5° (horizon haze + obstructions), 1 by 30° (clean sky overhead).
+function altitudeFactor(apparentAltDeg) {
+  return Math.max(0, Math.min(1, (apparentAltDeg - 5) / 25));
+}
+
+// Coordination/redundancy factor from pass duration. Sigmoid form so
+// returns diminish past ~2 minutes: 30s → 0.33, 60s → 0.50, 120s → 0.67,
+// 240s → 0.80. Captures the practical premium of longer passes (time to
+// set up, multiple-frame attempts, recover from transient clouds).
+function coordinationFactor(durSec) {
+  return durSec / (durSec + 60);
+}
+
+// Forecast skill as a function of forecast age. Exponential decay with
+// tau = 4 days (deterministic-cloud forecast skill rule-of-thumb).
+// Returns 1 at age 0, ~0.37 at 4 days, ~0.08 at 10 days. Used by both
+// effectivePClear (to blend the forecast toward neutral) and the
+// clouds-column color desaturation (to fade the cell toward gray).
+function forecastSkill(ageDays) {
+  return ageDays > 0 ? Math.exp(-ageDays / 4) : 1;
+}
+
+// Cloud-clear factor: forecast P(clear) blended toward a neutral 0.5 by
+// the forecastSkill curve. Day-1 forecasts trusted almost fully; by day 4
+// we're ~37% direct + ~63% neutral; by day 10 mostly neutral. Returns
+// 0.5 when no forecast is loaded for this point.
 function effectivePClear(cloudPct, ageDays) {
   if (cloudPct == null) return 0.5;
   const direct = Math.max(0, 1 - cloudPct / 100);
-  if (ageDays <= 0) return direct;
-  const skill = Math.exp(-ageDays / 4);
+  const skill = forecastSkill(ageDays);
   return skill * direct + (1 - skill) * 0.5;
 }
 
 // Per-observer probability that this observer can capture ISS + ≥2
-// reference stars at this instant. Three independent factors:
-//   pDark  — sky dark enough for stars (sun altitude). Linear from
-//            horizon (sun=0°) to nautical (sun=−12°), saturating at 1.
-//            Camera-reality threshold: nautical twilight is dark enough
-//            for sub-mag-3 stars in a short exposure.
-//   pAlt   — ISS high enough to image cleanly (refraction-corrected
-//            apparent altitude). 0 below ~5°, 1 by 30°.
-//   pClear — Cloud forecast P(clear), blended toward a neutral 0.5 as
-//            the forecast horizon stretches out (deterministic point
-//            forecasts lose skill quickly past day 1-2).
-// Returns 0 when the ISS isn't visible to this observer at all.
+// reference stars at this instant. Three independent factors multiplied:
+// twilightFactor(sunAlt) × altitudeFactor(issAlt) × effectivePClear(cloud).
+// Returns 0 fast when geometry rules the moment out.
 function captureProbForObserver(obs, issEcef, jsDate, ms, nowMs) {
   const apparentAlt = apparentAltDeg(issAltitudeDeg(obs, issEcef));
   if (apparentAlt < 5) return 0;
   const sunAlt = apparentAltDeg(sunAltitudeDeg(obs, jsDate));
   if (sunAlt >= 0) return 0; // sun still up — sky too bright
-  const pDark = Math.min(1, -sunAlt / 12);
-  const pAlt = Math.min(1, Math.max(0, (apparentAlt - 5) / 25));
   const cloudPct = cloudAt(state.cloudForecasts.get(obs.id), ms);
   const ageDays = (ms - nowMs) / 86_400_000;
-  const pClear = effectivePClear(cloudPct, ageDays);
-  return pDark * pAlt * pClear;
+  return twilightFactor(sunAlt)
+       * altitudeFactor(apparentAlt)
+       * effectivePClear(cloudPct, ageDays);
 }
 
 // Joint probability that EVERY observer succeeds at the same instant.
@@ -716,13 +769,7 @@ function passSuccessProbability(win, observers) {
     const p = captureProbJoint(observers, issEcef, d, t, nowMs);
     if (p > best) best = p;
   }
-  // Duration sigmoid: more discriminating than the previous +30
-  // constant — 30s → 0.33 (yellow), 60s → 0.5 (yellow-green), 120s →
-  // 0.67 (green), 240s → 0.80, so short passes don't auto-rate green
-  // just because the geometry/cloud factors lined up.
-  const durSec = totalMs / 1000;
-  const pCoord = durSec / (durSec + 60);
-  return best * pCoord;
+  return best * coordinationFactor(totalMs / 1000);
 }
 
 
@@ -941,6 +988,23 @@ function loadInitialObservers() {
 }
 
 loadInitialObservers();
+
+// Periodic cloud-forecast refresh. fetchCloudForecast caches results
+// for ~50 minutes (matching Open-Meteo's HRRR-update cadence in the
+// US), so this 60-minute interval reliably crosses the TTL boundary
+// and pulls down a fresh forecast for each observer. Re-renders the
+// passes list once new data lands so the cloud column reflects the
+// latest values.
+const CLOUD_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+setInterval(() => {
+  if (!state.observers.length) return;
+  for (const obs of state.observers) {
+    fetchCloudForecast(obs.latDeg, obs.lonDeg).then(f => {
+      state.cloudForecasts.set(obs.id, f);
+      if (state.windows && state.windows.length) renderWindowsList();
+    });
+  }
+}, CLOUD_REFRESH_INTERVAL_MS);
 
 // ---------------------------------------------------------------------------
 // Task 11: Search controls + windows-list rendering + click-to-jump
@@ -1183,7 +1247,7 @@ function renderWindowsList() {
     sun.className = "sun";
     sun.textContent = Number.isFinite(worstSunAlt) ? `${Math.round(worstSunAlt)}°` : "—";
     if (Number.isFinite(worstSunAlt)) {
-      sun.style.color = ratingCssColor(Math.max(0, Math.min(1, -worstSunAlt / 12)));
+      sun.style.color = ratingCssColor(twilightFactor(worstSunAlt));
     } else {
       sun.classList.add("na");
     }
@@ -1198,7 +1262,7 @@ function renderWindowsList() {
     dur.className = "dur";
     const mm = Math.floor(durSec / 60), ss = durSec % 60;
     dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
-    dur.style.color = ratingCssColor(durSec / (durSec + 60));
+    dur.style.color = ratingCssColor(coordinationFactor(durSec));
     row.appendChild(dur);
 
     // Altitude range — color matches captureProbForObserver's pAlt ramp
@@ -1209,7 +1273,7 @@ function renderWindowsList() {
     alt.className = "alt";
     const altLo = Math.round(minAlt), altHi = Math.round(maxAlt);
     alt.textContent = altLo === altHi ? `${altHi}°` : `${altLo}–${altHi}°`;
-    alt.style.color = ratingCssColor(Math.max(0, Math.min(1, (apparentAltDeg(minAlt) - 5) / 25)));
+    alt.style.color = ratingCssColor(altitudeFactor(apparentAltDeg(minAlt)));
     row.appendChild(alt);
 
     // Peak magnitude — colored on the same gradient: mag = −3 → green
@@ -1226,9 +1290,11 @@ function renderWindowsList() {
     }
     row.appendChild(mag);
 
-    // Cloud cover range — colored continuously on the same gradient,
-    // indexed by P(clear) = 1 − clHi/100 (worst-case cloud cover at peak
-    // moment). 0% clouds → green, 50% → yellow-lime, 100% → red.
+    // Cloud cover range — gradient color indexed by P(clear), DESAT'd
+    // toward gray as the forecast horizon stretches out. Uses the same
+    // exp(−age/4) skill curve effectivePClear uses inside the rating
+    // math: a clouds value 8+ days out displays mostly gray, signaling
+    // "this number isn't trustworthy enough to color." 0 days → vivid.
     const cl = document.createElement("span");
     cl.className = "cloud";
     if (cloud === null) {
@@ -1237,7 +1303,8 @@ function renderWindowsList() {
     } else {
       const clLo = Math.round(cloud.min), clHi = Math.round(cloud.max);
       cl.textContent = clLo === clHi ? `${clHi}%` : `${clLo}–${clHi}%`;
-      cl.style.color = ratingCssColor(1 - clHi / 100);
+      const ageDays = (peakMs - Date.now()) / 86_400_000;
+      cl.style.color = ratingCssColorWithSkill(1 - clHi / 100, ageDays);
     }
     row.appendChild(cl);
 
