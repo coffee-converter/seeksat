@@ -54,7 +54,20 @@
     <div id="windows-section">
       <div class="section-heading-row">
         <h2 class="section-heading">Passes</h2>
-        <button id="share-btn" type="button" title="Copy a link to this observer setup">Share</button>
+        <div class="passes-controls">
+          <!-- Mode toggle: Visual (default) filters to twilight + sunlit
+               passes scored by capture probability; Radio shows any pass
+               above the user-set elevation, scored by link quality. -->
+          <div id="mode-toggle" class="mode-toggle" role="group" aria-label="Pass mode">
+            <button type="button" data-mode="visual" class="active">Visual</button>
+            <button type="button" data-mode="radio">Radio</button>
+          </div>
+          <label id="min-elev-control" class="min-elev" hidden title="Minimum elevation every observer must clear">
+            min
+            <input id="min-elev-input" type="number" min="0" max="60" step="1" value="10" />°
+          </label>
+          <button id="share-btn" type="button" title="Copy a link to this observer setup">Share</button>
+        </div>
       </div>
       <div id="windows-list" class="result-block"><div class="window-empty">loading…</div></div>
     </div>
