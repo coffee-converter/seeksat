@@ -1,8 +1,18 @@
 /* pass-finder.css — page-specific layout, extends style.css */
 
-/* Lock the page to viewport size — all panels are absolutely positioned
-   inside #cesium-container, so the body itself should never scroll. */
-html, body { overflow: hidden; }
+/* Keep the page locked to viewport size — no scrolling. position:fixed
+   on body broke fixed-positioned descendants (the polar modal), so we
+   rely on overflow:hidden alone, and clip the observer-icons overlay
+   so labels that project past the edge can't expand the document. */
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Single source of truth for the left panel's width, so the panel
+   itself and the toggle button hugging its right edge stay in sync
+   when the responsive @media rule (below) changes it for mobile. */
+:root { --panel-left-width: 360px; }
 
 /* Full-page loader. Covers everything while Cesium boots, the TLE
    fetches, observers seed, and the initial search runs. Fades out once
@@ -81,9 +91,12 @@ html, body { overflow: hidden; }
    the user can re-open the panel. */
 #panel-toggle {
   position: absolute;
-  top: 50%;
-  left: calc(16px + 360px); /* panel left + width */
-  transform: translateY(-50%);
+  /* Anchored near the top of the panel (panel top is 16px). Sitting
+     up here keeps the toggle reliably reachable on short viewports
+     where 50%-of-screen would float the button into open globe space
+     well below the panel's bottom edge. */
+  top: 28px;
+  left: calc(16px + var(--panel-left-width)); /* panel left + width */
   width: 22px;
   height: 56px;
   z-index: 1100;
@@ -124,13 +137,26 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 #panel-left {
   /* class="panel" provides background/border/padding/top:16px. */
   left: 16px;
-  width: 360px;
+  width: var(--panel-left-width);
   max-height: calc(100vh - 90px);
+  max-height: calc(100dvh - 90px);
   display: flex;
   flex-direction: column;
   gap: 6px;
   overflow: hidden;
   z-index: 1000;
+}
+
+/* Narrow / mobile viewports: let the panel use the full available
+   width instead of being locked at 360px (which would overflow tiny
+   screens and force a too-narrow globe view). The panel max-width
+   from style.css (.panel { max-width: 460px }) still caps it on
+   wider phones / desktops. */
+@media (max-width: 600px) {
+  :root {
+    --panel-left-width: calc(100vw - 32px);
+    --panel-left-width: calc(100dvw - 32px);
+  }
 }
 #credit {
   position: absolute;
@@ -169,6 +195,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   font-size: 12px;
   line-height: 1.2;
 }
+/* Bit of breathing room between the OBSERVERS heading and the first
+   card. The summary has only 2px vertical padding, so without this
+   the open-state list crowds the heading. */
+#panel-left > details[open] > summary { margin-bottom: 6px; }
 
 /* Section dividers: a hairline between each child of the left panel.
    First-child gets no top border so the panel's own padding does the work. */
@@ -181,7 +211,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* Vertical-only clip; horizontal overflow is handled by #windows-list
+     which scrolls its columns when the viewport can't fit them. */
+  overflow-y: hidden;
+  overflow-x: visible;
   min-height: 120px;
   /* Bleed past the panel's 16px horizontal padding so each row uses the
      full panel width — the panel border becomes the visual gutter. */
@@ -190,34 +223,43 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 #windows-section > #windows-list {
   flex: 1 1 auto;
+  /* Vertical scroll for long lists, horizontal scroll when columns
+     don't all fit at their minimum gap (narrow mobile viewports). */
   overflow-y: auto;
+  overflow-x: auto;
   background: transparent; /* override .result-block panel-fill */
   padding: 0;
   margin-bottom: 0;
   /* Parent grid defines the column widths; each .window-row participates
-     via grid-template-columns: subgrid so all rows share a single set of
-     column tracks — numeric columns line up across the list.
-     Columns hug their widest content (rating/time/dur/alt/cloud) and any
-     leftover row width is distributed as inter-column space via
-     justify-content: space-between — gives every column an equal visual
-     gap, including between rating and time. */
+     via grid-template-columns: subgrid so all rows share a single set
+     of column tracks — numeric columns line up across the list.
+     column-gap defines a MINIMUM gap that's preserved even on narrow
+     viewports (the columns get cramped to that gap and the table
+     horizontally scrolls inside #windows-list). justify-content
+     distributes any leftover width past that minimum. */
   display: grid;
   grid-template-columns: auto auto auto auto auto auto auto;
   justify-content: space-between;
   align-content: start;
-  column-gap: 0;
+  column-gap: 10px;
   row-gap: 0;
 }
 
-/* Single bottom-center strip: playback + speed + sim-time + camera presets. */
+/* Single bottom-center strip: playback + speed + sim-time + camera
+   presets. Center-anchored but clamped to viewport width and allowed
+   to wrap so narrow/mid-width viewports never clip the buttons. */
 #bottom-controls {
   position: absolute;
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100vw - 16px);
+  max-width: calc(100dvw - 16px);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
   z-index: 1000;
   background: rgba(10, 14, 26, 0.92);
   border: 1px solid rgba(100, 140, 255, 0.3);
@@ -421,6 +463,204 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .window-row .cloud.overcast { color: #f87171; }
 .window-row .cloud.na { color: #6a7a9a; }
 
+/* Per-observer polar-plot icons floating over the 3D scene. The
+   container itself is transparent and pass-through; individual icons
+   re-enable pointer events so they can be clicked. */
+#observer-icons {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden; /* clip labels that project past the viewport */
+  /* Below the side panel and bottom strip (both 1000) so panels
+     always sit on top of 3D-scene labels. Click handling for labels
+     is at document level, so labels that happen to be NOT behind a
+     panel are still clickable. */
+  z-index: 800;
+}
+/* Unified observer label: polar-plot icon on the left + text lines on
+   the right inside a single flex box. Anchored by its bottom-left
+   corner (via translate -100% on Y) so the JS-computed (left, top)
+   matches the previous Cesium label geometry (anchored at pin + 12,
+   -10 with verticalOrigin=BOTTOM). */
+.observer-label {
+  position: absolute;
+  transform: translateY(-100%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  background: rgba(10, 14, 26, 0.7);
+  border-radius: 6px;
+  pointer-events: auto;
+  cursor: pointer;
+  color: var(--obs-color, #cfe0ff);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+  user-select: none;
+  transition: background 0.12s;
+}
+.observer-label:hover { background: rgba(20, 28, 50, 0.85); }
+.observer-label:active { background: rgba(30, 40, 70, 0.95); transform: translateY(-100%) scale(0.98); }
+.observer-label:focus-visible {
+  outline: 2px solid rgba(126, 184, 255, 0.7);
+  outline-offset: 1px;
+}
+/* Every child inherits pointer-events: auto from the wrapper, but make
+   it explicit so future child elements can't accidentally swallow
+   clicks before they reach the wrapper's handler. */
+.observer-label * { pointer-events: auto; }
+.observer-label-icon {
+  width: 30px; height: 30px;
+  flex-shrink: 0;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45));
+}
+.observer-label-icon .horizon {
+  fill: rgba(8, 12, 24, 0.9);
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 1.6;
+}
+.observer-label-icon .grid {
+  fill: none;
+  stroke: rgba(126, 184, 255, 0.18);
+  stroke-width: 0.8;
+}
+.observer-label-icon .arc {
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.observer-label-text { color: inherit; }
+.observer-label-text .line { white-space: nowrap; }
+
 #tle-status { margin-bottom: 6px; }
 #tle-status.error { color: #f87171; }
 #tle-status.ok { color: #7fe5d1; }
+
+/* --- Polar-plot fullscreen modal -------------------------------------
+   Opens when the user clicks an observer card's small polar plot. Shows
+   a larger version of the same sky chart, but with bright-star dots and
+   name labels overlaid so the viewer can place the ISS pass against the
+   constellations. */
+#polar-modal {
+  position: fixed; inset: 0; z-index: 5000;
+  display: flex; align-items: center; justify-content: center;
+}
+#polar-modal[hidden] { display: none; }
+.polar-modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(4, 6, 14, 0.78);
+  backdrop-filter: blur(6px);
+}
+.polar-modal-content {
+  position: relative;
+  background: rgba(10, 14, 26, 0.95);
+  border: 1px solid rgba(100, 140, 255, 0.35);
+  border-radius: 14px;
+  padding: 14px 16px 12px;
+  max-width: min(96vw, 96vh);
+  max-height: 96vh;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+.polar-modal-actions {
+  position: absolute;
+  top: 10px; right: 10px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  z-index: 1;
+}
+.polar-modal-actions button {
+  background: transparent; border: 1px solid rgba(255,255,255,0.12);
+  color: #cfe0ff; cursor: pointer; font-size: 12px;
+  padding: 4px 10px; border-radius: 6px;
+  font-family: inherit;
+}
+.polar-modal-actions button:hover {
+  background: rgba(126,184,255,0.14); border-color: rgba(126,184,255,0.4);
+}
+.polar-modal-actions .polar-modal-close { color: #8899bb; }
+.polar-modal-actions .polar-modal-close:hover {
+  background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.4);
+}
+.polar-modal-copy.copied {
+  background: rgba(127,229,209,0.18); color: #7fe5d1;
+  border-color: rgba(127,229,209,0.5);
+}
+/* The SVG is rendered offscreen and rasterized into .polar-modal-png.
+   Kept attached so paint functions can run against real layout. */
+.polar-modal-svg {
+  position: absolute;
+  left: -10000px; top: -10000px;
+  width: 800px; height: 800px;
+  pointer-events: none;
+}
+.polar-modal-png {
+  display: block;
+  width: auto; height: auto;
+  max-width: min(92vw, 1200px);
+  max-height: 86vh;
+  border-radius: 6px;
+  user-select: none;
+}
+.polar-modal-svg .horizon {
+  fill: rgba(4, 8, 20, 0.85);
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 0.8;
+}
+.polar-modal-svg .grid {
+  fill: none; stroke: rgba(126, 184, 255, 0.18); stroke-width: 0.4;
+}
+.polar-modal-svg .spoke {
+  stroke: rgba(126, 184, 255, 0.12); stroke-width: 0.3;
+}
+.polar-modal-svg .cardinal {
+  fill: #cfe0ff; font-size: 11px; letter-spacing: 0.08em; font-weight: 700;
+}
+.polar-modal-svg .arc {
+  fill: none; stroke-width: 1.6; stroke-linecap: round;
+  stroke-linejoin: round; opacity: 0.9;
+}
+.polar-modal-svg .iss-dot {
+  fill: #ffffff; stroke: #7eb8ff; stroke-width: 0.7;
+}
+/* .star-dot fill is set inline per-star (spectral-class color) — no
+   page rule, since a class selector would beat the presentation attr. */
+.polar-modal-svg .star-name {
+  fill: #8aa0c8; font-size: 3.2px; opacity: 0.85;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.polar-modal-hint {
+  font-size: 10px; color: #6a7a9a; letter-spacing: 0.06em;
+}
+
+/* On narrow screens, give the modal slimmer chrome and a tighter
+   action-button corner so nothing pokes past the viewport edge. */
+@media (max-width: 600px) {
+  .polar-modal-content {
+    padding: 10px 12px 8px;
+    max-width: 96vw;
+    max-width: 96dvw;
+  }
+  .polar-modal-png {
+    max-width: 92vw;
+    max-width: 92dvw;
+  }
+  .polar-modal-actions { top: 6px; right: 6px; gap: 4px; }
+  .polar-modal-actions button { font-size: 11px; padding: 3px 8px; }
+
+  /* Bottom strip already wraps via the default style; on very narrow
+     viewports just shrink the controls a touch so each row fits more
+     comfortably. */
+  #bottom-controls { padding: 4px 8px; gap: 4px 8px; }
+  #bottom-controls button { font-size: 11px; padding: 2px 7px; }
+  #bottom-controls .speed-label { font-size: 9px; }
+
+  /* Tighten the side panel so a long observer name + cards aren't
+     crowded against the panel border on narrow viewports. */
+  .panel { padding: 10px 12px; }
+  #panel-left { gap: 4px; }
+}

@@ -8,6 +8,7 @@ import { sunPositionEcef } from "./pass-finder/sun.js";
 import { findVisibilityWindows } from "./pass-finder/search.js";
 import { tleOrbitTrackEcef } from "./truth.js";
 import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
+import { fetchTimezone } from "./pass-finder/timezone.js";
 import { apparentAltDeg } from "./refraction.js";
 import * as sat from "https://cdn.jsdelivr.net/npm/satellite.js@7.0.0/+esm";
 import { makeViewer, wireSimTime } from "./viewer-setup.js";
@@ -44,6 +45,12 @@ const state = {
 const obsListEl = document.getElementById("obs-list");
 const observerLayer = []; // Cesium entities, parallel to state.observers
 
+// Observer id currently locked into first-person camera mode (or null).
+// Declared early because renderObsList reads it during module init
+// (via loadInitialObservers → addObserver → renderObsList) before the
+// FPS-camera section near the bottom of the file would run.
+let _fpsObserverId = null;
+
 // Screen-space declutter for observer labels (both pin labels at the
 // observer position AND alt/az midpoint labels). Recomputed each frame
 // in preRender: collect screen positions of all visible labels, sort
@@ -59,7 +66,8 @@ const labelOffsets = new Map();
 // Pin label spans 2 lines (name + clouds/sun) or 3 lines (when ISS is
 // visible and alt/az/mag also appears). Reserve the worst-case 3-line
 // height so the declutter algorithm avoids overlap in either state.
-const PIN_LABEL_W = 180, PIN_LABEL_H = 60;
+// HTML observer-label box: icon (30px) + gap (6px) + text + padding ≈ 220×60.
+const PIN_LABEL_W = 220, PIN_LABEL_H = 60;
 
 // Candidate offset slots (added to a label's natural pixel position) tried
 // in priority order. The first slot that doesn't collide with any
@@ -103,57 +111,11 @@ function addObserver(name, latDeg, lonDeg) {
         false,
       ),
     },
-    label: {
-      // Pin label = observer name + current cloud cover on line 1, then
-      // alt/az on line 2 whenever the ISS is currently visible from this
-      // observer. Consolidated here so the user has one crisp single-
-      // color label per observer instead of separate midpoint label
-      // boxes that need to be decluttered against the pins.
-      text: new Cesium.CallbackProperty((time) => {
-        const d = Cesium.JulianDate.toDate(time);
-        const ms = d.getTime();
-        const lines = [obs.name];
-        // Line 2: environmental conditions at this observer — clouds
-        // (if forecast loaded) and sun altitude. Always shown so the
-        // user can read twilight depth at a glance even when no pass
-        // is up.
-        const f = state.cloudForecasts.get(obs.id);
-        const c = f ? cloudAt(f, ms) : null;
-        const sunAlt = apparentAltDeg(sunAltitudeDeg(obs, d));
-        const parts2 = [];
-        if (c != null) parts2.push(`${Math.round(c)}% clouds`);
-        parts2.push(`sun ${Math.round(sunAlt)}°`);
-        lines.push(parts2.join(" · "));
-        // Line 3 (only while the ISS is currently visible from here):
-        // alt · az · instantaneous magnitude.
-        const issEcef = issEcefAt(d);
-        if (issEcef && isVisibleAtAll([obs], issEcef, d)) {
-          const { alt, az } = issAltAzDeg(obs, issEcef);
-          const azStr = String(Math.round(az) % 360).padStart(3, "0");
-          const m = magnitudeAt(obs, issEcef, sunPositionEcef(d));
-          const magStr = m == null ? "" : `  m ${m.toFixed(1)}`;
-          lines.push(`alt ${alt.toFixed(1)}°  az ${azStr}°${magStr}`);
-        }
-        return lines.join("\n");
-      }, false),
-      show: new Cesium.CallbackProperty(
-        () => isInFrontOfEarth(Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, 0)),
-        false,
-      ),
-      font: "12px sans-serif",
-      horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      pixelOffset: new Cesium.CallbackProperty(() => {
-        const o = labelOffsets.get(`pin:${obs.id}`);
-        if (!o) return new Cesium.Cartesian2(12, -10);
-        return new Cesium.Cartesian2(12 + o.dx, -10 + o.dy);
-      }, false),
-      fillColor: Cesium.Color.fromCssColorString(color),
-      showBackground: true,
-      backgroundColor: Cesium.Color.fromCssColorString("rgba(10,14,26,0.7)"),
-      backgroundPadding: new Cesium.Cartesian2(6, 4),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
-    },
+    // Label text + the polar-plot icon both live in an HTML overlay
+    // (.observer-label inside #observer-icons), not on the Cesium
+    // entity itself. That way the icon and text are one flex element
+    // rather than a Cesium billboard with an HTML icon glued next to
+    // it. See buildObserverLabel / per-frame update in preRender.
   });
   // Combined sightline + altitude label entity, visible only while ISS is
   // visible from THIS observer (alt >= 10°, ISS sunlit, observer in twilight).
@@ -200,6 +162,13 @@ function addObserver(name, latDeg, lonDeg) {
     if (state.windows && state.windows.length) renderWindowsList();
   });
 
+  // Resolve the observer's IANA timezone so polar-plot times can be
+  // rendered in the clock someone standing at that lat/lon would
+  // actually read. Browser local is used as a fallback if this fails.
+  fetchTimezone(latDeg, lonDeg).then(tz => {
+    if (tz) obs.tz = tz;
+  });
+
   // If a search has been run, re-run with the new observer set.
   rerunSearchIfActive();
 
@@ -219,37 +188,943 @@ function removeObserver(id) {
   rerunSearchIfActive();
 }
 
+// SVG sky-chart polar plot — center = zenith, edge = horizon. ISS arc
+// across the active pass window plus a live-updating dot at the current
+// sim-time position.
+//
+// Uses the standard astronomical sky-chart convention: you're "lying
+// on your back looking up." North is at the top, BUT east is on the
+// LEFT and west on the RIGHT (mirrored vs. a top-down map). That's the
+// effect of negating the sine of azimuth in the projection below.
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// Project alt/az onto an SVG circle of radius `R` centered at (cx,cy).
+// Defaults match the small obs-card plot (100×100 viewBox, r=45 ring).
+// Pass cx=cy=100, R=90 for the fullscreen modal (200×200 viewBox).
+function altAzToSvg(altDeg, azDeg, cx = 50, cy = 50, R = 45) {
+  const r = ((90 - altDeg) / 90) * R;
+  const a = azDeg * Math.PI / 180;
+  return [cx - r * Math.sin(a), cy - r * Math.cos(a)];
+}
+
+function buildPolarPlot(obs) {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.classList.add("polar-plot");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.dataset.obsId = obs.id;
+  // Horizon disc + altitude grid rings (30°, 60°)
+  const horizon = document.createElementNS(SVG_NS, "circle");
+  horizon.setAttribute("cx", 50); horizon.setAttribute("cy", 50);
+  horizon.setAttribute("r", 45);
+  horizon.classList.add("horizon");
+  svg.appendChild(horizon);
+  for (const altRing of [60, 30]) {
+    const c = document.createElementNS(SVG_NS, "circle");
+    c.setAttribute("cx", 50); c.setAttribute("cy", 50);
+    c.setAttribute("r", ((90 - altRing) / 90) * 45);
+    c.classList.add("grid");
+    svg.appendChild(c);
+  }
+  // Cardinal labels — sky-chart convention ("looking up"): N at top,
+  // BUT east on the LEFT and west on the RIGHT (matches the negated-sin
+  // projection in altAzToSvg). Labels sit just outside the horizon
+  // ring (which has r=45 around 50,50) so they don't crowd it; SVG
+  // overflow is set to `visible` in CSS so the labels render past the
+  // 0..100 viewBox.
+  const cards = [
+    { l: "N", x: 50,  y: -2 },
+    { l: "E", x: -2,  y: 50 },  // east on LEFT
+    { l: "S", x: 50,  y: 102 },
+    { l: "W", x: 102, y: 50 },  // west on RIGHT
+  ];
+  for (const c of cards) {
+    const t = document.createElementNS(SVG_NS, "text");
+    t.setAttribute("x", c.x); t.setAttribute("y", c.y);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("dominant-baseline", "central");
+    t.classList.add("cardinal");
+    t.textContent = c.l;
+    svg.appendChild(t);
+  }
+  // ISS arc + current-position dot (filled later, may be hidden if no
+  // active pass / observer can't see ISS at current time).
+  const arc = document.createElementNS(SVG_NS, "polyline");
+  arc.classList.add("arc");
+  arc.setAttribute("stroke", obs.color);
+  svg.appendChild(arc);
+  const dot = document.createElementNS(SVG_NS, "circle");
+  dot.classList.add("iss-dot");
+  dot.setAttribute("r", 2.5);
+  svg.appendChild(dot);
+  return svg;
+}
+
+function updatePolarPlotArc(svg, obs) {
+  const arc = svg.querySelector(".arc");
+  const w = state.windows?.[state.activeWindowIdx];
+  if (!w) { arc.setAttribute("points", ""); return; }
+  const SAMPLES = 30;
+  const dt = (w.endMs - w.startMs) / SAMPLES;
+  const pts = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const issEcef = issEcefAt(new Date(w.startMs + dt * i));
+    if (!issEcef) continue;
+    const { alt, az } = issAltAzDeg(obs, issEcef);
+    if (alt < 0) continue;
+    const [x, y] = altAzToSvg(alt, az);
+    pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+  }
+  arc.setAttribute("points", pts.join(" "));
+}
+
+function updatePolarPlotDot(svg, obs) {
+  const dot = svg.querySelector(".iss-dot");
+  const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  const issEcef = issEcefAt(d);
+  if (!issEcef) { dot.style.display = "none"; return; }
+  const { alt, az } = issAltAzDeg(obs, issEcef);
+  if (alt < 0) { dot.style.display = "none"; return; }
+  const [x, y] = altAzToSvg(alt, az);
+  dot.setAttribute("cx", x.toFixed(2));
+  dot.setAttribute("cy", y.toFixed(2));
+  dot.style.display = "";
+}
+
+function refreshAllPolarPlotArcs() {
+  for (const svg of obsListEl.querySelectorAll(".polar-plot")) {
+    const obs = state.observers.find(o => o.id === svg.dataset.obsId);
+    if (obs) updatePolarPlotArc(svg, obs);
+  }
+  refreshAllObserverIconArcs();
+}
+
+// ---------------------------------------------------------------------------
+// 3D-scene observer icons: a small polar-plot SVG floats over each
+// observer's pin, showing the active pass arc in observer color and
+// the live ISS dot. Click → open the fullscreen modal for that
+// observer. Positioned per-frame via SceneTransforms so the icons
+// track the camera; hidden when an observer is behind Earth.
+// ---------------------------------------------------------------------------
+
+const iconLayerEl = document.getElementById("observer-icons");
+const ICON_GEOM = { cx: 50, cy: 50, R: 42 };
+
+function altAzToIconSvg(altDeg, azDeg) {
+  const r = ((90 - altDeg) / 90) * ICON_GEOM.R;
+  const a = azDeg * Math.PI / 180;
+  return [ICON_GEOM.cx - r * Math.sin(a), ICON_GEOM.cy - r * Math.cos(a)];
+}
+
+function buildObserverLabel(obs) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "observer-label";
+  wrapper.dataset.obsId = obs.id;
+  wrapper.title = `Open polar plot — ${obs.name}`;
+  wrapper.style.setProperty("--obs-color", obs.color);
+  // Click handling is done via event delegation on iconLayerEl (see
+  // setup below renderObserverIcons) — any click that bubbles up
+  // from any descendant of the wrapper fires openPolarModal. Wrapper
+  // is still keyboard-activatable.
+  wrapper.setAttribute("role", "button");
+  wrapper.tabIndex = 0;
+  wrapper.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      openPolarModal(obs.id);
+    }
+  });
+  // ---- Polar-plot icon on the left ----
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.classList.add("observer-label-icon");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  const horizon = document.createElementNS(SVG_NS, "circle");
+  horizon.setAttribute("cx", ICON_GEOM.cx);
+  horizon.setAttribute("cy", ICON_GEOM.cy);
+  horizon.setAttribute("r", ICON_GEOM.R);
+  horizon.classList.add("horizon");
+  svg.appendChild(horizon);
+  const ring = document.createElementNS(SVG_NS, "circle");
+  ring.setAttribute("cx", ICON_GEOM.cx);
+  ring.setAttribute("cy", ICON_GEOM.cy);
+  ring.setAttribute("r", ((90 - 60) / 90) * ICON_GEOM.R);
+  ring.classList.add("grid");
+  svg.appendChild(ring);
+  const nTri = document.createElementNS(SVG_NS, "path");
+  nTri.setAttribute("d", "M 50 2 L 57 11 L 43 11 Z");
+  nTri.setAttribute("fill", "rgba(126,184,255,0.85)");
+  svg.appendChild(nTri);
+  const arc = document.createElementNS(SVG_NS, "polyline");
+  arc.classList.add("arc");
+  arc.setAttribute("stroke", obs.color);
+  svg.appendChild(arc);
+  wrapper.appendChild(svg);
+  // ---- Text block on the right (lines populated per-frame) ----
+  const textEl = document.createElement("div");
+  textEl.className = "observer-label-text";
+  wrapper.appendChild(textEl);
+  return wrapper;
+}
+
+function updateObserverIconArc(wrapper, obs) {
+  const arc = wrapper.querySelector(".observer-label-icon .arc");
+  if (!arc) return;
+  const w = state.windows?.[state.activeWindowIdx];
+  if (!w) { arc.setAttribute("points", ""); return; }
+  const SAMPLES = 30;
+  const dt = (w.endMs - w.startMs) / SAMPLES;
+  const pts = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const issEcef = issEcefAt(new Date(w.startMs + dt * i));
+    if (!issEcef) continue;
+    const { alt, az } = issAltAzDeg(obs, issEcef);
+    if (alt < 0) continue;
+    const [x, y] = altAzToIconSvg(alt, az);
+    pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+  }
+  arc.setAttribute("points", pts.join(" "));
+}
+
+// Rebuild the textual portion of an observer label. Mirrors the
+// previous Cesium label CallbackProperty: name, then a clouds/sun
+// line, then alt/az/mag whenever the ISS is currently visible from
+// this observer.
+function updateObserverLabelText(wrapper, obs, d, ms) {
+  const textEl = wrapper.querySelector(".observer-label-text");
+  if (!textEl) return;
+  const lines = [obs.name];
+  const f = state.cloudForecasts.get(obs.id);
+  const c = f ? cloudAt(f, ms) : null;
+  const sunAlt = apparentAltDeg(sunAltitudeDeg(obs, d));
+  const parts2 = [];
+  if (c != null) parts2.push(`${Math.round(c)}% clouds`);
+  parts2.push(`sun ${Math.round(sunAlt)}°`);
+  lines.push(parts2.join(" · "));
+  const issEcef = issEcefAt(d);
+  if (issEcef && isVisibleAtAll([obs], issEcef, d)) {
+    const { alt, az } = issAltAzDeg(obs, issEcef);
+    const azStr = String(Math.round(az) % 360).padStart(3, "0");
+    const m = magnitudeAt(obs, issEcef, sunPositionEcef(d));
+    const magStr = m == null ? "" : `  m ${m.toFixed(1)}`;
+    lines.push(`alt ${alt.toFixed(1)}°  az ${azStr}°${magStr}`);
+  }
+  const lineEls = lines.map((t) => {
+    const div = document.createElement("div");
+    div.className = "line";
+    div.textContent = t;
+    return div;
+  });
+  textEl.replaceChildren(...lineEls);
+}
+
+function renderObserverIcons() {
+  iconLayerEl.replaceChildren();
+  for (const obs of state.observers) {
+    const wrapper = buildObserverLabel(obs);
+    updateObserverIconArc(wrapper, obs);
+    iconLayerEl.appendChild(wrapper);
+  }
+}
+
+function refreshAllObserverIconArcs() {
+  for (const wrapper of iconLayerEl.children) {
+    const obs = state.observers.find(o => o.id === wrapper.dataset.obsId);
+    if (obs) updateObserverIconArc(wrapper, obs);
+  }
+}
+
+// Use `pointerdown` instead of `click`. The HTML observer-label is
+// repositioned every preRender tick (camera moves → screen-projected
+// pin position moves), and `click` only fires when pointerdown and
+// pointerup land on the SAME element. With the label drifting a pixel
+// or two between press and release, pointerup ends up on the canvas
+// (or a different element) and the click event never fires. Filter
+// out non-primary buttons so right-click etc. don't open the modal.
+document.addEventListener("pointerdown", (ev) => {
+  if (ev.button !== 0) return;
+  const wrapper = ev.target?.closest?.(".observer-label");
+  if (!wrapper) return;
+  const id = wrapper.dataset.obsId;
+  if (id) openPolarModal(id);
+}, true);
+
+// ---------------------------------------------------------------------------
+// Polar-plot fullscreen modal
+//
+// Click any observer card's small polar plot to open a bigger version
+// with bright-star dots/labels overlaid (proper alt/az for THIS observer
+// at the current sim time), the active-pass arc, and the live ISS dot.
+// Closes via backdrop click, X button, or Esc.
+//
+// The static content (rings, cardinals) gets painted once at open time;
+// stars + ISS dot redraw on every preRender tick while the modal is
+// open so they track the sim clock as the user scrubs.
+// ---------------------------------------------------------------------------
+
+const MODAL_GEOM = { cx: 100, cy: 100, R: 90 };
+let _polarModalObsId = null;
+let _polarModalImgUrl = null; // current blob URL bound to <img>
+const polarModalEl = document.getElementById("polar-modal");
+const polarModalSvg = polarModalEl.querySelector(".polar-modal-svg");
+const polarModalImg = polarModalEl.querySelector(".polar-modal-png");
+
+// Compute alt/az of a (unit) star direction vector for the given
+// observer. Star is "at infinity" so we don't subtract observer ECEF —
+// we just project the direction into the observer's ENU basis.
+function starAltAzForObs(obs, starDirEcef) {
+  const DEG = Math.PI / 180;
+  const lat = obs.latDeg * DEG, lon = obs.lonDeg * DEG;
+  const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
+  const sinLon = Math.sin(lon), cosLon = Math.cos(lon);
+  const [dx, dy, dz] = starDirEcef;
+  const e = -sinLon*dx + cosLon*dy;
+  const n = -sinLat*cosLon*dx - sinLat*sinLon*dy + cosLat*dz;
+  const u = cosLat*cosLon*dx + cosLat*sinLon*dy + sinLat*dz;
+  const alt = Math.atan2(u, Math.hypot(e, n)) / DEG;
+  let az = Math.atan2(e, n) / DEG;
+  if (az < 0) az += 360;
+  return { alt, az };
+}
+
+// CSS embedded inside the SVG so the chart still renders correctly
+// when serialized to a standalone file (PNG export / right-click save).
+// Page CSS in pass-finder.css covers the on-screen display, but a
+// blob-loaded <img> only sees what's inside the SVG itself.
+const MODAL_SVG_STYLE = `
+  .horizon { fill: rgba(4, 8, 20, 0.95); stroke: rgba(126, 184, 255, 0.55); stroke-width: 0.8; }
+  .grid    { fill: none; stroke: rgba(126, 184, 255, 0.18); stroke-width: 0.4; }
+  .spoke   { stroke: rgba(126, 184, 255, 0.12); stroke-width: 0.3; }
+  .cardinal { fill: #cfe0ff; font-size: 11px; letter-spacing: 0.08em; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .az-num   { fill: #6a7a9a; font-size: 4.6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .arc      { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.65; }
+  .iss-dot  { fill: #ffffff; stroke: #7eb8ff; stroke-width: 0.7; }
+  .star-dot { }
+  /* paint-order=stroke ensures the dark halo paints BEHIND the fill,
+     so star names stay legible where they cross the pass arc. */
+  .star-name {
+    fill: #b8c4dc; font-size: 2.8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    paint-order: stroke;
+    stroke: rgba(10, 14, 26, 0.85); stroke-width: 0.8; stroke-linejoin: round;
+  }
+  .meta-title { fill: #cfe0ff; font-size: 7px; font-weight: 700; letter-spacing: 0.04em; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .meta-sub   { fill: #8aa0c8; font-size: 5px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .meta-tz    { fill: #6a7a9a; font-size: 4px; font-style: italic; letter-spacing: 0.04em; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .event-marker { stroke: #0a0e1a; stroke-width: 0.5; }
+  .event-block-title { font-size: 5.2px; font-weight: 700; letter-spacing: 0.06em; font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-transform: uppercase; }
+  .event-block-time  { fill: #ffffff; font-size: 6.2px; font-family: 'SF Mono', 'Fira Code', Menlo, monospace; }
+  .event-block-pos   { fill: #aab8d4; font-size: 4.6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .bg { fill: #0a0e1a; }
+`;
+
+function paintPolarModalStatic(svg, obs) {
+  svg.replaceChildren();
+  const { cx, cy, R } = MODAL_GEOM;
+  // Embedded styles — duplicated from pass-finder.css so the exported
+  // standalone SVG/PNG still looks right.
+  const styleEl = document.createElementNS(SVG_NS, "style");
+  styleEl.textContent = MODAL_SVG_STYLE;
+  svg.appendChild(styleEl);
+  // Background fills the entire viewBox (incl. metadata/az-number
+  // margins) so the exported image isn't transparent.
+  const bg = document.createElementNS(SVG_NS, "rect");
+  bg.setAttribute("x", -24); bg.setAttribute("y", -62);
+  bg.setAttribute("width", 248); bg.setAttribute("height", 272);
+  bg.classList.add("bg");
+  svg.appendChild(bg);
+
+  // ---- Metadata header (top of viewBox) ---------------------------
+  // Title and observer details are embedded in the SVG so PNG/SVG
+  // exports keep their context (observer, date, lat/lon, tz).
+  const now = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  // Date is formatted in the OBSERVER's timezone too, so passes that
+  // happen at local midnight don't display the user's tomorrow.
+  const dateOpts = { year: "numeric", month: "short", day: "numeric" };
+  if (obs.tz) dateOpts.timeZone = obs.tz;
+  const dateStr = now.toLocaleDateString(undefined, dateOpts);
+  const latHemi = obs.latDeg >= 0 ? "N" : "S";
+  const lonHemi = obs.lonDeg >= 0 ? "E" : "W";
+  const coordStr = `${Math.abs(obs.latDeg).toFixed(4)}°${latHemi}, `
+                 + `${Math.abs(obs.lonDeg).toFixed(4)}°${lonHemi}`;
+  // Resolve a "UTC±H" tag for the tz at the pass START instant, so the
+  // displayed offset reflects whatever DST rules were actually in
+  // effect for the pass (and not, e.g., "winter offset" applied to a
+  // summer pass).
+  const refMs = state.windows?.[state.activeWindowIdx]?.startMs ?? now.getTime();
+  let tzOffsetTag = "";
+  if (obs.tz) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: obs.tz, timeZoneName: "shortOffset",
+      }).formatToParts(new Date(refMs));
+      const raw = parts.find(p => p.type === "timeZoneName")?.value ?? "";
+      // "GMT-5" → "UTC-5"; "GMT" alone → "UTC"
+      tzOffsetTag = raw.replace(/^GMT/, "UTC") || "";
+    } catch {}
+  }
+  const tzStr = obs.tz
+    ? (tzOffsetTag ? `times in ${obs.tz} (${tzOffsetTag})` : `times in ${obs.tz}`)
+    : "times in browser local (tz lookup unavailable)";
+  const titleT = document.createElementNS(SVG_NS, "text");
+  titleT.setAttribute("x", cx);
+  titleT.setAttribute("y", -54);
+  titleT.setAttribute("text-anchor", "middle");
+  titleT.classList.add("meta-title");
+  titleT.textContent = `${obs.name} — ISS pass sky chart`;
+  svg.appendChild(titleT);
+  const subT = document.createElementNS(SVG_NS, "text");
+  subT.setAttribute("x", cx);
+  subT.setAttribute("y", -44);
+  subT.setAttribute("text-anchor", "middle");
+  subT.classList.add("meta-sub");
+  subT.textContent = `${dateStr} · ${coordStr}`;
+  svg.appendChild(subT);
+  const tzT = document.createElementNS(SVG_NS, "text");
+  tzT.setAttribute("x", cx);
+  tzT.setAttribute("y", -37);
+  tzT.setAttribute("text-anchor", "middle");
+  tzT.classList.add("meta-tz");
+  tzT.textContent = tzStr;
+  svg.appendChild(tzT);
+
+  // ---- Chart base -----------------------------------------------
+  const horizon = document.createElementNS(SVG_NS, "circle");
+  horizon.setAttribute("cx", cx); horizon.setAttribute("cy", cy);
+  horizon.setAttribute("r", R);
+  horizon.classList.add("horizon");
+  svg.appendChild(horizon);
+  // Azimuth spokes every 30°, drawn before rings so rings render on top.
+  for (let az = 0; az < 360; az += 30) {
+    const [x, y] = altAzToSvg(0, az, cx, cy, R);
+    const l = document.createElementNS(SVG_NS, "line");
+    l.setAttribute("x1", cx); l.setAttribute("y1", cy);
+    l.setAttribute("x2", x.toFixed(2)); l.setAttribute("y2", y.toFixed(2));
+    l.classList.add("spoke");
+    svg.appendChild(l);
+  }
+  // Altitude rings: 30°, 60°
+  for (const altRing of [60, 30]) {
+    const c = document.createElementNS(SVG_NS, "circle");
+    c.setAttribute("cx", cx); c.setAttribute("cy", cy);
+    c.setAttribute("r", ((90 - altRing) / 90) * R);
+    c.classList.add("grid");
+    svg.appendChild(c);
+  }
+  // Cardinal labels — sky-chart convention (E LEFT, W RIGHT) with
+  // breathing room outside the ring.
+  const cards = [
+    { l: "N", x: cx,         y: cy - R - 8 },
+    { l: "E", x: cx - R - 9, y: cy },
+    { l: "S", x: cx,         y: cy + R + 8 },
+    { l: "W", x: cx + R + 9, y: cy },
+  ];
+  for (const c of cards) {
+    const t = document.createElementNS(SVG_NS, "text");
+    t.setAttribute("x", c.x); t.setAttribute("y", c.y);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("dominant-baseline", "central");
+    t.classList.add("cardinal");
+    t.textContent = c.l;
+    svg.appendChild(t);
+  }
+  // Azimuth degree numbers (non-cardinals: 30/60/120/150/210/240/300/330)
+  // placed outside the ring just beyond each spoke. text-anchor flips
+  // based on which side of the chart the label lives on so the INNER
+  // edge of the text sits at the same radial offset for every label —
+  // otherwise 3-digit numbers ("240", "300") creep closer to the ring
+  // than 2-digit ones ("30", "60") when all are center-anchored.
+  for (let az = 30; az < 360; az += 30) {
+    if (az % 90 === 0) continue; // cardinals already labeled
+    const [x, y] = altAzToSvg(0, az, cx, cy, R + 6);
+    let anchor = "middle";
+    if (x - cx > 1) anchor = "start";       // right side of chart
+    else if (x - cx < -1) anchor = "end";    // left side of chart
+    const t = document.createElementNS(SVG_NS, "text");
+    t.setAttribute("x", x.toFixed(2));
+    t.setAttribute("y", y.toFixed(2));
+    t.setAttribute("text-anchor", anchor);
+    t.setAttribute("dominant-baseline", "central");
+    t.classList.add("az-num");
+    t.textContent = `${az}°`;
+    svg.appendChild(t);
+  }
+  // Layer order: arc first, then stars + names (so star labels stay
+  // readable where the arc crosses them), then event markers on top.
+  // There's no live ISS dot in the modal anymore — it's a static PNG
+  // snapshot, so the Start/Peak/End markers carry the whole story.
+  const arc = document.createElementNS(SVG_NS, "polyline");
+  arc.classList.add("arc");
+  svg.appendChild(arc);
+  const starsG = document.createElementNS(SVG_NS, "g");
+  starsG.dataset.layer = "stars";
+  svg.appendChild(starsG);
+  const eventsG = document.createElementNS(SVG_NS, "g");
+  eventsG.dataset.layer = "events";
+  svg.appendChild(eventsG);
+}
+
+function paintPolarModalArc(svg, obs) {
+  const arc = svg.querySelector(".arc");
+  if (!arc) return;
+  arc.setAttribute("stroke", obs.color);
+  const w = state.windows?.[state.activeWindowIdx];
+  if (!w) { arc.setAttribute("points", ""); return; }
+  const SAMPLES = 60;
+  const dt = (w.endMs - w.startMs) / SAMPLES;
+  const pts = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const issEcef = issEcefAt(new Date(w.startMs + dt * i));
+    if (!issEcef) continue;
+    const { alt, az } = issAltAzDeg(obs, issEcef);
+    if (alt < 0) continue;
+    const [x, y] = altAzToSvg(alt, az, MODAL_GEOM.cx, MODAL_GEOM.cy, MODAL_GEOM.R);
+    pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+  }
+  arc.setAttribute("points", pts.join(" "));
+}
+
+// Minimum distance (in SVG units) two label centers must be from each
+// other before we'll place both. The chart spans ~180 SVG units across
+// (R=90 radius), so 14 units ≈ 7° of sky — keeps the Big Dipper and
+// Orion's belt from stacking name on name. We sort labels brightest
+// first so brighter stars always win the right to a label.
+const STAR_LABEL_MIN_DIST = 14;
+
+function paintPolarModalStars(svg, obs, jsDate) {
+  const starsG = svg.querySelector('[data-layer="stars"]');
+  if (!starsG) return;
+  starsG.replaceChildren();
+
+  // Brighter stars get first claim to label space. Stars whose labels
+  // would crash into an already-placed label still draw their dot.
+  const labelEligible = [...BRIGHT_STARS].sort((a, b) => a.mag - b.mag);
+  const placedLabels = [];
+
+  const drawStar = (star, withLabel) => {
+    const dirEcef = starDirectionEcef(star, jsDate);
+    const { alt, az } = starAltAzForObs(obs, dirEcef);
+    if (alt < 0) return;
+    const [x, y] = altAzToSvg(alt, az, MODAL_GEOM.cx, MODAL_GEOM.cy, MODAL_GEOM.R);
+    const r = starDotRadius(star.mag);
+    const d = document.createElementNS(SVG_NS, "circle");
+    d.classList.add("star-dot");
+    d.setAttribute("cx", x.toFixed(2));
+    d.setAttribute("cy", y.toFixed(2));
+    d.setAttribute("r", r.toFixed(2));
+    d.setAttribute("fill", starDotColor(star));
+    starsG.appendChild(d);
+    if (withLabel && star.name) {
+      const lx = x, ly = y - r - 1.2;
+      const tooClose = placedLabels.some(p =>
+        Math.hypot(p.x - lx, p.y - ly) < STAR_LABEL_MIN_DIST
+      );
+      if (tooClose) return;
+      placedLabels.push({ x: lx, y: ly });
+      const t = document.createElementNS(SVG_NS, "text");
+      t.classList.add("star-name");
+      t.setAttribute("x", lx.toFixed(2));
+      t.setAttribute("y", ly.toFixed(2));
+      t.setAttribute("text-anchor", "middle");
+      t.textContent = star.name;
+      starsG.appendChild(t);
+    }
+  };
+  // Labeled (brightest-first so declutter favors them)
+  for (const star of labelEligible) drawStar(star, true);
+  // Dots only — fill-in catalogs for visual density
+  for (const star of MORE_STARS)  drawStar(star, false);
+  for (const star of FAINT_STARS) drawStar(star, false);
+}
+
+// Pass-event annotation: small colored dot on the chart at each of
+// start / peak / end, plus a 3-column info row BELOW the chart with
+// time · alt · az for each. Colors visually tie the chart markers to
+// the matching info block (teal=start, gold=peak, red=end).
+const EVENT_STYLE = [
+  { label: "Start", color: "#34d399" }, // green
+  { label: "Peak",  color: "#facc15" }, // gold
+  { label: "End",   color: "#f87171" }, // red
+];
+// Info-row column centers (chosen to span the viewBox with breathing
+// room: viewBox spans x = -24..224, so left/mid/right at 20/100/180).
+const EVENT_COLS = [20, 100, 180];
+// Top placement: events row sits between the tz line (y=-37) and the
+// chart's cardinal N (y=2), with breathing room on both sides.
+const EVENT_ROW_TITLE_Y = -25;
+const EVENT_ROW_TIME_Y  = -17;
+const EVENT_ROW_POS_Y   = -9;
+
+// Path-tangent direction (unit vector in SVG coords) for the ISS arc
+// at time `ms`, sampled by finite difference. Used to orient the split
+// of overlapping event-marker dots so the "earlier" half sits on the
+// side the path came from and "later" on the side it heads toward.
+// Returns null if either sample falls below the horizon or off-chart.
+function pathTangentSvg(obs, ms) {
+  const DT = 2000; // ±2s window — fine enough that the tangent is well-defined
+  const ePrev = issEcefAt(new Date(ms - DT));
+  const eNext = issEcefAt(new Date(ms + DT));
+  if (!ePrev || !eNext) return null;
+  const p1 = issAltAzDeg(obs, ePrev);
+  const p2 = issAltAzDeg(obs, eNext);
+  if (p1.alt < 0 || p2.alt < 0) return null;
+  const [x1, y1] = altAzToSvg(p1.alt, p1.az, MODAL_GEOM.cx, MODAL_GEOM.cy, MODAL_GEOM.R);
+  const [x2, y2] = altAzToSvg(p2.alt, p2.az, MODAL_GEOM.cx, MODAL_GEOM.cy, MODAL_GEOM.R);
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return null;
+  return { x: dx / len, y: dy / len };
+}
+
+// SVG path for a half-disc centered at (cx, cy), radius r, split by a
+// diameter perpendicular to angle `ang`. `side` selects which half:
+//   +1 → the half on the +ang side ("forward" along the path)
+//   -1 → the half on the -ang side ("backward")
+// Built as: center → chord-endpoint-1 → arc (sweep-flag=1, increasing
+// angle) → chord-endpoint-2 → close. The +1 case sweeps through `ang`
+// itself; the -1 case sweeps through `ang+π`.
+function halfDiscPath(cx, cy, r, ang, side) {
+  const centerAngle = ang + (side > 0 ? 0 : Math.PI);
+  const a1 = centerAngle - Math.PI / 2;
+  const a2 = centerAngle + Math.PI / 2;
+  const x1 = cx + r * Math.cos(a1);
+  const y1 = cy + r * Math.sin(a1);
+  const x2 = cx + r * Math.cos(a2);
+  const y2 = cy + r * Math.sin(a2);
+  return `M ${cx.toFixed(2)},${cy.toFixed(2)} `
+       + `L ${x1.toFixed(2)},${y1.toFixed(2)} `
+       + `A ${r},${r} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;
+}
+
+function paintPolarModalEvents(svg, obs) {
+  const eventsG = svg.querySelector('[data-layer="events"]');
+  if (!eventsG) return;
+  eventsG.replaceChildren();
+  const w = state.windows?.[state.activeWindowIdx];
+  if (!w) return;
+  // Find the apparent-alt peak via fine sampling of the active window.
+  const SAMPLES = 240;
+  let peakMs = w.startMs, peakAlt = -Infinity;
+  for (let i = 0; i <= SAMPLES; i++) {
+    const t = w.startMs + (w.endMs - w.startMs) * i / SAMPLES;
+    const e = issEcefAt(new Date(t));
+    if (!e) continue;
+    const a = issAltitudeDeg(obs, e);
+    if (a > peakAlt) { peakAlt = a; peakMs = t; }
+  }
+  const eventTimes = [w.startMs, peakMs, w.endMs];
+  const { cx, cy, R } = MODAL_GEOM;
+
+  // ---- Compute positions for all three events --------------------
+  const pts = eventTimes.map((ms, i) => {
+    const style = EVENT_STYLE[i];
+    const e = issEcefAt(new Date(ms));
+    if (!e) return { ms, style, valid: false };
+    const { alt, az } = issAltAzDeg(obs, e);
+    const altClamped = Math.max(0, alt);
+    const valid = alt >= -0.5;
+    const [x, y] = altAzToSvg(altClamped, az, cx, cy, R);
+    return { ms, style, valid, alt: altClamped, az, x, y };
+  });
+
+  // ---- Marker rendering with overlap handling --------------------
+  // If two adjacent events (start↔peak or peak↔end) land within one
+  // dot-diameter of each other, render them as a single split-disc
+  // (half earlier color / half later color) instead of stacking two
+  // full circles where the upper one hides the lower. Split direction
+  // is perpendicular to the path tangent so "earlier" sits on the side
+  // the ISS came from and "later" on the side it heads toward.
+  const MARKER_R = 2;
+  const OVERLAP_THRESHOLD = 2 * MARKER_R + 0.5;
+  const consumed = new Set();
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    if (!a.valid || !b.valid) continue;
+    if (Math.hypot(b.x - a.x, b.y - a.y) >= OVERLAP_THRESHOLD) continue;
+    // Path tangent sampled around the overlap midpoint
+    const midMs = (a.ms + b.ms) / 2;
+    let dir = pathTangentSvg(obs, midMs);
+    if (!dir) {
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      dir = { x: dx / len, y: dy / len };
+    }
+    const ang = Math.atan2(dir.y, dir.x);
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    // Backward half (path origin side) = earlier event color.
+    // stroke="none" on the half-discs so the chord between the two
+    // halves doesn't show as a dark seam — only the outer circle is
+    // strokeable, and we add that as a separate full circle below.
+    const back = document.createElementNS(SVG_NS, "path");
+    back.setAttribute("d", halfDiscPath(mx, my, MARKER_R, ang, -1));
+    back.setAttribute("fill", a.style.color);
+    back.setAttribute("stroke", "none");
+    eventsG.appendChild(back);
+    // Forward half (path destination side) = later event color
+    const front = document.createElementNS(SVG_NS, "path");
+    front.setAttribute("d", halfDiscPath(mx, my, MARKER_R, ang, +1));
+    front.setAttribute("fill", b.style.color);
+    front.setAttribute("stroke", "none");
+    eventsG.appendChild(front);
+    // Outer ring (stroke only) gives the split dot the same dark edge
+    // as un-split markers without painting through the middle.
+    const ring = document.createElementNS(SVG_NS, "circle");
+    ring.setAttribute("cx", mx.toFixed(2));
+    ring.setAttribute("cy", my.toFixed(2));
+    ring.setAttribute("r", MARKER_R);
+    ring.setAttribute("fill", "none");
+    ring.setAttribute("stroke", "#0a0e1a");
+    ring.setAttribute("stroke-width", 0.5);
+    eventsG.appendChild(ring);
+    consumed.add(i); consumed.add(i + 1);
+  }
+  pts.forEach((p, i) => {
+    if (!p.valid || consumed.has(i)) return;
+    const m = document.createElementNS(SVG_NS, "circle");
+    m.classList.add("event-marker");
+    m.setAttribute("cx", p.x.toFixed(2));
+    m.setAttribute("cy", p.y.toFixed(2));
+    m.setAttribute("r", MARKER_R);
+    m.setAttribute("fill", p.style.color);
+    eventsG.appendChild(m);
+  });
+
+  // ---- Info row beneath the chart (one column per event) ---------
+  pts.forEach((p, i) => {
+    const ms = p.ms;
+    const style = p.style;
+    const altClamped = p.alt ?? 0;
+    const az = p.az ?? 0;
+    // ---- Info block below the chart ----
+    const colX = EVENT_COLS[i];
+    const timeOpts = {
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    };
+    if (obs.tz) timeOpts.timeZone = obs.tz;
+    const timeStr = new Date(ms).toLocaleTimeString([], timeOpts);
+    const altStr = `${Math.round(altClamped)}°`;
+    const azStr  = `${Math.round(((az % 360) + 360) % 360)}°`;
+    // Bullet prefix is a Unicode BLACK CIRCLE glyph (U+25CF) inside
+    // the same text element as the label, so the font handles its
+    // size + baseline alignment automatically — no separate SVG
+    // circle to keep in vertical lock with the caps.
+    const title = document.createElementNS(SVG_NS, "text");
+    title.classList.add("event-block-title");
+    title.setAttribute("x", colX);
+    title.setAttribute("y", EVENT_ROW_TITLE_Y);
+    title.setAttribute("text-anchor", "middle");
+    title.setAttribute("fill", style.color);
+    title.textContent = `●  ${style.label}`;
+    eventsG.appendChild(title);
+    const time = document.createElementNS(SVG_NS, "text");
+    time.classList.add("event-block-time");
+    time.setAttribute("x", colX);
+    time.setAttribute("y", EVENT_ROW_TIME_Y);
+    time.setAttribute("text-anchor", "middle");
+    time.textContent = timeStr;
+    eventsG.appendChild(time);
+    const pos = document.createElementNS(SVG_NS, "text");
+    pos.classList.add("event-block-pos");
+    pos.setAttribute("x", colX);
+    pos.setAttribute("y", EVENT_ROW_POS_Y);
+    pos.setAttribute("text-anchor", "middle");
+    pos.textContent = `alt ${altStr} · az ${azStr}`;
+    eventsG.appendChild(pos);
+  });
+}
+
+// Paint the SVG (offscreen) and rasterize it to a PNG blob URL that
+// becomes the user-facing <img>. Going through an <img> gives native
+// right-click → Save image / Open in new tab / Copy image behavior;
+// the SVG stays offscreen purely as the render source.
+//
+// Resolves only AFTER the resulting bitmap has fully decoded into the
+// <img> element, so the caller can wait before unhiding the modal —
+// otherwise the user sees a frame of empty <img> while the PNG paints.
+async function renderPolarModal(obs) {
+  paintPolarModalStatic(polarModalSvg, obs);
+  paintPolarModalArc(polarModalSvg, obs);
+  paintPolarModalEvents(polarModalSvg, obs);
+  const jsDate = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  paintPolarModalStars(polarModalSvg, obs, jsDate);
+  const blob = await svgToPngBlob(polarModalSvg);
+  const url = URL.createObjectURL(blob);
+  if (_polarModalImgUrl) URL.revokeObjectURL(_polarModalImgUrl);
+  _polarModalImgUrl = url;
+  // decode() resolves once the bitmap is ready to paint — strictly
+  // stronger than `onload`, which can fire before the first paint.
+  polarModalImg.src = url;
+  if (polarModalImg.decode) {
+    try { await polarModalImg.decode(); } catch { /* fall through */ }
+  }
+}
+
+async function openPolarModal(obsId) {
+  const obs = state.observers.find(o => o.id === obsId);
+  if (!obs) return;
+  _polarModalObsId = obsId;
+  // Briefly hint that something's happening — render typically takes
+  // 50-250 ms — without flashing an empty modal at the user.
+  document.body.style.cursor = "progress";
+  try {
+    await renderPolarModal(obs);
+  } catch (e) {
+    console.warn("Polar modal render failed:", e);
+  } finally {
+    document.body.style.cursor = "";
+  }
+  // Only reveal if this open hasn't been superseded by a faster
+  // subsequent click on a different observer.
+  if (_polarModalObsId === obsId) polarModalEl.hidden = false;
+}
+
+function closePolarModal() {
+  _polarModalObsId = null;
+  polarModalEl.hidden = true;
+  if (_polarModalImgUrl) {
+    URL.revokeObjectURL(_polarModalImgUrl);
+    _polarModalImgUrl = null;
+  }
+  polarModalImg.removeAttribute("src");
+}
+
+// (Polar-plot click handling lives on the whole .obs-card now — see
+// renderObsList. No delegated listener here.)
+
+polarModalEl.querySelector(".polar-modal-close").addEventListener("click", closePolarModal);
+polarModalEl.querySelector(".polar-modal-backdrop").addEventListener("click", closePolarModal);
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && !polarModalEl.hidden) closePolarModal();
+});
+
+// Rasterize the current modal SVG to a PNG Blob. The SVG already has
+// CSS embedded (see MODAL_SVG_STYLE) so it can render standalone. We
+// snapshot DOM state synchronously to avoid races with the per-frame
+// preRender redraw of stars/iss dot.
+const EXPORT_PX = 1600; // long-edge target resolution
+function svgToPngBlob(svg) {
+  return new Promise((resolve, reject) => {
+    // XMLSerializer needs xmlns set on the root for the standalone parse.
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const xml = new XMLSerializer().serializeToString(clone);
+    const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      // Match viewBox aspect ratio
+      const vb = svg.viewBox.baseVal;
+      const aspect = vb.width / vb.height;
+      const w = aspect >= 1 ? EXPORT_PX : Math.round(EXPORT_PX * aspect);
+      const h = aspect >= 1 ? Math.round(EXPORT_PX / aspect) : EXPORT_PX;
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(svgUrl);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("toBlob failed")), "image/png");
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(svgUrl); reject(e); };
+    img.src = svgUrl;
+  });
+}
+
+function polarModalFileName() {
+  const obs = state.observers.find(o => o.id === _polarModalObsId);
+  const obsSlug = (obs?.name ?? "observer").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  const dateSlug = d.toISOString().slice(0, 10);
+  return `iss-pass-${obsSlug}-${dateSlug}.png`;
+}
+
+async function downloadPolarModalPng() {
+  try {
+    const blob = await svgToPngBlob(polarModalSvg);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = polarModalFileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.warn("Polar modal PNG export failed:", e);
+    alert("Couldn't export PNG: " + (e?.message ?? e));
+  }
+}
+
+async function copyPolarModalPng() {
+  const btn = polarModalEl.querySelector(".polar-modal-copy");
+  try {
+    const blob = await svgToPngBlob(polarModalSvg);
+    if (!navigator.clipboard?.write) throw new Error("Clipboard API unavailable");
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    btn.classList.add("copied");
+    const prev = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.classList.remove("copied"); btn.textContent = prev; }, 1400);
+  } catch (e) {
+    console.warn("Clipboard copy failed, falling back to download:", e);
+    downloadPolarModalPng();
+  }
+}
+
+polarModalEl.querySelector(".polar-modal-save").addEventListener("click", downloadPolarModalPng);
+polarModalEl.querySelector(".polar-modal-copy").addEventListener("click", copyPolarModalPng);
+
 function renderObsList() {
+  renderObserverIcons();
   obsListEl.replaceChildren();
   for (const obs of state.observers) {
     const card = document.createElement("div");
     card.className = "obs-card";
+    card.dataset.obsId = obs.id;
+    card.title = `Open polar plot — ${obs.name}`;
+    // Whole card opens the polar modal — inner buttons stopPropagation
+    // so they don't accidentally trigger it too.
+    card.addEventListener("click", () => openPolarModal(obs.id));
     const header = document.createElement("div");
     header.className = "obs-card-header";
     const swatch = document.createElement("span");
     swatch.className = "color-swatch";
     swatch.style.background = obs.color;
     header.appendChild(swatch);
-    const nameSpan = document.createElement("span");
+    // Stacked name + coords in one flex column → card stays one row
+    // tall in the header.
+    const meta = document.createElement("div");
+    meta.className = "obs-card-meta";
+    const nameSpan = document.createElement("div");
+    nameSpan.className = "obs-card-name";
     nameSpan.textContent = obs.name;
-    nameSpan.style.flex = "1";
-    nameSpan.style.fontSize = "13px";
-    nameSpan.style.fontWeight = "600";
-    header.appendChild(nameSpan);
+    meta.appendChild(nameSpan);
+    const coordsSpan = document.createElement("div");
+    coordsSpan.className = "obs-card-coords";
+    coordsSpan.textContent = `${obs.latDeg.toFixed(4)}°, ${obs.lonDeg.toFixed(4)}°`;
+    meta.appendChild(coordsSpan);
+    header.appendChild(meta);
+    // "View from here" button — toggles first-person camera mode.
+    const fps = document.createElement("button");
+    fps.type = "button";
+    fps.className = "fps-view" + (obs.id === _fpsObserverId ? " active" : "");
+    fps.textContent = "▲";
+    fps.title = "View from here (camera at observer, looking up at ISS)";
+    fps.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      setFpsObserver(obs.id);
+    });
+    header.appendChild(fps);
     const rm = document.createElement("button");
     rm.type = "button";
     rm.className = "remove";
     rm.textContent = "✕";
     rm.title = "Remove";
-    rm.addEventListener("click", () => removeObserver(obs.id));
+    rm.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      removeObserver(obs.id);
+    });
     header.appendChild(rm);
     card.appendChild(header);
-    const coords = document.createElement("div");
-    coords.style.fontFamily = "'SF Mono', 'Fira Code', monospace";
-    coords.style.fontSize = "11px";
-    coords.style.color = "#8899bb";
-    coords.textContent = `${obs.latDeg.toFixed(4)}°, ${obs.lonDeg.toFixed(4)}°`;
-    card.appendChild(coords);
+    const polar = buildPolarPlot(obs);
+    updatePolarPlotArc(polar, obs);
+    card.appendChild(polar);
     obsListEl.appendChild(card);
   }
 }
@@ -591,6 +1466,313 @@ function ensureOrbitEntity() {
         dashLength: 12,
       }),
       arcType: Cesium.ArcType.NONE,
+    },
+  });
+}
+
+// Bright-star labels on the sky. Each star is placed in ECEF at a fixed
+// large radius along its J2000 RA/Dec direction, rotated each frame by
+// GMST to convert from inertial → Earth-fixed. The same EllipsoidalOccluder
+// check used for observer labels hides a star when it's behind Earth
+// from the camera. Catalog: ~20 brightest stars + Polaris (for
+// orientation). RA in decimal hours, Dec in decimal degrees (J2000).
+// Expanded catalog: ~55 brightest naked-eye stars (down to roughly mag
+// 2.5) plus a few well-known constellation markers. RA in decimal
+// hours, Dec in decimal degrees, J2000 epoch.
+// `cls` is the dominant spectral class letter (O/B/A/F/G/K/M). It maps
+// to a representative color via SPECTRAL_COLOR (cooler stars redder,
+// hotter stars bluer) — see starDotColor() below.
+const BRIGHT_STARS = [
+  { name: "Sirius",         ra:  6.7525, dec: -16.7161, mag: -1.46, cls: "A" },
+  { name: "Canopus",        ra:  6.3992, dec: -52.6957, mag: -0.74, cls: "A" },
+  { name: "Arcturus",       ra: 14.2610, dec:  19.1824, mag: -0.05, cls: "K" },
+  { name: "Vega",           ra: 18.6156, dec:  38.7837, mag:  0.03, cls: "A" },
+  { name: "Capella",        ra:  5.2782, dec:  45.9981, mag:  0.08, cls: "G" },
+  { name: "Rigel",          ra:  5.2423, dec:  -8.2017, mag:  0.13, cls: "B" },
+  { name: "Procyon",        ra:  7.6550, dec:   5.2250, mag:  0.34, cls: "F" },
+  { name: "Betelgeuse",     ra:  5.9195, dec:   7.4070, mag:  0.50, cls: "M" },
+  { name: "Achernar",       ra:  1.6286, dec: -57.2367, mag:  0.46, cls: "B" },
+  { name: "Hadar",          ra: 14.0637, dec: -60.3729, mag:  0.61, cls: "B" },
+  { name: "Altair",         ra: 19.8464, dec:   8.8683, mag:  0.77, cls: "A" },
+  { name: "Acrux",          ra: 12.4433, dec: -63.0991, mag:  0.76, cls: "B" },
+  { name: "Aldebaran",      ra:  4.5987, dec:  16.5092, mag:  0.86, cls: "K" },
+  { name: "Antares",        ra: 16.4901, dec: -26.4320, mag:  1.06, cls: "M" },
+  { name: "Spica",          ra: 13.4199, dec: -11.1614, mag:  0.97, cls: "B" },
+  { name: "Pollux",         ra:  7.7553, dec:  28.0262, mag:  1.14, cls: "K" },
+  { name: "Fomalhaut",      ra: 22.9608, dec: -29.6222, mag:  1.17, cls: "A" },
+  { name: "Deneb",          ra: 20.6906, dec:  45.2803, mag:  1.25, cls: "A" },
+  { name: "Mimosa",         ra: 12.7953, dec: -59.6886, mag:  1.25, cls: "B" },
+  { name: "Regulus",        ra: 10.1395, dec:  11.9672, mag:  1.36, cls: "B" },
+  { name: "Adhara",         ra:  6.9770, dec: -28.9721, mag:  1.50, cls: "B" },
+  { name: "Castor",         ra:  7.5767, dec:  31.8884, mag:  1.58, cls: "A" },
+  { name: "Shaula",         ra: 17.5601, dec: -37.1038, mag:  1.62, cls: "B" },
+  { name: "Gacrux",         ra: 12.5194, dec: -57.1131, mag:  1.63, cls: "M" },
+  { name: "Bellatrix",      ra:  5.4189, dec:   6.3497, mag:  1.64, cls: "B" },
+  { name: "Elnath",         ra:  5.4382, dec:  28.6075, mag:  1.65, cls: "B" },
+  { name: "Miaplacidus",    ra:  9.2200, dec: -69.7172, mag:  1.69, cls: "A" },
+  { name: "Alnilam",        ra:  5.6035, dec:  -1.2019, mag:  1.69, cls: "B" },
+  { name: "Alnitak",        ra:  5.6793, dec:  -1.9426, mag:  1.77, cls: "O" },
+  { name: "Mintaka",        ra:  5.5334, dec:  -0.2991, mag:  2.23, cls: "O" },
+  { name: "Saiph",          ra:  5.7959, dec:  -9.6696, mag:  2.09, cls: "B" },
+  { name: "Wezen",          ra:  7.1399, dec: -26.3933, mag:  1.83, cls: "F" },
+  { name: "Kaus Australis", ra: 18.4029, dec: -34.3847, mag:  1.85, cls: "B" },
+  { name: "Avior",          ra:  8.3753, dec: -59.5095, mag:  1.86, cls: "K" },
+  { name: "Alkaid",         ra: 13.7923, dec:  49.3133, mag:  1.85, cls: "B" },
+  { name: "Menkalinan",     ra:  5.9921, dec:  44.9474, mag:  1.90, cls: "A" },
+  { name: "Atria",          ra: 16.8111, dec: -69.0277, mag:  1.91, cls: "K" },
+  { name: "Alhena",         ra:  6.6285, dec:  16.3993, mag:  1.93, cls: "A" },
+  { name: "Peacock",        ra: 20.4275, dec: -56.7351, mag:  1.94, cls: "B" },
+  { name: "Mirfak",         ra:  3.4054, dec:  49.8612, mag:  1.79, cls: "F" },
+  { name: "Dubhe",          ra: 11.0621, dec:  61.7508, mag:  1.79, cls: "K" },
+  { name: "Mizar",          ra: 13.3988, dec:  54.9254, mag:  2.23, cls: "A" },
+  { name: "Alioth",         ra: 12.9004, dec:  55.9598, mag:  1.76, cls: "A" },
+  { name: "Merak",          ra: 11.0307, dec:  56.3824, mag:  2.37, cls: "A" },
+  { name: "Phecda",         ra: 11.8972, dec:  53.6948, mag:  2.44, cls: "A" },
+  { name: "Megrez",         ra: 12.2571, dec:  57.0326, mag:  3.31, cls: "A" },
+  { name: "Schedar",        ra:  0.6751, dec:  56.5374, mag:  2.24, cls: "K" },
+  { name: "Caph",           ra:  0.1530, dec:  59.1498, mag:  2.27, cls: "F" },
+  { name: "Ruchbah",        ra:  1.4302, dec:  60.2353, mag:  2.66, cls: "A" },
+  { name: "Sadr",           ra: 20.3705, dec:  40.2567, mag:  2.23, cls: "F" },
+  { name: "Albireo",        ra: 19.5125, dec:  27.9597, mag:  3.18, cls: "K" },
+  { name: "Hamal",          ra:  2.1196, dec:  23.4624, mag:  2.00, cls: "K" },
+  { name: "Algol",          ra:  3.1361, dec:  40.9556, mag:  2.12, cls: "B" },
+  { name: "Diphda",         ra:  0.7264, dec: -17.9866, mag:  2.04, cls: "K" },
+  { name: "Markab",         ra: 23.0793, dec:  15.2053, mag:  2.49, cls: "A" },
+  { name: "Alpheratz",      ra:  0.1397, dec:  29.0904, mag:  2.06, cls: "B" },
+  { name: "Almach",         ra:  2.0649, dec:  42.3297, mag:  2.10, cls: "K" },
+  { name: "Polaris",        ra:  2.5302, dec:  89.2641, mag:  1.98, cls: "F" },
+  { name: "Alcyone",        ra:  3.7913, dec:  24.1052, mag:  2.87, cls: "B" },
+];
+
+// Supplemental fainter catalog — RA/Dec/mag, no names. Plotted as dots
+// in the fullscreen polar modal to give the sky chart visual density,
+// but NOT added as labels in the 3D scene (would crowd the globe).
+// J2000 epoch, mostly mag 2.0 – 3.5.
+const MORE_STARS = [
+  { ra:  1.1623, dec:  35.6206, mag: 2.07, cls: "M" },  // Mirach β And
+  { ra: 22.0964, dec:  -0.3198, mag: 2.95, cls: "G" },  // Sadalmelik α Aqr
+  { ra: 21.5260, dec:  -5.5712, mag: 2.87, cls: "G" },  // Sadalsuud β Aqr
+  { ra: 19.7717, dec:  10.6133, mag: 2.72, cls: "K" },  // Tarazed γ Aql
+  { ra: 19.9213, dec:   6.4068, mag: 3.71, cls: "G" },  // Alshain β Aql
+  { ra:  1.9118, dec:  20.8081, mag: 2.65, cls: "A" },  // Sheratan β Ari
+  { ra:  6.0651, dec:  37.2125, mag: 2.69, cls: "K" },  // Hassaleh ι Aur
+  { ra: 14.7497, dec:  27.0741, mag: 2.35, cls: "K" },  // Izar ε Boo
+  { ra: 14.5347, dec:  38.3083, mag: 3.50, cls: "G" },  // Nekkar β Boo
+  { ra: 13.9114, dec:  18.3977, mag: 2.68, cls: "G" },  // Muphrid η Boo
+  { ra:  8.7747, dec:  18.1542, mag: 3.94, cls: "K" },  // Asellus Australis δ Cnc
+  { ra: 12.9337, dec:  38.3184, mag: 2.89, cls: "A" },  // Cor Caroli α CVn
+  { ra:  7.0140, dec: -23.8336, mag: 1.98, cls: "B" },  // Mirzam β CMa
+  { ra:  7.4017, dec: -29.3030, mag: 2.45, cls: "B" },  // Aludra η CMa
+  { ra: 20.3000, dec: -14.7814, mag: 2.85, cls: "A" },  // Deneb Algedi δ Cap
+  { ra:  3.0379, dec:   4.0897, mag: 2.54, cls: "M" },  // Menkar α Cet
+  { ra:  5.6604, dec: -34.0741, mag: 2.65, cls: "B" },  // Phact α Col
+  { ra: 15.5784, dec:  26.7147, mag: 2.23, cls: "A" },  // Alphecca α CrB
+  { ra: 12.4172, dec: -22.6195, mag: 2.65, cls: "G" },  // Kraz β Crv
+  { ra: 12.2635, dec: -17.5419, mag: 2.59, cls: "B" },  // Gienah γ Crv
+  { ra: 20.6605, dec:  15.9120, mag: 3.77, cls: "B" },  // Sualocin α Del
+  { ra: 14.0731, dec:  64.3758, mag: 3.65, cls: "A" },  // Thuban α Dra
+  { ra: 17.9434, dec:  51.4889, mag: 2.24, cls: "K" },  // Eltanin γ Dra
+  { ra: 16.3994, dec:  61.5141, mag: 2.79, cls: "G" },  // Rastaban β Dra
+  { ra:  2.9707, dec: -40.3047, mag: 2.88, cls: "A" },  // Acamar θ Eri
+  { ra: 22.1372, dec: -46.9609, mag: 1.74, cls: "B" },  // Alnair α Gru
+  { ra: 17.2444, dec:  14.3903, mag: 3.06, cls: "M" },  // Rasalgethi α Her
+  { ra: 16.5036, dec:  21.4895, mag: 2.78, cls: "G" },  // Kornephoros β Her
+  { ra:  9.4598, dec:  -8.6586, mag: 1.98, cls: "K" },  // Alphard α Hya
+  { ra: 11.8177, dec:  14.5720, mag: 2.14, cls: "A" },  // Denebola β Leo
+  { ra: 10.3328, dec:  19.8415, mag: 2.61, cls: "K" },  // Algieba γ Leo
+  { ra: 11.2351, dec:  20.5237, mag: 2.56, cls: "A" },  // Zosma δ Leo
+  { ra: 14.8479, dec: -16.0418, mag: 2.61, cls: "B" },  // Zubeneschamali β Lib
+  { ra: 14.7202, dec: -15.7297, mag: 2.75, cls: "A" },  // Zubenelgenubi α Lib
+  { ra: 18.7456, dec:  37.6051, mag: 3.24, cls: "B" },  // Sulafat γ Lyr
+  { ra: 18.8358, dec:  33.3625, mag: 3.45, cls: "B" },  // Sheliak β Lyr
+  { ra: 17.5823, dec:  12.5601, mag: 2.07, cls: "A" },  // Rasalhague α Oph
+  { ra: 17.1729, dec: -15.7249, mag: 2.43, cls: "A" },  // Sabik η Oph
+  { ra: 23.0628, dec:  28.0828, mag: 2.42, cls: "M" },  // Scheat β Peg
+  { ra: 21.7364, dec:   9.8750, mag: 2.39, cls: "K" },  // Enif ε Peg
+  { ra:  0.2206, dec:  15.1836, mag: 2.83, cls: "B" },  // Algenib γ Peg
+  { ra:  0.4380, dec: -42.3061, mag: 2.40, cls: "K" },  // Ankaa α Phe
+  { ra: 18.3536, dec: -29.8281, mag: 2.70, cls: "K" },  // Kaus Media δ Sgr
+  { ra: 18.2333, dec: -36.7615, mag: 2.81, cls: "K" },  // Kaus Borealis λ Sgr
+  { ra: 19.0444, dec: -27.6699, mag: 2.05, cls: "B" },  // Nunki σ Sgr
+  { ra: 16.6053, dec: -28.2161, mag: 2.82, cls: "B" },  // Alniyat τ Sco
+  { ra: 16.0050, dec: -22.6217, mag: 2.50, cls: "B" },  // Graffias β Sco
+  { ra: 16.8359, dec: -34.2929, mag: 1.86, cls: "F" },  // Sargas θ Sco
+  { ra: 14.8451, dec:  74.1556, mag: 2.07, cls: "K" },  // Kochab β UMi
+  { ra: 15.3457, dec:  71.8340, mag: 3.04, cls: "A" },  // Pherkad γ UMi
+  { ra: 11.8378, dec:   1.7647, mag: 3.61, cls: "F" },  // Zavijava β Vir
+  { ra: 13.0364, dec:  10.9591, mag: 2.83, cls: "G" },  // Vindemiatrix ε Vir
+  { ra: 20.7702, dec:  33.9701, mag: 2.48, cls: "K" },  // Gienah ε Cyg
+  { ra: 14.6601, dec: -60.8354, mag: -0.27, cls: "G" }, // Rigil Kentaurus α Cen
+  { ra: 13.8228, dec: -47.2885, mag: 2.06, cls: "K" },  // Menkent θ Cen
+  { ra:  8.7458, dec: -54.7086, mag: 1.83, cls: "O" },  // Suhail γ Vel (WR/early-type, hot blue)
+  { ra:  9.1330, dec: -43.4326, mag: 1.93, cls: "A" },  // δ Vel
+  { ra:  8.0586, dec: -40.0031, mag: 2.21, cls: "O" },  // Naos ζ Pup
+  { ra:  3.7544, dec:  32.2880, mag: 2.85, cls: "O" },  // Atik ζ Per
+];
+
+// Representative apparent color for each Morgan-Keenan spectral class.
+// Values derived from B-V → sRGB conversions (Mitchell Charity's blackbody
+// star-color table), then tweaked slightly for legibility against the
+// near-black sky background of the polar plot.
+const SPECTRAL_COLOR = {
+  O: "#a4c8ff",  // hot blue
+  B: "#bbd0ff",
+  A: "#dfe5ff",  // blue-white
+  F: "#f7f5ff",  // white
+  G: "#fff4d6",  // yellow (Sun-like)
+  K: "#ffcf8e",  // orange
+  M: "#ff9966",  // red-orange
+};
+function starDotColor(star) {
+  return SPECTRAL_COLOR[star.cls] ?? "#e8eefc";
+}
+
+// Even fainter fill-in catalog — RA/Dec/mag/cls. No names, no labels.
+// Used to give the polar modal real sky density (typical naked-eye
+// limit on a dark night is ~mag 6, suburban ~4 — these are mostly
+// mag 3.0–4.0 stars on common constellation outlines).
+const FAINT_STARS = [
+  { ra:  0.66, dec:  30.86, mag: 3.27, cls: "K" },  // δ And
+  { ra:  0.95, dec:  38.50, mag: 3.86, cls: "A" },  // μ And
+  { ra: 19.42, dec:   3.11, mag: 3.36, cls: "F" },  // δ Aql
+  { ra: 19.09, dec:  13.86, mag: 2.99, cls: "A" },  // ζ Aql
+  { ra: 20.19, dec:  -0.82, mag: 3.23, cls: "B" },  // θ Aql
+  { ra: 19.10, dec:  -4.88, mag: 3.43, cls: "B" },  // λ Aql
+  { ra: 22.36, dec:  -1.39, mag: 3.84, cls: "A" },  // γ Aqr
+  { ra: 22.91, dec: -15.82, mag: 3.27, cls: "A" },  // δ Aqr (Skat)
+  { ra: 14.27, dec:  30.37, mag: 3.04, cls: "A" },  // γ Boo (Seginus)
+  { ra: 15.26, dec:  33.31, mag: 3.46, cls: "G" },  // δ Boo
+  { ra:  0.94, dec:  60.72, mag: 2.68, cls: "B" },  // γ Cas
+  { ra:  1.91, dec:  63.67, mag: 3.38, cls: "B" },  // ε Cas
+  { ra:  2.72, dec:  10.11, mag: 3.47, cls: "G" },  // γ Cet
+  { ra:  1.85, dec:  10.34, mag: 3.56, cls: "G" },  // δ Cet
+  { ra:  1.73, dec: -15.94, mag: 3.49, cls: "K" },  // η Cet
+  { ra: 21.31, dec:  62.59, mag: 2.45, cls: "A" },  // α Cep (Alderamin)
+  { ra: 21.48, dec:  70.56, mag: 3.21, cls: "K" },  // β Cep (Alfirk)
+  { ra: 23.66, dec:  77.63, mag: 3.21, cls: "K" },  // γ Cep (Errai)
+  { ra: 12.50, dec: -22.62, mag: 3.18, cls: "K" },  // ε Crv
+  { ra: 12.30, dec: -16.51, mag: 3.81, cls: "F" },  // ζ Crv
+  { ra: 19.75, dec:  45.13, mag: 2.86, cls: "B" },  // δ Cyg
+  { ra: 21.22, dec:  30.23, mag: 3.20, cls: "K" },  // ζ Cyg
+  { ra: 20.71, dec:  16.12, mag: 3.63, cls: "F" },  // β Del (Rotanev)
+  { ra: 18.35, dec:  72.73, mag: 2.73, cls: "K" },  // ζ Dra
+  { ra: 19.21, dec:  67.66, mag: 3.07, cls: "G" },  // δ Dra
+  { ra:  4.20, dec:  -6.84, mag: 2.97, cls: "M" },  // γ Eri (Zaurak)
+  { ra:  3.55, dec:  -9.46, mag: 2.95, cls: "K" },  // δ Eri (Rana)
+  { ra:  7.34, dec:  21.98, mag: 3.06, cls: "M" },  // μ Gem (Tejat)
+  { ra:  6.38, dec:  22.51, mag: 2.87, cls: "M" },  // η Gem (Propus)
+  { ra:  7.04, dec:  20.57, mag: 3.36, cls: "F" },  // ε Gem (Mebsuta)
+  { ra:  7.43, dec:  27.80, mag: 3.50, cls: "F" },  // δ Gem (Wasat)
+  { ra: 16.71, dec:  31.60, mag: 3.13, cls: "A" },  // δ Her
+  { ra: 16.39, dec:  31.60, mag: 2.78, cls: "G" },  // ζ Her
+  { ra: 17.25, dec:  36.81, mag: 3.16, cls: "A" },  // π Her
+  { ra: 10.83, dec: -16.19, mag: 3.00, cls: "G" },  // γ Hya
+  { ra:  8.93, dec:   5.95, mag: 3.11, cls: "B" },  // ζ Hya
+  { ra:  5.55, dec: -17.82, mag: 2.58, cls: "F" },  // α Lep (Arneb)
+  { ra:  5.47, dec: -20.76, mag: 2.81, cls: "G" },  // β Lep (Nihal)
+  { ra: 14.71, dec: -47.39, mag: 2.30, cls: "B" },  // α Lup
+  { ra: 15.07, dec: -52.10, mag: 2.68, cls: "B" },  // β Lup
+  { ra: 16.61, dec:  -3.69, mag: 2.74, cls: "M" },  // δ Oph (Yed Prior)
+  { ra: 16.62, dec:  -4.69, mag: 3.23, cls: "G" },  // ε Oph (Yed Posterior)
+  { ra: 17.72, dec:   4.57, mag: 2.77, cls: "K" },  // β Oph (Cebalrai)
+  { ra:  1.52, dec:  15.35, mag: 3.62, cls: "G" },  // η Psc (Alpherg)
+  { ra:  7.72, dec: -37.10, mag: 2.71, cls: "F" },  // π Pup
+  { ra:  6.83, dec: -50.61, mag: 3.01, cls: "K" },  // ν Pup
+  { ra:  7.82, dec: -24.86, mag: 2.83, cls: "K" },  // ρ Pup
+  { ra: 19.97, dec:  19.49, mag: 3.51, cls: "K" },  // γ Sge
+  { ra: 18.96, dec: -29.88, mag: 2.59, cls: "A" },  // ζ Sgr (Ascella)
+  { ra: 18.13, dec: -30.42, mag: 2.99, cls: "B" },  // γ Sgr (Alnasl)
+  { ra: 17.71, dec: -37.30, mag: 2.69, cls: "B" },  // υ Sco
+  { ra: 16.00, dec: -22.62, mag: 2.30, cls: "B" },  // β Sco (Graffias, dup safe)
+  { ra: 16.00, dec: -19.81, mag: 2.32, cls: "B" },  // δ Sco (Dschubba)
+  { ra: 15.74, dec:   6.43, mag: 2.63, cls: "K" },  // α Ser (Unukalhai)
+  { ra:  4.84, dec:  19.18, mag: 3.41, cls: "A" },  // θ Tau
+  { ra:  4.48, dec:  15.87, mag: 3.40, cls: "K" },  // ε Tau (Ain)
+  { ra:  3.95, dec:  12.49, mag: 3.65, cls: "A" },  // γ Tau
+  { ra:  4.38, dec:  17.93, mag: 3.76, cls: "K" },  // δ Tau
+  { ra:  3.41, dec:  12.49, mag: 3.41, cls: "B" },  // λ Tau
+  { ra:  2.16, dec:  34.99, mag: 3.00, cls: "A" },  // β Tri
+  { ra: 11.30, dec:  31.53, mag: 3.06, cls: "K" },  // ψ UMa
+  { ra:  9.79, dec: -54.57, mag: 2.21, cls: "K" },  // λ Vel
+  { ra: 12.69, dec:  -1.45, mag: 2.74, cls: "F" },  // γ Vir (Porrima)
+  { ra: 13.58, dec:   0.60, mag: 3.38, cls: "G" },  // ζ Vir
+  { ra:  3.96, dec:  31.88, mag: 2.91, cls: "B" },  // ε Per
+  { ra:  3.08, dec:  53.51, mag: 2.92, cls: "M" },  // δ Per
+  { ra:  4.01, dec:  47.79, mag: 3.01, cls: "B" },  // γ Per
+  { ra:  5.99, dec:  37.21, mag: 3.18, cls: "F" },  // δ Aur
+  { ra:  6.06, dec:  39.18, mag: 3.69, cls: "K" },  // ν Aur
+  { ra: 17.92, dec:   2.93, mag: 3.74, cls: "K" },  // β Ser
+];
+
+// Star "dot" radius scales with apparent flux: area ∝ flux, so
+// radius = const × 10^(-mag/5) (one mag step → flux ratio of 10^(2/5) ≈
+// 2.512, so r ratio of 10^(1/5) ≈ 1.585). This matches the Pogson scale
+// and gives a visually proper sense of relative brightness — Sirius and
+// Vega read as bigger than Polaris, Polaris bigger than mag-3 fillers.
+// Saturated at the bright end (mag < -1) so Sirius doesn't dwarf the
+// chart, and at the faint end so mag-4 stars stay readable.
+function starDotRadius(mag) {
+  if (mag == null) mag = 2.5;
+  const r = 0.95 * Math.pow(10, -mag / 5);
+  return Math.max(0.18, Math.min(2.0, r));
+}
+// Stars are functionally at infinity, so a label needs to appear in the
+// star's direction regardless of camera position. We place each label
+// at (camera + starDir × very_large_distance), updated every frame —
+// any reasonable camera→label distance dwarfs the camera-to-Earth
+// distance, so the apparent sky direction stays effectively constant
+// at any zoom level. Distance is well inside Cesium's far plane but
+// far enough that parallax is sub-pixel.
+const STAR_FAR_M = 1e9; // 1 million km
+
+function starDirectionEcef(star, jsDate) {
+  const ra = star.ra * Math.PI / 12;
+  const dec = star.dec * Math.PI / 180;
+  const cdec = Math.cos(dec);
+  const ex = cdec * Math.cos(ra);
+  const ey = cdec * Math.sin(ra);
+  const ez = Math.sin(dec);
+  const gmst = sat.gstime(jsDate);
+  const c = Math.cos(gmst), s = Math.sin(gmst);
+  // ECI → ECEF: rotate by −gmst about Z so stars stay fixed in the
+  // celestial frame as the (Earth-fixed) scene clock advances.
+  return [c * ex + s * ey, -s * ex + c * ey, ez];
+}
+
+function starLabelPos(star, jsDate) {
+  const d = starDirectionEcef(star, jsDate);
+  const cam = viewer.camera.positionWC;
+  return Cesium.Cartesian3.fromElements(
+    cam.x + d[0] * STAR_FAR_M,
+    cam.y + d[1] * STAR_FAR_M,
+    cam.z + d[2] * STAR_FAR_M,
+  );
+}
+
+for (const star of BRIGHT_STARS) {
+  // Label-only: a small name floats at the star's sky direction.
+  // Anchored bottom-center so the baseline of the text sits exactly at
+  // the star position (label "labels" the unmarked point in the sky).
+  // `show` is gated on the star being in front of Earth from the
+  // camera so labels don't poke through the globe.
+  viewer.entities.add({
+    position: new Cesium.CallbackProperty((time) => {
+      return starLabelPos(star, Cesium.JulianDate.toDate(time));
+    }, false),
+    label: {
+      text: star.name,
+      font: "10px sans-serif",
+      fillColor: Cesium.Color.fromCssColorString("#cfd8ec").withAlpha(0.85),
+      outlineColor: Cesium.Color.BLACK.withAlpha(0.5),
+      outlineWidth: 2,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      showBackground: false,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      pixelOffset: new Cesium.Cartesian2(0, -2),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      show: new Cesium.CallbackProperty((time) => {
+        return isInFrontOfEarth(starLabelPos(star, Cesium.JulianDate.toDate(time)));
+      }, false),
     },
   });
 }
@@ -1405,6 +2587,14 @@ function jumpToWindow(i) {
   invalidateOrbitCache(); // force orbit refresh at the jumped time
   renderWindowsList();
   renderActivePassGradient(w); // colored overlay on the orbit for THIS pass
+  refreshAllPolarPlotArcs();   // update each observer's sky-chart arc
+  // On narrow viewports the panel covers almost the entire screen, so
+  // frameAll has nowhere visible to fit the trajectory into. Collapse
+  // the panel first; the user can re-open it via #panel-toggle when
+  // they want to pick another pass.
+  if (window.innerWidth <= 600) {
+    document.body.classList.add("panel-collapsed");
+  }
   cameraCtrl.frameAll(); // pull observers + ISS into view for the moment we jumped to
   // Keep the URL up to date so the Share link always points at the
   // currently-selected pass.
@@ -1448,7 +2638,128 @@ resetBtn.addEventListener("click", () => {
 // Camera presets share their wiring with the triangulation page; we just
 // describe what counts as the orbit anchor (observers' centroid) and what
 // points need to stay in frame (observers + ISS at the current clock time).
+// First-person camera mode: when an observer's "view from here" button
+// is clicked, the camera locks to that observer's location looking up
+// at the ISS, updated every frame so the user can play through a pass
+// and watch the ISS arc across the sky from their POV. (`_fpsObserverId`
+// itself is declared higher up in the file — it's read during initial
+// renderObsList before this section runs.)
+//
+// FPS mode widens the camera FOV to ~90° (roughly human-eye coverage)
+// since the default ~60° crops out high-altitude passes. The original
+// frustum.fov is saved on entry and restored on exit.
+const FPS_FOV_RADIANS = Math.PI / 2; // 90° horizontal
+let _savedFov = null;
+function setFpsObserver(obsId) {
+  const newId = (_fpsObserverId === obsId) ? null : obsId;
+  if (newId !== null && _fpsObserverId === null) {
+    _savedFov = viewer.camera.frustum.fov;
+    viewer.camera.frustum.fov = FPS_FOV_RADIANS;
+    viewer.camera.cancelFlight();
+  } else if (newId === null && _savedFov !== null) {
+    viewer.camera.frustum.fov = _savedFov;
+    _savedFov = null;
+  }
+  _fpsObserverId = newId;
+  renderObsList();
+}
+function exitFpsMode() {
+  if (_fpsObserverId !== null && _savedFov !== null) {
+    viewer.camera.frustum.fov = _savedFov;
+    _savedFov = null;
+  }
+  _fpsObserverId = null;
+  renderObsList();
+}
+
+// Per-frame: keep each observer card's polar plot ISS dot in sync with
+// the current sim time. Arc is static for the active window — only the
+// dot moves frame-to-frame.
+viewer.scene.preRender.addEventListener(() => {
+  for (const svg of obsListEl.querySelectorAll(".polar-plot")) {
+    const obs = state.observers.find(o => o.id === svg.dataset.obsId);
+    if (obs) updatePolarPlotDot(svg, obs);
+  }
+  // Position each observer's HTML label at (pin_screen + label_offset)
+  // and refresh its text content for the current sim time. The label
+  // contains both the polar-plot icon AND the text in a single flex
+  // box. CSS anchors the element by its bottom-left so the natural
+  // offset (+12, -10) lifts the label up-and-right of the pin.
+  const _nowDate = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  const _nowMs = _nowDate.getTime();
+  for (const wrapper of iconLayerEl.children) {
+    const obs = state.observers.find(o => o.id === wrapper.dataset.obsId);
+    if (!obs) { wrapper.style.display = "none"; continue; }
+    const posCart = Cesium.Cartesian3.fromDegrees(obs.lonDeg, obs.latDeg, 0);
+    if (!isInFrontOfEarth(posCart)) { wrapper.style.display = "none"; continue; }
+    const screen = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, posCart);
+    if (!screen) { wrapper.style.display = "none"; continue; }
+    // Skip labels whose anchor is off-screen — they'd just sit
+    // clipped at the viewport edge and on mobile they have been
+    // observed to expand the document layout area.
+    if (screen.x < -8 || screen.y < -8 ||
+        screen.x > window.innerWidth + 8 ||
+        screen.y > window.innerHeight + 8) {
+      wrapper.style.display = "none"; continue;
+    }
+    const off = labelOffsets.get(`pin:${obs.id}`) ?? { dx: 0, dy: 0 };
+    wrapper.style.display = "";
+    wrapper.style.left = `${screen.x + 12 + off.dx}px`;
+    wrapper.style.top = `${screen.y - 10 + off.dy}px`;
+    updateObserverLabelText(wrapper, obs, _nowDate, _nowMs);
+  }
+  // The fullscreen modal is a PNG snapshot taken when it opens — no
+  // per-frame updates there. Close/reopen to refresh.
+});
+
+viewer.scene.preRender.addEventListener(() => {
+  if (_fpsObserverId === null) return;
+  const obs = state.observers.find(o => o.id === _fpsObserverId);
+  if (!obs) { _fpsObserverId = null; return; }
+  const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  const issEcef = issEcefAt(d);
+  if (!issEcef) return;
+
+  // Eye position: 50 m behind the observer along the horizontal
+  // direction to the ISS, lifted 3 m above the ground. Behind so the
+  // observer's pin/label sits in the foreground; up so we don't dip
+  // through terrain imagery.
+  const origin = geodeticToEcef(obs.latDeg, obs.lonDeg, 0);
+  const dir = [issEcef[0]-origin[0], issEcef[1]-origin[1], issEcef[2]-origin[2]];
+  const L = Math.hypot(dir[0], dir[1], dir[2]) || 1;
+  const dirUnit = [dir[0]/L, dir[1]/L, dir[2]/L];
+  const R = Math.hypot(origin[0], origin[1], origin[2]);
+  const up = [origin[0]/R, origin[1]/R, origin[2]/R];
+  const dotUp = dirUnit[0]*up[0] + dirUnit[1]*up[1] + dirUnit[2]*up[2];
+  let dh = [dirUnit[0] - dotUp*up[0], dirUnit[1] - dotUp*up[1], dirUnit[2] - dotUp*up[2]];
+  let Lh = Math.hypot(dh[0], dh[1], dh[2]);
+  if (Lh < 1e-6) { dh = [1, 0, 0]; Lh = 1; } // ISS at zenith, arbitrary dir
+  const dirHoriz = [dh[0]/Lh, dh[1]/Lh, dh[2]/Lh];
+  const camPos = [
+    origin[0] - dirHoriz[0]*50 + up[0]*3,
+    origin[1] - dirHoriz[1]*50 + up[1]*3,
+    origin[2] - dirHoriz[2]*50 + up[2]*3,
+  ];
+
+  // Aim directly at the ISS so it stays centered no matter how high it
+  // gets (the previous bisector-of-observer-and-ISS aim left high-alt
+  // passes cropped at the top of the frame). With the wide FPS FOV +
+  // the 50m horizontal back-step, the observer pin still appears in
+  // the lower portion of the view for low/mid-altitude passes.
+  const toIss = [issEcef[0]-camPos[0], issEcef[1]-camPos[1], issEcef[2]-camPos[2]];
+  const Li = Math.hypot(toIss[0], toIss[1], toIss[2]) || 1;
+  const aim = [toIss[0]/Li, toIss[1]/Li, toIss[2]/Li];
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromElements(camPos[0], camPos[1], camPos[2]),
+    orientation: {
+      direction: Cesium.Cartesian3.fromElements(aim[0], aim[1], aim[2]),
+      up: Cesium.Cartesian3.fromElements(up[0], up[1], up[2]),
+    },
+  });
+});
+
 const cameraCtrl = wireCameraControls(viewer, {
+  beforePreset: () => exitFpsMode(),
   getOrbitAnchor: () => {
     if (!state.observers.length) return Cesium.Cartesian3.fromDegrees(0, 0, 0);
     const avgLat = state.observers.reduce((s, o) => s + o.latDeg, 0) / state.observers.length;

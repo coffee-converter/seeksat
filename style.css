@@ -1,8 +1,13 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; background: #0a0e1a; color: #e0e0e0;
+/* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than
+   the actual visible area, leaving bare background below the globe.
+   dvh tracks the dynamic visible area so the canvas fills the
+   viewport reliably. vh fallback preserves desktop behavior on older
+   browsers without dvh support. */
+html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; color: #e0e0e0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 13px; line-height: 1.5; }
-#cesium-container { width: 100vw; height: 100vh; }
+#cesium-container { width: 100vw; height: 100vh; height: 100dvh; }
 
 .panel {
   position: absolute; top: 16px;
@@ -13,6 +18,7 @@ html, body { width: 100%; height: 100%; background: #0a0e1a; color: #e0e0e0;
   backdrop-filter: blur(12px);
   max-width: 460px;
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   overflow: auto;
   z-index: 1000;
 }
@@ -52,16 +58,46 @@ html, body { width: 100%; height: 100%; background: #0a0e1a; color: #e0e0e0;
 #obs-details:not([open]) summary::before { transform: rotate(-90deg); }
 #obs-details summary h2 { margin-bottom: 0; }
 
-#obs-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+/* Scroll the observer list within its own bounds so a long list
+   doesn't push the whole left panel taller than the viewport. Bound
+   by ~40% of the viewport. The negative-margin + padding-right pair
+   bleeds the list into the panel's right gutter so the scrollbar
+   lives in otherwise-empty pane space instead of overlapping cards. */
+#obs-list {
+  display: flex; flex-direction: column;
+  gap: 6px; margin-bottom: 8px;
+  max-height: 40vh; overflow-y: auto;
+  margin-right: -12px;
+  padding-right: 12px;
+}
 
 .obs-card {
   background: rgba(255,255,255,0.025);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.obs-card:hover {
+  background: rgba(126,184,255,0.07);
+  border-color: rgba(126,184,255,0.28);
+}
+.obs-card-meta {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 0;
+  line-height: 1.2;
+}
+.obs-card-name {
+  font-size: 12px; font-weight: 600; color: #e0e0e0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.obs-card-coords {
+  font-size: 10px; color: #8899bb;
+  font-family: 'SF Mono', 'Fira Code', monospace;
 }
 .obs-card-header {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
 }
 .color-swatch {
   width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
@@ -83,6 +119,58 @@ html, body { width: 100%; height: 100%; background: #0a0e1a; color: #e0e0e0;
 }
 .obs-card-header .remove:hover {
   background: rgba(248,113,113,0.12); color: #f87171;
+}
+.obs-card-header .fps-view {
+  background: transparent; border: 1px solid transparent; color: #8899bb;
+  cursor: pointer; font-size: 12px; padding: 2px 6px; margin: 0;
+  border-radius: 4px; line-height: 1;
+}
+.obs-card-header .fps-view:hover {
+  background: rgba(126, 184, 255, 0.12); color: #cfe0ff;
+}
+.obs-card-header .fps-view.active {
+  background: rgba(126, 184, 255, 0.25); color: #7eb8ff;
+  border-color: rgba(126, 184, 255, 0.5);
+}
+
+.polar-plot {
+  display: block;
+  margin: 4px auto 2px;
+  width: 88px;
+  height: 88px;
+  /* Cardinal labels sit just outside the 0..100 viewBox at -2/102 so
+     they don't crowd the horizon ring; let them paint. */
+  overflow: visible;
+  cursor: pointer;
+}
+.polar-plot:hover .horizon { stroke: rgba(126, 184, 255, 0.7); }
+.polar-plot .horizon {
+  fill: rgba(8, 12, 24, 0.7);
+  stroke: rgba(126, 184, 255, 0.45);
+  stroke-width: 0.8;
+}
+.polar-plot .grid {
+  fill: none;
+  stroke: rgba(126, 184, 255, 0.18);
+  stroke-width: 0.4;
+}
+.polar-plot .cardinal {
+  fill: #8899bb;
+  font-size: 7px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.polar-plot .arc {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+.polar-plot .iss-dot {
+  fill: #ffffff;
+  stroke: #7eb8ff;
+  stroke-width: 0.7;
 }
 
 .obs-row {
