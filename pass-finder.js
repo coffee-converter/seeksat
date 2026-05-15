@@ -1179,7 +1179,7 @@ function renderWindowsList() {
   // as a stable orientation cue for the list area.
   const hdr = document.createElement("div");
   hdr.className = "window-row header";
-  for (const label of ["", "Time (UTC)", "Sun", "Dur", "Alt", "Mag", "Clouds"]) {
+  for (const label of ["P%", "Time (UTC)", "Dur", "Sun", "Alt", "Mag", "Clouds"]) {
     const c = document.createElement("span");
     c.textContent = label;
     hdr.appendChild(c);
@@ -1239,15 +1239,19 @@ function renderWindowsList() {
     time.textContent = new Date(peakMs).toISOString().slice(5, 19).replace("T", " ");
     row.appendChild(time);
 
-    // Sun-altitude column — worst (highest = brightest sky) observer at
-    // peak, refraction-corrected. Color is the SAME pDark score used in
-    // the rating math: pDark = −sunAlt / 12, clamped to [0, 1]. Combined
-    // with the gradient stops (yellow at 1/3, green at 2/3), that maps:
-    //   sun =   0° → 0.00  red
-    //   sun =  −4° → 0.33  yellow
-    //   sun =  −6° → 0.50  yellow→green lime
-    //   sun =  −8° → 0.67  green (saturated)
-    //   sun = −12° → 1.00  green (saturated, pDark maxed out)
+    // Duration column — color follows coordinationFactor(durSec) on the
+    // shared red→yellow→green gradient. 30s pass shows yellow-orange,
+    // 1m mid yellow-green, 2m hits green, 4m+ saturated.
+    const dur = document.createElement("span");
+    dur.className = "dur";
+    const mm = Math.floor(durSec / 60), ss = durSec % 60;
+    dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
+    dur.style.color = ratingCssColor(coordinationFactor(durSec));
+    row.appendChild(dur);
+
+    // Sun-altitude column — worst (highest = brightest) observer at the
+    // peak moment, refraction-corrected. Color is the literal twilight
+    // factor used in the rating math: twilightFactor(sunAlt).
     const peakDate = new Date(peakMs);
     let worstSunAlt = -Infinity;
     for (const obs of state.observers) {
@@ -1264,27 +1268,25 @@ function renderWindowsList() {
     }
     row.appendChild(sun);
 
-    // Duration column — color follows the coordination sigmoid
-    // dur/(dur+60) on the shared red→yellow→green gradient. A 30s pass
-    // shows yellow-orange (pCoord 0.33), 1m shows mid-yellow-green
-    // (0.50), 2m hits green (0.67), 4m+ saturated. Tightened from a
-    // previous +30 constant so short passes don't auto-rate green.
-    const dur = document.createElement("span");
-    dur.className = "dur";
-    const mm = Math.floor(durSec / 60), ss = durSec % 60;
-    dur.textContent = `${mm}m${ss < 10 ? "0" : ""}${ss}s`;
-    dur.style.color = ratingCssColor(coordinationFactor(durSec));
-    row.appendChild(dur);
-
-    // Altitude range — color matches captureProbForObserver's pAlt ramp
-    // (apparent altitude 5°→0, 30°→1) on the same gradient. The worst
-    // observer's altitude drives the color since that's the binding
-    // constraint on joint visibility.
+    // Altitude range — value is min–max alt across observers at peak.
+    // Color is the PRODUCT of altitudeFactor across observers (matches
+    // the joint model's treatment of altitude as the genuinely-
+    // independent factor that legitimately compounds). Single observer:
+    // product = single factor. Multi-observer: each weaker observer
+    // multiplicatively pulls the color toward red.
     const alt = document.createElement("span");
     alt.className = "alt";
     const altLo = Math.round(minAlt), altHi = Math.round(maxAlt);
     alt.textContent = altLo === altHi ? `${altHi}°` : `${altLo}–${altHi}°`;
-    alt.style.color = ratingCssColor(altitudeFactor(apparentAltDeg(minAlt)));
+    let prodAlt = 1;
+    if (issEcef) {
+      for (const obs of state.observers) {
+        prodAlt *= altitudeFactor(apparentAltDeg(issAltitudeDeg(obs, issEcef)));
+      }
+    } else {
+      prodAlt = 0;
+    }
+    alt.style.color = ratingCssColor(prodAlt);
     row.appendChild(alt);
 
     // Peak magnitude — colored on the same gradient: mag = −3 → green
