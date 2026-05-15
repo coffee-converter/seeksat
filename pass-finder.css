@@ -12,7 +12,7 @@ html, body {
 /* Single source of truth for the left panel's width, so the panel
    itself and the toggle button hugging its right edge stay in sync
    when the responsive @media rule (below) changes it for mobile. */
-:root { --panel-left-width: 360px; }
+:root { --panel-left-width: 440px; }
 
 /* Full-page loader. Covers everything while Cesium boots, the TLE
    fetches, observers seed, and the initial search runs. Fades out once
@@ -424,6 +424,53 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   margin: 0;
 }
 #share-btn:hover { background: rgba(126, 184, 255, 0.22); }
+
+.passes-controls {
+  display: flex; align-items: center; gap: 6px;
+}
+.mode-toggle {
+  display: inline-flex;
+  background: rgba(10, 14, 26, 0.6);
+  border: 1px solid rgba(126, 184, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.mode-toggle button {
+  background: transparent;
+  border: none;
+  color: #8aa0c8;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  cursor: pointer;
+  margin: 0;
+  font-family: inherit;
+}
+.mode-toggle button + button {
+  border-left: 1px solid rgba(126, 184, 255, 0.25);
+}
+.mode-toggle button:hover { color: #cfe0ff; }
+.mode-toggle button.active {
+  background: rgba(126, 184, 255, 0.22);
+  color: #cfe0ff;
+}
+.min-elev {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #8aa0c8;
+}
+.min-elev[hidden] { display: none; }
+.min-elev input {
+  width: 36px;
+  background: rgba(10, 14, 26, 0.6);
+  border: 1px solid rgba(126, 184, 255, 0.3);
+  color: #cfe0ff;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
 #share-btn.copied {
   background: rgba(127, 229, 209, 0.22);
   border-color: rgba(127, 229, 209, 0.5);
