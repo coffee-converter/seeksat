@@ -86,3 +86,17 @@ export function isVisibleAtAll(observers, issEcef, jsDate, opts = {}) {
   }
   return true;
 }
+
+// Radio-reception predicate: all observers have geometric line-of-sight
+// to the ISS at apparent elevation ≥ minIssAltDeg. No sun-below-horizon
+// or ISS-illuminated check — radio links work day or night and cloud/
+// twilight effects on VHF/UHF are negligible. This is the "coordinated
+// multi-station reachable" predicate that mirrors the visual joint
+// gate: every observer must be above the threshold simultaneously.
+export function isRadioReachable(observers, issEcef, jsDate, opts = {}) {
+  const minIssAltDeg = opts.minIssAltDeg ?? 10;
+  for (const obs of observers) {
+    if (apparentAltDeg(issAltitudeDeg(obs, issEcef)) < minIssAltDeg) return false;
+  }
+  return true;
+}
