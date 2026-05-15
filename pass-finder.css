@@ -202,7 +202,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
      justify-content: space-between — gives every column an equal visual
      gap, including between rating and time. */
   display: grid;
-  grid-template-columns: auto auto auto auto auto;
+  grid-template-columns: auto auto auto auto auto auto auto;
   justify-content: space-between;
   align-content: start;
   column-gap: 0;
@@ -313,8 +313,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 /* All numeric columns right-align so they hit the same rightward anchor
    in each cell — combined with subgrid this gives the columns a
    consistent vertical edge across rows. */
+.window-row .sun,
 .window-row .dur,
 .window-row .alt,
+.window-row .mag,
 .window-row .cloud { text-align: right; }
 
 /* Column header row. Sticky so it stays visible while the list scrolls. */
@@ -335,7 +337,9 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 .window-row.header > span:nth-child(3),
 .window-row.header > span:nth-child(4),
-.window-row.header > span:nth-child(5) { text-align: right; }
+.window-row.header > span:nth-child(5),
+.window-row.header > span:nth-child(6),
+.window-row.header > span:nth-child(7) { text-align: right; }
 .window-row.header:hover { background: rgba(10, 14, 26, 0.92); }
 
 .window-empty {
@@ -405,6 +409,12 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .window-row .alt.good { color: #7fe5d1; }  /* high alt: green */
 .window-row .alt.ok   { color: #facc15; }  /* mid alt: yellow */
 .window-row .alt.poor { color: #f87171; }  /* low alt (10-15°): red */
+.window-row .mag { text-align: right; }
+.window-row .mag.brilliant { color: #7fe5d1; } /* < −2 mag: wow pass */
+.window-row .mag.good      { color: #a3e635; } /* −2 to −1: bright */
+.window-row .mag.ok        { color: #facc15; } /* −1 to +1: naked-eye */
+.window-row .mag.poor      { color: #f87171; } /* +1 and dimmer: faint */
+.window-row .mag.na        { color: #6a7a9a; }
 .window-row .cloud { text-align: right; }
 .window-row .cloud.clear { color: #7fe5d1; }
 .window-row .cloud.partial { color: #facc15; }
