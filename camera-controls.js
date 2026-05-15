@@ -56,6 +56,27 @@ export function wireCameraControls(viewer, {
     step();
   }
 
+  // Derive both horizontal and vertical FOV from the camera's frustum.
+  // Cesium semantics: PerspectiveFrustum.fov is the HORIZONTAL FOV when
+  // viewport width > height, otherwise the VERTICAL FOV. Naively
+  // treating it as horizontal gives wildly wrong results on portrait
+  // viewports (the actual horizontal FOV is much narrower there, so
+  // the framed/top view overflows the sides).
+  function cameraFovs() {
+    const frustum = viewer.camera.frustum;
+    const fov = frustum.fov ?? Math.PI / 3;
+    const aspect = frustum.aspectRatio ?? 1;
+    let fovH, fovV;
+    if (aspect >= 1) {
+      fovH = fov;
+      fovV = 2 * Math.atan(Math.tan(fov / 2) / aspect);
+    } else {
+      fovV = fov;
+      fovH = 2 * Math.atan(Math.tan(fov / 2) * aspect);
+    }
+    return { fovH, fovV, aspect };
+  }
+
   function frameAll() {
     viewer.camera.cancelFlight();
     const positions = getFramePositions?.() ?? [];
@@ -73,17 +94,9 @@ export function wireCameraControls(viewer, {
       return;
     }
     const bs = Cesium.BoundingSphere.fromPoints(positions);
-    // Compute the range that just-tangents the bounding sphere in the
-    // narrower of the camera's horizontal/vertical FOVs. Cesium's
-    // PerspectiveFrustum.fov is the HORIZONTAL FOV; the vertical FOV
-    // is derived from aspect ratio, so on widescreen displays vertical
-    // is much narrower (~18° vs the 60° horizontal default) and is the
-    // binding constraint. A fixed multiplier of bs.radius would clip on
-    // wide aspects; this computation keeps the points inside both axes.
-    const frustum = viewer.camera.frustum;
-    const fovH = frustum.fov ?? Math.PI / 3;
-    const aspect = frustum.aspectRatio ?? 1;
-    const fovV = 2 * Math.atan(Math.tan(fovH / 2) / aspect);
+    // Range that just-tangents the bounding sphere along whichever FOV
+    // axis is narrower (the binding constraint).
+    const { fovH, fovV } = cameraFovs();
     const halfMinFov = Math.min(fovH, fovV) / 2;
     const range = (bs.radius / Math.sin(halfMinFov)) * 1.15; // 15% margin
     viewer.camera.flyToBoundingSphere(bs, {
@@ -100,6 +113,12 @@ export function wireCameraControls(viewer, {
     viewer.camera.cancelFlight();
     let center = getTopDownCenter?.();
     let altitude;
+    // Camera looking straight down at altitude h sees a circle on the
+    // ground of radius h * tan(halfMinFov). Solve for h so a bounding
+    // sphere of radius r fits with breathing room.
+    const { fovH, fovV } = cameraFovs();
+    const halfMinFov = Math.min(fovH, fovV) / 2;
+    const margin = 1.15;
     if (!center) {
       const positions = getFramePositions?.() ?? [];
       if (!positions.length) { viewer.camera.flyHome(1.2); return; }
@@ -107,7 +126,7 @@ export function wireCameraControls(viewer, {
       center = bs.center;
       altitude = topDownAltitude
         ? topDownAltitude(bs.radius)
-        : Math.max(2_000_000, 2.2 * bs.radius);
+        : Math.max(2_000_000, (bs.radius / Math.tan(halfMinFov)) * margin);
     } else {
       altitude = topDownAltitude ? topDownAltitude(0) : 2_000_000;
     }
