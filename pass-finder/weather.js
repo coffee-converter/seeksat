@@ -5,11 +5,18 @@
 // timezone=UTC — we append "Z" to force JS Date to parse as UTC instead of
 // local time.
 
-const cache = new Map(); // rounded "lat,lon" -> Promise<{ startMs, hours[] } | null>
+// In-page cache for Open-Meteo cloud forecasts. Cached entries expire
+// after CACHE_TTL_MS so a long-open page picks up fresh data on the
+// next call — Open-Meteo's seamless model uses NOAA HRRR for US
+// short-term forecasts (hourly updates), so a ~1-hour TTL matches the
+// source's actual update cadence.
+const CACHE_TTL_MS = 50 * 60 * 1000;
+const cache = new Map(); // rounded "lat,lon" -> { promise, fetchedAt }
 
 export function fetchCloudForecast(latDeg, lonDeg) {
   const key = `${latDeg.toFixed(2)},${lonDeg.toFixed(2)}`;
-  if (cache.has(key)) return cache.get(key);
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.fetchedAt < CACHE_TTL_MS) return hit.promise;
   const url = "https://api.open-meteo.com/v1/forecast"
     + `?latitude=${latDeg}&longitude=${lonDeg}`
     + "&hourly=cloud_cover&timezone=UTC&forecast_days=16";
@@ -29,7 +36,7 @@ export function fetchCloudForecast(latDeg, lonDeg) {
       console.warn(`cloud forecast failed for ${key}: ${err.message}`);
       return null;
     });
-  cache.set(key, promise);
+  cache.set(key, { promise, fetchedAt: Date.now() });
   return promise;
 }
 
