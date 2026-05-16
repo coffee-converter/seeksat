@@ -4,9 +4,21 @@ const DEG = Math.PI / 180;
 const HOUR = Math.PI / 12;
 
 // "40°30'15.9\"N" | "40.5083" | "-75.26" -> decimal degrees. N/E positive, S/W negative.
+// Normalize a coordinate-string by mapping Unicode look-alikes onto
+// the ASCII characters the parsers expect. Browser auto-formatting
+// and chat-pasted values commonly use typographic minus / dashes
+// and prime / double-prime marks that the strict regexes below
+// would otherwise refuse.
+function normalizeCoordString(str) {
+  return String(str).trim()
+    .replace(/[−–—‐‑‒―]/g, "-") // various dashes/minus → ASCII -
+    .replace(/′/g, "'")
+    .replace(/″/g, '"');
+}
+
 export function parseDmsToDecimal(str) {
   if (str == null) throw new Error('parseDmsToDecimal: null input');
-  const s = String(str).trim().replace(/′/g, "'").replace(/″/g, '"');
+  const s = normalizeCoordString(str);
   if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
   const m = s.match(
     /^\s*(-?\d+(?:\.\d+)?)\s*°?\s*(?:(\d+(?:\.\d+)?)\s*['m]?\s*(?:(\d+(?:\.\d+)?)\s*["s]?)?)?\s*([NSEWnsew])?\s*$/
@@ -29,7 +41,7 @@ export function parseDmsToDecimal(str) {
 
 // "5h 30m 52.4110s" | "5 30 52.411" | "5.5145586" -> hours.
 export function parseRaToHours(str) {
-  const s = String(str).trim();
+  const s = normalizeCoordString(str);
   if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
   const m = s.match(
     /^\s*(\d+(?:\.\d+)?)\s*[h:\s]\s*(\d+(?:\.\d+)?)\s*[m':\s]\s*(\d+(?:\.\d+)?)\s*[s"]?\s*$/

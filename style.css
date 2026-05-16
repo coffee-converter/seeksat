@@ -9,6 +9,20 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; col
   font-size: 13px; line-height: 1.5; }
 #cesium-container { width: 100vw; height: 100vh; height: 100dvh; }
 
+/* Disable text selection by default on the whole UI — accidental
+   double-clicks on buttons/labels picking up stray text selection is
+   more annoying than the rare case of wanting to copy a timestamp.
+   Re-enable specifically for input controls (where text-selection
+   IS the point). Applies to both index.html and pass-finder.html. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .panel {
   position: absolute; top: 16px;
   background: rgba(10, 14, 26, 0.92);
@@ -26,6 +40,101 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; col
 .panel-right { right: 16px; max-width: 340px; }
 .panel h2 { font-size: 14px; color: #7eb8ff; margin-bottom: 10px;
   text-transform: uppercase; letter-spacing: 0.08em; }
+#attempt-picker {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 10px;
+}
+#attempt-picker label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #7eb8ff; font-weight: 700;
+}
+#attempt-picker select {
+  flex: 1;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+#attempt-picker button {
+  background: rgba(126, 184, 255, 0.12);
+  border: 1px solid rgba(126, 184, 255, 0.35);
+  color: #cfe0ff;
+  width: 24px; height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin: 0;
+}
+#attempt-picker button:hover { background: rgba(126, 184, 255, 0.22); }
+#attempt-picker button[hidden] { display: none; }
+
+#attempt-new-form {
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(126, 184, 255, 0.05);
+  border: 1px solid rgba(126, 184, 255, 0.18);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+#attempt-new-form[hidden] { display: none; }
+#attempt-new-form .af-row {
+  display: flex; align-items: center; gap: 8px;
+}
+#attempt-new-form .af-row > span {
+  flex: 0 0 44px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #7eb8ff; font-weight: 700;
+}
+#attempt-new-form .af-row > input[type="text"] {
+  flex: 1;
+}
+#attempt-new-form .af-check { font-size: 11px; color: #cfe0ff; }
+#attempt-new-form .af-check span { flex: 1; font-weight: 400;
+  text-transform: none; letter-spacing: 0; color: #cfe0ff; }
+#attempt-new-form .af-actions {
+  display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px;
+}
+#attempt-new-form .af-actions button { margin-top: 0; padding: 4px 10px; font-size: 11px; }
+
+#tle-section {
+  margin-top: 10px;
+}
+#tle-section > summary {
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 8px;
+}
+#tle-section > summary::-webkit-details-marker { display: none; }
+#tle-section > summary h3 {
+  display: inline;
+  font-size: 12px; color: #7eb8ff;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin: 0; font-weight: 700;
+}
+#tle-section .tle-actions {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
+#tle-section .tle-actions button {
+  font-size: 11px;
+  padding: 3px 10px;
+  margin-top: 0;
+}
+#tle-section .tle-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#tle-section .tle-actions #tle-warn {
+  font-size: 10px; color: #facc15;
+  margin-left: auto;
+}
+#tle-section textarea {
+  width: 100%;
+  min-height: 28px;
+  resize: vertical;
+  margin-top: 4px;
+}
 .panel input[type=text], .panel textarea, .panel select {
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
   color: #e0e0e0; padding: 4px 6px; border-radius: 4px;

@@ -9,19 +9,6 @@ html, body {
   overscroll-behavior: none;
 }
 
-/* Disable text selection by default on the whole UI — accidental
-   double-clicks on buttons/labels picking up stray text selection is
-   more annoying than the rare case of wanting to copy a timestamp.
-   Re-enable specifically for input controls below. */
-body {
-  -webkit-user-select: none;
-  user-select: none;
-}
-input, textarea, [contenteditable="true"] {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
 /* Single source of truth for the left panel's width, so the panel
    itself and the toggle button hugging its right edge stay in sync
    when the responsive @media rule (below) changes it for mobile. */

@@ -11,6 +11,34 @@
   <div id="cesium-container"></div>
 
   <section id="panel-observations" class="panel panel-left">
+    <div id="attempt-picker">
+      <label for="attempt-select">Attempt</label>
+      <select id="attempt-select" title="Switch between triangulation attempts"></select>
+      <button id="attempt-new" type="button" title="Create a new attempt">+</button>
+      <button id="attempt-download" type="button" hidden title="Download JSON for this attempt">⬇</button>
+      <button id="attempt-delete" type="button" hidden title="Delete this attempt (browser-local only)">✕</button>
+    </div>
+    <!-- Add-attempt form: shown when the + button is clicked. Fields are
+         minimum-viable (label, UTC), with an optional checkbox to seed
+         the new attempt from the currently-loaded one's observations. -->
+    <form id="attempt-new-form" hidden>
+      <label class="af-row">
+        <span>Label</span>
+        <input type="text" id="af-label" placeholder="e.g. Wednesday evening" required />
+      </label>
+      <label class="af-row">
+        <span>UTC</span>
+        <input type="text" id="af-utc" placeholder="2026-05-16T22:35:00Z" required />
+      </label>
+      <label class="af-row af-check">
+        <input type="checkbox" id="af-copy" />
+        <span>Copy current observations</span>
+      </label>
+      <div class="af-actions">
+        <button type="button" id="af-cancel">Cancel</button>
+        <button type="submit" id="af-create">Create</button>
+      </div>
+    </form>
     <details id="obs-details" open>
       <summary><h2>Observations</h2></summary>
       <div class="timestamp-row">
@@ -18,13 +46,24 @@
         <span id="ts-local" class="hint"></span>
       </div>
       <label class="opt-row">
-        <input type="checkbox" id="opt-refraction" />
+        <input type="checkbox" id="opt-refraction" checked />
         <span>Correct for atmospheric refraction</span>
         <span class="hint">(Bennett 1982)</span>
       </label>
       <div id="obs-list"></div>
       <button id="add-obs" type="button">+ Add observation</button>
-      <p class="footnote">Adds/edits/deletes are session-only and don't write to <code>data/monday.json</code>.</p>
+      <details id="tle-section" open>
+        <summary><h3>Truth TLE</h3></summary>
+        <div class="tle-actions">
+          <button id="tle-fetch" type="button" title="Fetch the current ISS TLE from CelesTrak">Fetch latest</button>
+          <button id="tle-clear" type="button" title="Clear all three TLE fields">Clear</button>
+          <span id="tle-warn" class="hint" hidden></span>
+        </div>
+        <textarea id="tle-line1" placeholder="ISS (ZARYA)"></textarea>
+        <textarea id="tle-line2" placeholder="1 25544U ..."></textarea>
+        <textarea id="tle-line3" placeholder="2 25544 ..."></textarea>
+      </details>
+      <p class="footnote">Edits auto-save to this browser. Built-in attempts overlay a local override on top of <code>data/</code>; user-created (<code>+</code>) attempts are pure-local. Click <code>⬇</code> to export the current state as a JSON file.</p>
     </details>
   </section>
 
@@ -33,13 +72,11 @@
     <div id="result-triangulated" class="result-block"></div>
     <div id="result-slant" class="result-block"></div>
     <div id="result-residuals" class="result-block"></div>
-    <details id="tle-details">
-      <summary>Compare to TLE truth</summary>
-      <textarea id="tle-line1" placeholder="ISS (ZARYA)"></textarea>
-      <textarea id="tle-line2" placeholder="1 25544U ..."></textarea>
-      <textarea id="tle-line3" placeholder="2 25544 ..."></textarea>
-      <div id="result-truth" class="result-block"></div>
-    </details>
+    <!-- TLE input lives in the left panel alongside the observations
+         (it's data for this attempt, not a result). The truth-vs-
+         triangulated delta still lands here on the right since that
+         is what the result really is. -->
+    <div id="result-truth" class="result-block"></div>
   </section>
 
   <nav id="camera-controls">
