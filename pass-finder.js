@@ -525,16 +525,22 @@ function chartPalette(sunAltDeg) {
   const dark = bgLuma >= 128;
   // Asymmetric deltas: bigger swings against bright bg because gray
   // doesn't visually "punch" out of pale blue without a big drop.
-  const gridDelta  = dark ? -90  : 70;
-  const spokeDelta = dark ? -70  : 50;
-  const arcDelta   = dark ? -150 : 130;
-  const gridGray  = clamp(bgLuma + gridDelta);
-  const spokeGray = clamp(bgLuma + spokeDelta);
-  const arcGray   = clamp(bgLuma + arcDelta);
+  // Grid + spoke share the same delta and stroke width so the
+  // altitude rings and radial spokes read as one consistent
+  // structural lattice rather than two competing layers.
+  // Grid, spoke (major + minor + cardinal) all share the same gray —
+  // size differences (stroke-width, font-size) carry the visual
+  // hierarchy instead of color contrast.
+  const gridDelta = dark ? -45 : 30;
+  const arcDelta  = dark ? -150 : 130;
+  const gridGray = clamp(bgLuma + gridDelta);
+  const arcGray  = clamp(bgLuma + arcDelta);
+  const lineColor = `rgb(${gridGray}, ${gridGray}, ${gridGray})`;
   return {
-    grid:  `rgb(${gridGray}, ${gridGray}, ${gridGray})`,
-    spoke: `rgb(${spokeGray}, ${spokeGray}, ${spokeGray})`,
-    arc:   `rgb(${arcGray}, ${arcGray}, ${arcGray})`,
+    grid:       lineColor,
+    spoke:      lineColor,
+    minorSpoke: lineColor,
+    arc:        `rgb(${arcGray}, ${arcGray}, ${arcGray})`,
   };
 }
 
@@ -598,15 +604,21 @@ const MODAL_SVG_STYLE = `
      a luminance-aware palette derived from the horizon disc shade —
      light grays on dark sky, dark grays on bright sky, asymmetric
      deltas tuned for legibility at each end. */
-  .grid    { fill: none; stroke-width: 0.4; }
-  .spoke   { stroke-width: 0.3; }
-  .cardinal { fill: #cfe0ff; font-size: 11px; letter-spacing: 0.08em; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-  .az-num   { fill: #6a7a9a; font-size: 4.6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-  /* Arc stroke is set inline per chart (luminance-aware palette) so
-     the pass trajectory keeps even contrast against the twilight
-     disc — slightly stronger contrast than .grid, but never pure
-     white-on-dark (that would compete with star dots). */
-  .arc      { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.65; }
+  .grid           { fill: none; stroke-width: 0.3; }
+  .spoke          { stroke-width: 0.3; }
+  .spoke-minor    { stroke-width: 0.15; }
+  .spoke-cardinal { stroke-width: 0.45; }
+  .cardinal { fill: #6a7a9a; font-size: 11px; letter-spacing: 0.08em; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .az-num       { fill: #6a7a9a; font-size: 4.6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .az-num-minor { fill: #6a7a9a; font-size: 3.4px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  /* Arc stroke set inline per chart (luminance-aware palette). Each
+     <line> child carries its own stroke-opacity so the visual-mode
+     arc can fade with apparent magnitude across the pass; radio mode
+     paints all segments at a uniform opacity.
+     stroke-linecap: butt is critical here — round caps on each segment
+     overlap their neighbors and double the alpha at every junction,
+     producing a visible bead pattern when stroke-opacity varies. */
+  .arc      { fill: none; stroke-width: 1.6; stroke-linecap: butt; }
   .iss-dot  { fill: #ffffff; stroke: #7eb8ff; stroke-width: 0.7; }
   .star-dot { }
   /* paint-order=stroke ensures the dark halo paints BEHIND the fill,
@@ -615,6 +627,7 @@ const MODAL_SVG_STYLE = `
     fill: #b8c4dc; font-size: 2.8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     paint-order: stroke;
     stroke: rgba(10, 14, 26, 0.85); stroke-width: 0.8; stroke-linejoin: round;
+    opacity: 0.65;
   }
   .body-glyph {
     font-size: 2.3px; font-weight: 700;
@@ -725,20 +738,44 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   // so they stay readable against whatever sky shade was just set.
   const palette = sunAltDeg != null
     ? chartPalette(sunAltDeg)
-    : { grid: "#aab8d4", spoke: "#7eb8ff", arc: "#aab8d4" };
-  // Azimuth spokes every 30°. Inner endpoint sits at ~80° altitude
-  // (not the zenith) so the top ~10° of the chart stays clear — that
-  // central cap is where stars/planets near zenith would otherwise
-  // fight 12 spokes converging on a single pixel.
-  const SPOKE_INNER_ALT = 80;
+    : { grid: "#aab8d4", spoke: "#7eb8ff", minorSpoke: "#5a6f8a", arc: "#aab8d4" };
+  // Azimuth spokes every 30°. Regular majors stop at 75° altitude
+  // (15° zenith cap). Cardinals (N/E/S/W) extend all the way to the
+  // zenith (alt=90) since the four of them just cross at the center
+  // — a classic compass crosshair — rather than crowding it.
+  const SPOKE_INNER_ALT = 75;
+  const CARDINAL_INNER_ALT = 90;
   for (let az = 0; az < 360; az += 30) {
+    const isCardinal = az % 90 === 0;
+    const innerAlt = isCardinal ? CARDINAL_INNER_ALT : SPOKE_INNER_ALT;
     const [xOut, yOut] = altAzToSvg(0, az, cx, cy, R);
-    const [xIn,  yIn]  = altAzToSvg(SPOKE_INNER_ALT, az, cx, cy, R);
+    const [xIn,  yIn]  = altAzToSvg(innerAlt, az, cx, cy, R);
     const l = document.createElementNS(SVG_NS, "line");
     l.setAttribute("x1", xIn.toFixed(2));  l.setAttribute("y1", yIn.toFixed(2));
     l.setAttribute("x2", xOut.toFixed(2)); l.setAttribute("y2", yOut.toFixed(2));
-    l.classList.add("spoke");
+    l.classList.add(isCardinal ? "spoke-cardinal" : "spoke");
+    // Cardinals get the same gray as the altitude rings and regular
+    // spokes — just thicker, not brighter. That's enough to read as
+    // the chart's primary orientation cue without competing with the
+    // pass arc for contrast attention.
     l.style.stroke = palette.spoke;
+    svg.appendChild(l);
+  }
+  // Minor spokes every 15° (offset from majors), only along the outer
+  // chart — from horizon up to 60° altitude. Near the horizon the
+  // major spokes are far apart in chart units and a finer azimuth
+  // grid is useful; the inner zenith cap stays uncluttered. Drawn
+  // thinner AND fainter than the major spokes so they read as
+  // secondary structural lines.
+  const MINOR_SPOKE_INNER_ALT = 45;
+  for (let az = 15; az < 360; az += 30) {
+    const [xOut, yOut] = altAzToSvg(0, az, cx, cy, R);
+    const [xIn,  yIn]  = altAzToSvg(MINOR_SPOKE_INNER_ALT, az, cx, cy, R);
+    const l = document.createElementNS(SVG_NS, "line");
+    l.setAttribute("x1", xIn.toFixed(2));  l.setAttribute("y1", yIn.toFixed(2));
+    l.setAttribute("x2", xOut.toFixed(2)); l.setAttribute("y2", yOut.toFixed(2));
+    l.classList.add("spoke-minor");
+    l.style.stroke = palette.minorSpoke;
     svg.appendChild(l);
   }
   // Altitude rings: 30°, 60°
@@ -770,26 +807,43 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
     t.textContent = c.l;
     svg.appendChild(t);
   }
-  // Azimuth degree numbers (non-cardinals: 30/60/120/150/210/240/300/330)
-  // placed outside the ring just beyond each spoke. text-anchor flips
-  // based on which side of the chart the label lives on so the INNER
-  // edge of the text sits at the same radial offset for every label —
-  // otherwise 3-digit numbers ("240", "300") creep closer to the ring
-  // than 2-digit ones ("30", "60") when all are center-anchored.
-  for (let az = 30; az < 360; az += 30) {
-    if (az % 90 === 0) continue; // cardinals already labeled
-    const [x, y] = altAzToSvg(0, az, cx, cy, R + 6);
-    let anchor = "middle";
-    if (x - cx > 1) anchor = "start";       // right side of chart
-    else if (x - cx < -1) anchor = "end";    // left side of chart
+  // Azimuth labels — radius is computed per-label so the INNER edge
+  // of every label's bounding box sits the same distance from the
+  // horizon ring, regardless of label width or position around the
+  // chart. Without this, "30°" near North reads close to the ring
+  // (only its short edge points inward) while "120°" near East reads
+  // far away (its wide edge points inward).
+  const placeAzLabel = (az, label, klass, fontPx, gap) => {
+    // Approximate text bbox at this font size. 0.55 captures sans-
+    // serif average glyph width well enough to keep within ±0.5px.
+    const w = label.length * fontPx * 0.55;
+    const h = fontPx;
+    const radAz = az * Math.PI / 180;
+    // Half-extent of an axis-aligned bbox projected onto the radial
+    // direction = |sin(az)| * W/2 + |cos(az)|*H/2.
+    const halfRadial = Math.abs(Math.sin(radAz)) * w / 2
+                     + Math.abs(Math.cos(radAz)) * h / 2;
+    const r = R + gap + halfRadial;
+    const [x, y] = altAzToSvg(0, az, cx, cy, r);
     const t = document.createElementNS(SVG_NS, "text");
     t.setAttribute("x", x.toFixed(2));
     t.setAttribute("y", y.toFixed(2));
-    t.setAttribute("text-anchor", anchor);
+    t.setAttribute("text-anchor", "middle");
     t.setAttribute("dominant-baseline", "central");
-    t.classList.add("az-num");
-    t.textContent = `${az}°`;
+    t.classList.add(klass);
+    t.textContent = label;
     svg.appendChild(t);
+  };
+  // Major labels (non-cardinals: 30/60/120/150/210/240/300/330)
+  for (let az = 30; az < 360; az += 30) {
+    if (az % 90 === 0) continue;
+    placeAzLabel(az, `${az}°`, "az-num", 4.6, 3.5);
+  }
+  // Minor labels (15° offset from majors) — smaller font, gap nearly
+  // matching the majors so the two rings of labels read at similar
+  // visual distance from the chart edge.
+  for (let az = 15; az < 360; az += 30) {
+    placeAzLabel(az, `${az}°`, "az-num-minor", 3.4, 3.2);
   }
   // Layer order: stars first (backdrop), then sun/moon (mid-layer
   // context), then the pass arc and Start/Peak/End markers ON TOP so
@@ -802,7 +856,11 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   const bodiesG = document.createElementNS(SVG_NS, "g");
   bodiesG.dataset.layer = "bodies";
   svg.appendChild(bodiesG);
-  const arc = document.createElementNS(SVG_NS, "polyline");
+  // Arc is a <g> rather than a single polyline so paintPolarModalArc
+  // can populate it with per-segment <line> elements — that's what
+  // lets the visual-mode arc fade with apparent magnitude along the
+  // pass.
+  const arc = document.createElementNS(SVG_NS, "g");
   arc.classList.add("arc");
   svg.appendChild(arc);
   const eventsG = document.createElementNS(SVG_NS, "g");
@@ -817,27 +875,113 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
 // red) and the obs-card icon (still observer-color) remain the
 // color-coded affordances.
 const POLAR_ARC_COLOR = "#aab8d4";
+// Arc-segment opacity. Whenever a segment is plausibly visible to the
+// naked eye at that instant — sun deep enough below the horizon, ISS
+// out of Earth's shadow, ISS brighter than the sky-glow limit — its
+// alpha tracks the ISS's apparent magnitude (bright segments solid,
+// dim ones translucent). Segments that wouldn't be naked-eye visible
+// fall back to the uniform radio opacity. Applies in BOTH modes; in
+// visual mode the search predicate already guarantees the visibility
+// gate holds for every sample, so the magnitude curve covers the
+// whole arc — but a daytime radio pass arc still gets a brightness
+// gradient where the sun briefly dips below twilight, etc.
+const ARC_OPACITY_UNIFORM = 0.65;
+function issAlphaForMag(m) {
+  if (m == null) return ARC_OPACITY_UNIFORM;
+  // m = -3 → t=1 (fully opaque end of range); m = +2 → t=0 (dimmest).
+  const t = Math.max(0, Math.min(1, (-m + 2) / 5));
+  return 0.18 + t * 0.7;
+}
+// Per-sample arc style. Returns { alpha, dashed } so the segment
+// renderer can mark "would be visible if not for the ISS being
+// eclipsed / too dim" stretches with a dotted-low-opacity treatment —
+// that's diagnostically useful on a dark-sky radio pass where the
+// ISS dips into Earth's shadow mid-arc and the operator wants to
+// know "where would I be looking if it were lit?"
+const ARC_DASH_ALPHA = 0.3;
+function arcSampleStyle(obs, issEcef, jsDate) {
+  const sunDir = sunPositionEcef(jsDate);
+  const sunAlt = sunAltitudeDeg(obs, jsDate);
+  // Unified rule: dashed whenever the ISS isn't naked-eye visible at
+  // this instant for this observer (daylight sky, civil-twilight sky,
+  // ISS in Earth's shadow, or ISS dimmer than the sky-glow limit).
+  // Solid + magnitude-gradient only when it's actually observable.
+  const darkSky = sunAlt <= -6;
+  if (!darkSky) return { alpha: ARC_DASH_ALPHA, dashed: true };
+  if (!issIlluminated(issEcef, sunDir)) {
+    return { alpha: ARC_DASH_ALPHA, dashed: true };
+  }
+  const m = magnitudeAt(obs, issEcef, sunDir);
+  if (m == null || m > naturalSkyLimMag(sunAlt)) {
+    return { alpha: ARC_DASH_ALPHA, dashed: true };
+  }
+  return { alpha: issAlphaForMag(m), dashed: false };
+}
+
 function paintPolarModalArc(svg, obs) {
   const arc = svg.querySelector(".arc");
   if (!arc) return;
+  arc.replaceChildren();
   // paintPolarModalStatic stashes the per-chart arc color (derived
   // from the sky luminance palette) on the SVG root so the trajectory
   // contrast adapts with the disc shade.
-  arc.setAttribute("stroke", svg.dataset.arcStroke || POLAR_ARC_COLOR);
+  const stroke = svg.dataset.arcStroke || POLAR_ARC_COLOR;
   const w = state.windows?.[state.activeWindowIdx];
-  if (!w) { arc.setAttribute("points", ""); return; }
+  if (!w) return;
   const SAMPLES = 60;
   const dt = (w.endMs - w.startMs) / SAMPLES;
-  const pts = [];
+  // Pre-sample positions and per-sample alpha — skipping below-horizon
+  // points so a window that strays under the horizon at its edges
+  // doesn't paint nonsense segments.
+  const samples = [];
   for (let i = 0; i <= SAMPLES; i++) {
-    const issEcef = issEcefAt(new Date(w.startMs + dt * i));
+    const d = new Date(w.startMs + dt * i);
+    const issEcef = issEcefAt(d);
     if (!issEcef) continue;
     const { alt, az } = issAltAzDeg(obs, issEcef);
     if (alt < 0) continue;
     const [x, y] = altAzToSvg(alt, az, MODAL_GEOM.cx, MODAL_GEOM.cy, MODAL_GEOM.R);
-    pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+    samples.push({ x, y, ...arcSampleStyle(obs, issEcef, d) });
   }
-  arc.setAttribute("points", pts.join(" "));
+  if (samples.length < 2) return;
+  // Solid segments are rendered as individual <line> elements so each
+  // can carry its own magnitude-derived stroke-opacity. Dashed runs
+  // (consecutive dashed-boundary segments) are flushed as a single
+  // <polyline> instead — SVG's stroke-dasharray runs along the path's
+  // actual arclength, so collecting the run into one element keeps
+  // dash spacing even regardless of how time-sampled segments stretch
+  // or compress along the chart.
+  let dashedRun = null;
+  const flushDashedRun = () => {
+    if (!dashedRun) return;
+    const pl = document.createElementNS(SVG_NS, "polyline");
+    pl.setAttribute("points", dashedRun.points.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(" "));
+    pl.setAttribute("fill", "none");
+    pl.setAttribute("stroke", stroke);
+    pl.setAttribute("stroke-opacity", ARC_DASH_ALPHA.toFixed(3));
+    pl.setAttribute("stroke-dasharray", "1.4 1.8");
+    arc.appendChild(pl);
+    dashedRun = null;
+  };
+  for (let i = 0; i < samples.length - 1; i++) {
+    const a = samples[i], b = samples[i + 1];
+    const dashed = a.dashed || b.dashed;
+    if (dashed) {
+      if (!dashedRun) dashedRun = { points: [[a.x, a.y]] };
+      dashedRun.points.push([b.x, b.y]);
+      continue;
+    }
+    flushDashedRun();
+    const ln = document.createElementNS(SVG_NS, "line");
+    ln.setAttribute("x1", a.x.toFixed(2));
+    ln.setAttribute("y1", a.y.toFixed(2));
+    ln.setAttribute("x2", b.x.toFixed(2));
+    ln.setAttribute("y2", b.y.toFixed(2));
+    ln.setAttribute("stroke", stroke);
+    ln.setAttribute("stroke-opacity", ((a.alpha + b.alpha) / 2).toFixed(3));
+    arc.appendChild(ln);
+  }
+  flushDashedRun();
 }
 
 // Minimum distance (in SVG units) two label centers must be from each
@@ -2753,13 +2897,25 @@ document.getElementById("panel-toggle").addEventListener("click", () => {
 // Visual ↔ Radio mode toggle + min-elev input.
 const modeToggleEl = document.getElementById("mode-toggle");
 const minElevControlEl = document.getElementById("min-elev-control");
-const minElevInputEl = document.getElementById("min-elev-input");
+const minElevValueEl = document.getElementById("min-elev-value");
+// Stepper increments by MIN_ELEV_STEP. 1° gives fine control for users
+// who want to dial in around a specific elevation; click-and-hold isn't
+// implemented but holding the keyboard's enter on a focused button
+// repeats fine via native button behavior.
+const MIN_ELEV_STEP = 1;
+const MIN_ELEV_MIN = 0;
+const MIN_ELEV_MAX = 60;
 function reflectModeUi() {
   for (const btn of modeToggleEl.querySelectorAll("button")) {
     btn.classList.toggle("active", btn.dataset.mode === state.mode);
   }
   minElevControlEl.hidden = state.mode !== "radio";
-  minElevInputEl.value = String(state.minElevDeg);
+  minElevValueEl.textContent = `${state.minElevDeg}°`;
+  for (const btn of minElevControlEl.querySelectorAll(".min-elev-step")) {
+    const step = parseInt(btn.dataset.step, 10);
+    const next = state.minElevDeg + step;
+    btn.disabled = next < MIN_ELEV_MIN || next > MIN_ELEV_MAX;
+  }
 }
 reflectModeUi();
 modeToggleEl.addEventListener("click", (ev) => {
@@ -2771,15 +2927,25 @@ modeToggleEl.addEventListener("click", (ev) => {
   rerunSearchIfActive();
 });
 let _minElevDebounce = null;
-minElevInputEl.addEventListener("input", () => {
-  const v = parseInt(minElevInputEl.value, 10);
-  if (!Number.isFinite(v)) return;
-  const clamped = Math.max(0, Math.min(60, v));
+minElevControlEl.addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".min-elev-step");
+  if (!btn || btn.disabled) return;
+  const step = parseInt(btn.dataset.step, 10);
+  if (!Number.isFinite(step)) return;
+  // Snap the new value to the nearest step multiple — handles legacy
+  // state loaded from URL/storage with a non-multiple value (e.g.,
+  // someone shared a "min=12°" link from before the stepper).
+  const raw = state.minElevDeg + step;
+  const snapped = Math.round(raw / MIN_ELEV_STEP) * MIN_ELEV_STEP;
+  const clamped = Math.max(MIN_ELEV_MIN, Math.min(MIN_ELEV_MAX, snapped));
+  if (clamped === state.minElevDeg) return;
   state.minElevDeg = clamped;
+  reflectModeUi();
   persistState();
-  // Debounce the search since the user might type "1" → "15" rapidly.
+  // Debounce since two quick clicks in a row should only trigger one
+  // search (search is the heaviest user-driven recompute we have).
   if (_minElevDebounce) clearTimeout(_minElevDebounce);
-  _minElevDebounce = setTimeout(() => { rerunSearchIfActive(); }, 300);
+  _minElevDebounce = setTimeout(() => { rerunSearchIfActive(); }, 250);
 });
 
 // Share button — copies a URL encoding the current setup (observers +
