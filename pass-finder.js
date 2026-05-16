@@ -575,6 +575,13 @@ let _polarModalImgUrl = null; // current blob URL bound to <img>
 const polarModalEl = document.getElementById("polar-modal");
 const polarModalSvg = polarModalEl.querySelector(".polar-modal-svg");
 const polarModalImg = polarModalEl.querySelector(".polar-modal-png");
+const polarModalImgLink = polarModalEl.querySelector(".polar-modal-png-link");
+// Anchor wraps the <img> so right-click "Save Image As" picks up the
+// download filename instead of the blob UUID. The anchor's href is
+// the SAME blob URL as the img, set in renderPolarModal; the click
+// handler suppresses navigation so left-clicks don't initiate a
+// download alongside the modal's normal interactions.
+polarModalImgLink.addEventListener("click", (ev) => ev.preventDefault());
 
 // Compute alt/az of a (unit) star direction vector for the given
 // observer. Star is "at infinity" so we don't subtract observer ECEF —
@@ -1522,6 +1529,11 @@ async function renderPolarModal(obs) {
   // decode() resolves once the bitmap is ready to paint — strictly
   // stronger than `onload`, which can fire before the first paint.
   polarModalImg.src = url;
+  // Wrap-anchor mirrors the img so right-click save picks up a real
+  // filename. Same blob URL as the img — browsers that honor the
+  // anchor's download attribute on img right-click will use it.
+  polarModalImgLink.href = url;
+  polarModalImgLink.download = polarModalFileName();
   if (polarModalImg.decode) {
     try { await polarModalImg.decode(); } catch { /* fall through */ }
   }
@@ -1601,9 +1613,40 @@ function polarModalFileName() {
   const obs = state.observers.find(o => o.id === _polarModalObsId);
   const obsSlug = (obs?.name ?? "observer").toLowerCase()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
-  const dateSlug = d.toISOString().slice(0, 10);
-  return `iss-pass-${obsSlug}-${dateSlug}.png`;
+  // Timestamp from the ACTIVE pass start, formatted in the observer's
+  // local timezone — filename describes when the pass is, not when
+  // the file was saved. Output shape:
+  //   iss-pass-<obs>-YYYY-MM-DDTHHMMSS-OOOO.png
+  // ISO 8601 extended date + basic-format time + basic UTC offset.
+  // No colons anywhere (Windows-safe), sortable next to the date.
+  const w = state.windows?.[state.activeWindowIdx];
+  const ms = w?.startMs ?? Cesium.JulianDate.toDate(viewer.clock.currentTime).getTime();
+  const tz = obs?.tz;
+  const fmtOpts = {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  };
+  if (tz) fmtOpts.timeZone = tz;
+  const parts = new Intl.DateTimeFormat("en-CA", fmtOpts).formatToParts(new Date(ms));
+  const get = (t) => parts.find(p => p.type === t)?.value ?? "";
+  const dateSlug = `${get("year")}-${get("month")}-${get("day")}`;
+  const timeSlug = `${get("hour")}${get("minute")}${get("second")}`;
+  // UTC offset for the tz at that instant. `longOffset` formats it
+  // as "GMT-05:00" or "GMT+05:30" — strip prefix and colon for the
+  // basic-format tag. Fall back to "Z" when no tz is known.
+  let offsetSlug = "Z";
+  if (tz) {
+    try {
+      const op = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz, timeZoneName: "longOffset",
+      }).formatToParts(new Date(ms));
+      const raw = op.find(p => p.type === "timeZoneName")?.value ?? "";
+      const tag = raw.replace(/^GMT/, "").replace(":", "");
+      if (tag) offsetSlug = tag;
+    } catch (_) { /* keep Z */ }
+  }
+  return `iss-pass-${obsSlug}-${dateSlug}T${timeSlug}${offsetSlug}.png`;
 }
 
 async function downloadPolarModalPng() {
