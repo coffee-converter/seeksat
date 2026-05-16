@@ -9,6 +9,19 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* Disable text selection by default on the whole UI — accidental
+   double-clicks on buttons/labels picking up stray text selection is
+   more annoying than the rare case of wanting to copy a timestamp.
+   Re-enable specifically for input controls below. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Single source of truth for the left panel's width, so the panel
    itself and the toggle button hugging its right edge stay in sync
    when the responsive @media rule (below) changes it for mobile. */
@@ -399,8 +412,13 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 #windows-section > .section-heading-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 14px;
   padding: 2px 16px 6px;
+}
+#windows-section > .section-heading-row > #share-btn {
+  /* Share lives at the far right while mode + min-elev sit next to
+     the Passes heading on the left. */
+  margin-left: auto;
 }
 #windows-section .section-heading {
   font-size: 12px;
@@ -415,18 +433,22 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   background: rgba(126, 184, 255, 0.12);
   border: 1px solid rgba(126, 184, 255, 0.4);
   color: #cfe0ff;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 2px 8px;
+  padding: 3px 6px;
   border-radius: 4px;
   cursor: pointer;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#share-btn svg {
+  width: 12px;
+  height: 12px;
 }
 #share-btn:hover { background: rgba(126, 184, 255, 0.22); }
 
 .passes-controls {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 10px;
 }
 .mode-toggle {
   display: inline-flex;
@@ -436,10 +458,13 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   overflow: hidden;
 }
 .mode-toggle button {
+  -webkit-appearance: none;
+  appearance: none;
   background: transparent;
   border: none;
   color: #8aa0c8;
   font-size: 10px;
+  line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 2px 8px;
@@ -456,20 +481,47 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   color: #cfe0ff;
 }
 .min-elev {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: #8aa0c8;
-}
-.min-elev[hidden] { display: none; }
-.min-elev input {
-  width: 36px;
+  display: inline-flex; align-items: center; gap: 0;
   background: rgba(10, 14, 26, 0.6);
   border: 1px solid rgba(126, 184, 255, 0.3);
+  border-radius: 4px;
+}
+.min-elev[hidden] { display: none; }
+/* Stepper buttons. Selector is `.min-elev button` (not just the class)
+   so this rule matches the specificity of the global `.panel button`
+   reset and wins on later load order — a class-only `.min-elev-step`
+   selector loses to `.panel button` and inherits its 6/10px padding. */
+.min-elev button {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
   color: #cfe0ff;
   font-size: 11px;
-  padding: 1px 4px;
-  border-radius: 4px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  margin: 0;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.min-elev button:hover { color: #cfe0ff; background: rgba(126, 184, 255, 0.12); }
+.min-elev button:disabled { color: #4a5670; cursor: not-allowed; }
+.min-elev-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #cfe0ff;
+  font-size: 10px;
+  line-height: 1;
   font-family: 'SF Mono', 'Fira Code', monospace;
+  border-left: 1px solid rgba(126, 184, 255, 0.25);
+  border-right: 1px solid rgba(126, 184, 255, 0.25);
+  padding: 2px 4px;
+  min-width: 22px;
+  user-select: none;
 }
 #share-btn.copied {
   background: rgba(127, 229, 209, 0.22);

@@ -54,6 +54,9 @@
     <div id="windows-section">
       <div class="section-heading-row">
         <h2 class="section-heading">Passes</h2>
+        <!-- Mode + min-elev sit next to the heading on the left; the
+             Share button is pushed to the far right by section-heading-row's
+             flex layout (share-btn has margin-left: auto). -->
         <div class="passes-controls">
           <!-- Mode toggle: Visual (default) filters to twilight + sunlit
                passes scored by capture probability; Radio shows any pass
@@ -62,12 +65,21 @@
             <button type="button" data-mode="visual" class="active">Visual</button>
             <button type="button" data-mode="radio">Radio</button>
           </div>
-          <label id="min-elev-control" class="min-elev" hidden title="Minimum elevation every observer must clear">
-            min
-            <input id="min-elev-input" type="number" min="0" max="60" step="1" value="10" />°
-          </label>
-          <button id="share-btn" type="button" title="Copy a link to this observer setup">Share</button>
+          <div id="min-elev-control" class="min-elev" hidden title="Minimum elevation every observer must clear">
+            <button type="button" class="min-elev-step" data-step="-1" aria-label="Decrease minimum elevation">−</button>
+            <span id="min-elev-value" class="min-elev-value">10°</span>
+            <button type="button" class="min-elev-step" data-step="1" aria-label="Increase minimum elevation">+</button>
+          </div>
         </div>
+        <button id="share-btn" type="button" title="Copy a link to this observer setup" aria-label="Copy link">
+          <!-- Lucide-style "link-2" glyph: two link-ends meeting at a
+               short connector. Reads as "copy link" instantly. -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 17H7a5 5 0 0 1 0-10h2" />
+            <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+        </button>
       </div>
       <div id="windows-list" class="result-block"><div class="window-empty">loading…</div></div>
     </div>
