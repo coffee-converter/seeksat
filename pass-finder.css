@@ -528,6 +528,11 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   border-color: rgba(127, 229, 209, 0.5);
   color: #7fe5d1;
 }
+#share-btn.failed {
+  background: rgba(248, 113, 113, 0.22);
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
 .window-row:hover { background: rgba(126,184,255,0.12); }
 .window-row.active { background: rgba(126,184,255,0.25); }
 .window-row .rating {
