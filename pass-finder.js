@@ -10,6 +10,7 @@ import { tleOrbitTrackEcef } from "./truth.js";
 import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
 import { fetchTimezone } from "./pass-finder/timezone.js";
 import { moonPositionEcef, moonPhaseAngle, moonIlluminatedFraction } from "./pass-finder/moon.js";
+import { planetPositionEcef, planetApparentMagnitude, PLANET_STYLE, PLANET_NAMES } from "./pass-finder/planets.js";
 import { apparentAltDeg } from "./refraction.js";
 import * as sat from "https://cdn.jsdelivr.net/npm/satellite.js@7.0.0/+esm";
 import { makeViewer, wireSimTime } from "./viewer-setup.js";
@@ -540,7 +541,7 @@ const MODAL_SVG_STYLE = `
   .bg { fill: #0a0e1a; }
 `;
 
-function paintPolarModalStatic(svg, obs) {
+function paintPolarModalStatic(svg, obs, anchorMs) {
   svg.replaceChildren();
   const { cx, cy, R } = MODAL_GEOM;
   // Embedded styles — duplicated from pass-finder.css so the exported
@@ -559,12 +560,18 @@ function paintPolarModalStatic(svg, obs) {
   // ---- Metadata header (top of viewBox) ---------------------------
   // Title and observer details are embedded in the SVG so PNG/SVG
   // exports keep their context (observer, date, lat/lon, tz).
-  const now = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  // Anchor: caller passes the pass peak time so the date and tz-offset
+  // tag both reflect when the pass actually occurs. Fall back to the
+  // playback clock if no pass is active (modal opened without a
+  // selected window — shouldn't happen but stays defensive).
+  const anchor = new Date(
+    anchorMs ?? Cesium.JulianDate.toDate(viewer.clock.currentTime).getTime(),
+  );
   // Date is formatted in the OBSERVER's timezone too, so passes that
   // happen at local midnight don't display the user's tomorrow.
   const dateOpts = { year: "numeric", month: "short", day: "numeric" };
   if (obs.tz) dateOpts.timeZone = obs.tz;
-  const dateStr = now.toLocaleDateString(undefined, dateOpts);
+  const dateStr = anchor.toLocaleDateString(undefined, dateOpts);
   const latHemi = obs.latDeg >= 0 ? "N" : "S";
   const lonHemi = obs.lonDeg >= 0 ? "E" : "W";
   const coordStr = `${Math.abs(obs.latDeg).toFixed(4)}°${latHemi}, `
@@ -573,7 +580,7 @@ function paintPolarModalStatic(svg, obs) {
   // displayed offset reflects whatever DST rules were actually in
   // effect for the pass (and not, e.g., "winter offset" applied to a
   // summer pass).
-  const refMs = state.windows?.[state.activeWindowIdx]?.startMs ?? now.getTime();
+  const refMs = state.windows?.[state.activeWindowIdx]?.startMs ?? anchor.getTime();
   let tzOffsetTag = "";
   if (obs.tz) {
     try {
@@ -822,6 +829,64 @@ function paintPolarModalSunMoon(svg, obs, jsDate) {
     // since its glyph weight skews toward the bottom curve.
     appendBodyGlyph(layer, sx, sy - 0.12, "S", "#ffffff", "difference");
   }
+
+  // ---- Planets ---------------------------------------------------
+  // Five classical naked-eye planets, drawn as small colored discs
+  // (Pogson-scaled by approximate apparent magnitude) with their
+  // traditional astrological glyph in difference-blend overlay. Hide
+  // any planet whose angular position falls inside the sun's or
+  // moon's apparent disc — literal occlusion. Sun and moon both
+  // subtend ~0.5°, so the threshold is one apparent radius.
+  const SUN_R_RAD = 0.267 * Math.PI / 180;
+  const MOON_R_RAD = 0.259 * Math.PI / 180;
+  for (const pname of PLANET_NAMES) {
+    const dirEcef = planetPositionEcef(pname, jsDate);
+    const aa = starAltAzForObs(obs, dirEcef);
+    if (aa.alt < 0) continue;
+    // Occlusion vs sun.
+    const dotSun = sunDir[0] * dirEcef[0] + sunDir[1] * dirEcef[1] + sunDir[2] * dirEcef[2];
+    if (Math.acos(Math.max(-1, Math.min(1, dotSun))) < SUN_R_RAD) continue;
+    // Occlusion vs moon (moonDir is a unit vector, so dot is cos of separation).
+    const dotMoon = moonDir[0] * dirEcef[0] + moonDir[1] * dirEcef[1] + moonDir[2] * dirEcef[2];
+    if (Math.acos(Math.max(-1, Math.min(1, dotMoon))) < MOON_R_RAD) continue;
+    const style = PLANET_STYLE[pname];
+    const mag = planetApparentMagnitude(pname, jsDate);
+    // Narrow clamp: Pogson scaling would make Venus a small planet
+    // (mag -4 → r≈6) and Saturn near-invisible (mag +1 → r≈0.6).
+    // We want all five readable as discs without the brightest two
+    // dominating the chart.
+    const pogson = 0.95 * Math.pow(10, -(mag ?? 1.0) / 5);
+    const r = Math.max(1.1, Math.min(1.5, pogson));
+    const [px, py] = altAzToSvg(aa.alt, aa.az, cx, cy, R);
+    const disc = document.createElementNS(SVG_NS, "circle");
+    disc.setAttribute("cx", px.toFixed(2));
+    disc.setAttribute("cy", py.toFixed(2));
+    disc.setAttribute("r", r.toFixed(2));
+    disc.setAttribute("fill", style.color);
+    disc.setAttribute("stroke", "rgba(10,14,26,0.55)");
+    disc.setAttribute("stroke-width", "0.25");
+    layer.appendChild(disc);
+    // Glyph painted over the disc with difference blend, like sun/moon.
+    // Sized to fit comfortably inside the smallest clamped disc (r=1.1).
+    appendPlanetGlyph(layer, px, py, style.glyph, r);
+  }
+}
+
+// Planet glyph — traditional astrological symbol overlaid on the
+// disc with mix-blend-mode: difference, so it stays legible against
+// any disc color. Sized relative to the disc radius so the symbol
+// scales with magnitude alongside the disc itself.
+function appendPlanetGlyph(layer, cx, cy, glyph, discR) {
+  const t = document.createElementNS(SVG_NS, "text");
+  t.setAttribute("x", cx.toFixed(2));
+  t.setAttribute("y", cy.toFixed(2));
+  t.setAttribute("text-anchor", "middle");
+  t.setAttribute("dominant-baseline", "central");
+  t.setAttribute("fill", "#0a0e1a");
+  t.setAttribute("font-size", (discR * 1.55).toFixed(2));
+  t.classList.add("planet-glyph");
+  t.textContent = glyph;
+  layer.appendChild(t);
 }
 
 // Single-letter identifier painted at the center of a body disc.
@@ -966,13 +1031,11 @@ function splitDiamondPaths(cx, cy, r, ang) {
   };
 }
 
-function paintPolarModalEvents(svg, obs) {
-  const eventsG = svg.querySelector('[data-layer="events"]');
-  if (!eventsG) return;
-  eventsG.replaceChildren();
-  const w = state.windows?.[state.activeWindowIdx];
-  if (!w) return;
-  // Find the apparent-alt peak via fine sampling of the active window.
+// ms timestamp of the apparent-alt peak for a window at observer obs.
+// 240-sample sweep is overkill spatially but cheap and lets the same
+// peak anchor the sky backdrop, so any non-monotonic edge case lands
+// on the same point as the event marker.
+function passPeakMs(w, obs) {
   const SAMPLES = 240;
   let peakMs = w.startMs, peakAlt = -Infinity;
   for (let i = 0; i <= SAMPLES; i++) {
@@ -982,6 +1045,15 @@ function paintPolarModalEvents(svg, obs) {
     const a = issAltitudeDeg(obs, e);
     if (a > peakAlt) { peakAlt = a; peakMs = t; }
   }
+  return peakMs;
+}
+
+function paintPolarModalEvents(svg, obs, peakMs) {
+  const eventsG = svg.querySelector('[data-layer="events"]');
+  if (!eventsG) return;
+  eventsG.replaceChildren();
+  const w = state.windows?.[state.activeWindowIdx];
+  if (!w) return;
   const eventTimes = [w.startMs, peakMs, w.endMs];
   const { cx, cy, R } = MODAL_GEOM;
 
@@ -1157,10 +1229,16 @@ function paintPolarModalEvents(svg, obs) {
 // <img> element, so the caller can wait before unhiding the modal —
 // otherwise the user sees a frame of empty <img> while the PNG paints.
 async function renderPolarModal(obs) {
-  paintPolarModalStatic(polarModalSvg, obs);
+  // Sky backdrop (stars / sun / moon / planets) is anchored at the
+  // PASS PEAK time, not the playback clock — opening the modal for a
+  // pass three hours away would otherwise show today's sky behind a
+  // chart annotated with that distant pass's timestamp.
+  const w0 = state.windows?.[state.activeWindowIdx];
+  const peakMsTop = w0 ? passPeakMs(w0, obs) : Date.now();
+  paintPolarModalStatic(polarModalSvg, obs, peakMsTop);
   paintPolarModalArc(polarModalSvg, obs);
-  paintPolarModalEvents(polarModalSvg, obs);
-  const jsDate = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  const jsDate = new Date(peakMsTop);
+  paintPolarModalEvents(polarModalSvg, obs, peakMsTop);
   paintPolarModalStars(polarModalSvg, obs, jsDate);
   paintPolarModalSunMoon(polarModalSvg, obs, jsDate);
   const blob = await svgToPngBlob(polarModalSvg);
