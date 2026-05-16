@@ -110,6 +110,49 @@ function observerSeesIss(obs, issEcef, jsDate) {
   return isVisibleAtAll([obs], issEcef, jsDate);
 }
 
+// Per-observer pass cache. Each observer's polar plot lights up
+// independently of the joint window — when that observer can see ISS
+// right now (per observerSeesIss), we cache the full sweep where
+// that holds and draw the arc for it. Invalidated when mode /
+// minElev / observer set changes; per-observer entries also fall out
+// when the clock leaves the cached range.
+// Declared up here (rather than alongside the related helper
+// functions further down) because addObserver → renderObsList →
+// updateObserverIconArc references this Map during module init, and
+// `const` bindings hit the TDZ if accessed before their declaration.
+const _obsCurrentPass = new Map(); // obsId -> { startMs, endMs } | null
+
+function invalidateObsPassCache() {
+  _obsCurrentPass.clear();
+}
+
+// Walk backward/forward from anchorMs in 1-second steps until the
+// observer no longer sees the ISS (apparent alt < threshold + mode-
+// specific gates). Caps at 15 min outside the anchor since real ISS
+// passes top out around 10 min for an overhead pass.
+const PASS_EDGE_STEP_MS = 1000;
+const PASS_EDGE_MAX_MS = 15 * 60 * 1000;
+function passWindowAtMsForObserver(obs, anchorMs) {
+  const anchorD = new Date(anchorMs);
+  const anchorEcef = issEcefAt(anchorD);
+  if (!anchorEcef || !observerSeesIss(obs, anchorEcef, anchorD)) return null;
+  let startMs = anchorMs;
+  let endMs = anchorMs;
+  for (let t = anchorMs - PASS_EDGE_STEP_MS; t >= anchorMs - PASS_EDGE_MAX_MS; t -= PASS_EDGE_STEP_MS) {
+    const d = new Date(t);
+    const e = issEcefAt(d);
+    if (!e || !observerSeesIss(obs, e, d)) break;
+    startMs = t;
+  }
+  for (let t = anchorMs + PASS_EDGE_STEP_MS; t <= anchorMs + PASS_EDGE_MAX_MS; t += PASS_EDGE_STEP_MS) {
+    const d = new Date(t);
+    const e = issEcefAt(d);
+    if (!e || !observerSeesIss(obs, e, d)) break;
+    endMs = t;
+  }
+  return { startMs, endMs };
+}
+
 function addObserver(name, latDeg, lonDeg) {
   const idx = state.observers.length;
   const color = PALETTE[idx % PALETTE.length];
@@ -283,7 +326,10 @@ function buildPolarPlot(obs) {
 
 function updatePolarPlotArc(svg, obs) {
   const arc = svg.querySelector(".arc");
-  const w = state.windows?.[state.activeWindowIdx];
+  // Per-observer pass window — the observer's full sweep when they're
+  // currently sighting ISS, not the joint multi-observer window. Lets
+  // each station's mini chart show its actual horizon-to-horizon arc.
+  const w = _obsCurrentPass.get(obs.id);
   if (!w) { arc.setAttribute("points", ""); return; }
   const SAMPLES = 30;
   const dt = (w.endMs - w.startMs) / SAMPLES;
@@ -390,7 +436,7 @@ function buildObserverLabel(obs) {
 function updateObserverIconArc(wrapper, obs) {
   const arc = wrapper.querySelector(".observer-label-icon .arc");
   if (!arc) return;
-  const w = state.windows?.[state.activeWindowIdx];
+  const w = _obsCurrentPass.get(obs.id);
   if (!w) { arc.setAttribute("points", ""); return; }
   const SAMPLES = 30;
   const dt = (w.endMs - w.startMs) / SAMPLES;
@@ -925,7 +971,7 @@ function arcSampleStyle(obs, issEcef, jsDate) {
   return { alpha: issAlphaForMag(m), dashed: false };
 }
 
-function paintPolarModalArc(svg, obs) {
+function paintPolarModalArc(svg, obs, win) {
   const arc = svg.querySelector(".arc");
   if (!arc) return;
   arc.replaceChildren();
@@ -933,7 +979,7 @@ function paintPolarModalArc(svg, obs) {
   // from the sky luminance palette) on the SVG root so the trajectory
   // contrast adapts with the disc shade.
   const stroke = svg.dataset.arcStroke || POLAR_ARC_COLOR;
-  const w = state.windows?.[state.activeWindowIdx];
+  const w = win ?? state.windows?.[state.activeWindowIdx];
   if (!w) return;
   const SAMPLES = 60;
   const dt = (w.endMs - w.startMs) / SAMPLES;
@@ -1325,11 +1371,11 @@ function passPeakMs(w, obs) {
   return peakMs;
 }
 
-function paintPolarModalEvents(svg, obs, peakMs) {
+function paintPolarModalEvents(svg, obs, peakMs, win) {
   const eventsG = svg.querySelector('[data-layer="events"]');
   if (!eventsG) return;
   eventsG.replaceChildren();
-  const w = state.windows?.[state.activeWindowIdx];
+  const w = win ?? state.windows?.[state.activeWindowIdx];
   if (!w) return;
   const eventTimes = [w.startMs, peakMs, w.endMs];
   const { cx, cy, R } = MODAL_GEOM;
@@ -1506,20 +1552,45 @@ function paintPolarModalEvents(svg, obs, peakMs) {
 // <img> element, so the caller can wait before unhiding the modal —
 // otherwise the user sees a frame of empty <img> while the PNG paints.
 async function renderPolarModal(obs) {
+  // Modal uses the OBSERVER's full pass (extended from the joint
+  // window outward until this station can't see ISS) — that's the
+  // user's actual horizon-to-horizon view, regardless of when other
+  // observers join in. Resolution order:
+  //   1) Joint window selected → expand from its midpoint
+  //   2) Otherwise, use the per-observer cache (set by the sighting
+  //      tracker whenever this observer can currently see ISS),
+  //      which lets a station that's still sighting after the joint
+  //      pass ended open a populated modal
+  //   3) Fall back to a fresh expansion anchored at the current
+  //      clock time (covers the case where the cache is empty but
+  //      this observer happens to be sighting right now)
+  //   4) Last resort: leave obsWin null so the modal renders with
+  //      no arc, matching the "no current pass" state
+  const joinW = state.windows?.[state.activeWindowIdx];
+  let obsWin = null;
+  if (joinW) {
+    const midMs = (joinW.startMs + joinW.endMs) / 2;
+    obsWin = passWindowAtMsForObserver(obs, midMs) ?? joinW;
+  } else {
+    obsWin = _obsCurrentPass.get(obs.id) ?? null;
+    if (!obsWin) {
+      const nowMs = Cesium.JulianDate.toDate(viewer.clock.currentTime).getTime();
+      obsWin = passWindowAtMsForObserver(obs, nowMs);
+    }
+  }
   // Sky backdrop (stars / sun / moon / planets) is anchored at the
-  // PASS PEAK time, not the playback clock — opening the modal for a
+  // pass PEAK time, not the playback clock — opening the modal for a
   // pass three hours away would otherwise show today's sky behind a
   // chart annotated with that distant pass's timestamp. Sun altitude
   // at that instant drives both the chart's shade and the limiting
   // magnitude (which dim objects fade into the twilight glow).
-  const w0 = state.windows?.[state.activeWindowIdx];
-  const peakMsTop = w0 ? passPeakMs(w0, obs) : Date.now();
+  const peakMsTop = obsWin ? passPeakMs(obsWin, obs) : Date.now();
   const sunAltAtPeak = sunAltitudeDeg(obs, new Date(peakMsTop));
   const limMag = naturalSkyLimMag(sunAltAtPeak);
   paintPolarModalStatic(polarModalSvg, obs, peakMsTop, sunAltAtPeak);
-  paintPolarModalArc(polarModalSvg, obs);
+  paintPolarModalArc(polarModalSvg, obs, obsWin);
   const jsDate = new Date(peakMsTop);
-  paintPolarModalEvents(polarModalSvg, obs, peakMsTop);
+  paintPolarModalEvents(polarModalSvg, obs, peakMsTop, obsWin);
   paintPolarModalStars(polarModalSvg, obs, jsDate, limMag);
   paintPolarModalSunMoon(polarModalSvg, obs, jsDate, limMag);
   const blob = await svgToPngBlob(polarModalSvg);
@@ -3093,6 +3164,11 @@ setTimeout(dismissPageLoader, 5000);
 // running for state.horizonDays. Called on observer add/remove and after
 // TLE load. No-op if either prerequisite is missing.
 function rerunSearchIfActive() {
+  // Per-observer pass cache depends on mode + minElevDeg + observer
+  // set — any change that triggers a search re-run invalidates them
+  // too. The next preRender will repopulate any observer currently
+  // sighting ISS.
+  invalidateObsPassCache();
   if (!state.observers.length) {
     // No observers → nothing to search. Clear state + list so the prior
     // results don't linger after the user removes the last observer.
@@ -3398,8 +3474,59 @@ function bestMomentMs(w) {
   return bestMs;
 }
 
+// Index of the window whose [startMs, endMs] contains `ms`, or -1.
+// Small tolerance on each edge — clicking a pass parks the clock at
+// the window's startMs via JulianDate.fromDate→toDate, which can
+// introduce sub-millisecond float drift. Without tolerance, the
+// roundtripped ms can land at startMs - 0.0001 and the auto-tracker
+// would override the click and deactivate the pass.
+const WINDOW_EDGE_TOLERANCE_MS = 100;
+function windowIdxAtMs(ms) {
+  if (!state.windows) return -1;
+  for (let i = 0; i < state.windows.length; i++) {
+    const w = state.windows[i];
+    if (ms >= w.startMs - WINDOW_EDGE_TOLERANCE_MS &&
+        ms <= w.endMs + WINDOW_EDGE_TOLERANCE_MS) return i;
+  }
+  return -1;
+}
+
+// Apply an activeWindowIdx change driven by the clock (not a user
+// click). Updates everything jumpToWindow does EXCEPT the
+// disruptive actions: clock isn't set (clock IS the cause here),
+// camera doesn't refit, panel doesn't collapse, no persistState
+// write (auto-tracking isn't user intent). When idx is -1 the
+// active pass gradient is cleared too.
+function setActiveWindowSoft(i) {
+  // Class always reflects current activeWindowIdx, even when the
+  // auto-tracker would otherwise no-op — catches stale state from
+  // outside callers that reset activeWindowIdx directly (reset
+  // button, window-list rebuild, etc.).
+  document.body.classList.toggle("has-active-pass", i >= 0);
+  if (i === state.activeWindowIdx) return;
+  state.activeWindowIdx = i;
+  renderWindowsList();
+  if (i >= 0) {
+    invalidateOrbitCache();
+    renderActivePassGradient(state.windows[i]);
+    refreshAllPolarPlotArcs();
+  } else {
+    clearActivePassGradient();
+  }
+}
+
+// Per-frame: if the clock has crossed into or out of a pass, soft-
+// update the active window. Runs cheaply (linear scan over windows,
+// no-op when idx is unchanged) and is debounced naturally by the
+// idx-equality guard inside setActiveWindowSoft.
+function autoTrackActiveWindow() {
+  const ms = Cesium.JulianDate.toDate(viewer.clock.currentTime).getTime();
+  setActiveWindowSoft(windowIdxAtMs(ms));
+}
+
 function jumpToWindow(i) {
   state.activeWindowIdx = i;
+  document.body.classList.toggle("has-active-pass", i >= 0);
   const w = state.windows[i];
   // Park the clock at the window's start so the user can play through the
   // whole simultaneously-visible interval; the table shows the peak time.
@@ -3496,6 +3623,55 @@ function exitFpsMode() {
 // Per-frame: keep each observer card's polar plot ISS dot in sync with
 // the current sim time. Arc is static for the active window — only the
 // dot moves frame-to-frame.
+viewer.scene.preRender.addEventListener(autoTrackActiveWindow);
+
+// Per-observer "sighting now" tracker. Toggles the polar-plot icons
+// (obs-list + 3D-scene) per observer based on observerSeesIss at the
+// current clock time. On the invisible→visible transition, computes
+// the observer's full pass window and refreshes their arc — so a
+// station that catches the ISS rising before others have their plot
+// already populated with the right path.
+viewer.scene.preRender.addEventListener(() => {
+  const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+  const ms = d.getTime();
+  const issEcef = issEcefAt(d);
+  for (const obs of state.observers) {
+    const visible = !!(issEcef && observerSeesIss(obs, issEcef, d));
+    const cached = _obsCurrentPass.get(obs.id);
+    if (visible) {
+      // Reanchor when the cache is empty OR the clock has crossed
+      // outside the cached pass (e.g., scrubbed into a new pass).
+      const stale = !cached || ms < cached.startMs || ms > cached.endMs;
+      if (stale) {
+        const win = passWindowAtMsForObserver(obs, ms);
+        if (win) {
+          _obsCurrentPass.set(obs.id, win);
+          for (const svg of obsListEl.querySelectorAll(`.polar-plot[data-obs-id="${obs.id}"]`)) {
+            updatePolarPlotArc(svg, obs);
+          }
+          for (const wrapper of iconLayerEl.querySelectorAll(`.observer-label[data-obs-id="${obs.id}"]`)) {
+            updateObserverIconArc(wrapper, obs);
+          }
+        }
+      }
+    } else if (cached) {
+      _obsCurrentPass.delete(obs.id);
+    }
+    // Display toggle — same per-observer flag drives both placements.
+    for (const svg of obsListEl.querySelectorAll(`.polar-plot[data-obs-id="${obs.id}"]`)) {
+      svg.style.display = visible ? "" : "none";
+    }
+    for (const wrapper of iconLayerEl.querySelectorAll(`.observer-label[data-obs-id="${obs.id}"]`)) {
+      const icon = wrapper.querySelector(".observer-label-icon");
+      if (icon) icon.style.display = visible ? "" : "none";
+      // .inactive disables hover cursor / click animation / pointer
+      // events so the 3D-scene info box stops being clickable when
+      // its polar plot icon is hidden (there's nothing to open).
+      wrapper.classList.toggle("inactive", !visible);
+    }
+  }
+});
+
 viewer.scene.preRender.addEventListener(() => {
   for (const svg of obsListEl.querySelectorAll(".polar-plot")) {
     const obs = state.observers.find(o => o.id === svg.dataset.obsId);
