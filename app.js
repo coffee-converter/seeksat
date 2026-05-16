@@ -80,16 +80,118 @@ wireSimTime(viewer, { precision: 4 }); // observation timestamp has 4-decimal su
 window.__viewer = viewer; // for debugging in dev console
 console.log("Cesium viewer ready");
 
-const monday = await fetch("./data/monday.json").then(r => r.json());
+// Triangulation attempts come from two sources:
+//   - Manifest (data/attempts.json) — read-only, ships with the site.
+//     Each entry: { id, label, file }.
+//   - User-created — stored in localStorage under USER_ATTEMPTS_KEY,
+//     fully editable, downloadable as JSON so the user can commit
+//     them to data/ later. Each entry: { id, label, timestampUTC,
+//     observations, defaultTle?, createdAt }.
+// The dropdown shows the combined list with manifest entries first.
+async function loadManifestAttempts() {
+  try {
+    const m = await fetch("./data/attempts.json").then(r => r.json());
+    return m.map(a => ({ ...a, source: "manifest" }));
+  } catch (_) {
+    return [{ id: "monday", label: "Monday", file: "monday.json", source: "manifest" }];
+  }
+}
+const USER_ATTEMPTS_KEY = "triangulation-user-attempts";
+const MANIFEST_OVERRIDES_KEY = "triangulation-manifest-overrides";
+
+// Browser-local edits to read-only manifest attempts go here. The
+// next time the page loads, switchAttempt overlays these on top of
+// the JSON fetched from data/. Cleared by the manifest attempt's
+// "reset" affordance.
+function loadManifestOverrides() {
+  try { return JSON.parse(localStorage.getItem(MANIFEST_OVERRIDES_KEY) || "{}"); }
+  catch (_) { return {}; }
+}
+function saveManifestOverride(id, data) {
+  const all = loadManifestOverrides();
+  all[id] = data;
+  localStorage.setItem(MANIFEST_OVERRIDES_KEY, JSON.stringify(all));
+}
+function loadUserAttempts() {
+  try {
+    const raw = localStorage.getItem(USER_ATTEMPTS_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list.map(a => ({ ...a, source: "user" })) : [];
+  } catch (_) {
+    return [];
+  }
+}
+function saveUserAttempts(list) {
+  // Drop transient source: flag before serializing — it's derived.
+  const serializable = list.map(({ source: _src, ...rest }) => rest);
+  localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable));
+}
+function persistUserAttempt(attempt) {
+  const users = loadUserAttempts();
+  const idx = users.findIndex(a => a.id === attempt.id);
+  const entry = { ...attempt };
+  delete entry.source;
+  if (idx >= 0) users[idx] = entry;
+  else users.push(entry);
+  saveUserAttempts(users);
+}
+function deleteUserAttempt(id) {
+  saveUserAttempts(loadUserAttempts().filter(a => a.id !== id));
+}
+
+const manifestAttempts = await loadManifestAttempts();
+const attemptsList = [...manifestAttempts, ...loadUserAttempts()];
+
+function pickInitialAttemptId() {
+  const hash = (location.hash || "").replace(/^#/, "");
+  const params = new URLSearchParams(hash);
+  const id = params.get("attempt");
+  return attemptsList.find(a => a.id === id)?.id
+    ?? attemptsList[0]?.id
+    ?? null;
+}
+const initialAttemptId = pickInitialAttemptId();
+const initialAttemptEntry = attemptsList.find(a => a.id === initialAttemptId);
+let currentAttemptId = initialAttemptId;
+let currentAttemptSource = initialAttemptEntry?.source ?? "manifest";
+
+async function fetchAttemptData(entry) {
+  if (!entry) return { timestampUTC: "", observations: [] };
+  if (entry.source === "user") {
+    const users = loadUserAttempts();
+    const u = users.find(a => a.id === entry.id);
+    return u ? { ...u } : { timestampUTC: "", observations: [] };
+  }
+  // Manifest: start from the data/ file, then overlay any browser-
+  // local override so user edits survive page reloads. defaultTle is
+  // tristate in the override: undefined → keep file value; null →
+  // user explicitly cleared; object → user-edited TLE.
+  const fileData = await fetch(`./data/${entry.file}`).then(r => r.json());
+  const override = loadManifestOverrides()[entry.id];
+  if (override) {
+    return {
+      ...fileData,
+      timestampUTC: override.timestampUTC ?? fileData.timestampUTC,
+      observations: override.observations ?? fileData.observations,
+      defaultTle: override.defaultTle !== undefined
+        ? override.defaultTle
+        : fileData.defaultTle,
+    };
+  }
+  return fileData;
+}
+const initialData = await fetchAttemptData(initialAttemptEntry);
 
 // In-memory state.
 const state = {
-  timestampUTC: monday.timestampUTC,
-  observations: monday.observations,
+  timestampUTC: initialData.timestampUTC,
+  observations: initialData.observations,
   triangulated: null, // [x,y,z] ECEF (meters)
   residuals: [],
-  refractionEnabled: false,
+  refractionEnabled: true,
 };
+window.__state = state; // dev-console inspection
 
 // Render layer references so we can clear and redraw on every recompute.
 const layer = {
@@ -145,27 +247,46 @@ function buildRay(obs, jsDate) {
   return { origin, dir: dirEcef };
 }
 
+function obsHasLocation(o) { return o.latDeg != null && o.lonDeg != null; }
+function obsHasDirection(o) {
+  if (!o.dir || !o.dir.mode) return false;
+  if (o.dir.mode === "radec") return o.dir.raHours != null && o.dir.decDeg != null;
+  return o.dir.azDeg != null && o.dir.altDeg != null;
+}
+
 let recompute = function () {
-  for (const obs of state.observations) ensureElev(obs);
+  for (const obs of state.observations) {
+    if (obsHasLocation(obs)) ensureElev(obs);
+  }
   clearLayer();
   const jsDate = new Date(state.timestampUTC);
-  if (Number.isNaN(jsDate.getTime()) || state.observations.length < 2) {
+  const timeOk = !Number.isNaN(jsDate.getTime());
+
+  // Observers with complete location render a pin. Those that also
+  // have a direction get a ray. Triangulation runs only when there
+  // are ≥2 fully-complete observations — but we still want each
+  // individual ray to render before that, so the user can see
+  // alignment as they add data.
+  const located = state.observations.filter(obsHasLocation);
+  const rayObs = located.filter(obsHasDirection);
+  const rays = (timeOk ? rayObs : []).map(o => buildRay(o, jsDate));
+
+  let triangulationOk = false;
+  if (timeOk && rays.length >= 2) {
+    viewer.clock.currentTime = Cesium.JulianDate.fromDate(jsDate);
+    const result = triangulateRays(rays);
+    state.triangulated = result.point;
+    state.residuals = result.residuals;
+    triangulationOk = !!state.triangulated;
+  } else {
     state.triangulated = null;
     state.residuals = [];
-    return;
   }
-  // Pin the Cesium clock to the observation moment so the skybox stars
-  // (rendered in ICRF) align with the actual sky for that timestamp.
-  viewer.clock.currentTime = Cesium.JulianDate.fromDate(jsDate);
-  const rays = state.observations.map(o => buildRay(o, jsDate));
-  const result = triangulateRays(rays);
-  state.triangulated = result.point;
-  state.residuals = result.residuals;
 
   // Observer pins — anchor at sea level (elev 0) so the dot sits on the
   // rendered globe surface (Cesium's ellipsoid imagery has no 3D terrain).
   // Math still uses the observer's real elevation for the ray direction.
-  for (const obs of state.observations) {
+  for (const obs of located) {
     const pos = Cesium.Cartesian3.fromDegrees(obs.lonDeg, obs.latDeg, 0);
     const color = Cesium.Color.fromCssColorString(obs.color);
     layer.observers.push(viewer.entities.add({
@@ -188,9 +309,12 @@ let recompute = function () {
     }));
   }
 
-  // Rays as polylines extending past the triangulated point.
-  const refOrigin = rays[0].origin;
-  const rayLength = state.triangulated
+  // Rays as polylines extending past the triangulated point — drawn
+  // whenever an observer has a complete direction, even when there
+  // aren't yet ≥2 to triangulate. Length defaults to 1000 km when
+  // there's nothing to anchor to.
+  const refOrigin = rays[0]?.origin;
+  const rayLength = (triangulationOk && refOrigin)
     ? 2 * Math.hypot(
         state.triangulated[0] - refOrigin[0],
         state.triangulated[1] - refOrigin[1],
@@ -200,7 +324,7 @@ let recompute = function () {
 
   for (let i = 0; i < rays.length; i++) {
     const { origin, dir } = rays[i];
-    const obs = state.observations[i];
+    const obs = rayObs[i];
     const end = [
       origin[0] + dir[0] * rayLength,
       origin[1] + dir[1] * rayLength,
@@ -327,7 +451,10 @@ function buildObsCard(obs, idx) {
   card.className = "obs-card";
   card.dataset.idx = String(idx);
 
-  // Header: swatch + name + delete
+  // Header: swatch + name + delete. Tab order: name → lat → lon → …
+  // (skip the ✕ button) so keyboarding through a new row goes through
+  // the data fields. Delete stays clickable but tabindex=-1 takes it
+  // out of the keyboard sequence.
   const header = document.createElement("div");
   header.className = "obs-card-header";
   const swatch = document.createElement("span");
@@ -340,6 +467,7 @@ function buildObsCard(obs, idx) {
   rm.className = "remove";
   rm.textContent = "✕";
   rm.title = "Remove observation";
+  rm.tabIndex = -1;
   header.appendChild(rm);
   card.appendChild(header);
 
@@ -354,19 +482,19 @@ function buildObsCard(obs, idx) {
     sel.appendChild(opt);
   }
 
-  const v1Default = obs.dir.mode === "radec"
-    ? (obs.rawV1 ?? String(obs.dir.raHours))
-    : (obs.rawV1 ?? String(obs.dir.azDeg));
-  const v2Default = obs.dir.mode === "radec"
-    ? (obs.rawV2 ?? String(obs.dir.decDeg))
-    : (obs.rawV2 ?? String(obs.dir.altDeg));
+  // null-friendly defaults: a brand-new observation has no values
+  // for direction yet — show empty inputs rather than "0" zeros.
+  const v1Source = obs.dir.mode === "radec" ? obs.dir.raHours : obs.dir.azDeg;
+  const v2Source = obs.dir.mode === "radec" ? obs.dir.decDeg : obs.dir.altDeg;
+  const v1Default = obs.rawV1 ?? (v1Source != null ? String(v1Source) : "");
+  const v2Default = obs.rawV2 ?? (v2Source != null ? String(v2Source) : "");
   const v1Label = obs.dir.mode === "radec" ? "RA" : "Az";
   const v2Label = obs.dir.mode === "radec" ? "Dec" : "Alt";
 
   card.appendChild(makeRow(
-    makeField("Lat", makeInput("lat", obs.rawLat ?? obs.latDeg)),
-    makeField("Lon", makeInput("lon", obs.rawLon ?? obs.lonDeg)),
-    makeField("Elev", makeInput("elev", obs.elevM == null ? "" : obs.elevM)),
+    makeField("Lat", makeInput("lat", obs.rawLat ?? (obs.latDeg != null ? obs.latDeg : ""))),
+    makeField("Lon", makeInput("lon", obs.rawLon ?? (obs.lonDeg != null ? obs.lonDeg : ""))),
+    makeField("Elev (m)", makeInput("elev", obs.elevM == null ? "" : obs.elevM)),
   ));
   const dirRow = makeRow(
     makeField("Mode", sel),
@@ -379,8 +507,21 @@ function buildObsCard(obs, idx) {
   return card;
 }
 
+// Guard against re-entrant reparseObsFromDom calls that the DOM
+// rebuild can trigger. When replaceChildren removes a focused input,
+// that input fires a synchronous `change` event mid-removal; if it
+// bubbles to obsList's listener while DOM is partially empty, the
+// reparse will see fewer rows than state and shrink state.observations
+// to that shorter length. Setting a flag skips reparses for the
+// duration of the rebuild — state stays the authoritative source.
+let _suppressReparse = false;
 function renderObsList() {
-  obsList.replaceChildren(...state.observations.map(buildObsCard));
+  _suppressReparse = true;
+  try {
+    obsList.replaceChildren(...state.observations.map(buildObsCard));
+  } finally {
+    _suppressReparse = false;
+  }
 }
 
 function renderTimestampLocal() {
@@ -391,14 +532,19 @@ function renderTimestampLocal() {
 }
 
 function reparseObsFromDom() {
+  if (_suppressReparse) return;
   const rows = [...obsList.querySelectorAll(".obs-card")];
+  // Always preserve a slot per DOM row. When a field fails to parse,
+  // keep the previous state's value for that field — so partial
+  // typing doesn't drop the whole row, and the form keeps what the
+  // user typed (rendered via the rawV1/rawV2/rawLat/rawLon fields).
   const next = rows.map((tr, idx) => {
     const prev = state.observations[idx] || {};
     const get = (n) => tr.querySelector(`[data-field=${n}]`).value;
     const mode = get("mode");
     const v1 = get("v1");
     const v2 = get("v2");
-    let dir;
+    let dir = prev.dir;
     try {
       if (mode === "radec") {
         dir = { mode, raHours: parseRaToHours(v1), decDeg: parseDecToDegrees(v2) };
@@ -406,19 +552,19 @@ function reparseObsFromDom() {
         dir = { mode, azDeg: parseDmsToDecimal(v1), altDeg: parseDmsToDecimal(v2) };
       }
     } catch (e) {
-      console.warn(`Observation ${idx}: bad direction (${e.message})`);
-      return null;
+      // Keep prev.dir while user finishes typing; warn but don't drop.
+      if (v1 || v2) console.warn(`Observation ${idx}: bad direction (${e.message})`);
     }
-    let latDeg, lonDeg;
+    let latDeg = prev.latDeg ?? null;
+    let lonDeg = prev.lonDeg ?? null;
     try {
       latDeg = parseDmsToDecimal(get("lat"));
       lonDeg = parseDmsToDecimal(get("lon"));
     } catch (e) {
-      console.warn(`Observation ${idx}: bad lat/lon (${e.message})`);
-      return null;
+      if (get("lat") || get("lon")) console.warn(`Observation ${idx}: bad lat/lon (${e.message})`);
     }
     return {
-      id: prev.id || `obs-${idx}`,
+      id: prev.id || `obs-${Date.now()}-${idx}`,
       name: get("name") || `Obs ${idx + 1}`,
       color: prev.color || PALETTE[idx % PALETTE.length],
       latDeg, lonDeg,
@@ -427,14 +573,16 @@ function reparseObsFromDom() {
       rawLat: get("lat"), rawLon: get("lon"),
       rawV1: v1, rawV2: v2,
     };
-  }).filter(Boolean);
+  });
 
-  if (next.length >= 2) {
-    state.observations = next;
-    state.timestampUTC = tsInput.value;
-    renderTimestampLocal();
-    recompute();
-  }
+  state.observations = next;
+  state.timestampUTC = tsInput.value;
+  renderTimestampLocal();
+  // Always recompute — even with 0 or 1 obs, so clearLayer() wipes
+  // any stale rays / triangulated point from a previous state. The
+  // function itself bails out before triangulating when there aren't
+  // enough rays.
+  recompute();
 }
 
 obsList.addEventListener("input", reparseObsFromDom);
@@ -452,18 +600,27 @@ obsList.addEventListener("click", (ev) => {
     const idx = Number(ev.target.closest(".obs-card").dataset.idx);
     state.observations.splice(idx, 1);
     renderObsList();
-    if (state.observations.length >= 2) recompute();
+    // Always recompute so clearLayer wipes the removed observer's
+    // dot/label/ray even when fewer than 2 observers remain (the
+    // function itself bails before triangulating).
+    recompute();
   }
 });
 
 addBtn.addEventListener("click", () => {
+  // Capture whatever the user has typed in existing rows BEFORE we
+  // wipe + rebuild the DOM — otherwise typing in row 0 and then
+  // clicking +Add would lose row 0's edits.
+  reparseObsFromDom();
   const idx = state.observations.length;
   state.observations.push({
     id: `obs-${Date.now()}-${idx}`,
     name: `Obs ${idx + 1}`,
     color: PALETTE[idx % PALETTE.length],
-    latDeg: 0, lonDeg: 0,
-    dir: { mode: "radec", raHours: 0, decDeg: 0 },
+    latDeg: null, lonDeg: null,
+    // mode is fixed (the <select> needs it) but values stay absent
+    // so the form inputs start empty rather than showing "0".
+    dir: { mode: "radec" },
   });
   renderObsList();
 });
@@ -644,16 +801,97 @@ function renderTruth() {
   }
 }
 
-[tleL1, tleL2, tleL3].forEach(el => el.addEventListener("input", renderTruth));
-
-// Pre-fill TLE inputs from data/monday.json so the truth overlay + orbit
-// track render alongside the pre-filled observation on first load.
-if (monday.defaultTle) {
-  tleL1.value = monday.defaultTle.name ?? "";
-  tleL2.value = monday.defaultTle.line1 ?? "";
-  tleL3.value = monday.defaultTle.line2 ?? "";
-  document.getElementById("tle-details").open = true;
+// Read the TLE form into the JSON shape stored on disk / in attempts.
+// Returns null when all three textareas are empty — that distinguishes
+// "user cleared the TLE" from "TLE was never set".
+function currentTleFromForm() {
+  const name = tleL1.value.trim();
+  const line1 = tleL2.value.trim();
+  const line2 = tleL3.value.trim();
+  if (!name && !line1 && !line2) return null;
+  return { name, line1, line2 };
 }
+
+const tleFetchBtn = document.getElementById("tle-fetch");
+const tleClearBtn = document.getElementById("tle-clear");
+const tleWarnEl = document.getElementById("tle-warn");
+
+function updateTleControlsState() {
+  const hasContent = !!(tleL1.value.trim() || tleL2.value.trim() || tleL3.value.trim());
+  tleFetchBtn.disabled = hasContent;
+  tleFetchBtn.title = hasContent
+    ? "Clear TLE fields first to refetch"
+    : "Fetch the current ISS TLE from CelesTrak";
+  tleClearBtn.disabled = !hasContent;
+  // Warning: CelesTrak only serves the current TLE, so if the attempt
+  // is from more than a day ago, fetched values won't match that pass.
+  const ms = new Date(state.timestampUTC).getTime();
+  const ageHours = Number.isFinite(ms) ? (Date.now() - ms) / 3_600_000 : 0;
+  if (!hasContent && ageHours > 24) {
+    tleWarnEl.hidden = false;
+    tleWarnEl.textContent = `⚠ ${Math.round(ageHours)}h ago — current TLE won't match`;
+  } else {
+    tleWarnEl.hidden = true;
+  }
+}
+
+[tleL1, tleL2, tleL3].forEach(el => el.addEventListener("input", () => {
+  updateTleControlsState();
+  // Run renderTruth + persistCurrent through the recompute chain so
+  // edits to the TLE form are saved alongside everything else.
+  recompute();
+}));
+
+tleClearBtn.addEventListener("click", () => {
+  tleL1.value = "";
+  tleL2.value = "";
+  tleL3.value = "";
+  updateTleControlsState();
+  recompute();
+});
+
+tleFetchBtn.addEventListener("click", async () => {
+  // Guard against double-clicks while the request is in flight.
+  if (tleFetchBtn.disabled) return;
+  const prevLabel = tleFetchBtn.textContent;
+  tleFetchBtn.disabled = true;
+  tleFetchBtn.textContent = "Fetching…";
+  try {
+    const url = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`CelesTrak HTTP ${res.status}`);
+    const text = await res.text();
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 3) throw new Error("malformed TLE response");
+    tleL1.value = lines[0].trim();
+    tleL2.value = lines[1].trim();
+    tleL3.value = lines[2].trim();
+  } catch (e) {
+    alert(`Couldn't fetch latest TLE: ${e.message}`);
+  } finally {
+    tleFetchBtn.textContent = prevLabel;
+    updateTleControlsState();
+    recompute();
+  }
+});
+
+// Pre-fill TLE inputs from the loaded attempt. switchAttempt() below
+// mirrors this when the user picks a different attempt from the
+// dropdown — passing null clears the form so a stale TLE from one
+// attempt can't bleed into the next.
+function applyDefaultTle(defaultTle) {
+  if (defaultTle) {
+    tleL1.value = defaultTle.name ?? "";
+    tleL2.value = defaultTle.line1 ?? "";
+    tleL3.value = defaultTle.line2 ?? "";
+  } else {
+    tleL1.value = "";
+    tleL2.value = "";
+    tleL3.value = "";
+  }
+  updateTleControlsState();
+}
+applyDefaultTle(initialData.defaultTle);
 
 // Compose renderTruth onto recompute.
 const _recompute2 = recompute;
@@ -748,6 +986,190 @@ function viewFromObserver(idx) {
     maximumHeight: 15240, // 50,000 ft
   });
 }
+
+// Populate the attempt-picker dropdown from the manifest + user
+// list, and wire switching, creating, downloading, and deleting.
+// Selecting a different attempt fetches its data, swaps state,
+// re-renders observations + result, applies the TLE if the entry
+// carries one, and reframes the camera. The URL hash is kept in
+// sync so the choice is deep-linkable / shareable.
+const attemptSelect = document.getElementById("attempt-select");
+const attemptNewBtn = document.getElementById("attempt-new");
+const attemptDownloadBtn = document.getElementById("attempt-download");
+const attemptDeleteBtn = document.getElementById("attempt-delete");
+const attemptNewForm = document.getElementById("attempt-new-form");
+
+function repopulateAttemptSelect(activeId) {
+  attemptSelect.replaceChildren();
+  const combined = [...manifestAttempts, ...loadUserAttempts()];
+  for (const a of combined) {
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    // Mark user-created entries so they read as distinct from the
+    // read-only manifest ones.
+    opt.textContent = a.source === "user" ? `${a.label}  (local)` : a.label;
+    attemptSelect.appendChild(opt);
+  }
+  if (activeId) attemptSelect.value = activeId;
+  // Download is always available — covers both built-in and user
+  // attempts (exports current state). Delete is only for user-
+  // created entries (built-ins can't be removed; they're in data/).
+  const active = combined.find(a => a.id === attemptSelect.value);
+  const isUser = active?.source === "user";
+  attemptDownloadBtn.hidden = !active;
+  attemptDeleteBtn.hidden = !isUser;
+}
+
+async function switchAttempt(id) {
+  const combined = [...manifestAttempts, ...loadUserAttempts()];
+  const entry = combined.find(a => a.id === id);
+  if (!entry) return;
+  const data = await fetchAttemptData(entry);
+  state.timestampUTC = data.timestampUTC ?? "";
+  state.observations = data.observations ?? [];
+  // Update active-attempt pointers BEFORE the render/recompute pass —
+  // recompute fires persistCurrent, which keys on currentAttemptId.
+  // If we updated those AFTER recompute, switching A→B would persist
+  // B's just-loaded data under A's id and corrupt both records.
+  currentAttemptId = id;
+  currentAttemptSource = entry.source;
+  applyDefaultTle(data.defaultTle);
+  tsInput.value = state.timestampUTC;
+  renderTimestampLocal();
+  renderObsList();
+  recompute();
+  cameraCtrl.frameAll();
+  attemptDownloadBtn.hidden = false;
+  attemptDeleteBtn.hidden = entry.source !== "user";
+  history.replaceState(null, "", `#attempt=${id}`);
+}
+
+attemptSelect.addEventListener("change", () => switchAttempt(attemptSelect.value));
+
+// Persist current state back to localStorage after any edit. User
+// attempts write the full record; manifest attempts write a partial
+// override that overlays the data/ file on next load. Called by the
+// recompute wrap below.
+function persistCurrent() {
+  if (!currentAttemptId) return;
+  const formTle = currentTleFromForm();
+  if (currentAttemptSource === "user") {
+    const users = loadUserAttempts();
+    const existing = users.find(a => a.id === currentAttemptId) ?? {};
+    persistUserAttempt({
+      id: currentAttemptId,
+      label: existing.label ?? "Untitled",
+      createdAt: existing.createdAt ?? new Date().toISOString(),
+      timestampUTC: state.timestampUTC,
+      observations: state.observations,
+      defaultTle: formTle,
+    });
+  } else {
+    saveManifestOverride(currentAttemptId, {
+      timestampUTC: state.timestampUTC,
+      observations: state.observations,
+      defaultTle: formTle,
+    });
+  }
+}
+
+// ---- New-attempt form -----------------------------------------------
+attemptNewBtn.addEventListener("click", () => {
+  attemptNewForm.hidden = !attemptNewForm.hidden;
+  if (!attemptNewForm.hidden) {
+    document.getElementById("af-label").value = "";
+    // Pre-fill UTC with current ISO timestamp for convenience.
+    document.getElementById("af-utc").value = new Date().toISOString();
+    document.getElementById("af-copy").checked = false;
+    document.getElementById("af-label").focus();
+  }
+});
+document.getElementById("af-cancel").addEventListener("click", () => {
+  attemptNewForm.hidden = true;
+});
+attemptNewForm.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const label = document.getElementById("af-label").value.trim();
+  const utc = document.getElementById("af-utc").value.trim();
+  const copy = document.getElementById("af-copy").checked;
+  if (!label) return;
+  // Generate a stable, URL-safe id. Slug from label + short timestamp
+  // suffix avoids collisions when two attempts share a label.
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const id = `user-${slug || "attempt"}-${Date.now().toString(36)}`;
+  const observations = copy ? JSON.parse(JSON.stringify(state.observations)) : [];
+  // Reassign observation ids so the new attempt doesn't share rows
+  // with the source — otherwise editing one would update both via
+  // the obs-card's id-keyed DOM lookup.
+  for (const o of observations) o.id = `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  persistUserAttempt({
+    id, label,
+    timestampUTC: utc,
+    observations,
+    createdAt: new Date().toISOString(),
+  });
+  repopulateAttemptSelect(id);
+  attemptNewForm.hidden = true;
+  await switchAttempt(id);
+});
+
+// ---- Download JSON --------------------------------------------------
+// Exports CURRENT state (timestampUTC + observations + the active
+// attempt's defaultTle if any) regardless of source — that's the
+// natural "save my edits to disk" affordance for both built-in and
+// user-created attempts.
+attemptDownloadBtn.addEventListener("click", () => {
+  const combined = [...manifestAttempts, ...loadUserAttempts()];
+  const entry = combined.find(a => a.id === currentAttemptId);
+  if (!entry) return;
+  // Always pull the TLE from the live form so the JSON reflects the
+  // exact state the user is looking at, regardless of source.
+  const defaultTle = currentTleFromForm();
+  const exported = {
+    timestampUTC: state.timestampUTC,
+    observations: state.observations,
+    ...(defaultTle ? { defaultTle } : {}),
+  };
+  const blob = new Blob([JSON.stringify(exported, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const slug = (entry.label || "attempt").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  a.href = url;
+  a.download = `${slug || "attempt"}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// ---- Delete attempt -------------------------------------------------
+attemptDeleteBtn.addEventListener("click", () => {
+  if (currentAttemptSource !== "user") return;
+  if (!confirm(`Delete this attempt? (browser-local only — won't touch data/)`)) return;
+  deleteUserAttempt(currentAttemptId);
+  // Switch to first remaining attempt.
+  const combined = [...manifestAttempts, ...loadUserAttempts()];
+  const nextId = combined[0]?.id;
+  repopulateAttemptSelect(nextId);
+  if (nextId) switchAttempt(nextId);
+});
+
+repopulateAttemptSelect(initialAttemptId);
+
+// Wrap recompute so any user-attempt edit persists automatically.
+// Persist FIRST (state is set by the caller before recompute runs),
+// so a downstream throw inside the triangulation/render chain can't
+// swallow the user's edit. Try/catch keeps the page alive if the
+// triangulation does throw.
+const _recomputeForPersist = recompute;
+recompute = function () {
+  persistCurrent();
+  try {
+    _recomputeForPersist();
+  } catch (e) {
+    console.error("recompute chain failed:", e);
+  }
+};
 
 renderObsList();
 tsInput.value = state.timestampUTC; // show the precise value from data file
