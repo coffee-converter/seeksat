@@ -639,6 +639,17 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   outline: 2px solid rgba(126, 184, 255, 0.7);
   outline-offset: 1px;
 }
+/* Set by the sighting tracker when this observer's polar plot icon
+   is hidden — wrapper becomes non-interactive (no hover state, no
+   click handler reaches it, no :active scale animation, no focus
+   ring) since there's no plot to open. Descendants need an explicit
+   override because `.observer-label *` (above) re-enables their
+   pointer-events otherwise. */
+.observer-label.inactive,
+.observer-label.inactive * {
+  cursor: default;
+  pointer-events: none;
+}
 /* Every child inherits pointer-events: auto from the wrapper, but make
    it explicit so future child elements can't accidentally swallow
    clicks before they reach the wrapper's handler. */
@@ -650,6 +661,11 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   overflow: visible;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45));
 }
+
+/* Polar-plot icon visibility is now driven per-observer by the
+   sighting tracker (preRender hook in pass-finder.js) — each plot
+   shows whenever its observer can see ISS at the current clock
+   instant, independent of whether all observers can. */
 .observer-label-icon .horizon {
   fill: rgba(8, 12, 24, 0.9);
   stroke: rgba(126, 184, 255, 0.55);
