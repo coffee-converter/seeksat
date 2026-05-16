@@ -81,8 +81,11 @@
 
   <nav id="camera-controls">
     <button data-cam="frame">Frame all</button>
-    <button data-cam="coffee">From Coffee</button>
-    <button data-cam="seafoam">From SeaFoam</button>
+    <!-- One "From <name>" button per observation, generated dynamically
+         from state.observations (renderFromObserverButtons). The slot
+         is between Frame and Top so observer buttons sit in the natural
+         "frame → from observer → top" reading order. -->
+    <span id="from-observer-slot"></span>
     <button data-cam="top">Top down</button>
     <button data-cam="orbit" title="Lock camera to triangulated point; mouse drag orbits, wheel zooms">Orbit point</button>
     <button data-cam="rotate">Auto-rotate</button>
