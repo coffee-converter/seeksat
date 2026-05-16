@@ -523,6 +523,9 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   min-width: 22px;
   user-select: none;
 }
+#share-btn {
+  position: relative;
+}
 #share-btn.copied {
   background: rgba(127, 229, 209, 0.22);
   border-color: rgba(127, 229, 209, 0.5);
@@ -533,6 +536,31 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   border-color: rgba(248, 113, 113, 0.5);
   color: #f87171;
 }
+/* Floating "Copied!" / "Failed" tag to the LEFT of the button —
+   absolute positioning means it doesn't shift surrounding layout
+   while the feedback class is active. The empty space between the
+   left controls cluster and the right-pinned share button has room
+   for the tag without overlapping anything important. */
+#share-btn.copied::after,
+#share-btn.failed::after {
+  position: absolute;
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(10, 14, 26, 0.92);
+  color: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+#share-btn.copied::after { content: "Copied!"; }
+#share-btn.failed::after { content: "Failed"; }
 .window-row:hover { background: rgba(126,184,255,0.12); }
 .window-row.active { background: rgba(126,184,255,0.25); }
 .window-row .rating {
