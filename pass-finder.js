@@ -2951,18 +2951,24 @@ minElevControlEl.addEventListener("click", (ev) => {
 // Share button — copies a URL encoding the current setup (observers +
 // active pass + mode/min-elev) to the clipboard. The URL bar itself
 // stays clean; the ?s=... blob only materializes here, on demand.
+// Click feedback runs through CSS classes only — replacing textContent
+// would wipe the inline SVG icon and shift the button's height as
+// "Copied!" text is taller than the 12px icon.
 const shareBtn = document.getElementById("share-btn");
+const shareBtnDefaultTitle = shareBtn.title;
 shareBtn.addEventListener("click", async () => {
+  let ok = true;
   try {
     await navigator.clipboard.writeText(buildShareUrl());
-    shareBtn.textContent = "Copied!";
-    shareBtn.classList.add("copied");
   } catch (_) {
-    shareBtn.textContent = "Copy failed";
+    ok = false;
   }
+  shareBtn.classList.toggle("copied", ok);
+  shareBtn.classList.toggle("failed", !ok);
+  shareBtn.title = ok ? "Link copied" : "Copy failed";
   setTimeout(() => {
-    shareBtn.textContent = "Share";
-    shareBtn.classList.remove("copied");
+    shareBtn.classList.remove("copied", "failed");
+    shareBtn.title = shareBtnDefaultTitle;
   }, 1500);
 });
 
