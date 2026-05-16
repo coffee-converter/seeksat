@@ -483,6 +483,87 @@ document.addEventListener("pointerdown", (ev) => {
 // ---------------------------------------------------------------------------
 
 const MODAL_GEOM = { cx: 100, cy: 100, R: 90 };
+
+const rgbStr = ([r, g, b]) => `rgb(${r}, ${g}, ${b})`;
+
+// Twilight-aware chart shade. Linear interpolation between standard
+// twilight breakpoints — daylight blue at sun overhead, deep navy
+// after astronomical twilight (sun < -18°). Returns an [r, g, b]
+// triple in 0–255; callers can convert to a CSS string or derive
+// a luminance-aware palette from it.
+function skyShadeRgb(altDeg) {
+  const stops = [
+    [ 10, [ 95, 168, 214]],
+    [  0, [ 60, 100, 150]],
+    [ -6, [ 35,  55, 100]],
+    [-12, [ 18,  28,  60]],
+    [-18, [  8,  12,  24]],
+    [-90, [  4,   8,  20]],
+  ];
+  if (altDeg >= stops[0][0]) return stops[0][1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [aH, cH] = stops[i], [aL, cL] = stops[i + 1];
+    if (altDeg <= aH && altDeg >= aL) {
+      const t = (aH - altDeg) / (aH - aL);
+      return cH.map((v, k) => Math.round(v + t * (cL[k] - v)));
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+const skyShadeForSunAlt = (altDeg) => rgbStr(skyShadeRgb(altDeg));
+
+// Luminance-aware palette: derive grid + spoke + arc grays from the
+// horizon disc's perceived luminance. Light grays on dark sky, dark
+// grays on bright sky, asymmetric magnitudes tuned for legibility
+// (eyes accept lighter-on-dark with smaller delta than darker-on-light).
+// Arc gets stronger contrast than grid so the pass trajectory reads
+// as the primary visual against the chart's structural lines.
+function chartPalette(sunAltDeg) {
+  const bg = skyShadeRgb(sunAltDeg);
+  const bgLuma = 0.2126 * bg[0] + 0.7152 * bg[1] + 0.0722 * bg[2];
+  const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+  const dark = bgLuma >= 128;
+  // Asymmetric deltas: bigger swings against bright bg because gray
+  // doesn't visually "punch" out of pale blue without a big drop.
+  const gridDelta  = dark ? -90  : 70;
+  const spokeDelta = dark ? -70  : 50;
+  const arcDelta   = dark ? -150 : 130;
+  const gridGray  = clamp(bgLuma + gridDelta);
+  const spokeGray = clamp(bgLuma + spokeDelta);
+  const arcGray   = clamp(bgLuma + arcDelta);
+  return {
+    grid:  `rgb(${gridGray}, ${gridGray}, ${gridGray})`,
+    spoke: `rgb(${spokeGray}, ${spokeGray}, ${spokeGray})`,
+    arc:   `rgb(${arcGray}, ${arcGray}, ${arcGray})`,
+  };
+}
+
+// Approximate limiting visual magnitude at zenith given sun altitude
+// — objects fainter than this aren't visible to the naked eye through
+// the prevailing twilight glow. Looser than rigorous photometric
+// thresholds (real dark-sky limit is ~6.5) so the chart doesn't go
+// completely empty in deep night; tighter than reality near horizon
+// so we don't pretend stars are visible during daylight.
+function naturalSkyLimMag(altDeg) {
+  const stops = [
+    [ 10, -4.0],
+    [  0, -2.5],
+    [ -6,  1.5],
+    [-12,  3.5],
+    [-18,  5.0],
+    [-90,  6.0],
+  ];
+  if (altDeg >= stops[0][0]) return stops[0][1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [aH, mH] = stops[i], [aL, mL] = stops[i + 1];
+    if (altDeg <= aH && altDeg >= aL) {
+      const t = (aH - altDeg) / (aH - aL);
+      return mH + t * (mL - mH);
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
 let _polarModalObsId = null;
 let _polarModalImgUrl = null; // current blob URL bound to <img>
 const polarModalEl = document.getElementById("polar-modal");
@@ -513,10 +594,18 @@ function starAltAzForObs(obs, starDirEcef) {
 // blob-loaded <img> only sees what's inside the SVG itself.
 const MODAL_SVG_STYLE = `
   .horizon { fill: rgba(4, 8, 20, 0.95); stroke: rgba(126, 184, 255, 0.55); stroke-width: 0.8; }
-  .grid    { fill: none; stroke: rgba(126, 184, 255, 0.18); stroke-width: 0.4; }
-  .spoke   { stroke: rgba(126, 184, 255, 0.12); stroke-width: 0.3; }
+  /* Grid + spokes get their stroke set inline per chart, picked from
+     a luminance-aware palette derived from the horizon disc shade —
+     light grays on dark sky, dark grays on bright sky, asymmetric
+     deltas tuned for legibility at each end. */
+  .grid    { fill: none; stroke-width: 0.4; }
+  .spoke   { stroke-width: 0.3; }
   .cardinal { fill: #cfe0ff; font-size: 11px; letter-spacing: 0.08em; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
   .az-num   { fill: #6a7a9a; font-size: 4.6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  /* Arc stroke is set inline per chart (luminance-aware palette) so
+     the pass trajectory keeps even contrast against the twilight
+     disc — slightly stronger contrast than .grid, but never pure
+     white-on-dark (that would compete with star dots). */
   .arc      { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.65; }
   .iss-dot  { fill: #ffffff; stroke: #7eb8ff; stroke-width: 0.7; }
   .star-dot { }
@@ -541,7 +630,7 @@ const MODAL_SVG_STYLE = `
   .bg { fill: #0a0e1a; }
 `;
 
-function paintPolarModalStatic(svg, obs, anchorMs) {
+function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   svg.replaceChildren();
   const { cx, cy, R } = MODAL_GEOM;
   // Embedded styles — duplicated from pass-finder.css so the exported
@@ -618,18 +707,38 @@ function paintPolarModalStatic(svg, obs, anchorMs) {
   svg.appendChild(tzT);
 
   // ---- Chart base -----------------------------------------------
+  // Disc shade is twilight-aware: bright blue in daylight, deep navy
+  // once the sun is well below astronomical twilight. Inline fill
+  // overrides the static .horizon CSS so PNG exports carry the right
+  // shade for this pass.
   const horizon = document.createElementNS(SVG_NS, "circle");
   horizon.setAttribute("cx", cx); horizon.setAttribute("cy", cy);
   horizon.setAttribute("r", R);
   horizon.classList.add("horizon");
+  if (sunAltDeg != null) {
+    // Inline style — `fill` as a presentation attribute loses to the
+    // `.horizon` class rule, but an inline style beats class CSS.
+    horizon.style.fill = skyShadeForSunAlt(sunAltDeg);
+  }
   svg.appendChild(horizon);
-  // Azimuth spokes every 30°, drawn before rings so rings render on top.
+  // Grid + spoke + arc strokes pulled from a luminance-aware palette
+  // so they stay readable against whatever sky shade was just set.
+  const palette = sunAltDeg != null
+    ? chartPalette(sunAltDeg)
+    : { grid: "#aab8d4", spoke: "#7eb8ff", arc: "#aab8d4" };
+  // Azimuth spokes every 30°. Inner endpoint sits at ~80° altitude
+  // (not the zenith) so the top ~10° of the chart stays clear — that
+  // central cap is where stars/planets near zenith would otherwise
+  // fight 12 spokes converging on a single pixel.
+  const SPOKE_INNER_ALT = 80;
   for (let az = 0; az < 360; az += 30) {
-    const [x, y] = altAzToSvg(0, az, cx, cy, R);
+    const [xOut, yOut] = altAzToSvg(0, az, cx, cy, R);
+    const [xIn,  yIn]  = altAzToSvg(SPOKE_INNER_ALT, az, cx, cy, R);
     const l = document.createElementNS(SVG_NS, "line");
-    l.setAttribute("x1", cx); l.setAttribute("y1", cy);
-    l.setAttribute("x2", x.toFixed(2)); l.setAttribute("y2", y.toFixed(2));
+    l.setAttribute("x1", xIn.toFixed(2));  l.setAttribute("y1", yIn.toFixed(2));
+    l.setAttribute("x2", xOut.toFixed(2)); l.setAttribute("y2", yOut.toFixed(2));
     l.classList.add("spoke");
+    l.style.stroke = palette.spoke;
     svg.appendChild(l);
   }
   // Altitude rings: 30°, 60°
@@ -638,8 +747,12 @@ function paintPolarModalStatic(svg, obs, anchorMs) {
     c.setAttribute("cx", cx); c.setAttribute("cy", cy);
     c.setAttribute("r", ((90 - altRing) / 90) * R);
     c.classList.add("grid");
+    c.style.stroke = palette.grid;
     svg.appendChild(c);
   }
+  // Stash the arc color on the SVG root so paintPolarModalArc (called
+  // after this) can pick it up without recomputing the palette.
+  svg.dataset.arcStroke = palette.arc;
   // Cardinal labels — sky-chart convention (E LEFT, W RIGHT) with
   // breathing room outside the ring.
   const cards = [
@@ -707,7 +820,10 @@ const POLAR_ARC_COLOR = "#aab8d4";
 function paintPolarModalArc(svg, obs) {
   const arc = svg.querySelector(".arc");
   if (!arc) return;
-  arc.setAttribute("stroke", POLAR_ARC_COLOR);
+  // paintPolarModalStatic stashes the per-chart arc color (derived
+  // from the sky luminance palette) on the SVG root so the trajectory
+  // contrast adapts with the disc shade.
+  arc.setAttribute("stroke", svg.dataset.arcStroke || POLAR_ARC_COLOR);
   const w = state.windows?.[state.activeWindowIdx];
   if (!w) { arc.setAttribute("points", ""); return; }
   const SAMPLES = 60;
@@ -762,7 +878,7 @@ function moonLitPath(cx, cy, r, phaseAngleRad) {
 // on the polar modal. Painted once when the modal opens. Both bodies
 // only show when ≥ 0° apparent altitude — below-horizon bodies are
 // silently omitted.
-function paintPolarModalSunMoon(svg, obs, jsDate) {
+function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
   const layer = svg.querySelector('[data-layer="bodies"]');
   if (!layer) return;
   layer.replaceChildren();
@@ -851,6 +967,11 @@ function paintPolarModalSunMoon(svg, obs, jsDate) {
     if (Math.acos(Math.max(-1, Math.min(1, dotMoon))) < MOON_R_RAD) continue;
     const style = PLANET_STYLE[pname];
     const mag = planetApparentMagnitude(pname, jsDate);
+    // Twilight gate: drop planets whose apparent magnitude is dimmer
+    // than the prevailing sky-glow limit. Venus stays visible through
+    // most of daytime (mag -4 ≪ daylight limit -3); Saturn drops out
+    // around civil twilight.
+    if (limMag != null && mag != null && mag > limMag) continue;
     // Narrow clamp: Pogson scaling would make Venus a small planet
     // (mag -4 → r≈6) and Saturn near-invisible (mag +1 → r≈0.6).
     // We want all five readable as discs without the brightest two
@@ -906,7 +1027,7 @@ function appendBodyGlyph(layer, cx, cy, letter, fill, blend) {
   layer.appendChild(g);
 }
 
-function paintPolarModalStars(svg, obs, jsDate) {
+function paintPolarModalStars(svg, obs, jsDate, limMag) {
   const starsG = svg.querySelector('[data-layer="stars"]');
   if (!starsG) return;
   starsG.replaceChildren();
@@ -915,8 +1036,13 @@ function paintPolarModalStars(svg, obs, jsDate) {
   // would crash into an already-placed label still draw their dot.
   const labelEligible = [...BRIGHT_STARS].sort((a, b) => a.mag - b.mag);
   const placedLabels = [];
+  // Twilight gate: stars dimmer than this magnitude are washed out by
+  // sky glow at the prevailing sun altitude — skip rendering them.
+  // limMag === null means "no filter" (legacy callers).
+  const passesLimMag = (mag) => limMag == null || mag <= limMag;
 
   const drawStar = (star, withLabel) => {
+    if (!passesLimMag(star.mag)) return;
     const dirEcef = starDirectionEcef(star, jsDate);
     const { alt, az } = starAltAzForObs(obs, dirEcef);
     if (alt < 0) return;
@@ -1232,15 +1358,19 @@ async function renderPolarModal(obs) {
   // Sky backdrop (stars / sun / moon / planets) is anchored at the
   // PASS PEAK time, not the playback clock — opening the modal for a
   // pass three hours away would otherwise show today's sky behind a
-  // chart annotated with that distant pass's timestamp.
+  // chart annotated with that distant pass's timestamp. Sun altitude
+  // at that instant drives both the chart's shade and the limiting
+  // magnitude (which dim objects fade into the twilight glow).
   const w0 = state.windows?.[state.activeWindowIdx];
   const peakMsTop = w0 ? passPeakMs(w0, obs) : Date.now();
-  paintPolarModalStatic(polarModalSvg, obs, peakMsTop);
+  const sunAltAtPeak = sunAltitudeDeg(obs, new Date(peakMsTop));
+  const limMag = naturalSkyLimMag(sunAltAtPeak);
+  paintPolarModalStatic(polarModalSvg, obs, peakMsTop, sunAltAtPeak);
   paintPolarModalArc(polarModalSvg, obs);
   const jsDate = new Date(peakMsTop);
   paintPolarModalEvents(polarModalSvg, obs, peakMsTop);
-  paintPolarModalStars(polarModalSvg, obs, jsDate);
-  paintPolarModalSunMoon(polarModalSvg, obs, jsDate);
+  paintPolarModalStars(polarModalSvg, obs, jsDate, limMag);
+  paintPolarModalSunMoon(polarModalSvg, obs, jsDate, limMag);
   const blob = await svgToPngBlob(polarModalSvg);
   const url = URL.createObjectURL(blob);
   if (_polarModalImgUrl) URL.revokeObjectURL(_polarModalImgUrl);
@@ -2279,8 +2409,20 @@ function passSuccessProbability(win, observers) {
 function peakElevFactor(deg) {
   return Math.max(0, Math.min(1, (deg - 5) / 50));
 }
+// Duration → quality curve. Exponential approach to 1.0 with a 90s
+// time constant — short passes (<2 min) score low, a typical 6-7 min
+// overhead pass lands in the high 90s, and the curve asymptotes so
+// implausibly long passes don't break the upper bound.
+//   60s   →  0.49
+//  120s   →  0.74
+//  180s   →  0.86
+//  300s   →  0.96
+//  420s   →  0.99
+//  600s   →  ~1.00
+// min(1, ·) is belt-and-braces against numerical drift at very large
+// sec — the bare exp form already stays < 1 mathematically.
 function radioDurationFactor(sec) {
-  return sec / (sec + 120);
+  return Math.min(1, 1 - Math.exp(-sec / 90));
 }
 function radioPassSuccessProbability(win, observers, minElevDeg) {
   if (!win || !observers.length) return 0;
