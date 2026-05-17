@@ -3260,6 +3260,69 @@ for (const star of BRIGHT_STARS) {
   });
 }
 
+// Five classical naked-eye planets as colored dots at their apparent
+// sky position. Uses the same camera-relative STAR_FAR_M trick as the
+// bright-star labels — keeps each planet stuck at its real direction
+// in the sky regardless of where the camera flies. Pixel sizes are
+// typical naked-eye visibility (Venus brightest → biggest; Mercury /
+// Saturn dimmer → smaller). Hidden when behind Earth from the camera.
+const PLANET_PIXEL_SIZES = {
+  mercury: 2.8,
+  venus:   6.0,
+  mars:    4.0,
+  jupiter: 5.0,
+  saturn:  3.4,
+};
+function planetSkyPos(pname, jsDate) {
+  const d = planetPositionEcef(pname, jsDate);
+  const cam = viewer.camera.positionWC;
+  return Cesium.Cartesian3.fromElements(
+    cam.x + d[0] * STAR_FAR_M,
+    cam.y + d[1] * STAR_FAR_M,
+    cam.z + d[2] * STAR_FAR_M,
+  );
+}
+for (const pname of PLANET_NAMES) {
+  const style = PLANET_STYLE[pname];
+  viewer.entities.add({
+    position: new Cesium.CallbackProperty((time) => {
+      return planetSkyPos(pname, Cesium.JulianDate.toDate(time));
+    }, false),
+    point: {
+      pixelSize: PLANET_PIXEL_SIZES[pname] ?? 3,
+      color: Cesium.Color.fromCssColorString(style.color),
+      outlineColor: Cesium.Color.BLACK.withAlpha(0.45),
+      outlineWidth: 0.6,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      show: new Cesium.CallbackProperty((time) => {
+        return isInFrontOfEarth(planetSkyPos(pname, Cesium.JulianDate.toDate(time)));
+      }, false),
+    },
+    // Name label sits ABOVE the planet dot — bottom-anchored at the
+    // entity position with a small upward pixel offset, matching the
+    // bright-star label placement. Tinted with the planet's
+    // traditional naked-eye color so the label reads as belonging to
+    // its dot.
+    label: {
+      text: style.name,
+      font: "10px sans-serif",
+      fillColor: Cesium.Color.fromCssColorString(style.color),
+      outlineColor: Cesium.Color.BLACK.withAlpha(0.6),
+      outlineWidth: 2,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      showBackground: false,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      pixelOffset: new Cesium.Cartesian2(
+        0, -((PLANET_PIXEL_SIZES[pname] ?? 3) / 2 + 2),
+      ),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      show: new Cesium.CallbackProperty((time) => {
+        return isInFrontOfEarth(planetSkyPos(pname, Cesium.JulianDate.toDate(time)));
+      }, false),
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Active pass gradient: a thick, colored overlay on the ISS orbit track that
 // spans the visibility window of the currently-selected pass. The color at
