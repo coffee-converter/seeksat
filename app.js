@@ -80,6 +80,12 @@ wireSimTime(viewer, { precision: 4 }); // observation timestamp has 4-decimal su
 window.__viewer = viewer; // for debugging in dev console
 console.log("Cesium viewer ready");
 
+// Pane toggle — slides #panel-observations off-screen via the
+// .panel-collapsed body class (all visual changes are CSS-driven).
+document.getElementById("panel-toggle").addEventListener("click", () => {
+  document.body.classList.toggle("panel-collapsed");
+});
+
 // Triangulation attempts come from two sources:
 //   - Manifest (data/attempts.json) — read-only, ships with the site.
 //     Each entry: { id, label, file }.
@@ -718,6 +724,7 @@ function pickTleLines() {
 function renderTruth() {
   clearTruthLayer();
   elTruth.textContent = "";
+  state.truthPos = null;
   const lines = pickTleLines();
   if (!lines) return;
   const [line1, line2] = lines;
@@ -733,6 +740,7 @@ function renderTruth() {
     elTruth.textContent = "TLE propagation returned no position.";
     return;
   }
+  state.truthPos = pos;
 
   // Orbit track: snapshot of the ISS orbit in the Earth-fixed frame at obs time.
   try {
@@ -760,7 +768,7 @@ function renderTruth() {
       outlineWidth: 2,
     },
     label: {
-      text: "Truth (TLE)",
+      text: `TLE: ${tleL1.value.trim() || "Truth"}`,
       font: "12px sans-serif",
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
       verticalOrigin: Cesium.VerticalOrigin.TOP,
@@ -796,7 +804,8 @@ function renderTruth() {
     const cart = Cesium.Cartographic.fromCartesian(
       Cesium.Cartesian3.fromElements(...pos)
     );
-    setBlock(elTruth, "Truth (TLE)", [
+    const tleName = tleL1.value.trim() || "TLE";
+    setBlock(elTruth, `TLE: ${tleName}`, [
       `lat  ${Cesium.Math.toDegrees(cart.latitude).toFixed(5)}°`,
       `lon  ${Cesium.Math.toDegrees(cart.longitude).toFixed(5)}°`,
       `alt  ${(cart.height / 1000).toFixed(2)} km`,
@@ -908,16 +917,95 @@ const cameraCtrl = wireCameraControls(viewer, {
   getOrbitAnchor: () => state.triangulated
     ? Cesium.Cartesian3.fromElements(...state.triangulated)
     : null,
+  // Hand the shared camera-controls the observers, the triangulated point
+  // (if any), AND samples along each observer→triangulated line so the
+  // bounding sphere captures meaningful horizontal extent even when the
+  // ISS is roughly overhead the observers. Letting the shared frameAll /
+  // topDown derive bounds + altitude from these points (no hardcoded
+  // altitude override) gives the same auto-scaling pass-finder enjoys.
+  // Tell the shared frameAll how much of the canvas is covered by the
+  // left panel so it can fit the bounding sphere into the visible area
+  // (rather than fitting the full canvas and letting the panel hide the
+  // left edge of the data). When the panel is collapsed we report 0.
+  getFrameViewportInset: () => {
+    const panel = document.getElementById("panel-observations");
+    if (!panel || document.body.classList.contains("panel-collapsed")) {
+      return { left: 0, right: 0, top: 0, bottom: 0 };
+    }
+    // 16px panel left-offset + panel width, total horizontal real estate
+    // the panel takes from the canvas's left edge.
+    const rect = panel.getBoundingClientRect();
+    return { left: Math.ceil(rect.right + 8), right: 0, top: 0, bottom: 0 };
+  },
+  // Position the frame camera perpendicular to the observer baseline so
+  // the rays converging on the ISS are seen edge-on rather than along
+  // their length. With 1 observer, use the bearing observer→ISS-subpoint;
+  // with 0 observers, fall back to the shared default tilt.
+  getFrameHeadingPitch: () => {
+    const obs = state.observations.filter(obsHasLocation);
+    if (obs.length === 0) return { headingDeg: 20, pitchDeg: -30 };
+    let dx = 0, dy = 0;
+    if (obs.length >= 2) {
+      let i0 = 0, i1 = 1, dmax = -1;
+      for (let i = 0; i < obs.length; i++) {
+        for (let j = i + 1; j < obs.length; j++) {
+          const a = obs[i], b = obs[j];
+          const ay = b.latDeg - a.latDeg;
+          const ax = (b.lonDeg - a.lonDeg) * Math.cos(a.latDeg * Math.PI / 180);
+          const d = ax * ax + ay * ay;
+          if (d > dmax) { dmax = d; i0 = i; i1 = j; }
+        }
+      }
+      const a = obs[i0], b = obs[i1];
+      dy = b.latDeg - a.latDeg;
+      dx = (b.lonDeg - a.lonDeg) * Math.cos(a.latDeg * Math.PI / 180);
+    } else if (state.triangulated) {
+      const triCart = Cesium.Cartographic.fromCartesian(
+        Cesium.Cartesian3.fromElements(...state.triangulated));
+      dy = Cesium.Math.toDegrees(triCart.latitude) - obs[0].latDeg;
+      dx = (Cesium.Math.toDegrees(triCart.longitude) - obs[0].lonDeg)
+        * Math.cos(obs[0].latDeg * Math.PI / 180);
+    } else {
+      return { headingDeg: 20, pitchDeg: -30 };
+    }
+    const baselineDeg = Math.atan2(dx, dy) * 180 / Math.PI;
+    // Two perpendiculars to the baseline give equally-valid "from
+    // the side" views. Prefer whichever sits closer to looking-from-
+    // south (heading 180°) — keeps map north up and the scene
+    // tilted toward the viewer the way we naturally read maps.
+    const norm = (a) => ((a % 360) + 360) % 360;
+    const cand1 = norm(baselineDeg + 90);
+    const cand2 = norm(baselineDeg - 90);
+    const distToSouth = (h) => Math.min(Math.abs(h - 180), 360 - Math.abs(h - 180));
+    const headingDeg = distToSouth(cand1) <= distToSouth(cand2) ? cand1 : cand2;
+    return { headingDeg, pitchDeg: -15 };
+  },
   getFramePositions: () => {
-    const ps = state.observations.map(o =>
-      Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, o.elevM || 0));
-    if (state.triangulated) ps.push(Cesium.Cartesian3.fromElements(...state.triangulated));
+    const ps = state.observations
+      .filter(obsHasLocation)
+      .map(o => Cesium.Cartesian3.fromDegrees(o.lonDeg, o.latDeg, o.elevM || 0));
+    const skyPoints = [];
+    if (state.triangulated) {
+      skyPoints.push(Cesium.Cartesian3.fromElements(...state.triangulated));
+    }
+    if (state.truthPos) {
+      skyPoints.push(Cesium.Cartesian3.fromElements(...state.truthPos));
+    }
+    for (const p of skyPoints) {
+      ps.push(p);
+      // Sample the ground projection so the bounding sphere isn't a
+      // thin sliver dominated by ISS altitude — pulling in the sub-
+      // point gives the frame a sensible footprint even when observers
+      // are close together.
+      const cart = Cesium.Cartographic.fromCartesian(p);
+      ps.push(Cesium.Cartesian3.fromDegrees(
+        Cesium.Math.toDegrees(cart.longitude),
+        Cesium.Math.toDegrees(cart.latitude),
+        0
+      ));
+    }
     return ps;
   },
-  getTopDownCenter: () => state.triangulated
-    ? Cesium.Cartesian3.fromElements(...state.triangulated)
-    : null,
-  topDownAltitude: () => 2_000_000,
   beforePreset: () => { if (layer.observers.length) setObserverVisibility(-1); },
   extraHandlers: {
     // "from-<idx>" buttons are generated by renderFromObserverButtons

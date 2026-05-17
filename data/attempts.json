@@ -3,5 +3,10 @@
     "id": "monday-2026-05-11",
     "label": "Monday 2026-05-11 · 22:32 CDT",
     "file": "monday.json"
+  },
+  {
+    "id": "friday-2026-05-15",
+    "label": "Friday 2026-05-15 · 22:38 CDT",
+    "file": "friday.json"
   }
 ]
