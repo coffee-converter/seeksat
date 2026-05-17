@@ -311,18 +311,14 @@ function buildPolarPlot(obs) {
     t.textContent = c.l;
     svg.appendChild(t);
   }
-  // ISS arc + current-position dot (filled later, may be hidden if no
-  // active pass / observer can't see ISS at current time). The
-  // .arc-border polyline sits BEHIND the colored arc and shares the
-  // same points; it gives the trace a thin dark outline so the
-  // observer color stays legible against any sky-shade fill on the
-  // horizon disc.
-  const arcBorder = document.createElementNS(SVG_NS, "polyline");
-  arcBorder.classList.add("arc-border");
-  svg.appendChild(arcBorder);
-  const arc = document.createElementNS(SVG_NS, "polyline");
+  // ISS arc — <g> container that renderArcSegments fills with solid
+  // <line> children (per-segment magnitude opacity) plus optional
+  // dashed <polyline> runs (eclipsed / sub-naked-eye stretches).
+  // Stroke color comes from chartPalette(sunAltDeg) so the trace
+  // contrast matches the sky-shade horizon fill, identical styling
+  // to the fullscreen modal.
+  const arc = document.createElementNS(SVG_NS, "g");
   arc.classList.add("arc");
-  arc.setAttribute("stroke", obs.color);
   svg.appendChild(arc);
   const dot = document.createElementNS(SVG_NS, "circle");
   dot.classList.add("iss-dot");
@@ -331,32 +327,46 @@ function buildPolarPlot(obs) {
   return svg;
 }
 
-function updatePolarPlotArc(svg, obs) {
+// Cache per-pass arc samples on the arc element itself. Sample
+// positions + dashed/alpha flags depend only on the pass window and
+// observer (computed at sample TIMES inside the pass), not on the
+// current clock — so they're constant for the duration of a pass.
+// Only the stroke COLOR changes per frame (with sun altitude), so the
+// per-frame repaint is just DOM rebuild + new color, no SGP4.
+const _arcSampleCache = new WeakMap();
+function getCachedArcSamples(arc, obs, win, cx, cy, R, samples) {
+  const cached = _arcSampleCache.get(arc);
+  if (cached && cached.winStart === win.startMs && cached.obsId === obs.id) {
+    return cached.samples;
+  }
+  const s = computeArcSamples(obs, win, cx, cy, R, samples);
+  _arcSampleCache.set(arc, { winStart: win.startMs, obsId: obs.id, samples: s });
+  return s;
+}
+
+// Repaint the per-observer arc inside an obs-card .polar-plot SVG
+// using the same modal-style segmenter (magnitude-aware opacity,
+// dashed when not naked-eye visible) and the same luminance-aware
+// stroke color derived from the observer's current sun altitude.
+function updatePolarPlotArc(svg, obs, sunAltDeg) {
   const arc = svg.querySelector(".arc");
-  const arcBorder = svg.querySelector(".arc-border");
+  if (!arc) return;
   // Per-observer pass window — the observer's full sweep when they're
   // currently sighting ISS, not the joint multi-observer window. Lets
   // each station's mini chart show its actual horizon-to-horizon arc.
   const w = _obsCurrentPass.get(obs.id);
-  if (!w) {
-    arc.setAttribute("points", "");
-    if (arcBorder) arcBorder.setAttribute("points", "");
-    return;
+  if (!w) { arc.replaceChildren(); _arcSampleCache.delete(arc); return; }
+  if (sunAltDeg == null) {
+    const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+    sunAltDeg = apparentAltDeg(sunAltitudeDeg(obs, d));
   }
-  const SAMPLES = 30;
-  const dt = (w.endMs - w.startMs) / SAMPLES;
-  const pts = [];
-  for (let i = 0; i <= SAMPLES; i++) {
-    const issEcef = issEcefAt(new Date(w.startMs + dt * i));
-    if (!issEcef) continue;
-    const { alt, az } = issAltAzDeg(obs, issEcef);
-    if (alt < 0) continue;
-    const [x, y] = altAzToSvg(alt, az);
-    pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-  }
-  const points = pts.join(" ");
-  arc.setAttribute("points", points);
-  if (arcBorder) arcBorder.setAttribute("points", points);
+  const stroke = chartPalette(sunAltDeg).arc;
+  const samples = getCachedArcSamples(arc, obs, w, 50, 50, 45, 30);
+  // Dash + gap sized to the 4.5 stroke-width so the gap actually reads
+  // as empty space. With butt caps (set in renderArcSegments), a gap
+  // of N renders as N user units of nothing — so we want gap > stroke
+  // to make the dashed treatment visually distinct from the solid.
+  renderArcSegments(arc, samples, stroke, "4 6");
 }
 
 // Paint the horizon disc to match the sky color at the observer's
@@ -372,6 +382,7 @@ function updatePolarPlotHorizon(svg, sunAltDeg) {
 
 function updatePolarPlotDot(svg, obs) {
   const dot = svg.querySelector(".iss-dot");
+  if (!dot) return; // small obs-card icon no longer renders a dot
   const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
   const issEcef = issEcefAt(d);
   if (!issEcef) { dot.style.display = "none"; return; }
@@ -446,15 +457,13 @@ function buildObserverLabel(obs) {
   nTri.setAttribute("d", "M 50 2 L 57 11 L 43 11 Z");
   nTri.setAttribute("fill", "rgba(126,184,255,0.85)");
   svg.appendChild(nTri);
-  // Dark stroke under the colored trace — keeps the per-observer color
-  // legible against any sky-shade horizon fill (bright daylight to
-  // deep twilight). Shares points with .arc.
-  const arcBorder = document.createElementNS(SVG_NS, "polyline");
-  arcBorder.classList.add("arc-border");
-  svg.appendChild(arcBorder);
-  const arc = document.createElementNS(SVG_NS, "polyline");
+  // Arc <g> filled by renderArcSegments with magnitude-opacity-aware
+  // <line> children and dashed <polyline> runs for eclipsed/sub-naked-
+  // eye stretches — identical rendering to the fullscreen modal so
+  // small-icon trajectories read as a faithful preview. Stroke color
+  // comes from chartPalette(sunAltDeg), shared with the horizon shade.
+  const arc = document.createElementNS(SVG_NS, "g");
   arc.classList.add("arc");
-  arc.setAttribute("stroke", obs.color);
   svg.appendChild(arc);
   wrapper.appendChild(svg);
   // ---- Text block on the right (lines populated per-frame) ----
@@ -464,30 +473,22 @@ function buildObserverLabel(obs) {
   return wrapper;
 }
 
-function updateObserverIconArc(wrapper, obs) {
+function updateObserverIconArc(wrapper, obs, sunAltDeg) {
   const arc = wrapper.querySelector(".observer-label-icon .arc");
   if (!arc) return;
-  const arcBorder = wrapper.querySelector(".observer-label-icon .arc-border");
   const w = _obsCurrentPass.get(obs.id);
-  if (!w) {
-    arc.setAttribute("points", "");
-    if (arcBorder) arcBorder.setAttribute("points", "");
-    return;
+  if (!w) { arc.replaceChildren(); _arcSampleCache.delete(arc); return; }
+  if (sunAltDeg == null) {
+    const d = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+    sunAltDeg = apparentAltDeg(sunAltitudeDeg(obs, d));
   }
-  const SAMPLES = 30;
-  const dt = (w.endMs - w.startMs) / SAMPLES;
-  const pts = [];
-  for (let i = 0; i <= SAMPLES; i++) {
-    const issEcef = issEcefAt(new Date(w.startMs + dt * i));
-    if (!issEcef) continue;
-    const { alt, az } = issAltAzDeg(obs, issEcef);
-    if (alt < 0) continue;
-    const [x, y] = altAzToIconSvg(alt, az);
-    pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-  }
-  const points = pts.join(" ");
-  arc.setAttribute("points", points);
-  if (arcBorder) arcBorder.setAttribute("points", points);
+  const stroke = chartPalette(sunAltDeg).arc;
+  const samples = getCachedArcSamples(arc, obs, w, ICON_GEOM.cx, ICON_GEOM.cy, ICON_GEOM.R, 30);
+  // Dash + gap sized to the 8 stroke-width — gap > stroke ensures the
+  // butt-capped dashed polyline reads as actual dashes rather than a
+  // continuous line. Bigger overall than the obs-card icon because
+  // this one renders at 30px (0.3 scale from the 100-unit viewBox).
+  renderArcSegments(arc, samples, stroke, "6 11");
 }
 
 // Rebuild the textual portion of an observer label. Mirrors the
@@ -1086,39 +1087,37 @@ function arcSampleStyle(obs, issEcef, jsDate) {
   return { alpha: issAlphaForMag(m), dashed: false };
 }
 
-function paintPolarModalArc(svg, obs, win) {
-  const arc = svg.querySelector(".arc");
-  if (!arc) return;
-  arc.replaceChildren();
-  // paintPolarModalStatic stashes the per-chart arc color (derived
-  // from the sky luminance palette) on the SVG root so the trajectory
-  // contrast adapts with the disc shade.
-  const stroke = svg.dataset.arcStroke || POLAR_ARC_COLOR;
-  const w = win ?? state.windows?.[state.activeWindowIdx];
-  if (!w) return;
-  const SAMPLES = 60;
-  const dt = (w.endMs - w.startMs) / SAMPLES;
-  // Pre-sample positions and per-sample alpha — skipping below-horizon
-  // points so a window that strays under the horizon at its edges
-  // doesn't paint nonsense segments.
+// Sample an arc trajectory at SAMPLES+1 evenly-spaced instants across
+// a pass window, returning {x, y, alpha, dashed} per sample in the
+// caller's SVG coordinate space. Skips below-horizon samples so a
+// window that strays under the horizon at its edges doesn't yield
+// nonsense segments. Shared by the modal and the small icon plots.
+function computeArcSamples(obs, win, cx, cy, R, SAMPLES) {
+  const dt = (win.endMs - win.startMs) / SAMPLES;
   const samples = [];
   for (let i = 0; i <= SAMPLES; i++) {
-    const d = new Date(w.startMs + dt * i);
+    const d = new Date(win.startMs + dt * i);
     const issEcef = issEcefAt(d);
     if (!issEcef) continue;
     const { alt, az } = issAltAzDeg(obs, issEcef);
     if (alt < 0) continue;
-    const [x, y] = altAzToSvg(alt, az, MODAL_GEOM.cx, MODAL_GEOM.cy, MODAL_GEOM.R);
+    const [x, y] = altAzToSvg(alt, az, cx, cy, R);
     samples.push({ x, y, ...arcSampleStyle(obs, issEcef, d) });
   }
+  return samples;
+}
+
+// Render the segmented arc inside a <g> container. Solid segments are
+// individual <line> elements so each can carry its own magnitude-
+// derived stroke-opacity; consecutive dashed segments collapse into a
+// single <polyline> so SVG's stroke-dasharray follows the actual
+// path arclength and dash spacing stays even regardless of how
+// sample times stretch or compress along the chart. dashArray is in
+// the caller's viewBox units, so small icons want larger numbers than
+// the modal for visually-similar dash density.
+function renderArcSegments(arcGroup, samples, stroke, dashArray) {
+  arcGroup.replaceChildren();
   if (samples.length < 2) return;
-  // Solid segments are rendered as individual <line> elements so each
-  // can carry its own magnitude-derived stroke-opacity. Dashed runs
-  // (consecutive dashed-boundary segments) are flushed as a single
-  // <polyline> instead — SVG's stroke-dasharray runs along the path's
-  // actual arclength, so collecting the run into one element keeps
-  // dash spacing even regardless of how time-sampled segments stretch
-  // or compress along the chart.
   let dashedRun = null;
   const flushDashedRun = () => {
     if (!dashedRun) return;
@@ -1127,8 +1126,13 @@ function paintPolarModalArc(svg, obs, win) {
     pl.setAttribute("fill", "none");
     pl.setAttribute("stroke", stroke);
     pl.setAttribute("stroke-opacity", ARC_DASH_ALPHA.toFixed(3));
-    pl.setAttribute("stroke-dasharray", "1.4 1.8");
-    arc.appendChild(pl);
+    pl.setAttribute("stroke-dasharray", dashArray);
+    // Butt caps on dashed runs so each gap is honored exactly — with
+    // round caps (the default from the .arc CSS) every dash extends
+    // by half the stroke width on each side, which eats the gap on
+    // thick small-icon strokes and makes the dashed run look solid.
+    pl.setAttribute("stroke-linecap", "butt");
+    arcGroup.appendChild(pl);
     dashedRun = null;
   };
   for (let i = 0; i < samples.length - 1; i++) {
@@ -1147,9 +1151,22 @@ function paintPolarModalArc(svg, obs, win) {
     ln.setAttribute("y2", b.y.toFixed(2));
     ln.setAttribute("stroke", stroke);
     ln.setAttribute("stroke-opacity", ((a.alpha + b.alpha) / 2).toFixed(3));
-    arc.appendChild(ln);
+    arcGroup.appendChild(ln);
   }
   flushDashedRun();
+}
+
+function paintPolarModalArc(svg, obs, win) {
+  const arc = svg.querySelector(".arc");
+  if (!arc) return;
+  const w = win ?? state.windows?.[state.activeWindowIdx];
+  if (!w) { arc.replaceChildren(); return; }
+  // paintPolarModalStatic stashes the per-chart arc color (derived
+  // from the sky luminance palette) on the SVG root so the trajectory
+  // contrast adapts with the disc shade.
+  const stroke = svg.dataset.arcStroke || POLAR_ARC_COLOR;
+  const samples = computeArcSamples(obs, w, MODAL_GEOM.cx, MODAL_GEOM.cy, MODAL_GEOM.R, 60);
+  renderArcSegments(arc, samples, stroke, "1.4 1.8");
 }
 
 // Minimum distance (in SVG units) two label centers must be from each
@@ -4354,20 +4371,24 @@ viewer.scene.preRender.addEventListener(() => {
     } else if (cached) {
       _obsCurrentPass.delete(obs.id);
     }
-    // Sky-shade horizon fill for both icon placements. Computed every
-    // frame so the disc tracks the sun as the clock advances; cheap
-    // (one inline-style write per icon).
+    // Sky-shade horizon fill + matching arc stroke for both icon
+    // placements. Computed every frame so the disc and arc track the
+    // sun as the clock advances. Arc samples are cached per-pass (see
+    // getCachedArcSamples) so the per-frame work is just a DOM rebuild
+    // with the new stroke color — no SGP4 re-propagation.
     const sunAltDeg = apparentAltDeg(sunAltitudeDeg(obs, d));
     // Display toggle — same per-observer flag drives both placements.
     for (const svg of obsListEl.querySelectorAll(`.polar-plot[data-obs-id="${obs.id}"]`)) {
       svg.style.display = visible ? "" : "none";
       updatePolarPlotHorizon(svg, sunAltDeg);
+      if (visible) updatePolarPlotArc(svg, obs, sunAltDeg);
     }
     for (const wrapper of iconLayerEl.querySelectorAll(`.observer-label[data-obs-id="${obs.id}"]`)) {
       const icon = wrapper.querySelector(".observer-label-icon");
       if (icon) {
         icon.style.display = visible ? "" : "none";
         updatePolarPlotHorizon(icon, sunAltDeg);
+        if (visible) updateObserverIconArc(wrapper, obs, sunAltDeg);
       }
       // .inactive disables hover cursor / click animation / pointer
       // events so the 3D-scene info box stops being clickable when
