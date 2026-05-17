@@ -645,17 +645,17 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   stroke: rgba(126, 184, 255, 0.18);
   stroke-width: 0.8;
 }
-.observer-label-icon .arc-border {
+/* Arc is a <g> container; renderArcSegments fills it with <line> and
+   <polyline> children — stroke + dasharray are set inline per child
+   so the per-segment magnitude opacity and dashed-when-eclipsed
+   styling can vary along the path. Only width and join style are
+   shared and live here. Stroke-width inflated because this icon
+   renders at 30×30px against a 100-unit viewBox (0.3 scale), so the
+   modal-sized 3.5 would land as a sub-pixel hairline. */
+.observer-label-icon .arc line,
+.observer-label-icon .arc polyline {
   fill: none;
-  stroke: #000;
-  stroke-opacity: 0.7;
-  stroke-width: 6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.observer-label-icon .arc {
-  fill: none;
-  stroke-width: 3.5;
+  stroke-width: 8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -684,17 +684,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   font-weight: 700;
   letter-spacing: 0.04em;
 }
-.polar-plot .arc-border {
+.polar-plot .arc line,
+.polar-plot .arc polyline {
   fill: none;
-  stroke: #000;
-  stroke-opacity: 0.7;
-  stroke-width: 5.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.polar-plot .arc {
-  fill: none;
-  stroke-width: 3;
+  stroke-width: 4.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
