@@ -311,6 +311,13 @@ function buildPolarPlot(obs) {
     t.textContent = c.l;
     svg.appendChild(t);
   }
+  // Sun + Moon discs — sky context, drawn behind the arc + event
+  // markers so the trajectory is foreground. Sun/moon positions are
+  // computed per-frame via paintIconSunMoon (they slew slowly but
+  // visibly across the chart as the sim clock advances).
+  const bodies = document.createElementNS(SVG_NS, "g");
+  bodies.classList.add("bodies");
+  svg.appendChild(bodies);
   // ISS arc — <g> container that renderArcSegments fills with solid
   // <line> children (per-segment magnitude opacity) plus optional
   // dashed <polyline> runs (eclipsed / sub-naked-eye stretches).
@@ -320,6 +327,13 @@ function buildPolarPlot(obs) {
   const arc = document.createElementNS(SVG_NS, "g");
   arc.classList.add("arc");
   svg.appendChild(arc);
+  // Start / peak / end markers along the arc — colored diamonds drawn
+  // ON TOP of the arc trace so the user can pick out the pass shape
+  // at a glance. Painted by paintIconEvents when the active window
+  // changes; static for the duration of a pass.
+  const events = document.createElementNS(SVG_NS, "g");
+  events.classList.add("events");
+  svg.appendChild(events);
   const dot = document.createElementNS(SVG_NS, "circle");
   dot.classList.add("iss-dot");
   dot.setAttribute("r", 2.5);
@@ -380,6 +394,97 @@ function updatePolarPlotHorizon(svg, sunAltDeg) {
   horizon.style.fill = skyShadeForSunAlt(sunAltDeg);
 }
 
+// Small-icon start/peak/end markers. Simpler than the modal painter:
+// just three axis-aligned colored diamonds, no overlap-split, no
+// info-row labels. Drawn only inside the obs-card .polar-plot icon;
+// the 3D-scene observer-label icon stays bare for cleanliness.
+const ICON_EVENT_COLORS = ["#34d399", "#facc15", "#f87171"]; // start/peak/end
+function paintIconEvents(group, obs, win, cx, cy, R, markerR = 2.8) {
+  group.replaceChildren();
+  if (!win) return;
+  const peakMs = bestMomentMs(win);
+  const events = [
+    { ms: win.startMs, color: ICON_EVENT_COLORS[0] },
+    { ms: peakMs,      color: ICON_EVENT_COLORS[1] },
+    { ms: win.endMs,   color: ICON_EVENT_COLORS[2] },
+  ];
+  for (const ev of events) {
+    const e = issEcefAt(new Date(ev.ms));
+    if (!e) continue;
+    const { alt, az } = issAltAzDeg(obs, e);
+    if (alt < -0.5) continue;
+    const a = Math.max(0, alt);
+    const [x, y] = altAzToSvg(a, az, cx, cy, R);
+    const d = `M ${x.toFixed(2)},${(y - markerR).toFixed(2)} ` +
+              `L ${(x + markerR).toFixed(2)},${y.toFixed(2)} ` +
+              `L ${x.toFixed(2)},${(y + markerR).toFixed(2)} ` +
+              `L ${(x - markerR).toFixed(2)},${y.toFixed(2)} Z`;
+    const m = document.createElementNS(SVG_NS, "path");
+    m.setAttribute("d", d);
+    m.setAttribute("fill", ev.color);
+    m.setAttribute("stroke", "rgba(0,0,0,0.55)");
+    m.setAttribute("stroke-width", "0.7");
+    group.appendChild(m);
+  }
+}
+
+// Small-icon sun + moon. No M/S glyphs (illegible at small scale), no
+// planets. Moon gets the phase-shaded illuminated portion oriented
+// toward the chart's sun position (works even when the sun itself is
+// below the horizon and not drawn).
+function paintIconSunMoon(group, obs, jsDate, cx, cy, R, bodyR = 2.4) {
+  group.replaceChildren();
+  const sunDir = sunPositionEcef(jsDate);
+  const sunAA = starAltAzForObs(obs, sunDir);
+  const moonDir = moonPositionEcef(jsDate);
+  const moonAA = starAltAzForObs(obs, moonDir);
+  const [sx, sy] = altAzToSvg(sunAA.alt, sunAA.az, cx, cy, R);
+  if (moonAA.alt >= 0) {
+    const [mx, my] = altAzToSvg(moonAA.alt, moonAA.az, cx, cy, R);
+    const dark = document.createElementNS(SVG_NS, "circle");
+    dark.setAttribute("cx", mx.toFixed(2));
+    dark.setAttribute("cy", my.toFixed(2));
+    dark.setAttribute("r", bodyR);
+    dark.setAttribute("fill", "#1a1f2e");
+    dark.setAttribute("stroke", "rgba(220,225,240,0.45)");
+    dark.setAttribute("stroke-width", "0.4");
+    group.appendChild(dark);
+    const litFrac = moonIlluminatedFraction(jsDate);
+    if (litFrac > 0.01) {
+      const litPath = moonLitPath(mx, my, bodyR, moonPhaseAngle(jsDate));
+      const sunAngle = Math.atan2(sy - my, sx - mx) * 180 / Math.PI;
+      const lit = document.createElementNS(SVG_NS, "path");
+      lit.setAttribute("d", litPath);
+      lit.setAttribute("fill", "#e8eefc");
+      lit.setAttribute("transform",
+        `rotate(${sunAngle.toFixed(2)} ${mx.toFixed(2)} ${my.toFixed(2)})`);
+      group.appendChild(lit);
+    }
+  }
+  if (sunAA.alt >= 0) {
+    const sun = document.createElementNS(SVG_NS, "circle");
+    sun.setAttribute("cx", sx.toFixed(2));
+    sun.setAttribute("cy", sy.toFixed(2));
+    sun.setAttribute("r", (bodyR * 0.85).toFixed(2));
+    sun.setAttribute("fill", "#ffe066");
+    sun.setAttribute("stroke", "#ffd633");
+    sun.setAttribute("stroke-width", "0.4");
+    group.appendChild(sun);
+  }
+}
+
+function updatePolarPlotEvents(svg, obs) {
+  const events = svg.querySelector(".events");
+  if (!events) return;
+  paintIconEvents(events, obs, _obsCurrentPass.get(obs.id), 50, 50, 45);
+}
+
+function updatePolarPlotBodies(svg, obs, jsDate) {
+  const bodies = svg.querySelector(".bodies");
+  if (!bodies) return;
+  paintIconSunMoon(bodies, obs, jsDate, 50, 50, 45);
+}
+
 function updatePolarPlotDot(svg, obs) {
   const dot = svg.querySelector(".iss-dot");
   if (!dot) return; // small obs-card icon no longer renders a dot
@@ -397,7 +502,9 @@ function updatePolarPlotDot(svg, obs) {
 function refreshAllPolarPlotArcs() {
   for (const svg of obsListEl.querySelectorAll(".polar-plot")) {
     const obs = state.observers.find(o => o.id === svg.dataset.obsId);
-    if (obs) updatePolarPlotArc(svg, obs);
+    if (!obs) continue;
+    updatePolarPlotArc(svg, obs);
+    updatePolarPlotEvents(svg, obs);
   }
   refreshAllObserverIconArcs();
 }
@@ -4362,6 +4469,7 @@ viewer.scene.preRender.addEventListener(() => {
           _obsCurrentPass.set(obs.id, win);
           for (const svg of obsListEl.querySelectorAll(`.polar-plot[data-obs-id="${obs.id}"]`)) {
             updatePolarPlotArc(svg, obs);
+            updatePolarPlotEvents(svg, obs);
           }
           for (const wrapper of iconLayerEl.querySelectorAll(`.observer-label[data-obs-id="${obs.id}"]`)) {
             updateObserverIconArc(wrapper, obs);
@@ -4381,7 +4489,10 @@ viewer.scene.preRender.addEventListener(() => {
     for (const svg of obsListEl.querySelectorAll(`.polar-plot[data-obs-id="${obs.id}"]`)) {
       svg.style.display = visible ? "" : "none";
       updatePolarPlotHorizon(svg, sunAltDeg);
-      if (visible) updatePolarPlotArc(svg, obs, sunAltDeg);
+      if (visible) {
+        updatePolarPlotArc(svg, obs, sunAltDeg);
+        updatePolarPlotBodies(svg, obs, d);
+      }
     }
     for (const wrapper of iconLayerEl.querySelectorAll(`.observer-label[data-obs-id="${obs.id}"]`)) {
       const icon = wrapper.querySelector(".observer-label-icon");
