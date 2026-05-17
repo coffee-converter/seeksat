@@ -3251,7 +3251,10 @@ for (const star of BRIGHT_STARS) {
       style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       showBackground: false,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      pixelOffset: new Cesium.Cartesian2(0, -2),
+      // Match the planet-label clearance so stars and planets read
+      // with the same label spacing — a few pixels of gap above the
+      // (skybox-rendered) star dot.
+      pixelOffset: new Cesium.Cartesian2(0, -5),
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
       show: new Cesium.CallbackProperty((time) => {
         return isInFrontOfEarth(starLabelPos(star, Cesium.JulianDate.toDate(time)));
