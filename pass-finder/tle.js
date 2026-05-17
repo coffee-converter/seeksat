@@ -1,6 +1,7 @@
 // pass-finder/tle.js -- fetch the current ISS TLE.
-// Tries Celestrak first (the canonical source), falls back to
-// tle.ivanstanojevic.me (CORS-enabled mirror) when Celestrak 403s or fails.
+// Tries tle.ivanstanojevic.me first (CORS-enabled mirror, reliably
+// reachable from the browser), falls back to Celestrak (canonical
+// source but frequently times out / 403s from browser origins).
 // Returns { name, line1, line2 } or null if both fail.
 
 const CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE";
@@ -24,12 +25,12 @@ async function fetchFromIvan() {
 }
 
 export async function fetchIssTle() {
-  try { return await fetchFromCelestrak(); }
+  try { return await fetchFromIvan(); }
   catch (e1) {
-    console.warn(`Celestrak TLE failed: ${e1.message} — trying fallback`);
-    try { return await fetchFromIvan(); }
+    console.warn(`Primary TLE (ivanstanojevic) failed: ${e1.message} — trying Celestrak`);
+    try { return await fetchFromCelestrak(); }
     catch (e2) {
-      console.warn(`Fallback TLE failed: ${e2.message}`);
+      console.warn(`Celestrak TLE failed: ${e2.message}`);
       return null;
     }
   }

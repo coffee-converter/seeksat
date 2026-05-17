@@ -27,7 +27,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
+  gap: 14px;
   color: #cfe0ff;
   transition: opacity 0.35s ease;
 }
@@ -43,42 +43,13 @@ html, body {
   animation: loader-pulse 1.6s ease-in-out infinite;
 }
 
-/* Logo-style wireframe globe + orbiting ISS. Pure SVG with chunky
-   strokes; the only animation is a single <g> rotating around the
-   globe center to move the ISS along its orbit. */
-#page-loader .loader-svg {
-  width: 220px;
-  height: 220px;
+/* Pre-rendered loader GIF (see scripts/render-loader.py). Using an
+   <img> rather than SMIL/CSS keeps the animation smooth while Cesium
+   boot saturates the main thread. */
+#page-loader .loader-img {
+  width: 156px;
+  height: 156px;
   display: block;
-}
-#page-loader .loader-globe-wire {
-  fill: none;
-  stroke: #7eb8ff;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-#page-loader .loader-orbit-ring {
-  fill: none;
-  stroke: rgba(126, 184, 255, 0.55);
-  stroke-width: 3;
-  stroke-dasharray: 3 9;
-  stroke-linecap: round;
-}
-#page-loader .loader-iss {
-  fill: #ffffff;
-  filter:
-    drop-shadow(0 0 3px #ffffff)
-    drop-shadow(0 0 8px rgba(126, 184, 255, 0.9))
-    drop-shadow(0 0 16px rgba(126, 184, 255, 0.5));
-}
-#page-loader .loader-iss-group {
-  transform-origin: 110px 110px;
-  animation: loader-iss-orbit 2.6s linear infinite;
-}
-@keyframes loader-iss-orbit {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
 }
 @keyframes loader-pulse {
   0%, 100% { opacity: 0.55; }
@@ -662,7 +633,8 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 /* Polar-plot icon visibility is now driven per-observer by the
    sighting tracker (preRender hook in pass-finder.js) — each plot
    shows whenever its observer can see ISS at the current clock
-   instant, independent of whether all observers can. */
+   instant, independent of whether all observers can. Horizon fill is
+   a fallback; the JS sets an inline sky-shade fill per frame. */
 .observer-label-icon .horizon {
   fill: rgba(8, 12, 24, 0.9);
   stroke: rgba(126, 184, 255, 0.55);
@@ -673,11 +645,63 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   stroke: rgba(126, 184, 255, 0.18);
   stroke-width: 0.8;
 }
+.observer-label-icon .arc-border {
+  fill: none;
+  stroke: #000;
+  stroke-opacity: 0.7;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .observer-label-icon .arc {
   fill: none;
   stroke-width: 3.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Per-observer-card polar plot (built by buildPolarPlot, rendered
+   inside .obs-card). Mirrors the .observer-label-icon palette so the
+   in-panel and floating-3D icons read the same. Horizon fill is set
+   inline per-frame to the sky shade at the observer's sun altitude. */
+.polar-plot {
+  display: block;
+  overflow: visible;
+}
+.polar-plot .horizon {
+  fill: rgba(8, 12, 24, 0.9);
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 1.6;
+}
+.polar-plot .grid {
+  fill: none;
+  stroke: rgba(126, 184, 255, 0.3);
+  stroke-width: 0.8;
+}
+.polar-plot .cardinal {
+  fill: #cfe0ff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.polar-plot .arc-border {
+  fill: none;
+  stroke: #000;
+  stroke-opacity: 0.7;
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.polar-plot .arc {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.polar-plot .iss-dot {
+  fill: #ffffff;
+  stroke: #000;
+  stroke-width: 0.6;
 }
 .observer-label-text { color: inherit; }
 .observer-label-text .line { white-space: nowrap; }
