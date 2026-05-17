@@ -705,7 +705,9 @@ const MODAL_SVG_STYLE = `
   .star-name {
     fill: #b8c4dc; font-size: 2.8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     paint-order: stroke;
-    stroke: rgba(10, 14, 26, 0.85); stroke-width: 0.8; stroke-linejoin: round;
+    /* halo matched to .planet-glyph (0.45) — was 0.8 which read as
+       a noticeably heavier border than the glyph treatment */
+    stroke: rgba(10, 14, 26, 0.85); stroke-width: 0.45; stroke-linejoin: round;
     opacity: 0.65;
   }
   .body-glyph {
@@ -1320,7 +1322,7 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
   // Body icons are CENTERED inside the same horizontal band as the
   // visibility swatches (xLeft .. xLeft+swatchLen) so the symbol
   // column reads consistently too.
-  const xLeft = -17;       // 7px in from viewBox left (was -22)
+  const xLeft = -19.6;     // box left ~3px from viewBox left, matches bottom inset
   // Swatch width = exactly 4 chart-style dashes (4×1.4 + 3×1.8 = 11),
   // so the dashed swatch ends on a dash, not a gap.
   const swatchLen = 11;
@@ -1345,26 +1347,32 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
   const moonDir = moonPositionEcef(jsDate);
   const moonAA = starAltAzForObs(obs, moonDir);
 
+  // ?demoLegend=1 → bypass all visibility filters so every legend row
+  // renders. Useful for previewing the maximum legend size.
+  const demoAll = new URLSearchParams(location.search).has("demoLegend");
+
   // Build the row list first (a kind + payload) so we can compute
   // total height for bottom-alignment, then render in a second pass.
   const rows = [];
   rows.push({ kind: "passLine", solid: true,  label: "visible" });
   rows.push({ kind: "passLine", solid: false, label: "not visible" });
-  if (sunAA.alt >= 0) rows.push({ kind: "sun" });
-  if (moonAA.alt >= 0) rows.push({ kind: "moon" });
+  if (demoAll || sunAA.alt >= 0) rows.push({ kind: "sun" });
+  if (demoAll || moonAA.alt >= 0) rows.push({ kind: "moon" });
 
   const SUN_R_RAD = 0.267 * Math.PI / 180;
   const MOON_R_RAD = 0.259 * Math.PI / 180;
   for (const pname of PLANET_NAMES) {
     const dirEcef = planetPositionEcef(pname, jsDate);
     const aa = starAltAzForObs(obs, dirEcef);
-    if (aa.alt < 0) continue;
     const dotSun = sunDir[0]*dirEcef[0] + sunDir[1]*dirEcef[1] + sunDir[2]*dirEcef[2];
-    if (Math.acos(Math.max(-1, Math.min(1, dotSun))) < SUN_R_RAD) continue;
     const dotMoon = moonDir[0]*dirEcef[0] + moonDir[1]*dirEcef[1] + moonDir[2]*dirEcef[2];
-    if (Math.acos(Math.max(-1, Math.min(1, dotMoon))) < MOON_R_RAD) continue;
     const mag = planetApparentMagnitude(pname, jsDate);
-    if (limMag != null && mag != null && mag > limMag) continue;
+    if (!demoAll) {
+      if (aa.alt < 0) continue;
+      if (Math.acos(Math.max(-1, Math.min(1, dotSun))) < SUN_R_RAD) continue;
+      if (Math.acos(Math.max(-1, Math.min(1, dotMoon))) < MOON_R_RAD) continue;
+      if (limMag != null && mag != null && mag > limMag) continue;
+    }
     rows.push({ kind: "planet", pname });
   }
 
@@ -1382,7 +1390,7 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
     const firstContentY = y;
     const skyBox = document.createElementNS(SVG_NS, "rect");
     const padX = 1.4;
-    const padY = 1.6;
+    const padY = 1.0;  // split the diff between original ~0.4 and prior 1.6
     skyBox.setAttribute("x", (xLeft - padX).toFixed(2));
     skyBox.setAttribute("y", (firstContentY - rowH / 2 - padY).toFixed(2));
     skyBox.setAttribute("width", (swatchLen + 2 * padX).toFixed(2));
