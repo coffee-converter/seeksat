@@ -312,7 +312,14 @@ function buildPolarPlot(obs) {
     svg.appendChild(t);
   }
   // ISS arc + current-position dot (filled later, may be hidden if no
-  // active pass / observer can't see ISS at current time).
+  // active pass / observer can't see ISS at current time). The
+  // .arc-border polyline sits BEHIND the colored arc and shares the
+  // same points; it gives the trace a thin dark outline so the
+  // observer color stays legible against any sky-shade fill on the
+  // horizon disc.
+  const arcBorder = document.createElementNS(SVG_NS, "polyline");
+  arcBorder.classList.add("arc-border");
+  svg.appendChild(arcBorder);
   const arc = document.createElementNS(SVG_NS, "polyline");
   arc.classList.add("arc");
   arc.setAttribute("stroke", obs.color);
@@ -326,11 +333,16 @@ function buildPolarPlot(obs) {
 
 function updatePolarPlotArc(svg, obs) {
   const arc = svg.querySelector(".arc");
+  const arcBorder = svg.querySelector(".arc-border");
   // Per-observer pass window — the observer's full sweep when they're
   // currently sighting ISS, not the joint multi-observer window. Lets
   // each station's mini chart show its actual horizon-to-horizon arc.
   const w = _obsCurrentPass.get(obs.id);
-  if (!w) { arc.setAttribute("points", ""); return; }
+  if (!w) {
+    arc.setAttribute("points", "");
+    if (arcBorder) arcBorder.setAttribute("points", "");
+    return;
+  }
   const SAMPLES = 30;
   const dt = (w.endMs - w.startMs) / SAMPLES;
   const pts = [];
@@ -342,7 +354,20 @@ function updatePolarPlotArc(svg, obs) {
     const [x, y] = altAzToSvg(alt, az);
     pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
   }
-  arc.setAttribute("points", pts.join(" "));
+  const points = pts.join(" ");
+  arc.setAttribute("points", points);
+  if (arcBorder) arcBorder.setAttribute("points", points);
+}
+
+// Paint the horizon disc to match the sky color at the observer's
+// current sun altitude — bright blue in daylight, deep navy after
+// astronomical twilight. Mirrors the inline `horizon.style.fill = ...`
+// trick used by the fullscreen modal (paintPolarModalStatic).
+function updatePolarPlotHorizon(svg, sunAltDeg) {
+  if (sunAltDeg == null) return;
+  const horizon = svg.querySelector(".horizon");
+  if (!horizon) return;
+  horizon.style.fill = skyShadeForSunAlt(sunAltDeg);
 }
 
 function updatePolarPlotDot(svg, obs) {
@@ -421,6 +446,12 @@ function buildObserverLabel(obs) {
   nTri.setAttribute("d", "M 50 2 L 57 11 L 43 11 Z");
   nTri.setAttribute("fill", "rgba(126,184,255,0.85)");
   svg.appendChild(nTri);
+  // Dark stroke under the colored trace — keeps the per-observer color
+  // legible against any sky-shade horizon fill (bright daylight to
+  // deep twilight). Shares points with .arc.
+  const arcBorder = document.createElementNS(SVG_NS, "polyline");
+  arcBorder.classList.add("arc-border");
+  svg.appendChild(arcBorder);
   const arc = document.createElementNS(SVG_NS, "polyline");
   arc.classList.add("arc");
   arc.setAttribute("stroke", obs.color);
@@ -436,8 +467,13 @@ function buildObserverLabel(obs) {
 function updateObserverIconArc(wrapper, obs) {
   const arc = wrapper.querySelector(".observer-label-icon .arc");
   if (!arc) return;
+  const arcBorder = wrapper.querySelector(".observer-label-icon .arc-border");
   const w = _obsCurrentPass.get(obs.id);
-  if (!w) { arc.setAttribute("points", ""); return; }
+  if (!w) {
+    arc.setAttribute("points", "");
+    if (arcBorder) arcBorder.setAttribute("points", "");
+    return;
+  }
   const SAMPLES = 30;
   const dt = (w.endMs - w.startMs) / SAMPLES;
   const pts = [];
@@ -449,7 +485,9 @@ function updateObserverIconArc(wrapper, obs) {
     const [x, y] = altAzToIconSvg(alt, az);
     pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
   }
-  arc.setAttribute("points", pts.join(" "));
+  const points = pts.join(" ");
+  arc.setAttribute("points", points);
+  if (arcBorder) arcBorder.setAttribute("points", points);
 }
 
 // Rebuild the textual portion of an observer label. Mirrors the
@@ -3618,17 +3656,24 @@ state.windows = [];
 state.activeWindowIdx = -1;
 state.searchEndMs = null;
 
-// Default the clock to "now" running at real time so the page shows the
-// current ISS position as soon as it loads. startTime stays at "now" so
-// Reset returns here; stopTime far enough out that real-time playback
-// doesn't bump into ClockRange.CLAMPED before the user runs a search.
+// Default the clock to "now", PAUSED. startTime stays at "now" so
+// Reset returns here; stopTime far enough out that later real-time
+// playback doesn't bump into ClockRange.CLAMPED before the user runs
+// a search.
+//
+// Paused (not animating) during init so the sim clock can't sprint
+// ahead during the 1–5s of Cesium boot + TLE fetch + first window
+// search. Otherwise a slow first-load can elapse 30–50s of sim time
+// before any UI appears, and on reload that looks like "the clock is
+// racing and no passes loaded." Resumed at state.multiplier inside
+// runSearch once the first results are rendered.
 {
   const nowJd = Cesium.JulianDate.fromDate(new Date());
   viewer.clock.startTime = nowJd;
   viewer.clock.stopTime  = Cesium.JulianDate.addDays(nowJd, 7, new Cesium.JulianDate());
   viewer.clock.currentTime = nowJd;
   viewer.clock.multiplier = state.multiplier;
-  viewer.clock.shouldAnimate = true;
+  viewer.clock.shouldAnimate = false;
 }
 
 const speedSelect = document.getElementById("speed-select");
@@ -3725,6 +3770,7 @@ speedSelect.addEventListener("change", () => {
 
 let searchGen = 0;
 let _autoSelectedFirst = false; // ensures we auto-jump to the first window once
+let _firstSearchComplete = false; // gates the clock-multiplier bump
 
 function runSearch(startMs, endMs) {
   if (!satrec) return; // wait for TLE
@@ -3749,10 +3795,21 @@ function runSearch(startMs, endMs) {
     const predicate = state.mode === "radio"
       ? (obs, e, d) => isRadioReachable(obs, e, d, { minIssAltDeg: state.minElevDeg })
       : isVisibleAtAll;
+    const t0 = performance.now();
     const wins = findVisibilityWindows(
       state.observers, satrec, predicate, sat,
       startMs, endMs, 60_000
     );
+    const elapsedMs = performance.now() - t0;
+    if (elapsedMs > 1500 || wins.length === 0) {
+      // Surface slow searches and empty results — the most common cause
+      // of "panel never populated after reload" was a search exceeding
+      // the 5s page-loader safety net while finding 0 windows.
+      console.info(
+        `pass-finder search: ${wins.length} window(s) in ${elapsedMs.toFixed(0)}ms`,
+        { observers: state.observers.length, horizonDays: state.horizonDays, mode: state.mode },
+      );
+    }
     state.windows = state.windows.concat(wins);
     state.searchEndMs = endMs;
     renderWindowsList();
@@ -3776,7 +3833,12 @@ function runSearch(startMs, endMs) {
     // First completed search → page is "ready": TLE loaded, observers
     // placed, windows rendered, camera framed (or about to be). Fade the
     // full-page loader out so the user sees a populated scene rather
-    // than pins/labels/panels popping in piecemeal.
+    // than pins/labels/panels popping in piecemeal. Clock stays paused:
+    // jumpToWindow above already parked currentTime at the first
+    // window's startMs (inside the pass so the 3D path/gradient/active
+    // tracker all light up) and called shouldAnimate=false. The user
+    // hits play when they're ready to watch the pass unfold.
+    _firstSearchComplete = true;
     dismissPageLoader();
   }, 0);
 }
@@ -3788,9 +3850,12 @@ function dismissPageLoader() {
   document.getElementById("page-loader")?.classList.add("hidden");
 }
 // Safety net: if something goes wrong (TLE fetch fails, no observers,
-// etc.) and runSearch never fires, drop the loader after a few seconds
-// so the user isn't stuck on a black screen.
-setTimeout(dismissPageLoader, 5000);
+// etc.) and runSearch never fires, drop the loader so the user isn't
+// stuck on a black screen. 12s covers slow first-load searches (30-day
+// horizon × multiple observers can run 3–8s on cold caches); shorter
+// timeouts would dismiss while the search is still running, surfacing
+// an empty "no passes" panel that fills in a few seconds later.
+setTimeout(dismissPageLoader, 12000);
 
 // Auto-search whenever observers AND TLE are available, starting "now" and
 // running for state.horizonDays. Called on observer add/remove and after
@@ -4289,13 +4354,21 @@ viewer.scene.preRender.addEventListener(() => {
     } else if (cached) {
       _obsCurrentPass.delete(obs.id);
     }
+    // Sky-shade horizon fill for both icon placements. Computed every
+    // frame so the disc tracks the sun as the clock advances; cheap
+    // (one inline-style write per icon).
+    const sunAltDeg = apparentAltDeg(sunAltitudeDeg(obs, d));
     // Display toggle — same per-observer flag drives both placements.
     for (const svg of obsListEl.querySelectorAll(`.polar-plot[data-obs-id="${obs.id}"]`)) {
       svg.style.display = visible ? "" : "none";
+      updatePolarPlotHorizon(svg, sunAltDeg);
     }
     for (const wrapper of iconLayerEl.querySelectorAll(`.observer-label[data-obs-id="${obs.id}"]`)) {
       const icon = wrapper.querySelector(".observer-label-icon");
-      if (icon) icon.style.display = visible ? "" : "none";
+      if (icon) {
+        icon.style.display = visible ? "" : "none";
+        updatePolarPlotHorizon(icon, sunAltDeg);
+      }
       // .inactive disables hover cursor / click animation / pointer
       // events so the 3D-scene info box stops being clickable when
       // its polar plot icon is hidden (there's nothing to open).

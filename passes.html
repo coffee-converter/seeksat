@@ -14,26 +14,11 @@
        awkward pop-in of pins, labels, and panels during boot. JS removes
        this once the first runSearch completes. -->
   <div id="page-loader">
-    <svg class="loader-svg" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <!-- Wireframe globe: outer circle + a couple of ellipses standing
-           in for meridians/parallels. Chunky monochrome strokes, no fill,
-           reads as a logo mark. -->
-      <g class="loader-globe-wire">
-        <circle cx="110" cy="110" r="46" />
-        <ellipse cx="110" cy="110" rx="46" ry="16" />
-        <ellipse cx="110" cy="110" rx="46" ry="32" />
-        <ellipse cx="110" cy="110" rx="22" ry="46" />
-        <line x1="110" y1="64" x2="110" y2="156" />
-      </g>
-      <!-- Orbit trajectory: dashed ring so it reads as a path rather than
-           another solid wireframe element. -->
-      <circle class="loader-orbit-ring" cx="110" cy="110" r="92" />
-      <!-- ISS dot, parked at top of the orbit; the parent <g> rotates
-           around the globe center to move it along the orbit. -->
-      <g class="loader-iss-group">
-        <circle class="loader-iss" cx="110" cy="18" r="5.5" />
-      </g>
-    </svg>
+    <!-- Pre-rendered cartoony-earth + tilted ISS orbit; baked at 16:1
+         earth/ISS ratio (≈ physical 15.5:1), 24s loop. Pre-rendered
+         because SMIL animateMotion runs on the main thread and stutters
+         when Cesium boot is hot. Regenerate via scripts/render-loader.py. -->
+    <img class="loader-img" src="./assets/loader.gif" alt="" />
     <span class="loader-label">Loading pass finder…</span>
   </div>
 
