@@ -166,38 +166,48 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 #panel-left > details { flex: 0 0 auto; }
 
-/* Compact collapsible headers: chevron + label on a single row, with a
-   thin divider between sections so the three blocks read as distinct
-   regions rather than running together. */
+/* Collapsible section headers: chevron + label + horizontal rule that
+   fills the rest of the row. The rule is a half-opaque thick bar in
+   the same accent blue as the label, which makes each section read
+   as a banded header rather than a bare line of text. */
 #panel-left > details > summary {
   list-style: none;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 0;
+  gap: 8px;
+  padding: 4px 2px;
   user-select: none;
 }
 #panel-left > details > summary::-webkit-details-marker { display: none; }
+/* Clip-path triangle instead of a unicode glyph so vertical alignment
+   and size are exact (unicode ▾ renders bottom-heavy in every font). */
 #panel-left > details > summary::before {
-  content: "▾";
-  color: #7eb8ff;
-  font-size: 14px;
-  line-height: 1;
-  display: inline-block;
+  content: "";
+  width: 14px; height: 14px;
+  background-color: #7eb8ff;
+  clip-path: polygon(10% 35%, 90% 35%, 50% 80%);
   transition: transform 0.15s;
-  width: 14px;
-  text-align: center;
+  flex: 0 0 auto;
 }
 #panel-left > details:not([open]) > summary::before { transform: rotate(-90deg); }
 #panel-left > details > summary h2 {
   margin: 0;
   font-size: 12px;
   line-height: 1.2;
+  flex: 0 0 auto;
 }
-/* Bit of breathing room between the OBSERVERS heading and the first
-   card. The summary has only 2px vertical padding, so without this
-   the open-state list crowds the heading. */
+/* The filler bar — takes the remaining horizontal room. Extra left
+   margin so the bar reads visually separate from the title text. */
+#panel-left > details > summary::after {
+  content: "";
+  flex: 1 1 auto;
+  margin-left: 4px;
+  height: 7px;
+  border-radius: 3px;
+  background: rgba(126, 184, 255, 0.35);
+}
+/* Bit of breathing room between the heading and the first child. */
 #panel-left > details[open] > summary { margin-bottom: 6px; }
 
 /* Section dividers: a hairline between each child of the left panel.
@@ -695,11 +705,13 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   position: relative;
   background: rgba(10, 14, 26, 0.95);
   border: 1px solid rgba(100, 140, 255, 0.35);
-  border-radius: 14px;
-  padding: 14px 16px 12px;
-  max-width: min(96vw, 96vh);
-  max-height: 96vh;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  border-radius: 12px;
+  /* Minimal padding so the modal hugs the image — the image already
+     has viewBox margins that act as visual padding within the render. */
+  padding: 2px 3px 2px;
+  max-width: min(98vw, 98vh);
+  max-height: 98vh;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 .polar-modal-actions {
@@ -736,8 +748,8 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .polar-modal-png {
   display: block;
   width: auto; height: auto;
-  max-width: min(92vw, 1200px);
-  max-height: 86vh;
+  max-width: min(96vw, 1400px);
+  max-height: 94vh;
   border-radius: 6px;
   user-select: none;
 }
