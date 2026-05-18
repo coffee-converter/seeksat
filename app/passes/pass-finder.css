@@ -109,6 +109,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   /* class="panel" provides background/border/padding/top:16px. */
   left: 16px;
   width: var(--panel-left-width);
+  /* .panel's default max-width (460px) clamps the panel narrower
+     than --panel-left-width on mobile, leaving the panel-toggle
+     hinge floating in empty space. Honor --panel-left-width here. */
+  max-width: var(--panel-left-width);
   max-height: calc(100vh - 90px);
   max-height: calc(100dvh - 90px);
   display: flex;
