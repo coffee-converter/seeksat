@@ -21,7 +21,7 @@ import type {
   AttemptData,
   AttemptEntry,
   Observation,
-  Residual,
+  ResidualMeters,
   Tle,
   UserAttemptEntry,
 } from "./types";
@@ -51,8 +51,10 @@ export interface TriangulateState {
   refractionEnabled: boolean;
   /** Cached triangulated point (ECEF, meters) — null when degenerate. */
   triangulated: [number, number, number] | null;
-  /** Per-observation angular residual in degrees. */
-  residuals: Residual[];
+  /** Per-ray residuals in meters (parallel to observations by index). */
+  residuals: ResidualMeters[];
+  /** TLE-propagated truth position (ECEF, meters) — null when TLE is missing/invalid. */
+  truthPos: [number, number, number] | null;
 
   // ---- Actions ----
   setAttempts: (attempts: AttemptEntry[]) => void;
@@ -68,8 +70,9 @@ export interface TriangulateState {
   removeObservation: (id: string) => void;
   setTriangulationResult: (
     point: [number, number, number] | null,
-    residuals: Residual[],
+    residuals: ResidualMeters[],
   ) => void;
+  setTruthPos: (pos: [number, number, number] | null) => void;
 }
 
 const EMPTY_TLE: Tle = { name: "", line1: "", line2: "" };
@@ -83,6 +86,7 @@ export const useTriangulateStore = create<TriangulateState>((set, get) => ({
   refractionEnabled: true,
   triangulated: null,
   residuals: [],
+  truthPos: null,
 
   setAttempts: (attempts) => set({ attempts }),
 
@@ -135,6 +139,8 @@ export const useTriangulateStore = create<TriangulateState>((set, get) => ({
 
   setTriangulationResult: (point, residuals) =>
     set({ triangulated: point, residuals }),
+
+  setTruthPos: (pos) => set({ truthPos: pos }),
 }));
 
 // ---- localStorage helpers (mirror legacy/app.js so existing browser

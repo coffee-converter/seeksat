@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ResultPanel from "@/components/triangulate/ResultPanel";
 
 // Wrap-and-mount port of the original ISS triangulation page. The JSX
 // below mirrors legacy/index.html exactly (same IDs, same structure,
@@ -92,10 +93,7 @@ export default function TriangulateApp() {
 
         <details id="result-section" open>
           <summary><h2>Result</h2></summary>
-          <div id="result-triangulated" className="result-block" />
-          <div id="result-slant" className="result-block" />
-          <div id="result-residuals" className="result-block" />
-          <div id="result-truth" className="result-block" />
+          <ResultPanel />
         </details>
 
         <details id="obs-details" open>

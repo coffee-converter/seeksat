@@ -91,11 +91,8 @@ export interface AttemptData {
 }
 
 /**
- * Residual between an observation's direction and the triangulated
- * solution. Angular separation in degrees + which observation it
- * belongs to (by id, so the row can be highlighted).
+ * Per-ray residual: shortest perpendicular distance from the
+ * triangulated point to that observer's sightline, in meters.
+ * Stored parallel to `observations` by index.
  */
-export interface Residual {
-  observationId: string;
-  angleSepDeg: number;
-}
+export type ResidualMeters = number;
