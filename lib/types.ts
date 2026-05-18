@@ -43,8 +43,17 @@ export interface Observation {
    * Elevation in meters above WGS-84 ellipsoid. Auto-populated from
    * the elevation-lookup service if absent at parse time.
    */
-  elevM?: number;
+  elevM?: number | null;
   dir: ObservationDirection;
+  /** Raw user input — preserved across re-renders so the textarea
+   *  doesn't snap back to the parsed value while the user is mid-type
+   *  (e.g. "40°30'" parses, "40°30'1" doesn't, "40°30'15.9" parses
+   *  again — without rawLat the input would lose the user's keystrokes
+   *  between the second and third state). */
+  rawLat?: string;
+  rawLon?: string;
+  rawV1?: string;
+  rawV2?: string;
 }
 
 /**
