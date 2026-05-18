@@ -1,51 +1,36 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 
-// Wrap-and-mount port of the pass-finder page. Mirrors legacy/passes.html
-// 1:1 so the imperative bootstrap in lib/pass-finder-bootstrap can query
-// every element it expects. React renders the skeleton once, then yields
-// the DOM to the bootstrap (same pattern as TriangulateApp).
+// Pass-finder composition root. Same shape as TriangulateApp but the
+// scene island inside is much bigger (~4.7k lines of imperative
+// Cesium / observer / windows-list code, still wrap-and-mounted into
+// the JSX skeleton below). A panel-by-panel React refactor —
+// matching what we did for triangulate — can follow this file as
+// the template; the foundation (viewer hook, scene init, JSX
+// skeleton) is in place.
 export default function PassFinderApp() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [status, setStatus] = useState<"waiting" | "ready" | "error">(
-    "waiting",
-  );
+  const { viewer, status } = useCesiumViewer(containerRef);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!viewer) return;
     let teardown: (() => void) | undefined;
-    const start = Date.now();
-    const interval = window.setInterval(() => {
-      if (cancelled) return;
-      if (typeof window.Cesium !== "undefined" && containerRef.current) {
-        window.clearInterval(interval);
-        (async () => {
-          try {
-            const mod = await import("@/lib/pass-finder-bootstrap.js");
-            if (cancelled) return;
-            teardown = await mod.initPassFinder(containerRef.current!);
-            setStatus("ready");
-          } catch (err) {
-            console.error("Pass-finder init failed:", err);
-            setStatus("error");
-          }
-        })();
-        return;
+    (async () => {
+      try {
+        const mod = await import("@/lib/pass-finder-scene.js");
+        teardown = mod.initPassFinderScene(viewer);
+      } catch (err) {
+        console.error("Pass-finder scene init failed:", err);
       }
-      if (Date.now() - start > 10_000) {
-        window.clearInterval(interval);
-        setStatus("error");
-      }
-    }, 100);
+    })();
     return () => {
-      cancelled = true;
-      window.clearInterval(interval);
       if (teardown) {
         try { teardown(); } catch { /* ignore */ }
       }
     };
-  }, []);
+  }, [viewer]);
 
   return (
     <>
@@ -177,7 +162,7 @@ export default function PassFinderApp() {
             zIndex: 1000,
           }}
         >
-          Initialization failed — check the console.
+          Cesium failed to load — check the console.
         </div>
       )}
     </>
