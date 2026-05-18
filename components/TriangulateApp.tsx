@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import AttemptPicker from "@/components/triangulate/AttemptPicker";
+import ObservationsPanel from "@/components/triangulate/ObservationsPanel";
 import ResultPanel from "@/components/triangulate/ResultPanel";
 import TlePanel from "@/components/triangulate/TlePanel";
 
@@ -75,17 +76,7 @@ export default function TriangulateApp() {
 
         <details id="obs-details" open>
           <summary><h2>Observations</h2></summary>
-          <div className="timestamp-row">
-            <label>UTC <input id="ts-utc" type="text" defaultValue="" /></label>
-            <span id="ts-local" className="hint" />
-          </div>
-          <label className="opt-row">
-            <input type="checkbox" id="opt-refraction" defaultChecked />
-            <span>Correct for atmospheric refraction</span>
-            <span className="hint">(Bennett 1982)</span>
-          </label>
-          <div id="obs-list" />
-          <button id="add-obs" type="button">+ Add observation</button>
+          <ObservationsPanel />
         </details>
 
         <details id="tle-section" open>
