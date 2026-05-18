@@ -129,8 +129,8 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
    wider phones / desktops. */
 @media (max-width: 600px) {
   :root {
-    --panel-left-width: calc(100vw - 32px);
-    --panel-left-width: calc(100dvw - 32px);
+    --panel-left-width: calc(100vw - 54px); /* 16px left + panel + 22px toggle + 16px right */
+    --panel-left-width: calc(100dvw - 54px);
   }
 }
 #credit {
