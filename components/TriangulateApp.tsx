@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { makeViewer, wireSimTime } from "@/lib/cesium-viewer";
+import TlePanel from "@/components/TlePanel";
 
-// Minimum-viable port: a single client component that mounts a Cesium
-// Viewer (via lib/cesium-viewer) into a ref once window.Cesium has
-// finished loading from the CDN <Script> in app/layout.tsx. The
-// imperative observation-list / TLE-fetch / triangulation logic from
-// legacy/app.js still needs to be ported into proper React components
-// — for now we just verify the viewer setup itself matches the legacy
-// look (Esri imagery + NASA SVS skybox + atmosphere/lighting).
+// Triangulate page shell. The Cesium viewer mounts into a ref inside
+// useEffect once window.Cesium loads from the CDN <Script> in the
+// root layout. The left side-panel holds the React-ified panels
+// (currently just TLE; observation list / attempts / results land in
+// follow-up commits). All other DOM is structural so the legacy
+// style.css selectors keep working unchanged.
 export default function TriangulateApp() {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<unknown>(null);
@@ -19,10 +19,6 @@ export default function TriangulateApp() {
 
   useEffect(() => {
     let cancelled = false;
-    // Poll until the CDN <Script> tag has injected window.Cesium.
-    // afterInteractive guarantees it lands shortly after first render;
-    // 100ms intervals are imperceptible and the loop self-terminates
-    // as soon as the global appears or after a 10 s safety cap.
     const start = Date.now();
     const interval = window.setInterval(() => {
       if (cancelled) return;
@@ -57,7 +53,20 @@ export default function TriangulateApp() {
   return (
     <>
       <div ref={containerRef} id="cesium-container" />
+
+      <button id="panel-toggle" type="button" aria-label="Toggle side panel" />
+
+      <section id="panel-observations" className="panel panel-left">
+        <TlePanel />
+        <p className="footnote">
+          React port in progress — observation list, attempts, and results
+          panels not yet ported. See <code>legacy/app.js</code> for the
+          full feature set.
+        </p>
+      </section>
+
       <div id="sim-time">—</div>
+
       {status !== "ready" && (
         <div
           style={{
