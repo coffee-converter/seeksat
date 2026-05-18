@@ -2,6 +2,20 @@
 node_modules/
 *.log
 
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+
+# TS incremental build cache
+*.tsbuildinfo
+
+# Local env
+.env*.local
+
+# Local Claude settings
+.claude/
+
 # Large source assets used to generate the committed cubemap faces.
 # Keep the 6 final JPGs in git; keep the EXR sources / intermediates out.
 assets/stars/raw/

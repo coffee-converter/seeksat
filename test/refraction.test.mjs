@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bennettRefractionArcmin, correctRefraction } from '../refraction.js';
+import { bennettRefractionArcmin, correctRefraction } from '../legacy/refraction.js';
 
 const close = (a, b, eps) => Math.abs(a - b) < eps;
 const DEG = Math.PI / 180;
