@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import AttemptPicker from "@/components/triangulate/AttemptPicker";
 import ResultPanel from "@/components/triangulate/ResultPanel";
 import TlePanel from "@/components/triangulate/TlePanel";
 
@@ -65,32 +66,7 @@ export default function TriangulateApp() {
       <button id="panel-toggle" type="button" aria-label="Toggle side panel" />
 
       <section id="panel-observations" className="panel panel-left">
-        <div id="attempt-picker">
-          <label htmlFor="attempt-select">Attempt</label>
-          <select id="attempt-select" title="Switch between triangulation attempts" defaultValue="" />
-          <button id="attempt-new" type="button" title="Create a new attempt">+</button>
-          <button id="attempt-download" type="button" hidden title="Download JSON for this attempt">⬇</button>
-          <button id="attempt-delete" type="button" hidden title="Delete this attempt (browser-local only)">✕</button>
-        </div>
-
-        <form id="attempt-new-form" hidden>
-          <label className="af-row">
-            <span>Label</span>
-            <input type="text" id="af-label" placeholder="e.g. Wednesday evening" required />
-          </label>
-          <label className="af-row">
-            <span>UTC</span>
-            <input type="text" id="af-utc" placeholder="2026-05-16T22:35:00Z" required />
-          </label>
-          <label className="af-row af-check">
-            <input type="checkbox" id="af-copy" />
-            <span>Copy current observations</span>
-          </label>
-          <div className="af-actions">
-            <button type="button" id="af-cancel">Cancel</button>
-            <button type="submit" id="af-create">Create</button>
-          </div>
-        </form>
+        <AttemptPicker />
 
         <details id="result-section" open>
           <summary><h2>Result</h2></summary>
