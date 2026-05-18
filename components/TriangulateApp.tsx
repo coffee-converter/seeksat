@@ -1,64 +1,55 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useCesiumViewer } from "@/lib/use-cesium-viewer";
+import { useTriangulateAttempts } from "@/lib/use-triangulate-attempts";
 import AttemptPicker from "@/components/triangulate/AttemptPicker";
+import ImageryPicker from "@/components/triangulate/ImageryPicker";
 import ObservationsPanel from "@/components/triangulate/ObservationsPanel";
 import ResultPanel from "@/components/triangulate/ResultPanel";
 import TlePanel from "@/components/triangulate/TlePanel";
 
-// Wrap-and-mount port of the original ISS triangulation page. The JSX
-// below mirrors legacy/index.html exactly (same IDs, same structure,
-// same nesting) so the imperative bootstrap in lib/triangulate-bootstrap
-// can query/mutate every element it expects to find. React owns nothing
-// inside the panel — it just renders the skeleton once, then yields the
-// DOM to the bootstrap. State, persistence, event wiring, Cesium scene
-// updates, and camera presets all live in the bootstrap.
-//
-// A future pass can chip individual panels out into idiomatic React
-// components (see TlePanel.tsx for an example) — but the first goal is
-// feature-parity with the legacy bundle.
+// Composition root for the triangulate page. Three hooks own the
+// lifecycle:
+//   - useCesiumViewer:        creates / destroys the viewer instance
+//   - useTriangulateAttempts: loads manifest + initial attempt
+//   - initTriangulateScene:   wires the imperative Cesium island
+//                             (entity reconciliation + camera +
+//                             persistence) once viewer + attempts
+//                             are both ready
+// Everything else is React-rendered, store-driven panels.
 export default function TriangulateApp() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [status, setStatus] = useState<"waiting" | "ready" | "error">(
-    "waiting",
-  );
+  const { viewer, status } = useCesiumViewer(containerRef, { imagery: false });
+  const { ready: attemptsReady } = useTriangulateAttempts();
+  const [sceneReady, setSceneReady] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!viewer || !attemptsReady) return;
     let teardown: (() => void) | undefined;
-    const start = Date.now();
-    const interval = window.setInterval(() => {
-      if (cancelled) return;
-      if (typeof window.Cesium !== "undefined" && containerRef.current) {
-        window.clearInterval(interval);
-        (async () => {
-          try {
-            // Dynamic import so module-eval doesn't race the Cesium
-            // global. The bootstrap reads window.Cesium at module load.
-            const mod = await import("@/lib/triangulate-bootstrap.js");
-            if (cancelled) return;
-            teardown = await mod.initTriangulate(containerRef.current!);
-            setStatus("ready");
-          } catch (err) {
-            console.error("Triangulate init failed:", err);
-            setStatus("error");
-          }
-        })();
-        return;
+    (async () => {
+      try {
+        const mod = await import("@/lib/triangulate-scene.js");
+        teardown = mod.initTriangulateScene(viewer);
+        setSceneReady(true);
+      } catch (err) {
+        console.error("Scene init failed:", err);
       }
-      if (Date.now() - start > 10_000) {
-        window.clearInterval(interval);
-        setStatus("error");
-      }
-    }, 100);
+    })();
     return () => {
-      cancelled = true;
-      window.clearInterval(interval);
       if (teardown) {
         try { teardown(); } catch { /* ignore */ }
       }
+      setSceneReady(false);
     };
-  }, []);
+  }, [viewer, attemptsReady]);
+
+  const showOverlay = status !== "ready" || !attemptsReady || !sceneReady;
+  const overlayLabel = status === "error"
+    ? "Cesium failed to load. Check the console."
+    : !attemptsReady
+    ? "Loading attempts…"
+    : "Loading Cesium…";
 
   return (
     <>
@@ -92,10 +83,7 @@ export default function TriangulateApp() {
       </section>
 
       <nav id="camera-controls">
-        <div id="imagery-picker">
-          <span className="picker-label">Globe</span>
-          <select id="imagery-select" defaultValue="" />
-        </div>
+        <ImageryPicker viewer={viewer} />
         <button data-cam="frame">Frame all</button>
         <span id="from-observer-slot" />
         <button data-cam="top">Top down</button>
@@ -107,7 +95,7 @@ export default function TriangulateApp() {
 
       <div id="sim-time">—</div>
 
-      {status !== "ready" && (
+      {showOverlay && (
         <div
           style={{
             position: "fixed",
@@ -124,8 +112,7 @@ export default function TriangulateApp() {
             zIndex: 1000,
           }}
         >
-          {status === "waiting" && "Loading Cesium…"}
-          {status === "error" && "Initialization failed — check the console."}
+          {overlayLabel}
         </div>
       )}
     </>
