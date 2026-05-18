@@ -41,6 +41,9 @@ export interface TriangulateState {
   attempts: AttemptEntry[];
   /** Currently selected attempt id, null while loading. */
   currentAttemptId: string | null;
+  /** Source of the currently-selected attempt — drives persistence
+   *  (user → full record; manifest → overlay) and the delete button. */
+  currentAttemptSource: "manifest" | "user" | null;
   /** Time the attempt is centered on (ISO UTC). */
   timestampUTC: string;
   /** Observations being triangulated. */
@@ -59,6 +62,7 @@ export interface TriangulateState {
   // ---- Actions ----
   setAttempts: (attempts: AttemptEntry[]) => void;
   selectAttempt: (id: string) => void;
+  setCurrentAttempt: (id: string, source: "manifest" | "user") => void;
   applyAttemptData: (data: AttemptData) => void;
   setTimestamp: (utc: string) => void;
   setRefractionEnabled: (on: boolean) => void;
@@ -80,6 +84,7 @@ const EMPTY_TLE: Tle = { name: "", line1: "", line2: "" };
 export const useTriangulateStore = create<TriangulateState>((set, get) => ({
   attempts: [],
   currentAttemptId: null,
+  currentAttemptSource: null,
   timestampUTC: "",
   observations: [],
   tle: EMPTY_TLE,
@@ -93,8 +98,11 @@ export const useTriangulateStore = create<TriangulateState>((set, get) => ({
   selectAttempt: (id) => {
     const e = get().attempts.find((a) => a.id === id);
     if (!e) return;
-    set({ currentAttemptId: id });
+    set({ currentAttemptId: id, currentAttemptSource: e.source });
   },
+
+  setCurrentAttempt: (id, source) =>
+    set({ currentAttemptId: id, currentAttemptSource: source }),
 
   applyAttemptData: (data) =>
     set({
