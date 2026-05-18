@@ -92,6 +92,14 @@ input, textarea, [contenteditable="true"] {
   }
 }
 
+/* Mobile: the panel goes ~full-width, so even the right-pinned pill
+   sits on top of it. Hide the nav while the panel is open; the
+   panel-toggle (◂ / ▸) collapses the panel out of the way and the
+   nav reappears so the user can switch routes. */
+@media (max-width: 600px) {
+  body:not(.panel-collapsed) #site-nav { display: none; }
+}
+
 .panel {
   position: absolute; top: 16px;
   background: rgba(10, 14, 26, 0.92);
