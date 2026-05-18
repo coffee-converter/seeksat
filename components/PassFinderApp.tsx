@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
+import ModeToggle from "@/components/passes/ModeToggle";
+import MinElevControl from "@/components/passes/MinElevControl";
+import TlePanel from "@/components/passes/TlePanel";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -50,15 +53,8 @@ export default function PassFinderApp() {
           <div className="section-heading-row">
             <h2 className="section-heading">Passes</h2>
             <div className="passes-controls">
-              <div id="mode-toggle" className="mode-toggle" role="group" aria-label="Pass mode">
-                <button type="button" data-mode="visual" className="active">Visual</button>
-                <button type="button" data-mode="radio">Radio</button>
-              </div>
-              <div id="min-elev-control" className="min-elev" hidden title="Minimum elevation every observer must clear">
-                <button type="button" className="min-elev-step" data-step="-1" aria-label="Decrease minimum elevation">−</button>
-                <span id="min-elev-value" className="min-elev-value">10°</span>
-                <button type="button" className="min-elev-step" data-step="1" aria-label="Increase minimum elevation">+</button>
-              </div>
+              <ModeToggle />
+              <MinElevControl />
             </div>
             <button id="share-btn" type="button" title="Copy a link to this observer setup" aria-label="Copy link">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -95,11 +91,7 @@ export default function PassFinderApp() {
 
         <details id="tle-details">
           <summary><h2>TLE</h2></summary>
-          <div id="tle-status" className="hint">fetching…</div>
-          <textarea id="tle-name" placeholder="ISS (ZARYA)" defaultValue="" />
-          <textarea id="tle-l1" placeholder="1 25544U ..." defaultValue="" />
-          <textarea id="tle-l2" placeholder="2 25544 ..." defaultValue="" />
-          <button id="tle-refetch" type="button">Refetch from Celestrak</button>
+          <TlePanel />
         </details>
       </section>
 
