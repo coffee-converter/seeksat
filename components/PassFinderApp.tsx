@@ -6,6 +6,7 @@ import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
 import TlePanel from "@/components/passes/TlePanel";
 import PlaybackControls from "@/components/passes/PlaybackControls";
+import AddObserverForm from "@/components/passes/AddObserverForm";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -73,21 +74,7 @@ export default function PassFinderApp() {
         <details id="observers-details">
           <summary><h2>Observers</h2></summary>
           <div id="obs-list" />
-          <div className="add-row">
-            <input
-              id="add-latlon"
-              type="text"
-              placeholder={`lat, lon (e.g. 40°30'30.0"N, 75°15'45.0"W)`}
-            />
-            <button id="add-latlon-btn" type="button">Add</button>
-          </div>
-          <div className="add-row">
-            <input id="add-geocode" type="text" placeholder="place name (e.g. Brookfield, WI)" />
-            <button id="add-geocode-btn" type="button">Geocode</button>
-          </div>
-          <button id="click-place-toggle" type="button" className="toggle">
-            Click on globe to place
-          </button>
+          <AddObserverForm />
         </details>
 
         <details id="tle-details">

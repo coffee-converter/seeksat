@@ -20,12 +20,16 @@ export interface PassFinderState {
   tle: Tle;
   /** Fetch status for the auto-loaded ISS TLE on first paint. */
   tleStatus: "idle" | "fetching" | "ready" | "error";
+  /** When true, the next globe-click creates an observer at that
+   *  ECEF point instead of doing normal camera interactions. */
+  clickToPlace: boolean;
 
   // ---- Actions ----
   setMode: (mode: PassMode) => void;
   setMinElevDeg: (deg: number) => void;
   setTle: (tle: Partial<Tle>) => void;
   setTleStatus: (status: PassFinderState["tleStatus"]) => void;
+  setClickToPlace: (on: boolean) => void;
 }
 
 const EMPTY_TLE: Tle = { name: "", line1: "", line2: "" };
@@ -35,9 +39,11 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   minElevDeg: 10,
   tle: EMPTY_TLE,
   tleStatus: "idle",
+  clickToPlace: false,
 
   setMode: (mode) => set({ mode }),
   setMinElevDeg: (deg) => set({ minElevDeg: deg }),
   setTle: (patch) => set((s) => ({ tle: { ...s.tle, ...patch } })),
   setTleStatus: (status) => set({ tleStatus: status }),
+  setClickToPlace: (on) => set({ clickToPlace: on }),
 }));
