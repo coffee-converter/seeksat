@@ -7,6 +7,7 @@ import MinElevControl from "@/components/passes/MinElevControl";
 import TlePanel from "@/components/passes/TlePanel";
 import PlaybackControls from "@/components/passes/PlaybackControls";
 import AddObserverForm from "@/components/passes/AddObserverForm";
+import ObserversList from "@/components/passes/ObserversList";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -73,7 +74,7 @@ export default function PassFinderApp() {
 
         <details id="observers-details">
           <summary><h2>Observers</h2></summary>
-          <div id="obs-list" />
+          <ObserversList />
           <AddObserverForm />
         </details>
 
