@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import SiteHeader from "@/components/SiteHeader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
           src={`${CESIUM_CDN}/Build/Cesium/Cesium.js`}
           strategy="afterInteractive"
         />
+        <SiteHeader />
         {children}
       </body>
     </html>

@@ -23,6 +23,51 @@ input, textarea, [contenteditable="true"] {
   user-select: text;
 }
 
+/* Top-center pill nav rendered from app/layout.tsx. Floats above the
+   Cesium canvas at z-index 1100 (same band as #panel-toggle) so it
+   reads as on top of side panels without poking into modals / loaders
+   (those live at 5000). Width is content-driven; centered via the
+   left:50% + translateX(-50%) trick so it never overlaps the left
+   panel (which hugs left:16px). */
+#site-nav {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: rgba(10, 14, 26, 0.85);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  z-index: 1100;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+#site-nav .site-brand {
+  font-weight: 600;
+  color: #7eb8ff;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  padding: 0 10px 0 8px;
+  border-right: 1px solid rgba(100, 140, 255, 0.2);
+  margin-right: 2px;
+}
+#site-nav .site-nav-link {
+  padding: 4px 12px;
+  border-radius: 999px;
+  color: #cfe0ff;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+#site-nav .site-nav-link:hover { background: rgba(126, 184, 255, 0.12); }
+#site-nav .site-nav-link.active {
+  background: rgba(126, 184, 255, 0.18);
+  color: #ffffff;
+}
+
 .panel {
   position: absolute; top: 16px;
   background: rgba(10, 14, 26, 0.92);
