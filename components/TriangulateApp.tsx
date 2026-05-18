@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ResultPanel from "@/components/triangulate/ResultPanel";
+import TlePanel from "@/components/triangulate/TlePanel";
 
 // Wrap-and-mount port of the original ISS triangulation page. The JSX
 // below mirrors legacy/index.html exactly (same IDs, same structure,
@@ -113,14 +114,7 @@ export default function TriangulateApp() {
 
         <details id="tle-section" open>
           <summary><h2>TLE</h2></summary>
-          <div className="tle-actions">
-            <button id="tle-fetch" type="button" title="Fetch the current ISS TLE from CelesTrak">Fetch latest</button>
-            <button id="tle-clear" type="button" title="Clear all three TLE fields">Clear</button>
-            <span id="tle-warn" className="hint" hidden />
-          </div>
-          <textarea id="tle-line1" placeholder="ISS (ZARYA)" defaultValue="" />
-          <textarea id="tle-line2" placeholder="1 25544U ..." defaultValue="" />
-          <textarea id="tle-line3" placeholder="2 25544 ..." defaultValue="" />
+          <TlePanel />
         </details>
 
         <p className="footnote">
