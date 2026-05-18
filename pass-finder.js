@@ -101,13 +101,13 @@ function newObsId() { return `obs-${Date.now()}-${Math.floor(Math.random() * 100
 
 // Mode-aware "can this observer see / hear the ISS right now?" used by
 // the 3D-scene sightline polyline + observer-label alt/az line.
-// Visual: ISS sunlit + observer in twilight + apparent alt ≥ 10°.
+// Visual: ISS sunlit + observer in twilight + apparent alt ≥ state.minElevDeg.
 // Radio:  apparent alt ≥ state.minElevDeg, no sun/illumination gate.
 function observerSeesIss(obs, issEcef, jsDate) {
   if (state.mode === "radio") {
     return isRadioReachable([obs], issEcef, jsDate, { minIssAltDeg: state.minElevDeg });
   }
-  return isVisibleAtAll([obs], issEcef, jsDate);
+  return isVisibleAtAll([obs], issEcef, jsDate, { minIssAltDeg: state.minElevDeg });
 }
 
 // Per-observer pass cache. Each observer's polar plot lights up
@@ -3740,9 +3740,10 @@ function encodeStateBlob() {
     obj.t = state.windows[state.activeWindowIdx].startMs;
   }
   // Mode + min-elev only encoded when non-default; keeps casual-share
-  // URLs short for visual passes (the common case).
+  // URLs short. Min-elev applies in both modes now, so encode whenever
+  // it deviates from the 10° default regardless of mode.
   if (state.mode === "radio") obj.m = "r";
-  if (state.mode === "radio" && state.minElevDeg !== 10) obj.e = state.minElevDeg;
+  if (state.minElevDeg !== 10) obj.e = state.minElevDeg;
   return b64urlEncode(JSON.stringify(obj));
 }
 
@@ -3890,7 +3891,11 @@ function reflectModeUi() {
   for (const btn of modeToggleEl.querySelectorAll("button")) {
     btn.classList.toggle("active", btn.dataset.mode === state.mode);
   }
-  minElevControlEl.hidden = state.mode !== "radio";
+  // Min-elev applies in both modes: in visual it's the lowest
+  // apparent altitude every observer must have the ISS above (10° is
+  // a sensible naked-eye default, atmospheric extinction is severe
+  // below that); in radio it's the antenna's lowest usable elevation.
+  minElevControlEl.hidden = false;
   minElevValueEl.textContent = `${state.minElevDeg}°`;
   for (const btn of minElevControlEl.querySelectorAll(".min-elev-step")) {
     const step = parseInt(btn.dataset.step, 10);
@@ -3981,10 +3986,11 @@ function runSearch(startMs, endMs) {
   setTimeout(() => {
     if (gen !== searchGen) return; // a newer search superseded us
     // Predicate + opts depend on mode. Visual = sunlit + twilight +
-    // alt≥10°. Radio = alt ≥ user min-elev for every observer.
+    // alt ≥ user min-elev. Radio = alt ≥ user min-elev (no
+    // sun/illumination gate). Both modes use the same min-elev knob.
     const predicate = state.mode === "radio"
       ? (obs, e, d) => isRadioReachable(obs, e, d, { minIssAltDeg: state.minElevDeg })
-      : isVisibleAtAll;
+      : (obs, e, d) => isVisibleAtAll(obs, e, d, { minIssAltDeg: state.minElevDeg });
     const t0 = performance.now();
     const wins = findVisibilityWindows(
       state.observers, satrec, predicate, sat,
