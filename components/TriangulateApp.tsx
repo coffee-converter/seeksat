@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { makeViewer, wireSimTime } from "@/lib/cesium-viewer";
 
 // Minimum-viable port: a single client component that mounts a Cesium
-// Viewer into a ref and waits for window.Cesium to be available
-// (loaded async via the <Script> tag in app/layout.tsx). Proves the
-// Cesium-in-Next.js plumbing works end-to-end before we port the
+// Viewer (via lib/cesium-viewer) into a ref once window.Cesium has
+// finished loading from the CDN <Script> in app/layout.tsx. The
 // imperative observation-list / TLE-fetch / triangulation logic from
-// legacy/app.js into proper React components.
+// legacy/app.js still needs to be ported into proper React components
+// — for now we just verify the viewer setup itself matches the legacy
+// look (Esri imagery + NASA SVS skybox + atmosphere/lighting).
 export default function TriangulateApp() {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<unknown>(null);
@@ -27,25 +29,8 @@ export default function TriangulateApp() {
       if (typeof window.Cesium !== "undefined" && containerRef.current) {
         window.clearInterval(interval);
         try {
-          const C = window.Cesium;
-          const viewer = new C.Viewer(containerRef.current, {
-            baseLayer: false,
-            baseLayerPicker: false,
-            geocoder: false,
-            homeButton: false,
-            sceneModePicker: false,
-            navigationHelpButton: false,
-            animation: false,
-            timeline: false,
-            fullscreenButton: false,
-            infoBox: false,
-            selectionIndicator: false,
-            shouldAnimate: false,
-          });
-          viewer.scene.skyAtmosphere.show = true;
-          viewer.scene.globe.enableLighting = true;
-          viewer.scene.backgroundColor = C.Color.fromCssColorString("#0a0e1a");
-          viewer.cesiumWidget.creditContainer.style.display = "none";
+          const viewer = makeViewer(containerRef.current);
+          wireSimTime(viewer);
           viewerRef.current = viewer;
           setStatus("ready");
         } catch (err) {
@@ -71,11 +56,8 @@ export default function TriangulateApp() {
 
   return (
     <>
-      <div
-        ref={containerRef}
-        id="cesium-container"
-        style={{ width: "100vw", height: "100vh" }}
-      />
+      <div ref={containerRef} id="cesium-container" />
+      <div id="sim-time">—</div>
       {status !== "ready" && (
         <div
           style={{

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cloudAt } from '../legacy/pass-finder/weather.js';
+import { cloudAt } from '../lib/pass-finder/weather.js';
 
 test('cloudAt: null forecast returns null', () => {
   assert.equal(cloudAt(null, 0), null);

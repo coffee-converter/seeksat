@@ -1,17 +1,17 @@
 // pass-finder.js -- ISS multi-observer pass finder.
 
-import { parseDmsToDecimal, geodeticToEcef } from "./coords.js";
-import { geocodeOne } from "./pass-finder/geocode.js";
-import { fetchIssTle } from "./pass-finder/tle.js";
-import { isVisibleAtAll, isRadioReachable, issAltitudeDeg, issAltAzDeg, issIlluminated, sunAltitudeDeg } from "./pass-finder/visibility.js";
-import { sunPositionEcef } from "./pass-finder/sun.js";
-import { findVisibilityWindows } from "./pass-finder/search.js";
-import { tleOrbitTrackEcef } from "./truth.js";
-import { fetchCloudForecast, cloudAt } from "./pass-finder/weather.js";
-import { fetchTimezone } from "./pass-finder/timezone.js";
-import { moonPositionEcef, moonPhaseAngle, moonIlluminatedFraction } from "./pass-finder/moon.js";
-import { planetPositionEcef, planetApparentMagnitude, PLANET_STYLE, PLANET_NAMES } from "./pass-finder/planets.js";
-import { apparentAltDeg } from "./refraction.js";
+import { parseDmsToDecimal, geodeticToEcef } from "../lib/coords.js";
+import { geocodeOne } from "../lib/pass-finder/geocode.js";
+import { fetchIssTle } from "../lib/pass-finder/tle.js";
+import { isVisibleAtAll, isRadioReachable, issAltitudeDeg, issAltAzDeg, issIlluminated, sunAltitudeDeg } from "../lib/pass-finder/visibility.js";
+import { sunPositionEcef } from "../lib/pass-finder/sun.js";
+import { findVisibilityWindows } from "../lib/pass-finder/search.js";
+import { tleOrbitTrackEcef } from "../lib/truth.js";
+import { fetchCloudForecast, cloudAt } from "../lib/pass-finder/weather.js";
+import { fetchTimezone } from "../lib/pass-finder/timezone.js";
+import { moonPositionEcef, moonPhaseAngle, moonIlluminatedFraction } from "../lib/pass-finder/moon.js";
+import { planetPositionEcef, planetApparentMagnitude, PLANET_STYLE, PLANET_NAMES } from "../lib/pass-finder/planets.js";
+import { apparentAltDeg } from "../lib/refraction.js";
 import * as sat from "https://cdn.jsdelivr.net/npm/satellite.js@7.0.0/+esm";
 import { makeViewer, wireSimTime } from "./viewer-setup.js";
 import { wireCameraControls } from "./camera-controls.js";

@@ -4,7 +4,7 @@ import {
   parseDmsToDecimal,
   parseRaToHours,
   parseDecToDegrees,
-} from '../legacy/coords.js';
+} from '../lib/coords.js';
 
 const close = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
 
@@ -70,7 +70,7 @@ import {
   gmstFromDate,
   eciToEcefRotate,
   enuToEcefRotate,
-} from '../legacy/coords.js';
+} from '../lib/coords.js';
 
 test('raDecToEciDir: RA=0 Dec=0 points at +X', () => {
   const v = raDecToEciDir(0, 0);
