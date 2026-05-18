@@ -68,6 +68,30 @@ input, textarea, [contenteditable="true"] {
   color: #ffffff;
 }
 
+/* Narrow screens: the left panel (panel-left-width = 460px + 16px
+   inset, plus the toggle hinge) reaches close to mid-screen, so the
+   centered pill collides with it. Shrink the nav and pin it to the
+   right edge to keep the panel area clear. The panel-toggle hangs
+   off the right of the panel near top: 28px; the nav sits above it
+   at top: 12px to dodge that band. */
+@media (max-width: 1280px) {
+  #site-nav {
+    left: auto;
+    right: 16px;
+    transform: none;
+    font-size: 11px;
+    gap: 2px;
+    padding: 3px 4px;
+  }
+  #site-nav .site-brand {
+    font-size: 10px;
+    padding: 0 6px 0 4px;
+  }
+  #site-nav .site-nav-link {
+    padding: 3px 9px;
+  }
+}
+
 .panel {
   position: absolute; top: 16px;
   background: rgba(10, 14, 26, 0.92);
