@@ -5,6 +5,7 @@ import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
 import TlePanel from "@/components/passes/TlePanel";
+import PlaybackControls from "@/components/passes/PlaybackControls";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -96,24 +97,7 @@ export default function PassFinderApp() {
       </section>
 
       <nav id="bottom-controls">
-        <div className="ctl-group playback">
-          <button id="play-btn"  type="button" title="Play">▶</button>
-          <button id="pause-btn" type="button" title="Pause">⏸</button>
-          <button id="reset-btn" type="button" title="Reset to now">⏮</button>
-        </div>
-        <label className="speed-label">
-          Speed
-          <select id="speed-select" defaultValue="10">
-            <option value="1">×1</option>
-            <option value="10">×10</option>
-            <option value="60">×60</option>
-            <option value="600">×600</option>
-            <option value="1000">×1000</option>
-            <option value="4000">×4000</option>
-            <option value="10000">×10000</option>
-            <option value="30000">×30000</option>
-          </select>
-        </label>
+        <PlaybackControls viewer={viewer} />
         <div id="sim-time">—</div>
         <div id="camera-controls" className="ctl-group">
           <button data-cam="frame" title="Frame all observers">Frame</button>
