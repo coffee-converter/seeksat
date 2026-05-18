@@ -18,7 +18,9 @@ next-env.d.ts
 
 # Large source assets used to generate the committed cubemap faces.
 # Keep the 6 final JPGs in git; keep the EXR sources / intermediates out.
-assets/stars/raw/
-assets/stars/*.exr
-assets/stars/*.tif
-assets/stars/cube_strip*
+# Patterns match both the original root location (pre-react-port) and
+# the public/ location used by the Next.js build.
+**/assets/stars/raw/
+**/assets/stars/*.exr
+**/assets/stars/*.tif
+**/assets/stars/cube_strip*

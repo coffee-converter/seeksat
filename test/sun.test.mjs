@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sunPositionEci, sunPositionEcef } from '../legacy/pass-finder/sun.js';
+import { sunPositionEci, sunPositionEcef } from '../lib/pass-finder/sun.js';
 
 const close = (a, b, eps) => Math.abs(a - b) < eps;
 

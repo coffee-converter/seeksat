@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findWindowsFromPredicate } from '../legacy/pass-finder/search.js';
+import { findWindowsFromPredicate } from '../lib/pass-finder/search.js';
 
 test('returns empty when predicate is always false', () => {
   const out = findWindowsFromPredicate(() => false, 0, 1_000_000, 60_000);

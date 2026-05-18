@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { triangulateRays } from '../legacy/triangulate.js';
+import { triangulateRays } from '../lib/triangulate.js';
 
 function rayFromTo(p, target) {
   const d = [target[0]-p[0], target[1]-p[1], target[2]-p[2]];

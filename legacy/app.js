@@ -15,10 +15,10 @@ import {
   parseDmsToDecimal,
   parseRaToHours,
   parseDecToDegrees,
-} from "./coords.js";
-import { triangulateRays } from "./triangulate.js";
-import { lookupElev } from "./elevation.js";
-import { correctRefraction } from "./refraction.js";
+} from "../lib/coords.js";
+import { triangulateRays } from "../lib/triangulate.js";
+import { lookupElev } from "../lib/elevation.js";
+import { correctRefraction } from "../lib/refraction.js";
 import { makeViewer, wireSimTime } from "./viewer-setup.js";
 import { wireCameraControls } from "./camera-controls.js";
 
@@ -694,7 +694,7 @@ recompute = function () {
   renderResultPanel();
 };
 
-import { tlePositionEcef, tleOrbitTrackEcef } from "./truth.js";
+import { tlePositionEcef, tleOrbitTrackEcef } from "../lib/truth.js";
 
 const tleL1 = document.getElementById("tle-line1");
 const tleL2 = document.getElementById("tle-line2");

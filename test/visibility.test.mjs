@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { issAltitudeDeg, sunAltitudeDeg, issIlluminated, isVisibleAtAll } from '../legacy/pass-finder/visibility.js';
-import { geodeticToEcef } from '../legacy/coords.js';
+import { issAltitudeDeg, sunAltitudeDeg, issIlluminated, isVisibleAtAll } from '../lib/pass-finder/visibility.js';
+import { geodeticToEcef } from '../lib/coords.js';
 
 const close = (a, b, eps) => Math.abs(a - b) < eps;
 
