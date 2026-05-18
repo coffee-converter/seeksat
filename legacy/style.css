@@ -1,0 +1,423 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+/* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than
+   the actual visible area, leaving bare background below the globe.
+   dvh tracks the dynamic visible area so the canvas fills the
+   viewport reliably. vh fallback preserves desktop behavior on older
+   browsers without dvh support. */
+html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px; line-height: 1.5; }
+#cesium-container { width: 100vw; height: 100vh; height: 100dvh; }
+
+/* Disable text selection by default on the whole UI — accidental
+   double-clicks on buttons/labels picking up stray text selection is
+   more annoying than the rare case of wanting to copy a timestamp.
+   Re-enable specifically for input controls (where text-selection
+   IS the point). Applies to both index.html and pass-finder.html. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.panel {
+  position: absolute; top: 16px;
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  border-radius: 12px;
+  padding: 14px 16px;
+  backdrop-filter: blur(12px);
+  max-width: 460px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  z-index: 1000;
+}
+.panel-left { left: 16px; }
+.panel-right { right: 16px; max-width: 340px; }
+
+/* Left panel collapse — mirrors pass-finder. Toggle button sits on
+   the right edge of the panel when open; slides with the panel to the
+   viewport edge when collapsed so the user can always re-open. */
+:root { --panel-left-width: 460px; }
+#panel-observations { width: var(--panel-left-width); max-width: var(--panel-left-width); transition: transform 0.25s ease; }
+@media (max-width: 600px) {
+  :root {
+    --panel-left-width: calc(100vw - 32px);
+    --panel-left-width: calc(100dvw - 32px);
+  }
+}
+#panel-toggle {
+  position: absolute;
+  top: 28px;
+  left: calc(16px + var(--panel-left-width));
+  width: 22px;
+  height: 56px;
+  z-index: 1100;
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  color: #cfe0ff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  backdrop-filter: blur(12px);
+  transition: left 0.25s ease;
+}
+#panel-toggle::before { content: "◂"; }
+#panel-toggle:hover { background: rgba(126, 184, 255, 0.18); }
+body.panel-collapsed #panel-observations {
+  transform: translateX(calc(-100% - 32px));
+  pointer-events: none;
+}
+body.panel-collapsed #panel-toggle {
+  left: 16px;
+  border-left: 1px solid rgba(100, 140, 255, 0.3);
+  border-radius: 8px;
+}
+body.panel-collapsed #panel-toggle::before { content: "▸"; }
+.panel h2 { font-size: 14px; color: #7eb8ff; margin-bottom: 10px;
+  text-transform: uppercase; letter-spacing: 0.08em; }
+#attempt-picker {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 10px;
+}
+#attempt-picker label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #7eb8ff; font-weight: 700;
+}
+#attempt-picker select {
+  flex: 1;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+#attempt-picker button {
+  background: rgba(126, 184, 255, 0.12);
+  border: 1px solid rgba(126, 184, 255, 0.35);
+  color: #cfe0ff;
+  width: 24px; height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin: 0;
+}
+#attempt-picker button:hover { background: rgba(126, 184, 255, 0.22); }
+#attempt-picker button[hidden] { display: none; }
+
+#attempt-new-form {
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(126, 184, 255, 0.05);
+  border: 1px solid rgba(126, 184, 255, 0.18);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+#attempt-new-form[hidden] { display: none; }
+#attempt-new-form .af-row {
+  display: flex; align-items: center; gap: 8px;
+}
+#attempt-new-form .af-row > span {
+  flex: 0 0 44px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #7eb8ff; font-weight: 700;
+}
+#attempt-new-form .af-row > input[type="text"] {
+  flex: 1;
+}
+#attempt-new-form .af-check { font-size: 11px; color: #cfe0ff; }
+#attempt-new-form .af-check span { flex: 1; font-weight: 400;
+  text-transform: none; letter-spacing: 0; color: #cfe0ff; }
+#attempt-new-form .af-actions {
+  display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px;
+}
+#attempt-new-form .af-actions button { margin-top: 0; padding: 4px 10px; font-size: 11px; }
+
+/* Shared collapsible-section styling for the three sibling details
+   panels in #panel-observations (#result-section, #obs-details,
+   #tle-section). Chevron + label + horizontal rule across the rest of
+   the header — gives each section a clear banded look. */
+#panel-observations > details + details {
+  margin-top: 8px;
+}
+#panel-observations > details > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 2px;
+  margin-bottom: 6px;
+}
+#panel-observations > details > summary::-webkit-details-marker { display: none; }
+/* Clip-path triangle instead of a unicode glyph for exact centering
+   (unicode ▾ renders bottom-heavy in every font). */
+#panel-observations > details > summary::before {
+  content: "";
+  width: 16px; height: 16px;
+  background-color: #7eb8ff;
+  clip-path: polygon(10% 35%, 90% 35%, 50% 80%);
+  transition: transform 0.15s;
+  flex: 0 0 auto;
+}
+#panel-observations > details:not([open]) > summary::before { transform: rotate(-90deg); }
+#panel-observations > details > summary h2 {
+  margin: 0;
+  flex: 0 0 auto;
+}
+/* Filler bar — takes the remaining horizontal room beside the label.
+   Extra left margin so the bar reads visually separate from the title. */
+#panel-observations > details > summary::after {
+  content: "";
+  flex: 1 1 auto;
+  margin-left: 4px;
+  height: 7px;
+  border-radius: 3px;
+  background: rgba(126, 184, 255, 0.35);
+}
+
+#tle-section .tle-actions {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
+#tle-section .tle-actions button {
+  font-size: 11px;
+  padding: 3px 10px;
+  margin-top: 0;
+}
+#tle-section .tle-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#tle-section .tle-actions #tle-warn {
+  font-size: 10px; color: #facc15;
+  margin-left: auto;
+}
+#tle-section textarea {
+  width: 100%;
+  min-height: 28px;
+  resize: vertical;
+  margin-top: 4px;
+}
+.panel input[type=text], .panel textarea, .panel select {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  color: #e0e0e0; padding: 4px 6px; border-radius: 4px;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+}
+.panel textarea { width: 100%; min-height: 26px; resize: vertical; margin-top: 4px; }
+.panel button {
+  background: rgba(126, 184, 255, 0.12); border: 1px solid rgba(126, 184, 255, 0.4);
+  color: #cfe0ff; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  font-size: 12px; margin-top: 8px;
+}
+.panel button:hover { background: rgba(126, 184, 255, 0.22); }
+
+.timestamp-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.timestamp-row input { width: 250px; }
+.hint { color: #8899bb; font-size: 11px; }
+
+.opt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  font-size: 11px; color: #cfe0ff; cursor: pointer; user-select: none; }
+.opt-row input { margin: 0; }
+
+
+/* Scroll the observer list within its own bounds so a long list
+   doesn't push the whole left panel taller than the viewport. Bound
+   by ~40% of the viewport. The negative-margin + padding-right pair
+   bleeds the list into the panel's right gutter so the scrollbar
+   lives in otherwise-empty pane space instead of overlapping cards. */
+#obs-list {
+  display: flex; flex-direction: column;
+  gap: 6px; margin-bottom: 8px;
+  max-height: 40vh; overflow-y: auto;
+  margin-right: -12px;
+  padding-right: 12px;
+}
+
+.obs-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.obs-card:hover {
+  background: rgba(126,184,255,0.07);
+  border-color: rgba(126,184,255,0.28);
+}
+.obs-card-meta {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 0;
+  line-height: 1.2;
+}
+.obs-card-name {
+  font-size: 12px; font-weight: 600; color: #e0e0e0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.obs-card-coords {
+  font-size: 10px; color: #8899bb;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.obs-card-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.color-swatch {
+  width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.18); display: inline-block;
+}
+.obs-card-header input[data-field=name] {
+  flex: 1; background: transparent; border: 1px solid transparent;
+  font-weight: 600; font-size: 13px; font-family: inherit;
+  padding: 3px 6px; color: #e0e0e0;
+}
+.obs-card-header input[data-field=name]:hover,
+.obs-card-header input[data-field=name]:focus {
+  background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
+  outline: none;
+}
+.obs-card-header .remove {
+  background: transparent; border: none; color: #8899bb; cursor: pointer;
+  font-size: 14px; padding: 3px 7px; margin: 0; border-radius: 4px;
+}
+.obs-card-header .remove:hover {
+  background: rgba(248,113,113,0.12); color: #f87171;
+}
+.obs-card-header .fps-view {
+  background: transparent; border: 1px solid transparent; color: #8899bb;
+  cursor: pointer; font-size: 12px; padding: 2px 6px; margin: 0;
+  border-radius: 4px; line-height: 1;
+}
+.obs-card-header .fps-view:hover {
+  background: rgba(126, 184, 255, 0.12); color: #cfe0ff;
+}
+.obs-card-header .fps-view.active {
+  background: rgba(126, 184, 255, 0.25); color: #7eb8ff;
+  border-color: rgba(126, 184, 255, 0.5);
+}
+
+.polar-plot {
+  display: block;
+  margin: 4px auto 2px;
+  width: 88px;
+  height: 88px;
+  /* Cardinal labels sit just outside the 0..100 viewBox at -2/102 so
+     they don't crowd the horizon ring; let them paint. */
+  overflow: visible;
+  cursor: pointer;
+}
+.polar-plot:hover .horizon { stroke: rgba(126, 184, 255, 0.7); }
+.polar-plot .horizon {
+  fill: rgba(8, 12, 24, 0.7);
+  stroke: rgba(126, 184, 255, 0.45);
+  stroke-width: 0.8;
+}
+.polar-plot .grid {
+  fill: none;
+  stroke: rgba(126, 184, 255, 0.18);
+  stroke-width: 0.4;
+}
+.polar-plot .cardinal {
+  fill: #8899bb;
+  font-size: 7px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.polar-plot .arc {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+.polar-plot .iss-dot {
+  fill: #ffffff;
+  stroke: #7eb8ff;
+  stroke-width: 0.7;
+}
+
+.obs-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px; margin-top: 4px;
+}
+.obs-row.mode-row { grid-template-columns: 90px 1fr 1fr; }
+.field {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 5px; padding: 2px 6px;
+  min-width: 0;
+}
+.field:focus-within { border-color: rgba(126,184,255,0.5); }
+.field-label {
+  font-size: 9px; color: #8899bb;
+  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+  min-width: 22px; flex-shrink: 0;
+}
+.field input, .field select {
+  flex: 1; min-width: 0; background: transparent !important;
+  border: none !important; padding: 3px 0 !important;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
+  color: #e0e0e0;
+}
+.field input:focus, .field select:focus { outline: none; }
+.field select { padding-right: 16px !important; }
+
+.footnote { color: #6a7a9a; font-size: 10px; margin-top: 6px; line-height: 1.4; }
+.footnote code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px;
+  background: rgba(255,255,255,0.04); padding: 1px 4px; border-radius: 3px; }
+
+.result-block { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10.5px;
+  line-height: 1.4;
+  background: rgba(255,255,255,0.04); padding: 5px 8px; border-radius: 5px;
+  margin-bottom: 4px; white-space: pre-wrap; }
+.result-block:last-child { margin-bottom: 0; }
+.result-block .label { color: #7eb8ff; font-weight: 600; }
+
+#camera-controls { position: absolute; bottom: 16px; right: 16px;
+  display: flex; gap: 6px; z-index: 1000; }
+#camera-controls button {
+  background: rgba(10, 14, 26, 0.92); border: 1px solid rgba(100, 140, 255, 0.3);
+  color: #cfe0ff; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  backdrop-filter: blur(12px); font-size: 12px;
+}
+#camera-controls button:hover { background: rgba(126, 184, 255, 0.18); }
+#camera-controls button.active {
+  background: rgba(126, 184, 255, 0.35);
+  border-color: rgba(126, 184, 255, 0.7);
+}
+
+#sim-time {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 1000;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
+  color: #cfe0ff; letter-spacing: 0.04em;
+  background: rgba(10,14,26,0.7); padding: 6px 12px; border-radius: 6px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(100, 140, 255, 0.25);
+  white-space: nowrap; pointer-events: none;
+}
+/* Imagery picker sits inline in the camera-controls bar so it can't
+   overlap the left panel when the panel is tall. */
+#imagery-picker {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid rgba(100, 140, 255, 0.3);
+  border-radius: 6px; padding: 4px 8px;
+  backdrop-filter: blur(12px);
+  color: #cfe0ff;
+}
+.picker-label {
+  font-size: 9px; color: #8899bb;
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+}
+#imagery-select {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  color: #e0e0e0; padding: 2px 4px; border-radius: 4px;
+  font-size: 11px; font-family: inherit;
+  min-width: 140px;
+}
