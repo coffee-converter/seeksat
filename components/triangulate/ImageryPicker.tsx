@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyCesiumViewer = any;
+import { useViewer } from "@/lib/cesium-viewer-context";
 
 // Imagery picker. The list is no-auth tile sources (Esri / OSM /
-// CartoDB) — same set the legacy bundle shipped with. When `viewer`
-// is null, the select is rendered but inert; once viewer arrives the
-// effect installs the default layer (Esri Imagery).
+// CartoDB) — same set the legacy bundle shipped with. Viewer comes
+// from the CesiumViewerProvider; until it lands the select is
+// rendered but inert and no layer install runs.
 const IMAGERY_PROVIDERS = [
   { id: "esri-imagery",  label: "Esri Imagery (satellite)",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -38,7 +36,8 @@ const IMAGERY_PROVIDERS = [
 
 import { useState } from "react";
 
-export default function ImageryPicker({ viewer }: { viewer: AnyCesiumViewer | null }) {
+export default function ImageryPicker() {
+  const { viewer } = useViewer();
   const [providerId, setProviderId] = useState("esri-imagery");
 
   useEffect(() => {

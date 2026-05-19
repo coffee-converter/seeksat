@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
+import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
@@ -59,7 +60,7 @@ export default function PassFinderApp() {
   }, [activeWindowIdx]);
 
   return (
-    <>
+    <CesiumViewerProvider viewer={viewer} status={status}>
       <div id="page-loader" className={firstSearchComplete ? "hidden" : ""}>
         <img className="loader-img" src="/assets/loader.gif" alt="" />
         <span className="loader-label">Loading pass finder…</span>
@@ -102,7 +103,7 @@ export default function PassFinderApp() {
       </section>
 
       <nav id="bottom-controls">
-        <PlaybackControls viewer={viewer} />
+        <PlaybackControls />
         <div id="sim-time">—</div>
         <div id="camera-controls" className="ctl-group">
           <button data-cam="frame" title="Frame all observers">Frame</button>
@@ -132,6 +133,6 @@ export default function PassFinderApp() {
           Cesium failed to load — check the console.
         </div>
       )}
-    </>
+    </CesiumViewerProvider>
   );
 }
