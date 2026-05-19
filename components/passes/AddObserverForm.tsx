@@ -2,22 +2,14 @@
 
 import { useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
+import { addObserver } from "@/lib/scene-bridge";
 import { parseDmsToDecimal } from "@/lib/coords.js";
 import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 
 // Three add-observer controls: lat/lon input, geocode input, click-
-// to-place toggle. Each dispatches a `passes-add-observer` CustomEvent
-// with { name, latDeg, lonDeg } that the bootstrap listens for to do
-// the actual Cesium entity creation + cloud forecast fetch + search
-// rerun (those side effects haven't migrated yet — they will when the
-// observer list itself becomes React).
-function dispatchAdd(name: string | null, latDeg: number, lonDeg: number) {
-  window.dispatchEvent(
-    new CustomEvent("passes-add-observer", {
-      detail: { name, latDeg, lonDeg },
-    }),
-  );
-}
+// to-place toggle. Each calls the typed scene-bridge addObserver,
+// which routes to the scene's internal addObserver — Cesium entity
+// creation, cloud-forecast fetch, timezone lookup, search rerun.
 
 export default function AddObserverForm() {
   const clickToPlace = usePassFinderStore((s) => s.clickToPlace);
@@ -37,7 +29,7 @@ export default function AddObserverForm() {
     try {
       const latDeg = parseDmsToDecimal(parts[0].trim());
       const lonDeg = parseDmsToDecimal(parts[1].trim());
-      dispatchAdd(null, latDeg, lonDeg);
+      addObserver(null, latDeg, lonDeg);
       setLatlon("");
     } catch (e) {
       alert(`Bad lat/lon: ${e instanceof Error ? e.message : e}`);
@@ -54,7 +46,7 @@ export default function AddObserverForm() {
         alert(`No result for "${q}"`);
         return;
       }
-      dispatchAdd(q, result.latDeg, result.lonDeg);
+      addObserver(q, result.latDeg, result.lonDeg);
       setPlace("");
     } finally {
       setGeocoding(false);
