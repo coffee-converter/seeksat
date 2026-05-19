@@ -28,6 +28,7 @@ export default function PassFinderApp() {
   const panelCollapsed = usePassFinderStore((s) => s.panelCollapsed);
   const setPanelCollapsed = usePassFinderStore((s) => s.setPanelCollapsed);
   const firstSearchComplete = usePassFinderStore((s) => s.firstSearchComplete);
+  const observerCount = usePassFinderStore((s) => s.observers.length);
 
   useEffect(() => {
     if (!viewer) return;
@@ -97,7 +98,7 @@ export default function PassFinderApp() {
         </div>
 
         <details id="observers-details">
-          <summary><h2>Observers</h2></summary>
+          <summary><h2>Observers{observerCount > 0 ? ` (${observerCount})` : ""}</h2></summary>
           <ObserversList />
           <AddObserverForm />
         </details>
