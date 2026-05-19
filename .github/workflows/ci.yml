@@ -1,0 +1,40 @@
+name: ci
+
+# Runs the test suite + TS type check on every push and every PR.
+# Failing checks block merges (when branch protection is enabled).
+# Build is intentionally NOT here — Next builds pull large deps and
+# the build artifact isn't deployed from CI; cover that with Vercel's
+# own preview deploy or a separate workflow.
+
+on:
+  push:
+    branches: [main, react-port]
+  pull_request:
+    branches: [main, react-port]
+
+# Cancel in-progress runs on the same ref when a new push arrives —
+# saves runner minutes on rapid pushes. Both inputs are predefined
+# GitHub context values (workflow name + branch ref), not user data.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
