@@ -1,6 +1,7 @@
 "use client";
 
 import { usePassFinderStore, type PassObserver } from "@/lib/pass-finder-store";
+import { removeObserver, toggleFps } from "@/lib/scene-bridge";
 import PolarPlot from "./PolarPlot";
 
 
@@ -8,16 +9,13 @@ import PolarPlot from "./PolarPlot";
 // are all React-rendered now; the scene's painters only fill the
 // dynamic groups (ISS arc, sun/moon, start/peak/end markers, ISS-dot
 // position) via the SVG ref. Card-level actions go through the store
-// (open polar modal) or CustomEvents (FPS toggle / remove).
+// (open polar modal) or the typed scene bridge (FPS toggle, remove).
 export default function ObserverCard({ obs }: { obs: PassObserver }) {
   const fpsObserverId = usePassFinderStore((s) => s.fpsObserverId);
   const setPolarModalObsId = usePassFinderStore((s) => s.setPolarModalObsId);
   const isFps = fpsObserverId === obs.id;
 
   const stop = (ev: React.MouseEvent) => ev.stopPropagation();
-  const dispatch = (name: string) => {
-    window.dispatchEvent(new CustomEvent(name, { detail: { obsId: obs.id } }));
-  };
 
   return (
     <div
@@ -38,7 +36,7 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
           type="button"
           className={`fps-view${isFps ? " active" : ""}`}
           title="View from here (camera at observer, looking up at ISS)"
-          onClick={(ev) => { stop(ev); dispatch("passes-toggle-fps"); }}
+          onClick={(ev) => { stop(ev); toggleFps(obs.id); }}
         >
           ▲
         </button>
@@ -46,7 +44,7 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
           type="button"
           className="remove"
           title="Remove"
-          onClick={(ev) => { stop(ev); dispatch("passes-remove-observer"); }}
+          onClick={(ev) => { stop(ev); removeObserver(obs.id); }}
         >
           ✕
         </button>

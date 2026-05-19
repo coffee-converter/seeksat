@@ -38,6 +38,16 @@ export interface SceneBridge {
   /** Build a shareable URL encoding the current observer set + the
    *  currently-active pass window's start time, if any. */
   buildShareUrl: () => string;
+  /** Create a new observer station at (lat, lon). `name` of null
+   *  defaults to "Point N" via the scene. Side effects: Cesium
+   *  entities, cloud-forecast fetch, timezone lookup, search rerun. */
+  addObserver: (name: string | null, latDeg: number, lonDeg: number) => void;
+  /** Remove the observer with the given id. Tears down Cesium
+   *  entities + cloud cache + reruns search. */
+  removeObserver: (obsId: string) => void;
+  /** Toggle first-person camera lock to a specific observer. Passing
+   *  the currently-locked observer unlocks. */
+  toggleFps: (obsId: string) => void;
 }
 
 // Augment the global Window so the JS scene file can assign to
@@ -86,6 +96,15 @@ export const copyPolarPng: SceneBridge["copyPolarPng"] = (svg) =>
 
 export const buildShareUrl: SceneBridge["buildShareUrl"] = () =>
   bridge().buildShareUrl();
+
+export const addObserver: SceneBridge["addObserver"] = (name, latDeg, lonDeg) =>
+  bridge().addObserver(name, latDeg, lonDeg);
+
+export const removeObserver: SceneBridge["removeObserver"] = (obsId) =>
+  bridge().removeObserver(obsId);
+
+export const toggleFps: SceneBridge["toggleFps"] = (obsId) =>
+  bridge().toggleFps(obsId);
 
 /** True when the scene has registered its bridge. Components can
  *  check this before calling a wrapper if they need to render a
