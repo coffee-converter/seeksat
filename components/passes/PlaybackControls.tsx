@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyViewer = any;
+import { useViewer } from "@/lib/cesium-viewer-context";
 
 // Play / Pause / Reset buttons + speed picker. Clock manipulation is
 // pure Cesium API; Reset also clears the active window via the store
 // (the scene subscribes to activeWindowIdx and handles the visual
-// teardown).
-export default function PlaybackControls({ viewer }: { viewer: AnyViewer | null }) {
+// teardown). Viewer comes from the CesiumViewerProvider — null until
+// the CDN script + container both land.
+export default function PlaybackControls() {
+  const { viewer } = useViewer();
   const setActiveWindowIdx = usePassFinderStore((s) => s.setActiveWindowIdx);
   const [multiplier, setMultiplier] = useState(10);
 

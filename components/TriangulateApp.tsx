@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
+import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { useTriangulateAttempts } from "@/lib/use-triangulate-attempts";
 import AttemptPicker from "@/components/triangulate/AttemptPicker";
 import ImageryPicker from "@/components/triangulate/ImageryPicker";
@@ -52,7 +53,7 @@ export default function TriangulateApp() {
     : "Loading Cesium…";
 
   return (
-    <>
+    <CesiumViewerProvider viewer={viewer} status={status}>
       <div ref={containerRef} id="cesium-container" />
 
       <button id="panel-toggle" type="button" aria-label="Toggle side panel" />
@@ -83,7 +84,7 @@ export default function TriangulateApp() {
       </section>
 
       <nav id="camera-controls">
-        <ImageryPicker viewer={viewer} />
+        <ImageryPicker />
         <button data-cam="frame">Frame all</button>
         <span id="from-observer-slot" />
         <button data-cam="top">Top down</button>
@@ -115,6 +116,6 @@ export default function TriangulateApp() {
           {overlayLabel}
         </div>
       )}
-    </>
+    </CesiumViewerProvider>
   );
 }
