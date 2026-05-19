@@ -17,6 +17,11 @@ export default function PolarModal() {
   const imgRef = useRef<HTMLImageElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  // Modal stays hidden until the SVG + PNG blob are ready — matches
+  // the legacy flow (cursor: progress; then reveal). Without this, a
+  // fast click would flash an empty modal for the ~50-250ms render
+  // time. `renderedObsId === obsId` is the gate.
+  const [renderedObsId, setRenderedObsId] = useState<string | null>(null);
   // Stash the blob URL so we can revoke it when obsId changes / unmounts.
   const lastBlobUrlRef = useRef<string | null>(null);
 
@@ -27,6 +32,7 @@ export default function PolarModal() {
         lastBlobUrlRef.current = null;
       }
       if (imgRef.current) imgRef.current.removeAttribute("src");
+      setRenderedObsId(null);
       return;
     }
     let cancelled = false;
@@ -46,6 +52,7 @@ export default function PolarModal() {
           linkRef.current.href = result.blobUrl;
           linkRef.current.download = result.filename;
         }
+        setRenderedObsId(obsId);
       } catch (e) {
         if (!cancelled) console.warn("Polar modal render failed:", e);
       } finally {
@@ -57,6 +64,8 @@ export default function PolarModal() {
       document.body.style.cursor = "";
     };
   }, [obsId]);
+
+  const visible = !!obsId && renderedObsId === obsId;
 
   // Escape closes; only attached while open.
   useEffect(() => {
@@ -82,7 +91,7 @@ export default function PolarModal() {
   };
 
   return (
-    <div id="polar-modal" hidden={!obsId}>
+    <div id="polar-modal" hidden={!visible}>
       <div className="polar-modal-backdrop" onClick={() => setObsId(null)} />
       <div className="polar-modal-content">
         <div className="polar-modal-actions">
