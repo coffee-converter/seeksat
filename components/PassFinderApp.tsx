@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
+import { usePassFinderStore } from "@/lib/pass-finder-store";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
 import TlePanel from "@/components/passes/TlePanel";
@@ -22,6 +23,10 @@ import PolarModal from "@/components/passes/PolarModal";
 export default function PassFinderApp() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { viewer, status } = useCesiumViewer(containerRef);
+  const activeWindowIdx = usePassFinderStore((s) => s.activeWindowIdx);
+  const panelCollapsed = usePassFinderStore((s) => s.panelCollapsed);
+  const setPanelCollapsed = usePassFinderStore((s) => s.setPanelCollapsed);
+  const firstSearchComplete = usePassFinderStore((s) => s.firstSearchComplete);
 
   useEffect(() => {
     if (!viewer) return;
@@ -41,9 +46,21 @@ export default function PassFinderApp() {
     };
   }, [viewer]);
 
+  // Mirror store-driven UI flags onto body classes — the panel
+  // slide-out + the "pass-selected" styling read these in CSS.
+  useEffect(() => {
+    document.body.classList.toggle("panel-collapsed", panelCollapsed);
+    return () => document.body.classList.remove("panel-collapsed");
+  }, [panelCollapsed]);
+
+  useEffect(() => {
+    document.body.classList.toggle("has-active-pass", activeWindowIdx >= 0);
+    return () => document.body.classList.remove("has-active-pass");
+  }, [activeWindowIdx]);
+
   return (
     <>
-      <div id="page-loader">
+      <div id="page-loader" className={firstSearchComplete ? "hidden" : ""}>
         <img className="loader-img" src="/assets/loader.gif" alt="" />
         <span className="loader-label">Loading pass finder…</span>
       </div>
@@ -52,7 +69,12 @@ export default function PassFinderApp() {
 
       <div id="observer-icons" />
 
-      <button id="panel-toggle" type="button" aria-label="Toggle side panel" />
+      <button
+        id="panel-toggle"
+        type="button"
+        aria-label="Toggle side panel"
+        onClick={() => setPanelCollapsed(!panelCollapsed)}
+      />
 
       <section id="panel-left" className="panel">
         <div id="windows-section">

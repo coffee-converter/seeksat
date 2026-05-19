@@ -80,6 +80,13 @@ export interface PassFinderState {
   activeWindowIdx: number;
   /** When set, the polar-modal renders for this observer id. */
   polarModalObsId: string | null;
+  /** Left panel collapsed state — body.panel-collapsed mirror.
+   *  Drives both the user-toggleable panel and the auto-collapse on
+   *  narrow viewports when a pass is selected. */
+  panelCollapsed: boolean;
+  /** True once the first runSearch completes (success or empty).
+   *  Drives the page loader's fade-out. */
+  firstSearchComplete: boolean;
 
   // ---- Actions ----
   setMode: (mode: PassMode) => void;
@@ -96,6 +103,8 @@ export interface PassFinderState {
   ) => void;
   setActiveWindowIdx: (idx: number) => void;
   setPolarModalObsId: (id: string | null) => void;
+  setPanelCollapsed: (collapsed: boolean) => void;
+  setFirstSearchComplete: (done: boolean) => void;
 }
 
 const EMPTY_TLE: Tle = { name: "", line1: "", line2: "" };
@@ -113,6 +122,8 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   windowsStatus: "loading",
   activeWindowIdx: -1,
   polarModalObsId: null,
+  panelCollapsed: false,
+  firstSearchComplete: false,
 
   setMode: (mode) => set({ mode }),
   setMinElevDeg: (deg) => set({ minElevDeg: deg }),
@@ -125,4 +136,6 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
     set({ windowHeaders, windowRows, windowsStatus }),
   setActiveWindowIdx: (activeWindowIdx) => set({ activeWindowIdx }),
   setPolarModalObsId: (polarModalObsId) => set({ polarModalObsId }),
+  setPanelCollapsed: (panelCollapsed) => set({ panelCollapsed }),
+  setFirstSearchComplete: (firstSearchComplete) => set({ firstSearchComplete }),
 }));
