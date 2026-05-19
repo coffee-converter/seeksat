@@ -24,6 +24,11 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="stylesheet" href={`${CESIUM_CDN}/Build/Cesium/Widgets/widgets.css`} />
+        {/* Preload kicks off the ~3MB Cesium.js fetch in parallel with
+            React hydration / route chunks, instead of waiting for the
+            afterInteractive Script tag to be parsed. Same URL the
+            CesiumLoader Script tag uses, so the browser dedupes. */}
+        <link rel="preload" as="script" href={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />
       </head>
       <body>
         <CesiumLoader src={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />

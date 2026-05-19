@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
+import { initPassFinderScene } from "@/lib/pass-finder-scene.js";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
 import TlePanel from "@/components/passes/TlePanel";
@@ -32,14 +33,11 @@ export default function PassFinderApp() {
   useEffect(() => {
     if (!viewer) return;
     let teardown: (() => void) | undefined;
-    (async () => {
-      try {
-        const mod = await import("@/lib/pass-finder-scene.js");
-        teardown = mod.initPassFinderScene(viewer);
-      } catch (err) {
-        console.error("Pass-finder scene init failed:", err);
-      }
-    })();
+    try {
+      teardown = initPassFinderScene(viewer);
+    } catch (err) {
+      console.error("Pass-finder scene init failed:", err);
+    }
     return () => {
       if (teardown) {
         try { teardown(); } catch { /* ignore */ }
