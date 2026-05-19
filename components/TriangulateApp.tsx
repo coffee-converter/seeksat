@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { useTriangulateAttempts } from "@/lib/use-triangulate-attempts";
-import { initTriangulateScene } from "@/lib/triangulate-scene.js";
 import AttemptPicker from "@/components/triangulate/AttemptPicker";
 import ImageryPicker from "@/components/triangulate/ImageryPicker";
 import ObservationsPanel from "@/components/triangulate/ObservationsPanel";
@@ -29,12 +28,21 @@ export default function TriangulateApp() {
   useEffect(() => {
     if (!viewer || !attemptsReady) return;
     let teardown: (() => void) | undefined;
-    try {
-      teardown = initTriangulateScene(viewer);
-      setSceneReady(true);
-    } catch (err) {
-      console.error("Scene init failed:", err);
-    }
+    // Dynamic import (not static): the scene module + its transitive
+    // deps capture window.Cesium at module-evaluation time. With a
+    // static import the module would evaluate at page load — before
+    // Cesium has finished downloading — and freeze in an undefined
+    // Cesium. The dynamic import defers evaluation until
+    // useCesiumViewer has confirmed Cesium is ready.
+    (async () => {
+      try {
+        const mod = await import("@/lib/triangulate-scene.js");
+        teardown = mod.initTriangulateScene(viewer);
+        setSceneReady(true);
+      } catch (err) {
+        console.error("Scene init failed:", err);
+      }
+    })();
     return () => {
       if (teardown) {
         try { teardown(); } catch { /* ignore */ }
