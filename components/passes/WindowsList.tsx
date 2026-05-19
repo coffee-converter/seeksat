@@ -47,7 +47,16 @@ export default function WindowsList() {
         <div
           key={`${row.startMs}-${i}`}
           className={`window-row${i === activeIdx ? " active" : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-current={i === activeIdx ? "true" : undefined}
           onClick={() => setActiveWindowIdx(i)}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter" || ev.key === " ") {
+              ev.preventDefault();
+              setActiveWindowIdx(i);
+            }
+          }}
         >
           {row.cells.map((cell, ci) => (
             <span
