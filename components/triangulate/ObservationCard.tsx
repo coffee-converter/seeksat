@@ -128,8 +128,8 @@ export default function ObservationCard({ obs, idx }: ObservationCardProps) {
         <button
           type="button"
           className="remove"
+          aria-label={`Remove ${obs.name || "observation"}`}
           title="Remove observation"
-          tabIndex={-1}
           onClick={() => removeObservation(obs.id)}
         >
           ✕
