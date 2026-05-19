@@ -7,17 +7,13 @@
 // <Script> tag in app/layout.tsx, so callers must wait for
 // window.Cesium to exist before invoking this.
 //
-// The Cesium global is typed as `any` in types/cesium.d.ts; we keep
-// the local references narrow so the rest of the codebase can treat
-// the returned Viewer as `unknown` and cast at the few use sites.
+// Cesium global + CesiumViewer alias come from types/cesium.d.ts.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyCesium = any;
+import type { CesiumViewer } from "@/types/cesium";
 
 export interface MakeViewerOptions {
   /** Pass-through to `new Cesium.Viewer(container, ...)`. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  viewer?: Record<string, any>;
+  viewer?: Record<string, unknown>;
   /** Skip adding the default Esri base imagery layer. */
   imagery?: boolean;
   /** Override path to the directory holding the 6 NASA SVS face JPGs. */
@@ -47,11 +43,11 @@ const ESRI_IMAGERY_URL =
 export function makeViewer(
   container: HTMLElement,
   opts: MakeViewerOptions = {},
-): AnyCesium {
-  const Cesium = (globalThis as { Cesium?: AnyCesium }).Cesium;
-  if (!Cesium) {
+): CesiumViewer {
+  if (typeof window === "undefined" || !window.Cesium) {
     throw new Error("makeViewer called before window.Cesium loaded");
   }
+  const Cesium = window.Cesium;
 
   const viewer = new Cesium.Viewer(container, {
     ...DEFAULT_VIEWER_OPTIONS,
@@ -136,13 +132,13 @@ export function makeViewer(
 // element get a UTC clock display that ticks with the viewer's clock.
 // `precision` is the number of fractional-second digits.
 export function wireSimTime(
-  viewer: AnyCesium,
+  viewer: CesiumViewer,
   { precision = 0 }: { precision?: number } = {},
 ): void {
   const el = document.getElementById("sim-time");
   if (!el) return;
-  const Cesium = (globalThis as { Cesium?: AnyCesium }).Cesium;
-  viewer.clock.onTick.addEventListener((clock: AnyCesium) => {
+  const Cesium = window.Cesium;
+  viewer.clock.onTick.addEventListener((clock: CesiumViewer) => {
     const iso = Cesium.JulianDate.toIso8601(clock.currentTime, precision);
     el.textContent = iso.replace("T", " ").replace(/Z$/, " UTC");
   });

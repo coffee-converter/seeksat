@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { makeViewer, wireSimTime, MakeViewerOptions } from "./cesium-viewer";
 import { cesiumReady } from "./cesium-loaded";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyCesiumViewer = any;
+import type { CesiumViewer } from "@/types/cesium";
 
 // Creates a Cesium.Viewer in the supplied container once the CDN
 // script reports ready (via the layout's CesiumLoader / cesium-loaded
@@ -19,8 +17,8 @@ type AnyCesiumViewer = any;
 export function useCesiumViewer(
   containerRef: React.RefObject<HTMLDivElement | null>,
   opts: MakeViewerOptions = {},
-): { viewer: AnyCesiumViewer | null; status: "waiting" | "ready" | "error" } {
-  const [viewer, setViewer] = useState<AnyCesiumViewer | null>(null);
+): { viewer: CesiumViewer | null; status: "waiting" | "ready" | "error" } {
+  const [viewer, setViewer] = useState<CesiumViewer | null>(null);
   const [status, setStatus] = useState<"waiting" | "ready" | "error">(
     "waiting",
   );
@@ -31,7 +29,7 @@ export function useCesiumViewer(
 
   useEffect(() => {
     let cancelled = false;
-    let v: AnyCesiumViewer | null = null;
+    let v: CesiumViewer | null = null;
 
     cesiumReady()
       .then(() => {
