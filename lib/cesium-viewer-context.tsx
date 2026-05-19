@@ -11,9 +11,9 @@
 // script + container both land.
 
 import { createContext, useContext, type ReactNode } from "react";
+import type { CesiumViewer } from "@/types/cesium";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type CesiumViewer = any;
+export type { CesiumViewer };
 export type CesiumViewerStatus = "waiting" | "ready" | "error";
 
 export interface CesiumViewerContextValue {

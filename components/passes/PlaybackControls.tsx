@@ -30,9 +30,7 @@ export default function PlaybackControls() {
   };
   const onReset = () => {
     if (!viewer) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Cesium = (window as any).Cesium;
-    viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date());
+    viewer.clock.currentTime = window.Cesium.JulianDate.fromDate(new Date());
     viewer.clock.shouldAnimate = false;
     setActiveWindowIdx(-1);
   };

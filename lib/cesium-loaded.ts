@@ -42,8 +42,7 @@ export function cesiumReady(): Promise<void> {
   }
   // Defensive: if the global appeared without our onReady callback
   // firing (e.g. someone preloaded it differently), trust the global.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (typeof window !== "undefined" && (window as any).Cesium) {
+  if (typeof window !== "undefined" && window.Cesium) {
     markCesiumLoaded();
     return Promise.resolve();
   }

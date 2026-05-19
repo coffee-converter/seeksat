@@ -44,11 +44,9 @@ export default function ImageryPicker() {
     if (!viewer) return;
     const p = IMAGERY_PROVIDERS.find((x) => x.id === providerId)
       ?? IMAGERY_PROVIDERS[0];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Cesium = (window as any).Cesium;
     viewer.imageryLayers.removeAll();
     viewer.imageryLayers.addImageryProvider(
-      new Cesium.UrlTemplateImageryProvider({
+      new window.Cesium.UrlTemplateImageryProvider({
         url: p.url,
         credit: p.credit,
         maximumLevel: p.maximumLevel,
