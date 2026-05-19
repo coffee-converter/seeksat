@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePassFinderStore } from "@/lib/pass-finder-store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyViewer = any;
 
 // Play / Pause / Reset buttons + speed picker. Clock manipulation is
-// pure Cesium API; no store slice needed yet. Reset also fires a
-// `passes-reset` CustomEvent so the bootstrap can deselect the active
-// pass window (that state still lives there; will move to the store
-// when the windows list migrates).
+// pure Cesium API; Reset also clears the active window via the store
+// (the scene subscribes to activeWindowIdx and handles the visual
+// teardown).
 export default function PlaybackControls({ viewer }: { viewer: AnyViewer | null }) {
+  const setActiveWindowIdx = usePassFinderStore((s) => s.setActiveWindowIdx);
   const [multiplier, setMultiplier] = useState(10);
 
   // Apply the current multiplier to the viewer's clock whenever either
@@ -33,7 +34,7 @@ export default function PlaybackControls({ viewer }: { viewer: AnyViewer | null 
     const Cesium = (window as any).Cesium;
     viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date());
     viewer.clock.shouldAnimate = false;
-    window.dispatchEvent(new CustomEvent("passes-reset"));
+    setActiveWindowIdx(-1);
   };
 
   return (

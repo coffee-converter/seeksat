@@ -8,6 +8,7 @@ import TlePanel from "@/components/passes/TlePanel";
 import PlaybackControls from "@/components/passes/PlaybackControls";
 import AddObserverForm from "@/components/passes/AddObserverForm";
 import ObserversList from "@/components/passes/ObserversList";
+import WindowsList from "@/components/passes/WindowsList";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -67,9 +68,7 @@ export default function PassFinderApp() {
               </svg>
             </button>
           </div>
-          <div id="windows-list" className="result-block">
-            <div className="window-empty">loading…</div>
-          </div>
+          <WindowsList />
         </div>
 
         <details id="observers-details">
