@@ -2,11 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { type PassObserver } from "@/lib/pass-finder-store";
+import { paintPolarPlot } from "@/lib/scene-bridge";
 
 // Polar plot SVG that lives inside each ObserverCard. React renders
 // the static skeleton (horizon disc, 30°/60° altitude rings, cardinal
 // labels, empty groups for bodies/arc/events, ISS-dot placeholder);
-// the scene's __passesPaintPolarPlot fills the dynamic groups (sun /
+// the scene bridge's paintPolarPlot fills the dynamic groups (sun /
 // moon, ISS arc, start/peak/end markers, current ISS-dot position).
 // Per-frame ISS-dot updates continue to walk all .polar-plot[data-
 // obs-id="..."] SVGs in the DOM, so we keep those attributes here.
@@ -24,9 +25,7 @@ export default function PolarPlot({ obs }: { obs: PassObserver }) {
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const paint = (window as any).__passesPaintPolarPlot;
-    if (typeof paint === "function") paint(svg, obs.id);
+    paintPolarPlot(svg, obs.id);
   }, [obs.id]);
 
   return (

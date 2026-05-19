@@ -1,21 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { buildShareUrl } from "@/lib/scene-bridge";
 
 // Copies a deep-linkable URL (observers + mode + active pass) to the
 // clipboard. URL construction lives in the scene island (it reads
 // state we haven't yet migrated — observers blob, active window
-// timestamp); we call into it via window.__passesBuildShareUrl.
+// timestamp); we call into it via the typed scene bridge.
 export default function ShareButton() {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   const onClick = async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const build = (window as any).__passesBuildShareUrl;
-    if (typeof build !== "function") return;
     let ok = true;
     try {
-      await navigator.clipboard.writeText(build());
+      await navigator.clipboard.writeText(buildShareUrl());
     } catch {
       ok = false;
     }
