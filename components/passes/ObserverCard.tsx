@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePassFinderStore, type PassObserver } from "@/lib/pass-finder-store";
 
+
 // One observer card. Header + buttons are React-rendered; the polar
 // plot SVG itself is still built by the imperative scene (its DOM
 // generation + per-frame ISS-arc updates aren't trivial to port — a
@@ -14,6 +15,7 @@ import { usePassFinderStore, type PassObserver } from "@/lib/pass-finder-store";
 // "React owns the chrome, scene owns the entities" boundary clean.
 export default function ObserverCard({ obs }: { obs: PassObserver }) {
   const fpsObserverId = usePassFinderStore((s) => s.fpsObserverId);
+  const setPolarModalObsId = usePassFinderStore((s) => s.setPolarModalObsId);
   const polarSlotRef = useRef<HTMLDivElement>(null);
   const isFps = fpsObserverId === obs.id;
 
@@ -39,7 +41,7 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
       className="obs-card"
       data-obs-id={obs.id}
       title={`Open polar plot — ${obs.name}`}
-      onClick={() => dispatch("passes-open-polar-modal")}
+      onClick={() => setPolarModalObsId(obs.id)}
     >
       <div className="obs-card-header">
         <span className="color-swatch" style={{ background: obs.color }} />

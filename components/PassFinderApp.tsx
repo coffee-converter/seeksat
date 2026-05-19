@@ -10,6 +10,7 @@ import AddObserverForm from "@/components/passes/AddObserverForm";
 import ObserversList from "@/components/passes/ObserversList";
 import WindowsList from "@/components/passes/WindowsList";
 import ShareButton from "@/components/passes/ShareButton";
+import PolarModal from "@/components/passes/PolarModal";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -89,21 +90,7 @@ export default function PassFinderApp() {
         </div>
       </nav>
 
-      <div id="polar-modal" hidden>
-        <div className="polar-modal-backdrop" />
-        <div className="polar-modal-content">
-          <div className="polar-modal-actions">
-            <button className="polar-modal-close" type="button" aria-label="Close">✕</button>
-            <button className="polar-modal-copy" type="button" title="Copy image to clipboard">Copy</button>
-            <button className="polar-modal-save" type="button" title="Download as PNG">Save PNG</button>
-          </div>
-          <svg className="polar-modal-svg" viewBox="-24 -68 248 278" aria-hidden="true" />
-          <a className="polar-modal-png-link" download="iss-pass.png" href="#">
-            <img className="polar-modal-png" alt="ISS pass sky chart" />
-          </a>
-          <p className="polar-modal-hint">Right-click the image to save · click outside or press Esc to close.</p>
-        </div>
-      </div>
+      <PolarModal />
 
       {status === "error" && (
         <div

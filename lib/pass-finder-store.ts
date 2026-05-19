@@ -78,6 +78,8 @@ export interface PassFinderState {
     | "ready";
   /** Index into windowRows; -1 = nothing selected. */
   activeWindowIdx: number;
+  /** When set, the polar-modal renders for this observer id. */
+  polarModalObsId: string | null;
 
   // ---- Actions ----
   setMode: (mode: PassMode) => void;
@@ -93,6 +95,7 @@ export interface PassFinderState {
     status: PassFinderState["windowsStatus"],
   ) => void;
   setActiveWindowIdx: (idx: number) => void;
+  setPolarModalObsId: (id: string | null) => void;
 }
 
 const EMPTY_TLE: Tle = { name: "", line1: "", line2: "" };
@@ -109,6 +112,7 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   windowRows: [],
   windowsStatus: "loading",
   activeWindowIdx: -1,
+  polarModalObsId: null,
 
   setMode: (mode) => set({ mode }),
   setMinElevDeg: (deg) => set({ minElevDeg: deg }),
@@ -120,4 +124,5 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   setWindows: (windowHeaders, windowRows, windowsStatus) =>
     set({ windowHeaders, windowRows, windowsStatus }),
   setActiveWindowIdx: (activeWindowIdx) => set({ activeWindowIdx }),
+  setPolarModalObsId: (polarModalObsId) => set({ polarModalObsId }),
 }));
