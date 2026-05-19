@@ -337,6 +337,15 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   border-radius: 4px;
 }
 .window-row > * { white-space: nowrap; }
+/* Default browser focus ring on the keyboard-activatable rows would be
+   a thin uniform outline cropped by the row's border-radius. Match the
+   modal's blue-tinted outline color so the ring reads as part of the
+   theme. :focus-visible only triggers for keyboard focus, so mouse
+   clicks don't leave the ring lingering. */
+.window-row:focus-visible {
+  outline: 2px solid rgba(126, 184, 255, 0.7);
+  outline-offset: -2px;
+}
 /* All numeric columns right-align so they hit the same rightward anchor
    in each cell — combined with subgrid this gives the columns a
    consistent vertical edge across rows. */

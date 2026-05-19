@@ -327,6 +327,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   background: rgba(126,184,255,0.07);
   border-color: rgba(126,184,255,0.28);
 }
+.obs-card:focus-visible {
+  outline: 2px solid rgba(126, 184, 255, 0.7);
+  outline-offset: 2px;
+}
 .obs-card-meta {
   flex: 1; min-width: 0;
   display: flex; flex-direction: column; gap: 0;
