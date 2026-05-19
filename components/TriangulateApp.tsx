@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
+import { useBodyClass } from "@/lib/use-body-class";
 import { useTriangulateAttempts } from "@/lib/use-triangulate-attempts";
 import AttemptPicker from "@/components/triangulate/AttemptPicker";
 import FromObserverButtons from "@/components/triangulate/FromObserverButtons";
@@ -25,6 +26,12 @@ export default function TriangulateApp() {
   const { viewer, status } = useCesiumViewer(containerRef, { imagery: false });
   const { ready: attemptsReady } = useTriangulateAttempts();
   const [sceneReady, setSceneReady] = useState(false);
+  // Panel-collapse is local state — nothing else (scene, sibling
+  // pages) needs to read or set it, so the triangulate store doesn't
+  // get a slice for it. body.panel-collapsed drives the CSS slide-out
+  // (globals.css + the scene's camera viewport-inset calc).
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  useBodyClass("panel-collapsed", panelCollapsed);
 
   useEffect(() => {
     if (!viewer || !attemptsReady) return;
@@ -63,7 +70,12 @@ export default function TriangulateApp() {
     <CesiumViewerProvider viewer={viewer} status={status}>
       <div ref={containerRef} id="cesium-container" />
 
-      <button id="panel-toggle" type="button" aria-label="Toggle side panel" />
+      <button
+        id="panel-toggle"
+        type="button"
+        aria-label="Toggle side panel"
+        onClick={() => setPanelCollapsed((p) => !p)}
+      />
 
       <section id="panel-observations" className="panel panel-left">
         <AttemptPicker />
