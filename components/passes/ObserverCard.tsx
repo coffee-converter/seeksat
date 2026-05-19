@@ -1,35 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { usePassFinderStore, type PassObserver } from "@/lib/pass-finder-store";
+import PolarPlot from "./PolarPlot";
 
 
-// One observer card. Header + buttons are React-rendered; the polar
-// plot SVG itself is still built by the imperative scene (its DOM
-// generation + per-frame ISS-arc updates aren't trivial to port — a
-// follow-up iteration can move them). The card exposes a slot div
-// that the scene mounts the SVG into via window.__passesMountPolar.
-//
-// Card-level actions (open polar modal, FPS toggle, remove) are
-// dispatched as CustomEvents and handled by the scene, keeping the
-// "React owns the chrome, scene owns the entities" boundary clean.
+// One observer card. Header + buttons + the polar-plot SVG skeleton
+// are all React-rendered now; the scene's painters only fill the
+// dynamic groups (ISS arc, sun/moon, start/peak/end markers, ISS-dot
+// position) via the SVG ref. Card-level actions go through the store
+// (open polar modal) or CustomEvents (FPS toggle / remove).
 export default function ObserverCard({ obs }: { obs: PassObserver }) {
   const fpsObserverId = usePassFinderStore((s) => s.fpsObserverId);
   const setPolarModalObsId = usePassFinderStore((s) => s.setPolarModalObsId);
-  const polarSlotRef = useRef<HTMLDivElement>(null);
   const isFps = fpsObserverId === obs.id;
-
-  useEffect(() => {
-    const el = polarSlotRef.current;
-    if (!el) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mount = (window as any).__passesMountPolar;
-    if (typeof mount === "function") mount(el, obs.id);
-    return () => {
-      // React removes the slot div on unmount; the SVG goes with it.
-      // No imperative cleanup needed.
-    };
-  }, [obs.id]);
 
   const stop = (ev: React.MouseEvent) => ev.stopPropagation();
   const dispatch = (name: string) => {
@@ -68,7 +51,7 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
           ✕
         </button>
       </div>
-      <div ref={polarSlotRef} className="obs-polar-slot" />
+      <PolarPlot obs={obs} />
     </div>
   );
 }
