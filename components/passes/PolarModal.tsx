@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
+import { renderPolarModal, copyPolarPng } from "@/lib/scene-bridge";
 
 // Fullscreen polar-plot modal. React owns the open/close + button
-// chrome; the scene's window.__passesRenderPolarModal does the
-// imperative SVG paint into our svgRef + returns a blob URL we can
-// hand to the img / download anchor. Close from: ✕ button, backdrop
-// click, Escape key. Copy + Save buttons go through scene-exposed
-// helpers (they both rasterize the same SVG, just to a different
-// destination).
+// chrome; the scene bridge's renderPolarModal does the imperative
+// SVG paint into our svgRef + returns a blob URL we can hand to
+// the img / download anchor. Close from: ✕ button, backdrop click,
+// Escape key. Copy + Save buttons go through scene-exposed helpers
+// (they both rasterize the same SVG, just to a different destination).
 export default function PolarModal() {
   const obsId = usePassFinderStore((s) => s.polarModalObsId);
   const setObsId = usePassFinderStore((s) => s.setPolarModalObsId);
@@ -39,10 +39,8 @@ export default function PolarModal() {
     document.body.style.cursor = "progress";
     (async () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const render = (window as any).__passesRenderPolarModal;
-        if (typeof render !== "function") return;
-        const result = await render(svgRef.current, obsId);
+        if (!svgRef.current) return;
+        const result = await renderPolarModal(svgRef.current, obsId);
         if (cancelled || !result) return;
         // Revoke previous URL before adopting the new one.
         if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
@@ -78,11 +76,9 @@ export default function PolarModal() {
   }, [obsId, setObsId]);
 
   const onCopy = async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const copy = (window as any).__passesCopyPolarPng;
-    if (typeof copy !== "function" || !svgRef.current) return;
+    if (!svgRef.current) return;
     try {
-      await copy(svgRef.current);
+      await copyPolarPng(svgRef.current);
       setCopyStatus("copied");
       window.setTimeout(() => setCopyStatus("idle"), 1400);
     } catch (e) {
@@ -131,10 +127,11 @@ export default function PolarModal() {
           className="polar-modal-png-link"
           download="iss-pass.png"
           href="#"
-          // Prevent accidental left-click from triggering the download
-          // (right-click → "Save image as" is the intended UX); Save
-          // PNG button calls .click() explicitly when the user wants it.
-          onClick={(ev) => ev.preventDefault()}
+          // Block accidental real left-clicks on the image (right-click
+          // → "Save image as" is the intended UX). isTrusted is false
+          // for programmatic .click() calls, so the Save PNG button
+          // still triggers the download.
+          onClick={(ev) => { if (ev.isTrusted) ev.preventDefault(); }}
         >
           <img ref={imgRef} className="polar-modal-png" alt="ISS pass sky chart" />
         </a>
