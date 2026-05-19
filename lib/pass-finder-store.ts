@@ -64,8 +64,18 @@ export interface PassFinderState {
    *  scene publishes here after each search; React renders. */
   windowHeaders: string[];
   windowRows: WindowDisplayRow[];
-  /** "no simultaneous passes" placeholder vs. plain "loading…". */
-  windowsStatus: "loading" | "ready" | "empty";
+  /** Drives the placeholder rendered when no rows are present:
+   *   loading      → first paint, before any search has run
+   *   searching    → search in flight + no prior results to keep
+   *   no-observers → user has zero stations placed
+   *   empty        → search ran, found zero joint passes
+   *   ready        → render windowRows */
+  windowsStatus:
+    | "loading"
+    | "searching"
+    | "no-observers"
+    | "empty"
+    | "ready";
   /** Index into windowRows; -1 = nothing selected. */
   activeWindowIdx: number;
 
@@ -80,7 +90,7 @@ export interface PassFinderState {
   setWindows: (
     headers: string[],
     rows: WindowDisplayRow[],
-    status: "loading" | "ready" | "empty",
+    status: PassFinderState["windowsStatus"],
   ) => void;
   setActiveWindowIdx: (idx: number) => void;
 }
