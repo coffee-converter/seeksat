@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
+import { useBodyClass } from "@/lib/use-body-class";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
@@ -24,11 +25,14 @@ import PolarModal from "@/components/passes/PolarModal";
 export default function PassFinderApp() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { viewer, status } = useCesiumViewer(containerRef);
-  const activeWindowIdx = usePassFinderStore((s) => s.activeWindowIdx);
   const panelCollapsed = usePassFinderStore((s) => s.panelCollapsed);
   const setPanelCollapsed = usePassFinderStore((s) => s.setPanelCollapsed);
   const firstSearchComplete = usePassFinderStore((s) => s.firstSearchComplete);
   const observerCount = usePassFinderStore((s) => s.observers.length);
+
+  // CSS hook: body.panel-collapsed slides the side panel off and
+  // flips the toggle chevron (pass-finder.css + globals.css).
+  useBodyClass("panel-collapsed", panelCollapsed);
 
   useEffect(() => {
     if (!viewer) return;
@@ -54,17 +58,6 @@ export default function PassFinderApp() {
     };
   }, [viewer]);
 
-  // Mirror store-driven UI flags onto body classes — the panel
-  // slide-out + the "pass-selected" styling read these in CSS.
-  useEffect(() => {
-    document.body.classList.toggle("panel-collapsed", panelCollapsed);
-    return () => document.body.classList.remove("panel-collapsed");
-  }, [panelCollapsed]);
-
-  useEffect(() => {
-    document.body.classList.toggle("has-active-pass", activeWindowIdx >= 0);
-    return () => document.body.classList.remove("has-active-pass");
-  }, [activeWindowIdx]);
 
   return (
     <CesiumViewerProvider viewer={viewer} status={status}>
