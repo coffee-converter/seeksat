@@ -4,6 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
 import { renderPolarModal, copyPolarPng } from "@/lib/scene-bridge";
 
+// Find observer name from id without subscribing to the entire
+// observers slice (we only need the name when the modal is visible,
+// and even then it's a one-shot read for the dialog label).
+function useObserverName(obsId: string | null): string | undefined {
+  return usePassFinderStore((s) =>
+    obsId ? s.observers.find((o) => o.id === obsId)?.name : undefined,
+  );
+}
+
 // Fullscreen polar-plot modal. React owns the open/close + button
 // chrome; the scene bridge's renderPolarModal does the imperative
 // SVG paint into our svgRef + returns a blob URL we can hand to
@@ -13,9 +22,11 @@ import { renderPolarModal, copyPolarPng } from "@/lib/scene-bridge";
 export default function PolarModal() {
   const obsId = usePassFinderStore((s) => s.polarModalObsId);
   const setObsId = usePassFinderStore((s) => s.setPolarModalObsId);
+  const obsName = useObserverName(obsId);
   const svgRef = useRef<SVGSVGElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   // Modal stays hidden until the SVG + PNG blob are ready — matches
   // the legacy flow (cursor: progress; then reveal). Without this, a
@@ -75,6 +86,13 @@ export default function PolarModal() {
     return () => window.removeEventListener("keydown", onKey);
   }, [obsId, setObsId]);
 
+  // Move focus into the modal once it becomes visible so keyboard
+  // users can tab through Copy / Save / Close without first having
+  // to tab through the entire underlying page.
+  useEffect(() => {
+    if (visible) closeBtnRef.current?.focus();
+  }, [visible]);
+
   const onCopy = async () => {
     if (!svgRef.current) return;
     try {
@@ -87,11 +105,18 @@ export default function PolarModal() {
   };
 
   return (
-    <div id="polar-modal" hidden={!visible}>
+    <div
+      id="polar-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={obsName ? `Sky chart — ${obsName}` : "ISS pass sky chart"}
+      hidden={!visible}
+    >
       <div className="polar-modal-backdrop" onClick={() => setObsId(null)} />
       <div className="polar-modal-content">
         <div className="polar-modal-actions">
           <button
+            ref={closeBtnRef}
             className="polar-modal-close"
             type="button"
             aria-label="Close"
