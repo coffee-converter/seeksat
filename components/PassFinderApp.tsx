@@ -9,6 +9,7 @@ import PlaybackControls from "@/components/passes/PlaybackControls";
 import AddObserverForm from "@/components/passes/AddObserverForm";
 import ObserversList from "@/components/passes/ObserversList";
 import WindowsList from "@/components/passes/WindowsList";
+import ShareButton from "@/components/passes/ShareButton";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -60,13 +61,7 @@ export default function PassFinderApp() {
               <ModeToggle />
               <MinElevControl />
             </div>
-            <button id="share-btn" type="button" title="Copy a link to this observer setup" aria-label="Copy link">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M9 17H7a5 5 0 0 1 0-10h2" />
-                <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-              </svg>
-            </button>
+            <ShareButton />
           </div>
           <WindowsList />
         </div>
