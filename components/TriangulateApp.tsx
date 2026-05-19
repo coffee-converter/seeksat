@@ -5,6 +5,7 @@ import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { useTriangulateAttempts } from "@/lib/use-triangulate-attempts";
 import AttemptPicker from "@/components/triangulate/AttemptPicker";
+import FromObserverButtons from "@/components/triangulate/FromObserverButtons";
 import ImageryPicker from "@/components/triangulate/ImageryPicker";
 import ObservationsPanel from "@/components/triangulate/ObservationsPanel";
 import ResultPanel from "@/components/triangulate/ResultPanel";
@@ -92,7 +93,7 @@ export default function TriangulateApp() {
       <nav id="camera-controls">
         <ImageryPicker />
         <button data-cam="frame">Frame all</button>
-        <span id="from-observer-slot" />
+        <FromObserverButtons />
         <button data-cam="top">Top down</button>
         <button data-cam="orbit" title="Lock camera to triangulated point; mouse drag orbits, wheel zooms">
           Orbit point
