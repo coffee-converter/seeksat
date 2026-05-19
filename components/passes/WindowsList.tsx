@@ -34,6 +34,12 @@ export default function WindowsList() {
       {status === "loading" && (
         <div className="window-empty">loading…</div>
       )}
+      {status === "searching" && (
+        <div className="window-empty">searching…</div>
+      )}
+      {status === "no-observers" && (
+        <div className="window-empty">add an observer to begin</div>
+      )}
       {status === "empty" && (
         <div className="window-empty">no simultaneous passes found</div>
       )}
