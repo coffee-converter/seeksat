@@ -6,6 +6,7 @@ import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { useBodyClass } from "@/lib/use-body-class";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
 import PageLoader from "@/components/passes/PageLoader";
+import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
 import TlePanel from "@/components/passes/TlePanel";
@@ -76,6 +77,7 @@ export default function PassFinderApp() {
       />
 
       <section id="panel-left" className="panel">
+        <ClockSkewBanner />
         <div id="windows-section">
           <div className="section-heading-row">
             <h2 className="section-heading">Passes</h2>
