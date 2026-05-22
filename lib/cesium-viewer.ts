@@ -132,6 +132,14 @@ export function makeViewer(
   // brightness; higher values saturate without sharpening the
   // terminator more.
   viewer.scene.globe.lambertDiffuseMultiplier = 3;
+  // Enable depth-testing of primitives against the globe surface so
+  // polyline depthFailMaterial actually kicks in (X-ray through-Earth
+  // rendering for the orbit ring + ground line). The known side
+  // effects of this flag (entity ground-clamping, camera-collision
+  // tweaks) don't apply to our scene — we don't ship real terrain,
+  // and the ISS dot / observer pins use
+  // disableDepthTestDistance: Infinity to bypass the depth buffer.
+  viewer.scene.globe.depthTestAgainstTerrain = true;
   // Ground atmosphere also off — it was contributing to the same
   // hazy rim that gets clipped on the night side. atmosphereLight
   // values are now moot since both atmospheric layers are disabled,
