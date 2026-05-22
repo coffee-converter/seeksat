@@ -51,8 +51,17 @@ function shuffled<T>(arr: readonly T[]): T[] {
 }
 
 export default function PageLoader({ done }: { done: boolean }) {
-  const [messages] = useState(() => shuffled(FLAVOR));
+  // The shuffled order is computed only AFTER mount (in useEffect),
+  // never during render. Otherwise server-rendered and client-
+  // rendered HTML would disagree on the first message → React
+  // hydration error (#418). On the server we render FLAVOR[0], then
+  // the client re-orders and re-renders post-hydration.
+  const [messages, setMessages] = useState<readonly string[]>(FLAVOR);
   const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    setMessages(shuffled(FLAVOR));
+  }, []);
 
   useEffect(() => {
     if (done) return;
