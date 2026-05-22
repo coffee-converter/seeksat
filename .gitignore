@@ -24,3 +24,4 @@ next-env.d.ts
 **/assets/stars/*.exr
 **/assets/stars/*.tif
 **/assets/stars/cube_strip*
+.vercel

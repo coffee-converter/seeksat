@@ -4,9 +4,9 @@ import CesiumLoader from "@/components/CesiumLoader";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ISS Triangulation",
+  title: "SeekSat",
   description:
-    "Triangulate the ISS from multiple ground observations and find shared visibility windows.",
+    "Satellite pass forecasts — find when satellites pass overhead at multiple ground stations at once.",
 };
 
 // Cesium 1.141 — same version the legacy static pages used. Loaded

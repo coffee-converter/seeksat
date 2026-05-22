@@ -1,10 +1,10 @@
-import TriangulateApp from "@/components/TriangulateApp";
+import PassFinderApp from "@/components/PassFinderApp";
+import "./pass-finder.css";
 
-// The component itself is "use client" and gates all window/Cesium
-// access behind useEffect, so SSR only emits the empty container div
-// and the real viewer setup happens on the client after the Cesium
-// CDN script finishes loading. No dynamic({ ssr: false }) shenanigans
-// needed in App Router this way.
+// Home page: multi-observer satellite pass finder. The component is
+// "use client" and waits for window.Cesium inside useEffect, so SSR
+// only emits the DOM skeleton; the bootstrap runs entirely on the
+// client.
 export default function HomePage() {
-  return <TriangulateApp />;
+  return <PassFinderApp />;
 }
