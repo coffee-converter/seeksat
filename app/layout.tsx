@@ -1,11 +1,81 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import CesiumLoader from "@/components/CesiumLoader";
 import "./globals.css";
 
+// Canonical site URL. All relative URLs in openGraph / twitter / etc.
+// resolve against this. Switch to https://seeksat.com once the domain
+// is attached; until then the Vercel-assigned production alias works.
+const SITE_URL = "https://seeksat.com";
+const SITE_NAME = "SeekSat";
+const SITE_DESCRIPTION =
+  "Satellite pass forecasts. Place ground stations on a 3D globe and " +
+  "find when satellites pass overhead at all of them at once — visual " +
+  "or radio. Polar sky charts with sun/moon/planet context per pass.";
+
 export const metadata: Metadata = {
-  title: "SeekSat",
-  description:
-    "Satellite pass forecasts — find when satellites pass overhead at multiple ground stations at once.",
+  metadataBase: new URL(SITE_URL),
+  // Page-level <title> can override this; sub-pages without an
+  // override get just SITE_NAME (default). The template is used
+  // when a sub-page sets `title: "Whatever"` → "Whatever | SeekSat".
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "satellite tracking", "ISS pass", "satellite forecast",
+    "satellite pass", "ham radio satellite", "amateur radio satellite",
+    "visual satellite", "ground station", "polar plot", "sky chart",
+    "satellite visibility",
+  ],
+  authors: [{ name: SITE_NAME }],
+  // Canonical link element — points search engines at the apex URL
+  // even when the page is reached via a www/Vercel-preview alias.
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "en_US",
+    // /og.png is a 1200×630 image that doesn't exist yet — drop one
+    // in public/og.png to populate. Until it exists, social previews
+    // fall back to whatever the platform scrapes from the page.
+    images: [{
+      url: "/og.png",
+      width: 1200,
+      height: 630,
+      alt: `${SITE_NAME} — satellite pass forecasts`,
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ["/og.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  // Hints to browsers/PWA installers. `manifest` is omitted — drop a
+  // public/manifest.webmanifest in later if a PWA install matters.
+  formatDetection: { telephone: false, email: false, address: false },
+};
+
+// `themeColor` + `viewport` moved out of `metadata` in Next 14 — they
+// belong in a separate `viewport` export. Matches the page background
+// in globals.css (#0a0e1a) so mobile address-bar / standalone-PWA
+// chrome blends in instead of flashing white.
+export const viewport: Viewport = {
+  themeColor: "#0a0e1a",
+  width: "device-width",
+  initialScale: 1,
 };
 
 // Cesium 1.141 — same version the legacy static pages used. Loaded
