@@ -106,8 +106,7 @@ export default function PassFinderApp() {
         <div id="camera-controls" className="ctl-group">
           <button data-cam="frame" title="Frame all observers">Frame</button>
           <button data-cam="top" title="Top-down view">Top</button>
-          <button data-cam="orbit" title="Lock camera to observers' centroid; mouse drag orbits, wheel zooms">Orbit</button>
-          <button data-cam="rotate" title="Auto-rotate camera">Rotate</button>
+          <button data-cam="anchor" title="Anchor camera to observers' centroid; mouse drag orbits, wheel zooms">Anchor</button>
         </div>
       </nav>
 

@@ -107,10 +107,9 @@ export default function TriangulateApp() {
         <button data-cam="frame">Frame all</button>
         <FromObserverButtons />
         <button data-cam="top">Top down</button>
-        <button data-cam="orbit" title="Lock camera to triangulated point; mouse drag orbits, wheel zooms">
-          Orbit point
+        <button data-cam="anchor" title="Anchor camera to triangulated point; mouse drag orbits, wheel zooms">
+          Anchor
         </button>
-        <button data-cam="rotate">Auto-rotate</button>
       </nav>
 
       <div id="sim-time">—</div>

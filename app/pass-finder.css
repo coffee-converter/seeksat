@@ -471,7 +471,12 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   display: inline-flex;
   background: rgba(10, 14, 26, 0.6);
   border: 1px solid rgba(126, 184, 255, 0.3);
-  border-radius: 4px;
+  /* Full capsule so the outer container matches the rounded active
+     highlight inside it (the active pill is also capsule-radius,
+     applied below). overflow: hidden clips the inner backgrounds to
+     the outer's curve so the active highlight tracks the rounded
+     edge precisely on the leading/trailing side. */
+  border-radius: 999px;
   overflow: hidden;
 }
 .mode-toggle button {
@@ -484,10 +489,11 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 2px 8px;
+  padding: 3px 12px;
   cursor: pointer;
   margin: 0;
   font-family: inherit;
+  border-radius: 999px;
 }
 .mode-toggle button + button {
   border-left: 1px solid rgba(126, 184, 255, 0.25);
