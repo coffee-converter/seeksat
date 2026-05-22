@@ -69,8 +69,8 @@ export default function TlePanel() {
         value={tle.line2}
         onChange={(e) => setTle({ line2: e.target.value })}
       />
-      <button id="tle-refetch" type="button" onClick={doFetch}>
-        Refetch latest
+      <button id="tle-refetch" type="button" onClick={doFetch} title="Pull a fresh TLE for the ISS">
+        Refresh
       </button>
     </>
   );
