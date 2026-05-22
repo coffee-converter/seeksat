@@ -76,21 +76,40 @@ export function makeViewer(
     layer.saturation = 0.92;
   }
 
-  // NASA SVS Deep Star Map 2020 cubemap. Paths are server-absolute so
-  // they work both from `/` and from any nested page route.
+  // NASA SVS Deep Star Map 2020 cubemap, lazy-loaded so it doesn't
+  // block the first frame. The 6 4k JPGs total ~10MB and pile onto
+  // an already-saturated connection during Cesium's own ~3MB CDN
+  // pull. Cesium ships a tiny default starfield that renders fine
+  // until ours swaps in. Defer to requestIdleCallback (or a 1-frame
+  // setTimeout fallback) so we yield to the user-visible first paint.
   const starsBase = opts.starsBase ?? "/assets/stars";
-  viewer.scene.skyBox = new Cesium.SkyBox({
-    sources: {
-      positiveX: `${starsBase}/starmap_2020_4k_px.jpg`,
-      negativeX: `${starsBase}/starmap_2020_4k_mx.jpg`,
-      positiveY: `${starsBase}/starmap_2020_4k_py.jpg`,
-      negativeY: `${starsBase}/starmap_2020_4k_my.jpg`,
-      positiveZ: `${starsBase}/starmap_2020_4k_pz.jpg`,
-      negativeZ: `${starsBase}/starmap_2020_4k_mz.jpg`,
-    },
-  });
-  viewer.scene.skyBox.show = true;
-  viewer.scene.skyAtmosphere.show = true;
+  const installSkyBox = () => {
+    viewer.scene.skyBox = new Cesium.SkyBox({
+      sources: {
+        positiveX: `${starsBase}/starmap_2020_4k_px.jpg`,
+        negativeX: `${starsBase}/starmap_2020_4k_mx.jpg`,
+        positiveY: `${starsBase}/starmap_2020_4k_py.jpg`,
+        negativeY: `${starsBase}/starmap_2020_4k_my.jpg`,
+        positiveZ: `${starsBase}/starmap_2020_4k_pz.jpg`,
+        negativeZ: `${starsBase}/starmap_2020_4k_mz.jpg`,
+      },
+    });
+    viewer.scene.skyBox.show = true;
+  };
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    (window as Window & {
+      requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void;
+    }).requestIdleCallback(installSkyBox, { timeout: 2000 });
+  } else {
+    setTimeout(installSkyBox, 0);
+  }
+  // Atmospheric glow disabled — the rim halo gets clipped along part
+  // of the terminator (visible band/dashed cut on the dark side
+  // edge of the globe) and isn't worth the visual artifact for an
+  // app that's mostly looking up at orbits rather than down at the
+  // ground. Both the sky-rim halo and the ground-atmosphere wash
+  // are turned off below.
+  viewer.scene.skyAtmosphere.show = false;
   viewer.scene.globe.enableLighting = opts.lighting ?? true;
   // Force the day/night terminator to stay visible at every zoom
   // level. By default Cesium turns OFF sun-direction lighting as the
@@ -107,9 +126,12 @@ export function makeViewer(
   // brightness; higher values saturate without sharpening the
   // terminator more.
   viewer.scene.globe.lambertDiffuseMultiplier = 3;
-  viewer.scene.globe.atmosphereLightIntensity = 4;
-  viewer.scene.globe.showGroundAtmosphere = true;
-  viewer.scene.globe.dynamicAtmosphereLighting = true;
+  // Ground atmosphere also off — it was contributing to the same
+  // hazy rim that gets clipped on the night side. atmosphereLight
+  // values are now moot since both atmospheric layers are disabled,
+  // but kept for the lambert lighting block.
+  viewer.scene.globe.showGroundAtmosphere = false;
+  viewer.scene.globe.dynamicAtmosphereLighting = false;
   // Disable scene fog — Cesium's distance fog brightens distant
   // terrain and contributes to the brightness step at certain zooms.
   viewer.scene.fog.enabled = false;

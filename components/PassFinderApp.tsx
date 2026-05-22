@@ -5,6 +5,7 @@ import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { useBodyClass } from "@/lib/use-body-class";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
+import PageLoader from "@/components/passes/PageLoader";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
 import TlePanel from "@/components/passes/TlePanel";
@@ -61,10 +62,7 @@ export default function PassFinderApp() {
 
   return (
     <CesiumViewerProvider viewer={viewer} status={status}>
-      <div id="page-loader" className={firstSearchComplete ? "hidden" : ""}>
-        <img className="loader-img" src="/assets/loader.gif" alt="" />
-        <span className="loader-label">Loading SeekSat…</span>
-      </div>
+      <PageLoader done={firstSearchComplete} />
 
       <div ref={containerRef} id="cesium-container" />
 

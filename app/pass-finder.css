@@ -43,14 +43,50 @@ html, body {
   animation: loader-pulse 1.6s ease-in-out infinite;
 }
 
-/* Pre-rendered loader GIF (see scripts/render-loader.py). Using an
-   <img> rather than SMIL/CSS keeps the animation smooth while Cesium
-   boot saturates the main thread. */
-#page-loader .loader-img {
-  width: 156px;
-  height: 156px;
-  display: block;
+/* Pure-CSS spinner replaces the 417KB loader.gif — saves a blocking
+   asset fetch on the worst-case path (cold network + slow CDN). The
+   ring rotates via a transform on the GPU, which Cesium's main-thread
+   load can't stall. */
+#page-loader .loader-spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid rgba(126, 184, 255, 0.18);
+  border-top-color: #7eb8ff;
+  animation: loader-spin 0.9s linear infinite;
 }
+@keyframes loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Indeterminate progress bar — a 30%-width chunk slides left→right
+   to indicate the app is alive while Cesium / scene init runs.
+   Background track is a faint horizontal line; the moving fill is
+   the same blue as the spinner ring. */
+#page-loader .loader-bar {
+  width: 220px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(126, 184, 255, 0.12);
+  overflow: hidden;
+  position: relative;
+}
+#page-loader .loader-bar-fill {
+  position: absolute;
+  top: 0; left: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    rgba(126, 184, 255, 0) 0%,
+    #7eb8ff 50%,
+    rgba(126, 184, 255, 0) 100%);
+  animation: loader-bar-slide 1.4s ease-in-out infinite;
+}
+@keyframes loader-bar-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(380%); }
+}
+
 @keyframes loader-pulse {
   0%, 100% { opacity: 0.55; }
   50%      { opacity: 1; }
