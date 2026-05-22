@@ -90,7 +90,7 @@ export default function PassFinderApp() {
           <WindowsList />
         </div>
 
-        <details id="observers-details">
+        <details id="observers-details" open>
           <summary><h2>Observers{observerCount > 0 ? ` (${observerCount})` : ""}</h2></summary>
           <ObserversList />
           <AddObserverForm />
