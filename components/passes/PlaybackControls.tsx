@@ -40,7 +40,7 @@ export default function PlaybackControls() {
       <div className="ctl-group playback">
         <button id="play-btn"  type="button" title="Play"  onClick={onPlay}>▶</button>
         <button id="pause-btn" type="button" title="Pause" onClick={onPause}>⏸</button>
-        <button id="reset-btn" type="button" title="Reset to now" onClick={onReset}>⏮</button>
+        <button id="reset-btn" type="button" title="Jump clock to current real-world time" onClick={onReset}>Now</button>
       </div>
       <label className="speed-label">
         Speed
