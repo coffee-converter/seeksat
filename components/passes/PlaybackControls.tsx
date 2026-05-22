@@ -12,11 +12,24 @@ import { useViewer } from "@/lib/cesium-viewer-context";
 export default function PlaybackControls() {
   const { viewer } = useViewer();
   const setActiveWindowIdx = usePassFinderStore((s) => s.setActiveWindowIdx);
-  const [multiplier, setMultiplier] = useState(10);
+  // The dropdown shows whatever value React state holds; viewer.clock
+  // is the actual source of truth. Initial state is a placeholder
+  // that gets overwritten the moment the viewer becomes available
+  // (the sync effect below). Without this, the dropdown would show
+  // 10× even when the scene parked the clock at 1× (no-observers
+  // bootstrap) — visible mismatch between the dropdown and reality.
+  const [multiplier, setMultiplier] = useState(1);
 
-  // Apply the current multiplier to the viewer's clock whenever either
-  // changes (handles the case where viewer arrives after the user
-  // already picked a speed).
+  // Sync local state FROM viewer the first time we see it (or any
+  // time it reappears). After that, user-driven changes in the
+  // dropdown push back into viewer.clock via the next effect.
+  useEffect(() => {
+    if (!viewer) return;
+    const current = viewer.clock.multiplier ?? 1;
+    setMultiplier(current);
+  }, [viewer]);
+
+  // Push user-driven multiplier changes into the viewer's clock.
   useEffect(() => {
     if (!viewer) return;
     viewer.clock.multiplier = multiplier;
@@ -30,8 +43,10 @@ export default function PlaybackControls() {
   };
   const onReset = () => {
     if (!viewer) return;
+    // Snap the clock to current real-world UTC. Preserves shouldAnimate
+    // so a playing clock keeps ticking forward from the new "now"
+    // (rather than implicitly pausing as it did before).
     viewer.clock.currentTime = window.Cesium.JulianDate.fromDate(new Date());
-    viewer.clock.shouldAnimate = false;
     setActiveWindowIdx(-1);
   };
 
