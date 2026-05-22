@@ -63,7 +63,7 @@ export default function PassFinderApp() {
     <CesiumViewerProvider viewer={viewer} status={status}>
       <div id="page-loader" className={firstSearchComplete ? "hidden" : ""}>
         <img className="loader-img" src="/assets/loader.gif" alt="" />
-        <span className="loader-label">Loading pass finder…</span>
+        <span className="loader-label">Loading SeekSat…</span>
       </div>
 
       <div ref={containerRef} id="cesium-container" />
