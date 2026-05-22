@@ -91,7 +91,7 @@ export default function PassFinderApp() {
         </div>
 
         <details id="observers-details" open>
-          <summary><h2>Observers{observerCount > 0 ? ` (${observerCount})` : ""}</h2></summary>
+          <summary><h2>Observers ({observerCount})</h2></summary>
           <ObserversList />
           <AddObserverForm />
         </details>
