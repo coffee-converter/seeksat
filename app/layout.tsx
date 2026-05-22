@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import SiteHeader from "@/components/SiteHeader";
 import CesiumLoader from "@/components/CesiumLoader";
 import "./globals.css";
 
@@ -32,7 +31,6 @@ export default function RootLayout({
       </head>
       <body>
         <CesiumLoader src={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />
-        <SiteHeader />
         {children}
       </body>
     </html>
