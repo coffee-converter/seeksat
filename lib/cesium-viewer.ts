@@ -35,6 +35,11 @@ const DEFAULT_VIEWER_OPTIONS = {
   infoBox: false,
   selectionIndicator: false,
   shouldAnimate: false,
+  // Disable Cesium's default Tycho cubemap (6× ~140 kB JPGs from the
+  // CDN). We install our own NASA SVS 2020 starfield below, deferred,
+  // so loading two cubemaps is pure waste. `skyBox: false` skips the
+  // built-in entirely.
+  skyBox: false,
 };
 
 const ESRI_IMAGERY_URL =
@@ -96,13 +101,14 @@ export function makeViewer(
     });
     viewer.scene.skyBox.show = true;
   };
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    (window as Window & {
-      requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void;
-    }).requestIdleCallback(installSkyBox, { timeout: 2000 });
-  } else {
-    setTimeout(installSkyBox, 0);
-  }
+  // requestIdleCallback fires almost immediately during Cesium's
+  // bursty boot (the main thread is never idle for long enough to
+  // be useful here), so we use a hard delay instead. 5 s lets the
+  // Cesium worker chunks land + the first ArcGIS tile batch settle
+  // before the 10 MB cubemap fetch starts. The starfield is purely
+  // decorative behind the globe; the polar-modal sky chart renders
+  // its stars from a separate ~250-entry catalog, not the cubemap.
+  setTimeout(installSkyBox, 5000);
   // Atmospheric glow disabled — the rim halo gets clipped along part
   // of the terminator (visible band/dashed cut on the dark side
   // edge of the globe) and isn't worth the visual artifact for an

@@ -18,9 +18,9 @@ export default function TlePanel() {
 
   const hasContent = tleHasContent(tle);
 
-  // CelesTrak only serves the current TLE — warn when the loaded
-  // attempt is from more than a day ago, since a freshly-fetched TLE
-  // won't match the past pass.
+  // The TLE fetch helpers only serve the *current* TLE — warn when
+  // the loaded attempt is from more than a day ago, since a freshly-
+  // fetched TLE won't match the past pass.
   const tsMs = Date.parse(timestampUTC);
   const ageHours = Number.isFinite(tsMs)
     ? (Date.now() - tsMs) / 3_600_000

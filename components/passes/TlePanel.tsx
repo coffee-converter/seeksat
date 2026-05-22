@@ -42,7 +42,7 @@ export default function TlePanel() {
   }, []);
 
   const statusText =
-    tleStatus === "fetching" ? "fetching from Celestrak…"
+    tleStatus === "fetching" ? "fetching latest TLE…"
     : tleStatus === "ready" ? `fetched ${lastFetchedRef.current ?? "recently"}`
     : tleStatus === "error" ? "fetch failed — paste a TLE below."
     : "";
@@ -70,7 +70,7 @@ export default function TlePanel() {
         onChange={(e) => setTle({ line2: e.target.value })}
       />
       <button id="tle-refetch" type="button" onClick={doFetch}>
-        Refetch from Celestrak
+        Refetch latest
       </button>
     </>
   );
