@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 
 // App Router auto-serves /sitemap.xml from this file. One entry for
-// the home page; /triangulate is intentionally absent (it's a
-// private tool, kept out of search-engine indexes by robots.ts).
+// the home page — the only public route the app ships.
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {

@@ -7,9 +7,14 @@ observer can see (or reach) the satellite at once. Click a window to
 open a fullscreen polar sky chart showing the trajectory with sun /
 moon / planet / star context for that observer.
 
-A private `/triangulate` page is included for multi-observer ray
-triangulation against a TLE — useful for verifying the math against
-recorded sightings.
+A multi-observer ray-triangulation tool also lives in this repo
+(`components/TriangulateApp.tsx` + `lib/triangulate-scene.js`) for
+verifying the math against recorded sightings. It's **not** wired
+up as a public route — the bundled sample data was sensitive and
+shipping the route to production wasn't worth the leak surface. To
+run it locally: drop `app/triangulate/page.tsx` back in (one-line
+file importing `TriangulateApp`) and move `_data/` back to
+`public/data/`.
 
 Built on Next.js (App Router) + React + Zustand, with CesiumJS
 loaded from CDN. SGP4 propagation via `satellite.js`.
@@ -22,8 +27,7 @@ npm run dev      # http://localhost:3000
 ```
 
 Routes:
-- `/` — pass finder (default)
-- `/triangulate` — multi-observer ray triangulation (private, not linked from nav)
+- `/` — pass finder (the only public route)
 
 Production build:
 
@@ -54,7 +58,7 @@ Both run on every push + PR via `.github/workflows/ci.yml`.
   catalog, planets via truncated Keplerian elements, moon via
   low-precision Meeus lunar ephemeris.
 
-## Triangulation math (`/triangulate`)
+## Triangulation math (offline tool)
 
 - Each observation → a ray in ECEF (Earth-Centered, Earth-Fixed).
 - RA/Dec ray directions: ECI → ECEF via GMST rotation.
