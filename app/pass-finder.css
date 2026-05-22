@@ -14,6 +14,24 @@ html, body {
    when the responsive @media rule (below) changes it for mobile. */
 :root { --panel-left-width: 440px; }
 
+/* Clock-skew warning banner at the top of the side panel. Only
+   renders when ClockSkewBanner.tsx detects skew > 60s. Amber-orange
+   so it reads as a "heads up" without claiming there's an error. */
+.clock-skew-banner {
+  margin: 8px 12px 0;
+  padding: 6px 10px;
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.32);
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #f5d36a;
+}
+.clock-skew-banner strong {
+  color: #facc15;
+  font-weight: 600;
+}
+
 /* Full-page loader. Covers everything while Cesium boots, the TLE
    fetches, observers seed, and the initial search runs. Fades out once
    the first runSearch completes so the user sees a fully-populated page

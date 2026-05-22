@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
 import { useViewer } from "@/lib/cesium-viewer-context";
+import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 
 // Play / Pause / Reset buttons + speed picker. Clock manipulation is
 // pure Cesium API; Reset also clears the active window via the store
@@ -43,10 +44,11 @@ export default function PlaybackControls() {
   };
   const onReset = () => {
     if (!viewer) return;
-    // Snap the clock to current real-world UTC. Preserves shouldAnimate
-    // so a playing clock keeps ticking forward from the new "now"
-    // (rather than implicitly pausing as it did before).
-    viewer.clock.currentTime = window.Cesium.JulianDate.fromDate(new Date());
+    // Snap the clock to current real-world UTC. trueNow() comes from
+    // the clock-sync offset (HTTP Date header sample) so a user with a
+    // wrong system clock still gets accurate "now." Preserves
+    // shouldAnimate so a playing clock keeps ticking forward.
+    viewer.clock.currentTime = window.Cesium.JulianDate.fromDate(new Date(trueNow()));
     setActiveWindowIdx(-1);
   };
 
