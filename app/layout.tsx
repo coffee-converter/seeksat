@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import CesiumLoader from "@/components/CesiumLoader";
 import "./globals.css";
 
@@ -102,6 +104,11 @@ export default function RootLayout({
       <body>
         <CesiumLoader src={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />
         {children}
+        {/* Vercel Web Analytics (page views, top pages, referrers)
+            and Speed Insights (Core Web Vitals from real visitors).
+            Both no-op in development; only emit on Vercel deploys. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
