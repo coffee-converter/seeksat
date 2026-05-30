@@ -82,35 +82,32 @@ Expected: `lib/og/fonts/Exo2-Regular.ttf` and `Exo2-SemiBold.ttf` exist.
 
 - [ ] **Step 3: Fetch Arimo Regular/Bold TTFs** (one-time)
 
-Run:
+Google's raw GitHub paths for Arimo are unreliable (404/HTML). Pull the
+woff2 from the Fontsource CDN (stable) and convert to TTF with fonttools
+(the same venv used in Step 2). Verified working at plan time.
 ```bash
-cd lib/og/fonts
-for w in regular bold; do
-  curl -fsSL "https://github.com/google/fonts/raw/main/apache/arimo/static/Arimo-${w^}.ttf" -o "Arimo-${w^}.ttf" || true
+for w in 400 700; do
+  curl -fsSL "https://cdn.jsdelivr.net/npm/@fontsource/arimo@5/files/arimo-latin-$w-normal.woff2" -o "/tmp/arimo-$w.woff2"
 done
-file Arimo-Regular.ttf Arimo-Bold.ttf
-```
-Expected: both report `TrueType Font`. **If the `static/` path 404s** (returns HTML — check with `file`), instance the variable font instead:
-```bash
-curl -fsSL "https://github.com/google/fonts/raw/main/apache/arimo/Arimo%5Bwght%5D.ttf" -o /tmp/arimo-var.ttf
 /tmp/fontvenv/bin/python - <<'PY'
 from fontTools.ttLib import TTFont
-from fontTools.varLib.instancer import instantiateVariableFont
-for wt, style in [(400, "Regular"), (700, "Bold")]:
-    f = TTFont("/tmp/arimo-var.ttf"); instantiateVariableFont(f, {"wght": wt}, inplace=True)
+for w, style in [("400", "Regular"), ("700", "Bold")]:
+    f = TTFont(f"/tmp/arimo-{w}.woff2"); f.flavor = None
     f.save(f"lib/og/fonts/Arimo-{style}.ttf")
-print("instanced Arimo")
+print("wrote Arimo TTFs")
 PY
+file lib/og/fonts/Arimo-Regular.ttf lib/og/fonts/Arimo-Bold.ttf
 ```
+Expected: both report `TrueType Font data`, family `Arimo`.
 
-- [ ] **Step 4: Add license files**
+- [ ] **Step 4: Add license files** (from the Fontsource packages — verified working)
 
 Run:
 ```bash
-curl -fsSL "https://github.com/google/fonts/raw/main/ofl/exo2/OFL.txt" -o lib/og/fonts/OFL.txt
-curl -fsSL "https://github.com/google/fonts/raw/main/apache/arimo/LICENSE.txt" -o lib/og/fonts/LICENSE-Apache-2.0.txt
+curl -fsSL "https://cdn.jsdelivr.net/npm/@fontsource/exo-2@5/LICENSE" -o lib/og/fonts/OFL.txt
+curl -fsSL "https://cdn.jsdelivr.net/npm/@fontsource/arimo@5/LICENSE" -o lib/og/fonts/LICENSE-Apache-2.0.txt
 ```
-Expected: both files non-empty.
+Expected: `OFL.txt` starts with "Copyright 2013 The Exo 2 Project Authors"; `LICENSE-Apache-2.0.txt` contains the Apache License.
 
 - [ ] **Step 5: Write the fonts README**
 
