@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import CesiumLoader from "@/components/CesiumLoader";
+import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import "./globals.css";
 
 // Canonical site URL. All relative URLs in openGraph / twitter / etc.
@@ -94,6 +95,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Exo 2 (subset, base64) for the SeekSat brand wordmark. Same
+            embed the polar-chart export uses — inlined here so the font
+            is available document-wide (e.g. the on-scene corner mark)
+            with no extra network fetch or flash of fallback text. */}
+        <style dangerouslySetInnerHTML={{ __html: EXO2_FONT_FACE }} />
         <link rel="stylesheet" href={`${CESIUM_CDN}/Build/Cesium/Widgets/widgets.css`} />
         {/* Preload kicks off the ~3MB Cesium.js fetch in parallel with
             React hydration / route chunks, instead of waiting for the
