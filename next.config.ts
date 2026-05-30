@@ -12,14 +12,13 @@ import type { NextConfig } from "next";
 // filenames are content-hashed), so we don't touch that path.
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // @resvg/resvg-js uses a native .node addon webpack can't bundle, so
-  // it loads as a plain Node require() at runtime. linkedom (the headless
-  // DOM in lib/og) is deliberately NOT externalized — it's ESM-native and
-  // bundles cleanly, and require()-ing an ESM-only package at runtime is
-  // exactly the failure mode that made us drop jsdom here.
-  // (rasterize.mjs resolves its bundled fonts via __dirname rather than
-  // `new URL(..., import.meta.url)` so webpack doesn't choke on the path.)
-  serverExternalPackages: ["@resvg/resvg-js"],
+  // The OG renderer (lib/og) is intentionally all-bundleable: linkedom
+  // (DOM) + @resvg/resvg-wasm (rasterizer) are ESM/JS, and the wasm bytes
+  // and fonts are base64-embedded modules — so nothing needs externalizing
+  // or filesystem access at runtime. We dropped the native @resvg/resvg-js
+  // (its linux binary silently dropped all text on Vercel) and jsdom (its
+  // dep tree hit ERR_REQUIRE_ESM), which is why there's no serverExternal
+  // list anymore.
   // Cesium is loaded from the CDN via a <Script> in app/layout.tsx
   // (same approach as the legacy static pages) — keeps the bundle
   // out of Webpack/Turbopack and avoids the asset-copy ceremony.
