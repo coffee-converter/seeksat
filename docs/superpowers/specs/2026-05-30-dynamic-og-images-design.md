@@ -1,7 +1,7 @@
 # Dynamic per-pass OG images — design
 
 **Date:** 2026-05-30
-**Status:** Approved (pending spec review)
+**Status:** Implemented (2026-05-30)
 
 ## Summary
 
