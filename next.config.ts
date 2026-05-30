@@ -12,6 +12,12 @@ import type { NextConfig } from "next";
 // filenames are content-hashed), so we don't touch that path.
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // @resvg/resvg-js uses a native .node addon and jsdom pulls in Node
+  // built-ins webpack can't bundle; mark both server-external so the
+  // /api/og route loads them as plain Node require()s at runtime.
+  // (rasterize.mjs resolves its bundled fonts via __dirname rather than
+  // `new URL(..., import.meta.url)` so webpack doesn't choke on the path.)
+  serverExternalPackages: ["@resvg/resvg-js", "jsdom"],
   // Cesium is loaded from the CDN via a <Script> in app/layout.tsx
   // (same approach as the legacy static pages) — keeps the bundle
   // out of Webpack/Turbopack and avoids the asset-copy ceremony.
