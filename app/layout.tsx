@@ -10,17 +10,22 @@ import "./globals.css";
 // is attached; until then the Vercel-assigned production alias works.
 const SITE_URL = "https://seeksat.com";
 const SITE_NAME = "SeekSat";
+// SEO title: ~52 chars (target 50–60) so search results don't truncate
+// and the page reads as more than a bare brand name. SITE_NAME stays the
+// short brand for og:site_name, the title template, and applicationName.
+const SITE_TITLE = "SeekSat — Satellite & ISS Pass Forecasts for Any Sky";
+// Meta description: ~146 chars (target 110–160). The longer marketing
+// blurb was 198 chars and got truncated in results.
 const SITE_DESCRIPTION =
-  "Satellite pass forecasts. Place ground stations on a 3D globe and " +
-  "find when satellites pass overhead at all of them at once — visual " +
-  "or radio. Polar sky charts with sun/moon/planet context per pass.";
+  "Find when the ISS and other satellites pass over your ground stations " +
+  "— a 3D globe, multi-station overhead timing, and polar sky charts per pass.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   // Page-level <title> can override this; sub-pages without an
   // override get just SITE_NAME (default). The template is used
   // when a sub-page sets `title: "Whatever"` → "Whatever | SeekSat".
-  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  title: { default: SITE_TITLE, template: `%s | ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: [
@@ -36,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
-    title: SITE_NAME,
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     url: "/",
     locale: "en_US",
@@ -52,7 +57,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: SITE_NAME,
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     images: ["/og.png"],
   },
