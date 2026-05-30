@@ -11,7 +11,7 @@
     "og:build": "node scripts/build-og-image.mjs"
   },
   "dependencies": {
-    "@resvg/resvg-js": "^2.6.2",
+    "@resvg/resvg-wasm": "^2.6.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "linkedom": "^0.18.12",
