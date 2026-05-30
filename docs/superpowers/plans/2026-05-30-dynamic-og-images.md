@@ -10,6 +10,8 @@
 
 **Spike already done (facts this plan relies on):** resvg-js renders the painters' class-based `<style>` CSS correctly (no flattening needed) and loads `fontBuffers` by family (Exo 2 renders as Exo 2, not a serif fallback). Verified locally before writing this plan.
 
+**Amendment (during execution):** Tasks 10 and 11 extract their core into testable `lib/og/` helpers, because `node --test` cannot import the `@/`-aliased TypeScript/JSX framework entrypoints (`app/api/og/route.ts`, `app/page.tsx`). The route's request→Response logic lives in `lib/og/og-response.mjs` (`ogResponse(req)`); the metadata logic lives in `lib/og/og-metadata.mjs` (`ogImageMetadata(s)`). `route.ts` and `page.tsx` become thin adapters that delegate to these — unit-tested via `node:test` (Web `Request`/`Response` are Node globals), framework wiring verified via `npm run typecheck` + `npm run build`.
+
 ---
 
 ## File Structure
