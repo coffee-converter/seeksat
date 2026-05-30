@@ -67,6 +67,13 @@ export default function PassFinderApp() {
 
       <div ref={containerRef} id="cesium-container" />
 
+      {/* Inconspicuous brand mark, top-right corner of the scene. Mirrors
+          the side panel diagonally; pointer-events:none so it never
+          intercepts globe drag/zoom. Decorative — hidden from a11y tree. */}
+      <div className="brand-mark" aria-hidden="true">
+        <span className="seek">Seek</span><span className="sat">Sat</span>
+      </div>
+
       <div id="observer-icons" />
 
       <button

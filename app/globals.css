@@ -386,6 +386,20 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .result-block:last-child { margin-bottom: 0; }
 .result-block .label { color: #7eb8ff; font-weight: 600; }
 
+/* SeekSat brand wordmark — inconspicuous, top-right corner of the scene.
+   pointer-events:none keeps globe drag/zoom unobstructed; the dark text-
+   shadow keeps it legible over both bright (daylit) and dark sky. Two-tone
+   "Seek" muted + "Sat" accent, matching the polar-chart watermark. */
+.brand-mark {
+  position: absolute; top: 14px; right: 18px; z-index: 1000;
+  pointer-events: none; user-select: none;
+  font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 600; font-size: 17px; letter-spacing: 0.01em;
+  opacity: 0.62; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+.brand-mark .seek { color: #8aa0c8; }
+.brand-mark .sat  { color: #7eb8ff; }
+
 #camera-controls { position: absolute; bottom: 16px; right: 16px;
   display: flex; gap: 6px; z-index: 1000; }
 #camera-controls button {
