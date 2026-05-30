@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { firstObserver, selectPass } from "../../lib/og/pass-select.mjs";
 import { issEcefAtFactory } from "../../lib/og/tle.mjs";
+import { issAltAzDeg } from "../../lib/pass-finder/visibility.js";
 import { ISS_TLE } from "./fixtures/iss-tle.mjs";
 
 test("firstObserver clamps lat/lon and trims name", () => {
@@ -28,6 +29,28 @@ test("selectPass with no t finds a real above-horizon window", () => {
   assert.ok(res.win.endMs > res.win.startMs);
   assert.ok(res.peakMs >= res.win.startMs && res.peakMs <= res.win.endMs);
   assert.ok(res.maxAlt > 0);
+  // peakMs is the window's TRUE peak: ISS altitude there ≈ maxAlt.
+  assert.ok(Math.abs(issAltAzDeg(res.observer, at(new Date(res.peakMs))).alt - res.maxAlt) < 1);
+});
+
+test("explicit t locates the pass but the chart anchors on the true peak", () => {
+  const at = issEcefAtFactory(ISS_TLE);
+  const nowMs = Date.parse("2026-03-01T00:00:00Z");
+  // First find a real pass, then pretend the sharer's t was its rise edge.
+  const found = selectPass(
+    { observers: [{ name: "Chicago", latDeg: 41.8781, lonDeg: -87.6298 }],
+      passTimeMs: null, mode: "visual", minElevDeg: 10 },
+    at, { nowMs, scanDays: 5 });
+  const riseT = found.win.startMs;                 // a non-peak moment in the pass
+  const res = selectPass(
+    { observers: [{ name: "Chicago", latDeg: 41.8781, lonDeg: -87.6298 }],
+      passTimeMs: riseT, mode: "visual", minElevDeg: 10 },
+    at, { nowMs });
+  // Same pass (window contains the shared time) ...
+  assert.ok(riseT >= res.win.startMs && riseT <= res.win.endMs);
+  // ... but the anchor is the true peak, not the shared rise time.
+  assert.ok(res.peakMs > res.win.startMs);
+  assert.ok(Math.abs(issAltAzDeg(res.observer, at(new Date(res.peakMs))).alt - res.maxAlt) < 1);
 });
 
 test("selectPass ignores an absurd/out-of-range passTimeMs and falls back", () => {
