@@ -12,7 +12,7 @@ export default function WindowsList() {
   const rows = usePassFinderStore((s) => s.windowRows);
   const status = usePassFinderStore((s) => s.windowsStatus);
   const activeIdx = usePassFinderStore((s) => s.activeWindowIdx);
-  const setActiveWindowIdx = usePassFinderStore((s) => s.setActiveWindowIdx);
+  const selectWindow = usePassFinderStore((s) => s.selectWindow);
 
   const gridTemplate = headers.length
     ? headers.map(() => "auto").join(" ")
@@ -50,11 +50,11 @@ export default function WindowsList() {
           role="button"
           tabIndex={0}
           aria-current={i === activeIdx ? "true" : undefined}
-          onClick={() => setActiveWindowIdx(i)}
+          onClick={() => selectWindow(i)}
           onKeyDown={(ev) => {
             if (ev.key === "Enter" || ev.key === " ") {
               ev.preventDefault();
-              setActiveWindowIdx(i);
+              selectWindow(i);
             }
           }}
         >
