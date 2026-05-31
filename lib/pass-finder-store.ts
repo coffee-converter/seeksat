@@ -76,8 +76,15 @@ export interface PassFinderState {
     | "no-observers"
     | "empty"
     | "ready";
-  /** Index into windowRows; -1 = nothing selected. */
+  /** Index into windowRows; -1 = nothing selected. Written by BOTH the
+   *  per-frame soft-tracker (reflecting the clock's current window) and
+   *  explicit user picks. The scene can't tell those apart from the
+   *  index alone, so user picks bump windowSelectNonce too. */
   activeWindowIdx: number;
+  /** Bumped on every explicit user selection (row click / keyboard /
+   *  Now-deselect). The scene jumps ONLY when this changes, so clicking
+   *  the already-soft-tracked row still triggers a jump. */
+  windowSelectNonce: number;
   /** When set, the polar-modal renders for this observer id. */
   polarModalObsId: string | null;
   /** Left panel collapsed state — body.panel-collapsed mirror.
@@ -102,6 +109,9 @@ export interface PassFinderState {
     status: PassFinderState["windowsStatus"],
   ) => void;
   setActiveWindowIdx: (idx: number) => void;
+  /** Explicit user pick: sets the index AND bumps windowSelectNonce so
+   *  the scene always runs jumpToWindow, even when idx is unchanged. */
+  selectWindow: (idx: number) => void;
   setPolarModalObsId: (id: string | null) => void;
   setPanelCollapsed: (collapsed: boolean) => void;
   setFirstSearchComplete: (done: boolean) => void;
@@ -121,6 +131,7 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   windowRows: [],
   windowsStatus: "loading",
   activeWindowIdx: -1,
+  windowSelectNonce: 0,
   polarModalObsId: null,
   panelCollapsed: false,
   firstSearchComplete: false,
@@ -135,6 +146,8 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   setWindows: (windowHeaders, windowRows, windowsStatus) =>
     set({ windowHeaders, windowRows, windowsStatus }),
   setActiveWindowIdx: (activeWindowIdx) => set({ activeWindowIdx }),
+  selectWindow: (idx) =>
+    set((s) => ({ activeWindowIdx: idx, windowSelectNonce: s.windowSelectNonce + 1 })),
   setPolarModalObsId: (polarModalObsId) => set({ polarModalObsId }),
   setPanelCollapsed: (panelCollapsed) => set({ panelCollapsed }),
   setFirstSearchComplete: (firstSearchComplete) => set({ firstSearchComplete }),

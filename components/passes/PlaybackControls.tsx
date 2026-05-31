@@ -12,29 +12,33 @@ import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 // the CDN script + container both land.
 export default function PlaybackControls() {
   const { viewer } = useViewer();
-  const setActiveWindowIdx = usePassFinderStore((s) => s.setActiveWindowIdx);
-  // The dropdown shows whatever value React state holds; viewer.clock
-  // is the actual source of truth. Initial state is a placeholder
-  // that gets overwritten the moment the viewer becomes available
-  // (the sync effect below). Without this, the dropdown would show
-  // 10× even when the scene parked the clock at 1× (no-observers
-  // bootstrap) — visible mismatch between the dropdown and reality.
+  const selectWindow = usePassFinderStore((s) => s.selectWindow);
+  // viewer.clock.multiplier is the source of truth. The dropdown just
+  // mirrors it. The scene writes the clock directly (10× after a
+  // search, 1× on the no-observers boot), so we can't sync once on
+  // mount — we'd go stale. Instead we track the clock every frame via
+  // onTick (fires continuously even while paused) so the dropdown
+  // always shows the real speed.
   const [multiplier, setMultiplier] = useState(1);
 
-  // Sync local state FROM viewer the first time we see it (or any
-  // time it reappears). After that, user-driven changes in the
-  // dropdown push back into viewer.clock via the next effect.
   useEffect(() => {
     if (!viewer) return;
-    const current = viewer.clock.multiplier ?? 1;
-    setMultiplier(current);
+    const sync = () => {
+      const m = viewer.clock.multiplier ?? 1;
+      setMultiplier((prev) => (prev === m ? prev : m));
+    };
+    sync(); // immediate, don't wait for the first tick
+    return viewer.clock.onTick.addEventListener(sync);
   }, [viewer]);
 
-  // Push user-driven multiplier changes into the viewer's clock.
-  useEffect(() => {
-    if (!viewer) return;
-    viewer.clock.multiplier = multiplier;
-  }, [viewer, multiplier]);
+  // User-driven dropdown change: write the clock directly (the onTick
+  // sync above will mirror it straight back). We deliberately do NOT
+  // push multiplier → clock from an effect, so React's value can never
+  // clobber a speed the scene just set.
+  const onSpeedChange = (value: number) => {
+    setMultiplier(value);
+    if (viewer) viewer.clock.multiplier = value;
+  };
 
   const onPlay = () => {
     if (viewer) viewer.clock.shouldAnimate = true;
@@ -46,10 +50,13 @@ export default function PlaybackControls() {
     if (!viewer) return;
     // Snap the clock to current real-world UTC. trueNow() comes from
     // the clock-sync offset (HTTP Date header sample) so a user with a
-    // wrong system clock still gets accurate "now." Preserves
-    // shouldAnimate so a playing clock keeps ticking forward.
+    // wrong system clock still gets accurate "now." Drop back to live
+    // 1× speed and start playing so "Now" means "watch real time."
     viewer.clock.currentTime = window.Cesium.JulianDate.fromDate(new Date(trueNow()));
-    setActiveWindowIdx(-1);
+    viewer.clock.multiplier = 1;
+    viewer.clock.shouldAnimate = true;
+    setMultiplier(1);
+    selectWindow(-1);
   };
 
   return (
@@ -64,7 +71,7 @@ export default function PlaybackControls() {
         <select
           id="speed-select"
           value={multiplier}
-          onChange={(e) => setMultiplier(Number(e.target.value))}
+          onChange={(e) => onSpeedChange(Number(e.target.value))}
         >
           <option value="1">×1</option>
           <option value="10">×10</option>
