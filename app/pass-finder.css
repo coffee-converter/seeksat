@@ -901,3 +901,35 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   .panel { padding: 10px 12px; }
   #panel-left { gap: 4px; }
 }
+
+/* Heatmap controls — floating, inconspicuous, lives in #bottom-controls. */
+#heatmap-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#heatmap-controls button {
+  font: 11px / 1 -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.06em;
+  padding: 5px 9px;
+  color: #cfe0ff;
+  background: rgba(12, 18, 32, 0.55);
+  border: 1px solid rgba(120, 150, 200, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+}
+#heatmap-controls button[aria-pressed="true"] {
+  background: rgba(52, 211, 153, 0.22);
+  border-color: rgba(52, 211, 153, 0.55);
+}
+#heatmap-controls .heatmap-windows,
+#heatmap-controls .heatmap-metric {
+  display: flex;
+  gap: 4px;
+}
+#heatmap-controls .heatmap-legend {
+  font: 10px / 1.2 -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #9fb3d6;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}

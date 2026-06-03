@@ -16,6 +16,7 @@ import ObserversList from "@/components/passes/ObserversList";
 import WindowsList from "@/components/passes/WindowsList";
 import ShareButton from "@/components/passes/ShareButton";
 import PolarModal from "@/components/passes/PolarModal";
+import HeatmapControls from "@/components/passes/HeatmapControls";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -117,6 +118,7 @@ export default function PassFinderApp() {
           <button data-cam="top" title="Top-down view">Top</button>
           <button data-cam="anchor" title="Anchor camera to observers' centroid; mouse drag orbits, wheel zooms">Anchor</button>
         </div>
+        <HeatmapControls />
       </nav>
 
       <PolarModal />
