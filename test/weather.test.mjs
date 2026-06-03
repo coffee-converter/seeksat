@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cloudAt } from '../lib/pass-finder/weather.js';
+import { cloudAt, buildOpenMeteoBulkUrl } from '../lib/pass-finder/weather.js';
 
 test('cloudAt: null forecast returns null', () => {
   assert.equal(cloudAt(null, 0), null);
@@ -48,4 +48,15 @@ test('UTC parse trap: "YYYY-MM-DDTHH:MM" alone parses as local; "+Z" forces UTC'
   if (new Date().getTimezoneOffset() !== 0) {
     assert.notEqual(noZ, expectedUtc, "no-Z parsed as local, not UTC");
   }
+});
+
+test('buildOpenMeteoBulkUrl: comma-joins coordinates', () => {
+  const url = buildOpenMeteoBulkUrl([
+    { latDeg: 10, lonDeg: 20 },
+    { latDeg: 30, lonDeg: 40 },
+  ]);
+  assert.ok(url.includes('latitude=10,30'));
+  assert.ok(url.includes('longitude=20,40'));
+  assert.ok(url.includes('cloud_cover_low'));
+  assert.ok(url.includes('forecast_days=16'));
 });

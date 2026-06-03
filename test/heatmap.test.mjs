@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { regionForObservers, buildGrid } from '../lib/pass-finder/heatmap.js';
 import { computeCellMetrics, computeHeatmap } from '../lib/pass-finder/heatmap.js';
+import { buildCloudInterpolator } from '../lib/pass-finder/heatmap.js';
 
 test('regionForObservers: no observers → default radius around 0,0', () => {
   const r = regionForObservers([], { defaultRadiusDeg: 2.5 });
@@ -115,4 +116,34 @@ test('computeHeatmap: returns aligned metrics + maxCount', () => {
   assert.equal(out.metrics.length, 9);
   assert.ok(out.maxCount >= 1);
   assert.ok(out.metrics.every((m) => typeof m.row === 'number' && typeof m.col === 'number'));
+});
+
+test('buildCloudInterpolator: bilinear over a coarse grid, nearest-on-null', () => {
+  const region = { centerLat: 0, centerLon: 0, halfLatDeg: 2, halfLonDeg: 2 };
+  const coarse = buildGrid(region, 2); // 2×2 cell centers at ±1
+  // forecasts aligned with coarse.cells order (row-major: SW, SE, NW, NE)
+  // all share the same startMs + a single hour bucket for simplicity
+  const startMs = Date.UTC(2025, 5, 1, 0, 0, 0);
+  const forecasts = [
+    { startMs, hours: [0] },    // SW
+    { startMs, hours: [100] },  // SE
+    { startMs, hours: [0] },    // NW
+    { startMs, hours: [100] },  // NE
+  ];
+  const interp = buildCloudInterpolator(coarse, forecasts);
+
+  // dead center → average of all four = 50 at hour 0
+  const mid = interp({ latDeg: 0, lonDeg: 0 });
+  assert.ok(Math.abs(mid.hours[0] - 50) < 1e-6);
+
+  // far west cell → ~0, far east → ~100
+  assert.ok(interp({ latDeg: 0, lonDeg: -1.5 }).hours[0] < 30);
+  assert.ok(interp({ latDeg: 0, lonDeg: 1.5 }).hours[0] > 70);
+});
+
+test('buildCloudInterpolator: all-null forecasts → returns null', () => {
+  const region = { centerLat: 0, centerLon: 0, halfLatDeg: 2, halfLonDeg: 2 };
+  const coarse = buildGrid(region, 2);
+  const interp = buildCloudInterpolator(coarse, [null, null, null, null]);
+  assert.equal(interp({ latDeg: 0, lonDeg: 0 }), null);
 });
