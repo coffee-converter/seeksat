@@ -13,10 +13,15 @@ export default function HeatmapControls() {
   const maxCount = usePassFinderStore((s) => s.heatmapMaxCount);
   const cloudAvailable = usePassFinderStore((s) => s.heatmapCloudAvailable);
   const computing = usePassFinderStore((s) => s.heatmapComputing);
+  const observerCount = usePassFinderStore((s) => s.observers.length);
 
   const setMode = usePassFinderStore((s) => s.setHeatmapMode);
   const setWindowDays = usePassFinderStore((s) => s.setHeatmapWindowDays);
   const setMetric = usePassFinderStore((s) => s.setHeatmapMetric);
+
+  // The heatmap is anchored on the region around the placed observers,
+  // so it's meaningless with none — disable the toggle until one exists.
+  const disabled = !on && observerCount === 0;
 
   return (
     <div id="heatmap-controls" className="ctl-group" data-active={on}>
@@ -24,8 +29,13 @@ export default function HeatmapControls() {
         type="button"
         className="heatmap-toggle"
         aria-pressed={on}
+        disabled={disabled}
         onClick={() => setMode(!on)}
-        title="Toggle the regional pass-quality heatmap"
+        title={
+          disabled
+            ? "Place an observer first to build a regional heatmap"
+            : "Toggle the regional pass-quality heatmap"
+        }
       >
         Heatmap
       </button>

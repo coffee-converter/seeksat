@@ -922,6 +922,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   background: rgba(52, 211, 153, 0.22);
   border-color: rgba(52, 211, 153, 0.55);
 }
+#heatmap-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 #heatmap-controls .heatmap-windows,
 #heatmap-controls .heatmap-metric {
   display: flex;
