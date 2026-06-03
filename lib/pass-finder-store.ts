@@ -94,6 +94,20 @@ export interface PassFinderState {
   /** True once the first runSearch completes (success or empty).
    *  Drives the page loader's fade-out. */
   firstSearchComplete: boolean;
+  // ---- Heatmap mode ----
+  /** When true, the globe shows the regional pass-quality heatmap. */
+  heatmapMode: boolean;
+  /** Forecast window for the heatmap, in days. */
+  heatmapWindowDays: 1 | 7 | 14;
+  /** Which value paints each cell. */
+  heatmapMetric: "count" | "bestP";
+  /** Max good-pass count across the region — published by the scene
+   *  after each compute so the legend can normalize/label. */
+  heatmapMaxCount: number;
+  /** False when no cloud forecast loaded for the region (legend note). */
+  heatmapCloudAvailable: boolean;
+  /** True while a heatmap compute is in flight (spinner in the legend). */
+  heatmapComputing: boolean;
 
   // ---- Actions ----
   setMode: (mode: PassMode) => void;
@@ -115,6 +129,11 @@ export interface PassFinderState {
   setPolarModalObsId: (id: string | null) => void;
   setPanelCollapsed: (collapsed: boolean) => void;
   setFirstSearchComplete: (done: boolean) => void;
+  setHeatmapMode: (on: boolean) => void;
+  setHeatmapWindowDays: (days: 1 | 7 | 14) => void;
+  setHeatmapMetric: (metric: "count" | "bestP") => void;
+  setHeatmapStats: (maxCount: number, cloudAvailable: boolean) => void;
+  setHeatmapComputing: (computing: boolean) => void;
 }
 
 const EMPTY_TLE: Tle = { name: "", line1: "", line2: "" };
@@ -135,6 +154,12 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   polarModalObsId: null,
   panelCollapsed: false,
   firstSearchComplete: false,
+  heatmapMode: false,
+  heatmapWindowDays: 7,
+  heatmapMetric: "count",
+  heatmapMaxCount: 0,
+  heatmapCloudAvailable: false,
+  heatmapComputing: false,
 
   setMode: (mode) => set({ mode }),
   setMinElevDeg: (deg) => set({ minElevDeg: deg }),
@@ -151,4 +176,10 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   setPolarModalObsId: (polarModalObsId) => set({ polarModalObsId }),
   setPanelCollapsed: (panelCollapsed) => set({ panelCollapsed }),
   setFirstSearchComplete: (firstSearchComplete) => set({ firstSearchComplete }),
+  setHeatmapMode: (heatmapMode) => set({ heatmapMode }),
+  setHeatmapWindowDays: (heatmapWindowDays) => set({ heatmapWindowDays }),
+  setHeatmapMetric: (heatmapMetric) => set({ heatmapMetric }),
+  setHeatmapStats: (heatmapMaxCount, heatmapCloudAvailable) =>
+    set({ heatmapMaxCount, heatmapCloudAvailable }),
+  setHeatmapComputing: (heatmapComputing) => set({ heatmapComputing }),
 }));
