@@ -13,12 +13,15 @@
   "dependencies": {
     "@resvg/resvg-wasm": "^2.6.2",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/edge-config": "^1.4.3",
     "@vercel/speed-insights": "^2.0.0",
     "linkedom": "^0.18.12",
+    "mcp-handler": "^1.1.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "satellite.js": "^6.0.2",
+    "zod": "^4.4.3",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
