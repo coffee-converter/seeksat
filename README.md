@@ -19,6 +19,8 @@ file importing `TriangulateApp`) and move `_data/` back to
 Built on Next.js (App Router) + React + Zustand, with CesiumJS
 loaded from CDN. SGP4 propagation via `satellite.js`.
 
+- [SeekSat MCP server](docs/seeksat-mcp.md)
+
 ## Run
 
 ```sh
