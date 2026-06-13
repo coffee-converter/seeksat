@@ -115,3 +115,11 @@ promise in `lib/cesium-loaded.ts`, which `useCesiumViewer` awaits. No
 polling. A `<link rel="preload">` in the layout starts the network
 fetch in parallel with React hydration so the script lands as fast
 as possible.
+
+## MCP server env vars
+
+- `CRON_SECRET` — random string; Vercel Cron sends it as a Bearer token to `/api/refresh-tle`.
+- `EDGE_CONFIG` — read connection string (auto-set when an Edge Config store is linked to the project).
+- `EDGE_CONFIG_ID` — the Edge Config id (for writes).
+- `VERCEL_API_TOKEN` — token with Edge Config write scope (for the cron write).
+- `VERCEL_TEAM_ID` — only if the project lives under a team.
