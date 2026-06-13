@@ -18,7 +18,7 @@ export async function GET(req: Request): Promise<Response> {
   const result = await refreshCatalog({
     store: createEdgeConfigStore(),
     catalog: CATALOG,
-    fetchTle: (id) => fetchTleForId(id),
+    fetchTle: (id: string) => fetchTleForId(id),
     now: () => Date.now(),
   });
   return Response.json({ ok: true, ...result });
