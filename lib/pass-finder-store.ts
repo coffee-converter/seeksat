@@ -7,6 +7,8 @@
 
 import { create } from "zustand";
 import type { Tle } from "./types";
+import { CATALOG } from "./catalog.mjs";
+import { selectionUpdate } from "./pass-finder/satellite-seed.js";
 
 export type PassMode = "visual" | "radio";
 
@@ -52,6 +54,10 @@ export interface PassFinderState {
   tle: Tle;
   /** Fetch status for the auto-loaded ISS TLE on first paint. */
   tleStatus: "idle" | "fetching" | "ready" | "error";
+  /** NORAD id of the currently selected satellite (default ISS). */
+  selectedNoradId: number;
+  /** Cached TLEs keyed by NORAD id — server-seeded, refreshed on select. */
+  satelliteTles: Record<number, Tle>;
   /** When true, the next globe-click creates an observer at that
    *  ECEF point instead of doing normal camera interactions. */
   clickToPlace: boolean;
@@ -100,6 +106,8 @@ export interface PassFinderState {
   setMinElevDeg: (deg: number) => void;
   setTle: (tle: Partial<Tle>) => void;
   setTleStatus: (status: PassFinderState["tleStatus"]) => void;
+  setSatelliteTles: (tles: Record<number, Tle>) => void;
+  setSelectedSatellite: (noradId: number) => void;
   setClickToPlace: (on: boolean) => void;
   setObservers: (observers: PassObserver[]) => void;
   setFpsObserverId: (id: string | null) => void;
@@ -124,6 +132,8 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   minElevDeg: 10,
   tle: EMPTY_TLE,
   tleStatus: "idle",
+  selectedNoradId: 25544,
+  satelliteTles: {},
   clickToPlace: false,
   observers: [],
   fpsObserverId: null,
@@ -140,6 +150,12 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   setMinElevDeg: (deg) => set({ minElevDeg: deg }),
   setTle: (patch) => set((s) => ({ tle: { ...s.tle, ...patch } })),
   setTleStatus: (status) => set({ tleStatus: status }),
+  setSatelliteTles: (satelliteTles) => set({ satelliteTles }),
+  setSelectedSatellite: (noradId) =>
+    set((s) => {
+      const patch = selectionUpdate(CATALOG, s.satelliteTles, noradId);
+      return patch ?? {};
+    }),
   setClickToPlace: (on) => set({ clickToPlace: on }),
   setObservers: (observers) => set({ observers }),
   setFpsObserverId: (id) => set({ fpsObserverId: id }),
