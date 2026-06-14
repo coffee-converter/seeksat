@@ -1,7 +1,7 @@
 // app/api/refresh-tle/route.ts — Vercel Cron target. Reads catalog,
 // fetches each TLE, epoch-guard merges into Edge Config. Guarded by
 // CRON_SECRET so only Vercel Cron (or an authorized caller) can run it.
-import { CATALOG } from '@/lib/mcp/catalog.mjs';
+import { CATALOG } from '@/lib/catalog.mjs';
 import { fetchTleForId } from '@/lib/mcp/tle-fetch.mjs';
 import { refreshCatalog } from '@/lib/mcp/refresh.mjs';
 import { createEdgeConfigStore } from '@/lib/mcp/tle-store.mjs';

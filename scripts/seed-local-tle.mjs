@@ -1,6 +1,6 @@
 // scripts/seed-local-tle.mjs — prints a current TLE map you can paste
 // into a local memory store or inspect. Run: node scripts/seed-local-tle.mjs
-import { CATALOG } from '../lib/mcp/catalog.mjs';
+import { CATALOG } from '../lib/catalog.mjs';
 import { fetchTleForId } from '../lib/mcp/tle-fetch.mjs';
 
 const map = {};
