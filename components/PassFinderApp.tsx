@@ -10,7 +10,7 @@ import PageLoader from "@/components/passes/PageLoader";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import ModeToggle from "@/components/passes/ModeToggle";
 import MinElevControl from "@/components/passes/MinElevControl";
-import TlePanel from "@/components/passes/TlePanel";
+import SatellitePanel from "@/components/passes/SatellitePanel";
 import PlaybackControls from "@/components/passes/PlaybackControls";
 import AddObserverForm from "@/components/passes/AddObserverForm";
 import ObserversList from "@/components/passes/ObserversList";
@@ -25,20 +25,26 @@ import PolarModal from "@/components/passes/PolarModal";
 // matching what we did for triangulate — can follow this file as
 // the template; the foundation (viewer hook, scene init, JSX
 // skeleton) is in place.
-export default function PassFinderApp({ initialTle }: { initialTle?: Tle | null }) {
+export default function PassFinderApp(
+  { initialSatelliteTles }: { initialSatelliteTles?: Record<number, Tle> },
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const seededRef = useRef(false);
 
-  // Server-seed the store once on mount so the scene (which subscribes to
-  // the store) paints the ISS immediately, before the client TlePanel
-  // fetch resolves. No-op when there's no seed (e.g. Edge Config unset).
+  // Server-seed the per-satellite TLE map once on mount, then select the
+  // default satellite (ISS) so the scene paints immediately. No-op when
+  // the map is empty (e.g. Edge Config unset) — selection still sets the
+  // default id and the client fetch fills the TLE in.
   useEffect(() => {
-    if (seededRef.current || !initialTle) return;
+    if (seededRef.current) return;
     seededRef.current = true;
     const store = usePassFinderStore.getState();
-    store.setTle(initialTle);
-    store.setTleStatus("ready");
-  }, [initialTle]);
+    if (initialSatelliteTles && Object.keys(initialSatelliteTles).length) {
+      store.setSatelliteTles(initialSatelliteTles);
+    }
+    store.setSelectedSatellite(25544);
+    if (initialSatelliteTles?.[25544]) store.setTleStatus("ready");
+  }, [initialSatelliteTles]);
 
   const { viewer, status } = useCesiumViewer(containerRef);
   const panelCollapsed = usePassFinderStore((s) => s.panelCollapsed);
@@ -117,9 +123,9 @@ export default function PassFinderApp({ initialTle }: { initialTle?: Tle | null 
           <AddObserverForm />
         </details>
 
-        <details id="tle-details">
-          <summary><h2>TLE</h2></summary>
-          <TlePanel />
+        <details id="satellite-details" open>
+          <summary><h2>Satellite</h2></summary>
+          <SatellitePanel />
         </details>
       </section>
 
