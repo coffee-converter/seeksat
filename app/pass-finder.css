@@ -901,3 +901,39 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   .panel { padding: 10px 12px; }
   #panel-left { gap: 4px; }
 }
+
+/* Satellite selector + readout (replaces the TLE textareas) */
+.sat-selector { position: relative; }
+.sat-selector-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 10px; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px; color: inherit; font: inherit; text-align: left;
+}
+.sat-selector-trigger .sat-name { flex: 1; }
+.sat-caret { opacity: 0.6; }
+.sat-selector-list {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
+  margin: 0; padding: 4px; list-style: none; max-height: 280px; overflow-y: auto;
+  background: #0c1322; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+}
+.sat-option {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 9px; cursor: pointer; border: 0; border-radius: 4px;
+  background: transparent; color: inherit; font: inherit; text-align: left;
+}
+.sat-option:hover:not(:disabled) { background: rgba(255,255,255,0.07); }
+.sat-option.active { background: rgba(90,140,255,0.18); }
+.sat-option.locked { opacity: 0.5; cursor: not-allowed; }
+.sat-option .sat-name { flex: 1; }
+.sat-option .sat-incl { opacity: 0.6; font-variant-numeric: tabular-nums; }
+.sat-badge.pro {
+  font-size: 10px; letter-spacing: 0.08em; padding: 1px 5px; border-radius: 3px;
+  background: linear-gradient(90deg,#caa24a,#e9c45f); color: #1a1205; font-weight: 700;
+}
+.sat-readout { margin: 10px 0 0; display: grid; gap: 4px; }
+.sat-readout div { display: flex; justify-content: space-between; gap: 12px; }
+.sat-readout dt { opacity: 0.6; }
+.sat-readout dd { margin: 0; font-variant-numeric: tabular-nums; }
+.sat-hint { margin: 8px 0 0; font-size: 12px; opacity: 0.7; line-height: 1.4; }
