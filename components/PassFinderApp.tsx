@@ -5,6 +5,7 @@ import { useCesiumViewer } from "@/lib/use-cesium-viewer";
 import { CesiumViewerProvider } from "@/lib/cesium-viewer-context";
 import { useBodyClass } from "@/lib/use-body-class";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
+import type { Tle } from "@/lib/types";
 import PageLoader from "@/components/passes/PageLoader";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import ModeToggle from "@/components/passes/ModeToggle";
@@ -24,8 +25,21 @@ import PolarModal from "@/components/passes/PolarModal";
 // matching what we did for triangulate — can follow this file as
 // the template; the foundation (viewer hook, scene init, JSX
 // skeleton) is in place.
-export default function PassFinderApp() {
+export default function PassFinderApp({ initialTle }: { initialTle?: Tle | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const seededRef = useRef(false);
+
+  // Server-seed the store once on mount so the scene (which subscribes to
+  // the store) paints the ISS immediately, before the client TlePanel
+  // fetch resolves. No-op when there's no seed (e.g. Edge Config unset).
+  useEffect(() => {
+    if (seededRef.current || !initialTle) return;
+    seededRef.current = true;
+    const store = usePassFinderStore.getState();
+    store.setTle(initialTle);
+    store.setTleStatus("ready");
+  }, [initialTle]);
+
   const { viewer, status } = useCesiumViewer(containerRef);
   const panelCollapsed = usePassFinderStore((s) => s.panelCollapsed);
   const setPanelCollapsed = usePassFinderStore((s) => s.setPanelCollapsed);
