@@ -41,11 +41,16 @@ export default function SatellitePanel() {
       .then((t) => {
         if (cancelled) return;
         if (!t) { store.setTleStatus("error"); return; }
-        const currentLine1 = usePassFinderStore.getState().satelliteTles[selectedNoradId]?.line1 ?? "";
+        // Read the map fresh (not the effect-start `store` snapshot): this
+        // component's effect runs before the parent's seed effect, so the
+        // captured `store.satelliteTles` is still empty here. Spreading it
+        // would wipe every other satellite's seeded TLE.
+        const liveTles = usePassFinderStore.getState().satelliteTles;
+        const currentLine1 = liveTles[selectedNoradId]?.line1 ?? "";
         if (isNewerTle(currentLine1, t.line1)) {
           const next = { name: t.name || entry.name, line1: t.line1, line2: t.line2 };
           store.setTle(next);
-          store.setSatelliteTles({ ...store.satelliteTles, [selectedNoradId]: next });
+          store.setSatelliteTles({ ...liveTles, [selectedNoradId]: next });
         }
         sourceRef.current = t.source ?? null;
         store.setTleStatus("ready");

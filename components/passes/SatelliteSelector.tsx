@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
 
@@ -13,11 +13,23 @@ export default function SatelliteSelector() {
   const selectedNoradId = usePassFinderStore((s) => s.selectedNoradId);
   const setSelectedSatellite = usePassFinderStore((s) => s.setSelectedSatellite);
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const current = CATALOG.find((s) => s.noradId === selectedNoradId) ?? CATALOG[0];
 
+  // Close the popover on any pointer-down outside the selector (standard
+  // dropdown dismiss). Only attached while open.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
   return (
-    <div className="sat-selector">
+    <div className="sat-selector" ref={rootRef}>
       <button
         type="button"
         className="sat-selector-trigger"
@@ -30,13 +42,15 @@ export default function SatelliteSelector() {
         <span className="sat-caret" aria-hidden="true">▾</span>
       </button>
       {open && (
-        <ul className="sat-selector-list" role="listbox">
+        <ul className="sat-selector-list" role="listbox" aria-label="Satellites">
           {CATALOG.map((s) => {
             const locked = s.tier === "premium";
             return (
-              <li key={s.noradId} role="option" aria-selected={s.noradId === selectedNoradId}>
+              <li key={s.noradId}>
                 <button
                   type="button"
+                  role="option"
+                  aria-selected={s.noradId === selectedNoradId}
                   className={`sat-option${s.noradId === selectedNoradId ? " active" : ""}${locked ? " locked" : ""}`}
                   disabled={locked}
                   title={locked ? "Premium satellite — upgrade to track" : undefined}
