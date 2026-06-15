@@ -10,6 +10,17 @@ import {
 import { createEdgeConfigStore } from '@/lib/mcp/tle-store.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
 import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
+import { parseProKeys, resolveTier } from '@/lib/mcp/auth.mjs';
+import { runWithRequestContext, getRequestContext } from '@/lib/mcp/request-context.mjs';
+import { logUsage } from '@/lib/mcp/usage.mjs';
+
+const PRO_KEYS = parseProKeys(process.env.MCP_PRO_KEYS);
+
+function presentedKey(req: Request): string | null {
+  const auth = req.headers.get('authorization');
+  if (auth && auth.startsWith('Bearer ')) return auth.slice(7).trim();
+  return req.headers.get('x-api-key');
+}
 
 export const runtime = 'nodejs';
 
@@ -29,13 +40,17 @@ const asError = (e: unknown) => ({
   isError: true,
 });
 
-const handler = createMcpHandler(
+const mcpHandler = createMcpHandler(
   (server: McpServer) => {
     server.tool(
       'list_satellites',
       'List the satellites this server can track, with each one\'s current TLE freshness.',
       {},
-      async () => { try { return asText(await listSatellites(deps)); } catch (e) { return asError(e); } },
+      async () => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'list_satellites', tier, keyId });
+        try { return asText(await listSatellites(deps)); } catch (e) { return asError(e); }
+      },
     );
 
     server.tool(
@@ -50,7 +65,11 @@ const handler = createMcpHandler(
         minElevation: z.number().min(0).max(90).optional(),
         mode: z.enum(['visual', 'radio']).optional(),
       },
-      async (args) => { try { return asText(await findPassesTool(args, deps)); } catch (e) { return asError(e); } },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'find_passes', tier, keyId, satellite: args.satellite });
+        try { return asText(await findPassesTool(args, deps, tier)); } catch (e) { return asError(e); }
+      },
     );
 
     server.tool(
@@ -60,7 +79,11 @@ const handler = createMcpHandler(
         satellite: z.string(),
         time: z.string().optional().describe('ISO 8601; defaults to now'),
       },
-      async (args) => { try { return asText(await getPositionTool(args, deps)); } catch (e) { return asError(e); } },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'get_position', tier, keyId, satellite: args.satellite });
+        try { return asText(await getPositionTool(args, deps, tier)); } catch (e) { return asError(e); }
+      },
     );
 
     server.tool(
@@ -73,7 +96,11 @@ const handler = createMcpHandler(
         location: z.string().optional(),
         mode: z.enum(['visual', 'radio']).optional(),
       },
-      async (args) => { try { return asText(await nextVisiblePassTool(args, deps)); } catch (e) { return asError(e); } },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'next_visible_pass', tier, keyId, satellite: args.satellite });
+        try { return asText(await nextVisiblePassTool(args, deps, tier)); } catch (e) { return asError(e); }
+      },
     );
 
     server.tool(
@@ -85,7 +112,11 @@ const handler = createMcpHandler(
         location: z.string().optional(),
         time: z.string().describe('ISO 8601 time of the pass'),
       },
-      async (args) => { try { return asText(await getPassWeatherTool(args, deps)); } catch (e) { return asError(e); } },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'get_pass_weather', tier, keyId });
+        try { return asText(await getPassWeatherTool(args, deps)); } catch (e) { return asError(e); }
+      },
     );
   },
   // serverOptions
@@ -95,5 +126,13 @@ const handler = createMcpHandler(
   // only used for SSE session resumability, not streamable HTTP.
   { basePath: '/api' },
 );
+
+// Wrap the MCP dispatch: resolve the caller's tier from the API key and
+// run the whole dispatch inside the ALS scope so the tool callbacks above
+// can read it. Fail-open — an unknown/absent key is simply 'free'.
+async function handler(req: Request): Promise<Response> {
+  const { tier, keyId } = resolveTier(presentedKey(req), PRO_KEYS);
+  return runWithRequestContext({ tier, keyId }, () => mcpHandler(req));
+}
 
 export { handler as GET, handler as POST };
