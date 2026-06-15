@@ -45,7 +45,7 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
         <button
           type="button"
           className={`fps-view${isFps ? " active" : ""}`}
-          title="View from here (camera at observer, looking up at ISS)"
+          title="View from here (camera at observer, looking up at the satellite)"
           onClick={(ev) => { stop(ev); toggleFps(obs.id); }}
         >
           ▲

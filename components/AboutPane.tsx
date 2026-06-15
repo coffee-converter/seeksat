@@ -55,6 +55,7 @@ export default function AboutPane() {
         type="button"
         className="about-button"
         aria-label="About SeekSat and its MCP API"
+        title="About SeekSat & its API"
         onClick={() => setOpen(true)}
       >
         i
