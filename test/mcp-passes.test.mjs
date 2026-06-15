@@ -1,7 +1,7 @@
 // test/mcp-passes.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findPasses, getPosition } from '../lib/mcp/passes.mjs';
+import { findPasses, getPosition, nextPassWindow } from '../lib/mcp/passes.mjs';
 
 const LINE1 = '1 25544U 98067A   24001.50000000  .00000000  00000+0  00000+0 0  9990';
 const LINE2 = '2 25544  51.6400 100.0000 0003500 100.0000 260.0000 15.50000000000010';
@@ -38,4 +38,26 @@ test('findPasses (radio mode) returns ordered windows with the expected shape', 
   }
   const rises = passes.map(p => Date.parse(p.rise));
   assert.deepEqual(rises, [...rises].sort((a, b) => a - b), 'chronological');
+});
+
+const NP_LINE1 = '1 25544U 98067A   24001.50000000  .00000000  00000+0  00000+0 0  9990';
+const NP_LINE2 = '2 25544  51.6400 100.0000 0003500 100.0000 260.0000 15.50000000000010';
+const NP_NOW = Date.parse('2024-01-01T00:00:00Z');
+
+test('nextPassWindow finds a radio pass over the equator within the scan', () => {
+  const pass = nextPassWindow({
+    line1: NP_LINE1, line2: NP_LINE2,
+    observer: { latDeg: 0, lonDeg: 0 }, startMs: NP_NOW, windowHours: 72, mode: 'radio',
+  });
+  assert.ok(pass, 'a pass exists');
+  assert.ok(pass.win.startMs >= NP_NOW && pass.win.endMs <= NP_NOW + 72 * 3_600_000);
+  assert.ok(pass.peakMs >= pass.win.startMs && pass.peakMs <= pass.win.endMs);
+});
+
+test('nextPassWindow returns null where the satellite never reaches (lat 85, incl 51.6)', () => {
+  const pass = nextPassWindow({
+    line1: NP_LINE1, line2: NP_LINE2,
+    observer: { latDeg: 85, lonDeg: 0 }, startMs: NP_NOW, windowHours: 72, mode: 'radio',
+  });
+  assert.equal(pass, null);
 });

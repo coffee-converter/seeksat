@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rasterizeCard } from "../../lib/og/rasterize.mjs";
+import { rasterizeCard, rasterizeSvg } from "../../lib/og/rasterize.mjs";
 
 test("rasterizeCard renders a 1200x630 PNG with Exo 2 (no system fonts)", async () => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
@@ -15,4 +15,11 @@ test("rasterizeCard renders a 1200x630 PNG with Exo 2 (no system fonts)", async 
   // IHDR width/height (bytes 16-23) = 1200 x 630.
   assert.equal(png.readUInt32BE(16), 1200);
   assert.equal(png.readUInt32BE(20), 630);
+});
+
+test('rasterizeSvg renders a standalone SVG to PNG bytes at the given width', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#123"/></svg>';
+  const png = await rasterizeSvg(svg, { width: 64 });
+  assert.ok(Buffer.isBuffer(png) && png.length > 0);
+  assert.equal(png.subarray(0, 4).toString('hex'), '89504e47'); // PNG magic
 });
