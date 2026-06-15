@@ -47,3 +47,28 @@ test('nextVisiblePassTool returns a single pass or null', async () => {
   const out = await nextVisiblePassTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, deps);
   assert.ok(out.pass === null || typeof out.pass.rise === 'string');
 });
+
+import { assertTierAllows } from '../lib/mcp/tools.mjs';
+
+test('assertTierAllows gates premium satellites for the free tier', () => {
+  const premium = { name: 'Spy Sat', tier: 'premium' };
+  assert.throws(() => assertTierAllows(premium, 'free'), /premium satellite/i);
+  assert.doesNotThrow(() => assertTierAllows(premium, 'pro'));
+});
+
+test('assertTierAllows always allows free satellites', () => {
+  const free = { name: 'ISS (ZARYA)', tier: 'free' };
+  assert.doesNotThrow(() => assertTierAllows(free, 'free'));
+  assert.doesNotThrow(() => assertTierAllows(free, 'pro'));
+});
+
+test('listSatellites includes each satellite tier', async () => {
+  const out = await listSatellites(deps);
+  const iss = out.satellites.find((s) => s.noradId === 25544);
+  assert.equal(iss.tier, 'free');
+});
+
+test('getPositionTool still works at the default free tier for a free satellite', async () => {
+  const out = await getPositionTool({ satellite: 'iss' }, deps);
+  assert.ok(out.altitudeKm > 300);
+});
