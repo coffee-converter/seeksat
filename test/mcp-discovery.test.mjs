@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TOOL_SUMMARIES, mcpUrl, claudeAddCommand, mcpJsonConfig } from '../lib/mcp/discovery.mjs';
 
-test('TOOL_SUMMARIES lists the five tools in order', () => {
+test('TOOL_SUMMARIES lists the six tools in order', () => {
   assert.deepEqual(
     TOOL_SUMMARIES.map((t) => t.name),
-    ['list_satellites', 'find_passes', 'get_position', 'next_visible_pass', 'get_pass_weather'],
+    ['list_satellites', 'find_passes', 'get_position', 'next_visible_pass', 'get_pass_weather', 'get_pass_chart'],
   );
   for (const t of TOOL_SUMMARIES) assert.ok(t.summary.length > 0, `${t.name} has a summary`);
 });
