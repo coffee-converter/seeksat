@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import PassFinderApp from "@/components/PassFinderApp";
 import { ogImageMetadata } from "@/lib/og/og-metadata.mjs";
 import { createEdgeConfigStore } from "@/lib/mcp/tle-store.mjs";
-import { recordToTle } from "@/lib/pass-finder/tle-seed.js";
+import { recordsToSatelliteTles } from "@/lib/pass-finder/satellite-seed.js";
+import { CATALOG } from "@/lib/catalog.mjs";
+import type { Tle } from "@/lib/types";
 import "./pass-finder.css";
 
 // Per-share OG image: when the URL carries a ?s= state blob, point the
@@ -16,16 +18,17 @@ export async function generateMetadata(
   return ogImageMetadata(s);
 }
 
-// Read the cron-cached ISS TLE from Edge Config so the globe can render
-// immediately. Any failure (Edge Config unset locally, read error,
-// missing/malformed record) falls back to null — the page then behaves
-// exactly as before and the client fetch fills the globe.
-async function readInitialIssTle() {
+// Read the cron-cached TLEs for the whole catalog from Edge Config so
+// the globe can paint the default satellite immediately and switch to
+// any other without waiting on a client fetch. Any failure (Edge Config
+// unset locally, read error) falls back to {} — the page then behaves
+// as before and the client fetch fills each satellite on selection.
+async function readInitialSatelliteTles(): Promise<Record<number, Tle>> {
   try {
     const map = await createEdgeConfigStore().readMap() as Record<string, unknown>;
-    return recordToTle(map["25544"]);
+    return recordsToSatelliteTles(CATALOG, map) as Record<number, Tle>;
   } catch {
-    return null;
+    return {} as Record<number, Tle>;
   }
 }
 
@@ -34,6 +37,6 @@ async function readInitialIssTle() {
 // only emits the DOM skeleton; the bootstrap runs entirely on the
 // client.
 export default async function HomePage() {
-  const initialTle = await readInitialIssTle();
-  return <PassFinderApp initialTle={initialTle} />;
+  const initialSatelliteTles = await readInitialSatelliteTles();
+  return <PassFinderApp initialSatelliteTles={initialSatelliteTles} />;
 }
