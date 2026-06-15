@@ -5,7 +5,7 @@ import { createMcpHandler } from 'mcp-handler';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool,
+  listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool, getPassChartTool,
 } from '@/lib/mcp/tools.mjs';
 import { createEdgeConfigStore } from '@/lib/mcp/tle-store.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
@@ -116,6 +116,31 @@ const mcpHandler = createMcpHandler(
         const { tier, keyId } = getRequestContext();
         logUsage({ tool: 'get_pass_weather', tier, keyId });
         try { return asText(await getPassWeatherTool(args, deps)); } catch (e) { return asError(e); }
+      },
+    );
+
+    server.tool(
+      'get_pass_chart',
+      'Render a polar sky chart (PNG) of a satellite\'s next pass over a location — where to look, with the moon, planets, and stars in their real positions. mode "visual" (default) or "radio".',
+      {
+        satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
+        lat: z.number().min(-90).max(90).optional(),
+        lon: z.number().min(-180).max(180).optional(),
+        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+        mode: z.enum(['visual', 'radio']).optional(),
+      },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'get_pass_chart', tier, keyId, satellite: args.satellite });
+        try {
+          const res = await getPassChartTool(args, deps, tier);
+          return res.pngBase64
+            ? { content: [
+                { type: 'image' as const, data: res.pngBase64, mimeType: 'image/png' },
+                { type: 'text' as const, text: res.summary },
+              ] }
+            : { content: [{ type: 'text' as const, text: res.summary }] };
+        } catch (e) { return asError(e); }
       },
     );
   },
