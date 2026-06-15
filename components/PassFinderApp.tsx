@@ -18,6 +18,7 @@ import WindowsList from "@/components/passes/WindowsList";
 import ShareButton from "@/components/passes/ShareButton";
 import PolarModal from "@/components/passes/PolarModal";
 import AboutPane from "@/components/AboutPane";
+import OnboardingTour from "@/components/OnboardingTour";
 
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
@@ -95,6 +96,7 @@ export default function PassFinderApp(
         <span className="seek">Seek</span><span className="sat">Sat</span>
       </div>
       <AboutPane />
+      <OnboardingTour />
 
       <div id="observer-icons" />
 
