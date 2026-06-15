@@ -952,36 +952,50 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 .about-modal {
   position: relative; width: min(440px, calc(100vw - 32px));
-  background: #0c1322; border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
-  padding: 22px 22px 18px; color: #cfe0ff; box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+  background: #0c1322; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px;
+  padding: 26px 28px 20px; color: #cfe0ff; box-shadow: 0 18px 60px rgba(0,0,0,0.6);
   font: 14px/1.6 -apple-system, BlinkMacSystemFont, sans-serif;
 }
-.about-modal h3 { font-size: 14px; margin: 16px 0 6px; color: #eaf1ff; }
-.about-modal p { margin: 0 0 10px; opacity: 0.9; }
-.about-title { font-family: 'Exo 2', sans-serif; font-weight: 600; font-size: 22px; margin: 0 0 10px; }
+.about-modal:focus { outline: none; }
+.about-modal h3 { font-size: 14px; margin: 22px 0 8px; color: #eaf1ff; }
+.about-modal p { margin: 0 0 12px; opacity: 0.88; }
+.about-title { font-family: 'Exo 2', sans-serif; font-weight: 600; font-size: 24px; margin: 0 0 14px; }
 .about-title .seek { color: #8aa0c8; }
 .about-title .sat { color: #7eb8ff; }
 .about-close {
-  position: absolute; top: 10px; right: 12px; width: 26px; height: 26px;
-  background: transparent; border: 0; color: #9fb4da; font-size: 20px; cursor: pointer;
+  position: absolute; top: 14px; right: 14px; width: 28px; height: 28px;
+  display: grid; place-items: center; border-radius: 7px;
+  background: transparent; border: 0; color: #8295b8; font-size: 18px; line-height: 1;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
 }
+.about-close:hover { background: rgba(255,255,255,0.08); color: #cfe0ff; }
 .about-endpoint {
   display: block; background: #0a0f1c; border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 6px; padding: 8px 10px; font: 12px ui-monospace, monospace;
-  color: #d6e6ff; word-break: break-all; margin: 0 0 10px;
+  border-radius: 7px; padding: 10px 12px; font: 12px/1.5 ui-monospace, monospace;
+  color: #d6e6ff; word-break: break-all; margin: 0 0 14px;
 }
 .about-copy {
   cursor: pointer; background: rgba(90,140,255,0.18); border: 1px solid rgba(126,184,255,0.4);
-  color: #dce9ff; border-radius: 6px; padding: 7px 12px; font: inherit; font-size: 13px;
+  color: #dce9ff; border-radius: 7px; padding: 8px 14px; font: inherit; font-size: 13px;
+  transition: background 0.15s;
 }
+.about-copy:hover { background: rgba(90,140,255,0.3); }
+.about-footer {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px;
+  margin: 22px 0 0; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08);
+}
+.about-link {
+  background: transparent; border: 0; padding: 0; cursor: pointer;
+  color: #7eb8ff; font: inherit; font-size: 13px; text-decoration: none;
+}
+.about-link:hover { text-decoration: underline; }
+.about-stack { font-size: 11.5px; opacity: 0.45; margin: 14px 0 0; }
 .about-button:focus-visible,
 .about-close:focus-visible,
-.about-copy:focus-visible {
-  outline: 2px solid rgba(126,184,255,0.7); outline-offset: 2px;
+.about-copy:focus-visible,
+.about-link:focus-visible {
+  outline: 2px solid rgba(126,184,255,0.7); outline-offset: 2px; border-radius: 4px;
 }
-.about-links { margin: 14px 0 6px; }
-.about-links a { color: #7eb8ff; }
-.about-stack { font-size: 12px; opacity: 0.55; margin: 0; }
 .sat-hint { margin: 8px 0 0; font-size: 12px; opacity: 0.7; line-height: 1.4; }
 
 /* driver.js onboarding tour — dark theme */
@@ -1006,10 +1020,3 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .driver-popover.driverjs-theme .driver-popover-arrow-side-right  { border-right-color: #0c1322; }
 .driver-popover.driverjs-theme .driver-popover-arrow-side-top    { border-top-color: #0c1322; }
 .driver-popover.driverjs-theme .driver-popover-arrow-side-bottom { border-bottom-color: #0c1322; }
-
-.about-replay {
-  display: inline-block; margin: 2px 0 12px; cursor: pointer;
-  background: transparent; border: 0; padding: 0;
-  color: #7eb8ff; font: inherit; font-size: 13px; text-decoration: underline;
-}
-.about-replay:focus-visible { outline: 2px solid rgba(126,184,255,0.7); outline-offset: 2px; }

@@ -10,7 +10,6 @@ import { mcpUrl, claudeAddCommand, GITHUB_URL } from "@/lib/mcp/discovery.mjs";
 export default function AboutPane() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Keep Tab focus inside the dialog while it's open — aria-modal="true"
@@ -32,7 +31,9 @@ export default function AboutPane() {
 
   useEffect(() => {
     if (!open) return;
-    closeRef.current?.focus();
+    // Focus the dialog itself (not a control) so opening doesn't paint a
+    // focus ring on the close button; Tab still moves into the controls.
+    modalRef.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -66,36 +67,39 @@ export default function AboutPane() {
             role="dialog"
             aria-modal="true"
             aria-label="About SeekSat"
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={trapTab}
           >
-            <button ref={closeRef} type="button" className="about-close" aria-label="Close" onClick={() => setOpen(false)}>
+            <button type="button" className="about-close" aria-label="Close" onClick={() => setOpen(false)}>
               ×
             </button>
             <h2 className="about-title"><span className="seek">Seek</span><span className="sat">Sat</span></h2>
             <p>Satellite &amp; ISS pass forecasts — a 3D globe with multi-station overhead timing and per-pass sky charts.</p>
+
             <h3>Agent-queryable via MCP</h3>
             <p>The same SGP4 + visibility engine is exposed to AI agents over the Model Context Protocol:</p>
             <code className="about-endpoint">{mcpUrl(SITE_URL)}</code>
             <button type="button" className="about-copy" onClick={copyCmd}>
               {copied ? "Copied!" : "Copy connect command"}
             </button>
-            <p className="about-links">
-              <a href="/mcp">Full API docs →</a>
+
+            <div className="about-footer">
+              <a className="about-link" href="/mcp">Full API docs →</a>
+              <button
+                type="button"
+                className="about-link"
+                onClick={() => {
+                  setOpen(false);
+                  window.dispatchEvent(new Event("seeksat:start-tour"));
+                }}
+              >
+                Replay walkthrough
+              </button>
               {GITHUB_URL && (
-                <> · <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">Source</a></>
+                <a className="about-link" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">Source</a>
               )}
-            </p>
-            <button
-              type="button"
-              className="about-replay"
-              onClick={() => {
-                setOpen(false);
-                window.dispatchEvent(new Event("seeksat:start-tour"));
-              }}
-            >
-              Replay walkthrough
-            </button>
+            </div>
             <p className="about-stack">Next.js · Cesium · satellite.js · SGP4</p>
           </div>
         </div>
