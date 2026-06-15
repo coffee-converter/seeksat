@@ -936,4 +936,50 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .sat-readout div { display: flex; justify-content: space-between; gap: 12px; }
 .sat-readout dt { opacity: 0.6; }
 .sat-readout dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* About button (near the brand-mark) + modal */
+.about-button {
+  position: absolute; top: 40px; right: 18px; z-index: 1001;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18);
+  color: #b9cdf0; font: italic 600 13px/1 Georgia, serif; opacity: 0.6;
+}
+.about-button:hover { opacity: 1; }
+.about-backdrop {
+  position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center;
+  background: rgba(4,8,18,0.6); backdrop-filter: blur(2px);
+}
+.about-modal {
+  position: relative; width: min(440px, calc(100vw - 32px));
+  background: #0c1322; border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+  padding: 22px 22px 18px; color: #cfe0ff; box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+  font: 14px/1.6 -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.about-modal h3 { font-size: 14px; margin: 16px 0 6px; color: #eaf1ff; }
+.about-modal p { margin: 0 0 10px; opacity: 0.9; }
+.about-title { font-family: 'Exo 2', sans-serif; font-weight: 600; font-size: 22px; margin: 0 0 10px; }
+.about-title .seek { color: #8aa0c8; }
+.about-title .sat { color: #7eb8ff; }
+.about-close {
+  position: absolute; top: 10px; right: 12px; width: 26px; height: 26px;
+  background: transparent; border: 0; color: #9fb4da; font-size: 20px; cursor: pointer;
+}
+.about-endpoint {
+  display: block; background: #0a0f1c; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px; padding: 8px 10px; font: 12px ui-monospace, monospace;
+  color: #d6e6ff; word-break: break-all; margin: 0 0 10px;
+}
+.about-copy {
+  cursor: pointer; background: rgba(90,140,255,0.18); border: 1px solid rgba(126,184,255,0.4);
+  color: #dce9ff; border-radius: 6px; padding: 7px 12px; font: inherit; font-size: 13px;
+}
+.about-button:focus-visible,
+.about-close:focus-visible,
+.about-copy:focus-visible {
+  outline: 2px solid rgba(126,184,255,0.7); outline-offset: 2px;
+}
+.about-links { margin: 14px 0 6px; }
+.about-links a { color: #7eb8ff; }
+.about-stack { font-size: 12px; opacity: 0.55; margin: 0; }
 .sat-hint { margin: 8px 0 0; font-size: 12px; opacity: 0.7; line-height: 1.4; }

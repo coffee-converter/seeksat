@@ -3,12 +3,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import CesiumLoader from "@/components/CesiumLoader";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
+import { SITE_URL } from "@/lib/site.mjs";
 import "./globals.css";
-
-// Canonical site URL. All relative URLs in openGraph / twitter / etc.
-// resolve against this. Switch to https://seeksat.com once the domain
-// is attached; until then the Vercel-assigned production alias works.
-const SITE_URL = "https://seeksat.com";
 const SITE_NAME = "SeekSat";
 // SEO title: ~52 chars (target 50–60) so search results don't truncate
 // and the page reads as more than a bare brand name. SITE_NAME stays the
