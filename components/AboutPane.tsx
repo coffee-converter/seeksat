@@ -86,6 +86,16 @@ export default function AboutPane() {
                 <> · <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">Source</a></>
               )}
             </p>
+            <button
+              type="button"
+              className="about-replay"
+              onClick={() => {
+                setOpen(false);
+                window.dispatchEvent(new Event("seeksat:start-tour"));
+              }}
+            >
+              Replay walkthrough
+            </button>
             <p className="about-stack">Next.js · Cesium · satellite.js · SGP4</p>
           </div>
         </div>
