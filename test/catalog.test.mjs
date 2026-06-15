@@ -12,6 +12,7 @@ test('every entry has the enriched, valid shape', () => {
   for (const s of CATALOG) {
     assert.equal(typeof s.noradId, 'number');
     assert.equal(typeof s.name, 'string');
+    assert.ok(typeof s.shortName === 'string' && s.shortName.length > 0, `${s.name} shortName`);
     assert.ok(Array.isArray(s.aliases));
     assert.ok(['free', 'premium'].includes(s.tier), `${s.name} tier`);
     assert.equal(typeof s.inclinationDeg, 'number');
