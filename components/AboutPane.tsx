@@ -1,0 +1,75 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { SITE_URL } from "@/lib/site.mjs";
+import { mcpUrl, claudeAddCommand, GITHUB_URL } from "@/lib/mcp/discovery.mjs";
+
+// Inconspicuous "i" button near the brand-mark that opens a small modal
+// card surfacing the MCP endpoint + a copy-able connect command, with a
+// link to the full /mcp docs. Esc and backdrop click close it.
+export default function AboutPane() {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const copyCmd = async () => {
+    try {
+      await navigator.clipboard?.writeText(claudeAddCommand(SITE_URL));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable (insecure origin) — the command stays selectable */
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="about-button"
+        aria-label="About SeekSat and its MCP API"
+        onClick={() => setOpen(true)}
+      >
+        i
+      </button>
+      {open && (
+        <div className="about-backdrop" onClick={() => setOpen(false)}>
+          <div
+            className="about-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="About SeekSat"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button ref={closeRef} type="button" className="about-close" aria-label="Close" onClick={() => setOpen(false)}>
+              ×
+            </button>
+            <h2 className="about-title"><span className="seek">Seek</span><span className="sat">Sat</span></h2>
+            <p>Satellite &amp; ISS pass forecasts — a 3D globe with multi-station overhead timing and per-pass sky charts.</p>
+            <h3>Agent-queryable via MCP</h3>
+            <p>The same SGP4 + visibility engine is exposed to AI agents over the Model Context Protocol:</p>
+            <code className="about-endpoint">{mcpUrl(SITE_URL)}</code>
+            <button type="button" className="about-copy" onClick={copyCmd}>
+              {copied ? "Copied!" : "Copy connect command"}
+            </button>
+            <p className="about-links">
+              <a href="/mcp">Full API docs →</a>
+              {GITHUB_URL && (
+                <> · <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">Source</a></>
+              )}
+            </p>
+            <p className="about-stack">Next.js · Cesium · satellite.js · SGP4</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
