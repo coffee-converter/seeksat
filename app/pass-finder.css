@@ -999,7 +999,13 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   text-shadow: none; font-size: 13px;
 }
 .driver-popover.driverjs-theme button:hover { background: rgba(90,140,255,0.3); }
-.driver-popover.driverjs-theme .driver-popover-arrow { border-color: #0c1322; }
+/* Tint only the arrow's opaque side per direction so the triangle keeps
+   its shape (driver.js sets the other three sides transparent; a blanket
+   border-color would beat those rules and render a solid square). */
+.driver-popover.driverjs-theme .driver-popover-arrow-side-left   { border-left-color: #0c1322; }
+.driver-popover.driverjs-theme .driver-popover-arrow-side-right  { border-right-color: #0c1322; }
+.driver-popover.driverjs-theme .driver-popover-arrow-side-top    { border-top-color: #0c1322; }
+.driver-popover.driverjs-theme .driver-popover-arrow-side-bottom { border-bottom-color: #0c1322; }
 
 .about-replay {
   display: inline-block; margin: 2px 0 12px; cursor: pointer;
