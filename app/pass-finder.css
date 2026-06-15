@@ -912,9 +912,12 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 .sat-selector-trigger .sat-name { flex: 1; }
 .sat-caret { opacity: 0.6; }
+/* Portaled to <body> + positioned via inline `position: fixed` (top/left/
+   width set from the trigger's rect) so the panel's overflow can't clip
+   it. z-index clears the panel (1000) + toggle (1100). */
 .sat-selector-list {
-  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
-  margin: 0; padding: 4px; list-style: none; max-height: 280px; overflow-y: auto;
+  z-index: 1200;
+  margin: 0; padding: 4px; list-style: none; max-height: min(280px, 60vh); overflow-y: auto;
   background: #0c1322; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.5);
 }
