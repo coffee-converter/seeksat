@@ -981,6 +981,9 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   display: block; background: #0a0f1c; border: 1px solid rgba(255,255,255,0.12);
   border-radius: 7px; padding: 10px 12px; font: 12px/1.5 ui-monospace, monospace;
   color: #d6e6ff; word-break: break-all; margin: 0 0 14px;
+  /* globals.css disables user-select app-wide; `all` overrides it AND makes
+     a single click select the whole URL for users who copy by hand. */
+  -webkit-user-select: all; user-select: all; cursor: text;
 }
 .about-copy {
   cursor: pointer; background: rgba(90,140,255,0.18); border: 1px solid rgba(126,184,255,0.4);
