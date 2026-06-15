@@ -11,6 +11,24 @@ export default function AboutPane() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Keep Tab focus inside the dialog while it's open — aria-modal="true"
+  // promises focus containment, so enforce it (no library, just cycle
+  // between the first and last focusable controls).
+  const trapTab = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+    const focusable = modalRef.current?.querySelectorAll<HTMLElement>("button, a[href]");
+    if (!focusable || focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const onFirst = document.activeElement === first;
+    const onLast = document.activeElement === last;
+    if (e.shiftKey ? onFirst : onLast) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -43,11 +61,13 @@ export default function AboutPane() {
       {open && (
         <div className="about-backdrop" onClick={() => setOpen(false)}>
           <div
+            ref={modalRef}
             className="about-modal"
             role="dialog"
             aria-modal="true"
             aria-label="About SeekSat"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={trapTab}
           >
             <button ref={closeRef} type="button" className="about-close" aria-label="Close" onClick={() => setOpen(false)}>
               ×
