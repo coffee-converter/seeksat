@@ -939,13 +939,18 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 
 /* About button (near the brand-mark) + modal */
 .about-button {
-  position: absolute; top: 40px; right: 18px; z-index: 1001;
-  width: 22px; height: 22px; border-radius: 50%;
+  position: absolute; top: 42px; right: 18px; z-index: 1001;
+  width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center; cursor: pointer;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18);
-  color: #b9cdf0; font: italic 600 13px/1 Georgia, serif; opacity: 0.6;
+  background: rgba(10, 14, 26, 0.6); border: 1px solid rgba(126, 184, 255, 0.55);
+  color: #7eb8ff; font: italic 700 14px/1 Georgia, serif;
+  opacity: 0.9; backdrop-filter: blur(4px);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+  transition: background 0.15s, opacity 0.15s, border-color 0.15s;
 }
-.about-button:hover { opacity: 1; }
+.about-button:hover {
+  opacity: 1; background: rgba(126, 184, 255, 0.22); border-color: #7eb8ff;
+}
 .about-backdrop {
   position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center;
   background: rgba(4,8,18,0.6); backdrop-filter: blur(2px);

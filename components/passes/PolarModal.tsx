@@ -109,7 +109,7 @@ export default function PolarModal() {
       id="polar-modal"
       role="dialog"
       aria-modal="true"
-      aria-label={obsName ? `Sky chart — ${obsName}` : "ISS pass sky chart"}
+      aria-label={obsName ? `Sky chart — ${obsName}` : "Pass sky chart"}
       hidden={!visible}
     >
       <div className="polar-modal-backdrop" onClick={() => setObsId(null)} />
@@ -158,7 +158,7 @@ export default function PolarModal() {
           // still triggers the download.
           onClick={(ev) => { if (ev.isTrusted) ev.preventDefault(); }}
         >
-          <img ref={imgRef} className="polar-modal-png" alt="ISS pass sky chart" />
+          <img ref={imgRef} className="polar-modal-png" alt="Pass sky chart" />
         </a>
         <p className="polar-modal-hint">
           Right-click the image to save · click outside or press Esc to close.
