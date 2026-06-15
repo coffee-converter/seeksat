@@ -983,3 +983,27 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .about-links a { color: #7eb8ff; }
 .about-stack { font-size: 12px; opacity: 0.55; margin: 0; }
 .sat-hint { margin: 8px 0 0; font-size: 12px; opacity: 0.7; line-height: 1.4; }
+
+/* driver.js onboarding tour — dark theme */
+.driver-popover.driverjs-theme {
+  background: #0c1322; color: #cfe0ff;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+}
+.driver-popover.driverjs-theme .driver-popover-title { color: #eaf1ff; font-size: 16px; }
+.driver-popover.driverjs-theme .driver-popover-description { color: #cfe0ff; opacity: 0.9; }
+.driver-popover.driverjs-theme .driver-popover-progress-text { color: #9fb4da; }
+.driver-popover.driverjs-theme button {
+  background: rgba(90,140,255,0.18); color: #dce9ff;
+  border: 1px solid rgba(126,184,255,0.4); border-radius: 6px;
+  text-shadow: none; font-size: 13px;
+}
+.driver-popover.driverjs-theme button:hover { background: rgba(90,140,255,0.3); }
+.driver-popover.driverjs-theme .driver-popover-arrow { border-color: #0c1322; }
+
+.about-replay {
+  display: inline-block; margin: 2px 0 12px; cursor: pointer;
+  background: transparent; border: 0; padding: 0;
+  color: #7eb8ff; font: inherit; font-size: 13px; text-decoration: underline;
+}
+.about-replay:focus-visible { outline: 2px solid rgba(126,184,255,0.7); outline-offset: 2px; }
