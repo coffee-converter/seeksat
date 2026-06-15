@@ -974,6 +974,11 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   cursor: pointer; background: rgba(90,140,255,0.18); border: 1px solid rgba(126,184,255,0.4);
   color: #dce9ff; border-radius: 6px; padding: 7px 12px; font: inherit; font-size: 13px;
 }
+.about-button:focus-visible,
+.about-close:focus-visible,
+.about-copy:focus-visible {
+  outline: 2px solid rgba(126,184,255,0.7); outline-offset: 2px;
+}
 .about-links { margin: 14px 0 6px; }
 .about-links a { color: #7eb8ff; }
 .about-stack { font-size: 12px; opacity: 0.55; margin: 0; }
