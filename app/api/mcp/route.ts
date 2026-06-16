@@ -135,10 +135,13 @@ const mcpHandler = createMcpHandler(
         logUsage({ tool: 'get_pass_chart', tier, keyId, satellite: args.satellite });
         try {
           const res = await getPassChartTool(args, deps, tier);
+          // Image LAST so it's the trailing content block: clients that render
+          // the final block inline (rather than only inside the tool-call
+          // accordion) are more likely to surface the chart in the response.
           return res.pngBase64
             ? { content: [
-                { type: 'image' as const, data: res.pngBase64, mimeType: 'image/png' },
                 { type: 'text' as const, text: res.summary },
+                { type: 'image' as const, data: res.pngBase64, mimeType: 'image/png' },
               ] }
             : { content: [{ type: 'text' as const, text: res.summary }] };
         } catch (e) { return asError(e); }
