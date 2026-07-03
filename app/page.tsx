@@ -21,7 +21,7 @@ export async function generateMetadata(
 // Read the cron-cached TLEs for the whole catalog from Edge Config so
 // the globe can paint the default satellite immediately and switch to
 // any other without waiting on a client fetch. Any failure (Edge Config
-// unset locally, read error) falls back to {} — the page then behaves
+// unset locally, read error) falls back to {} - the page then behaves
 // as before and the client fetch fills each satellite on selection.
 async function readInitialSatelliteTles(): Promise<Record<number, Tle>> {
   try {

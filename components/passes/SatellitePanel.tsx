@@ -32,7 +32,7 @@ export default function SatellitePanel() {
   // On every selection change: fetch the freshest elements for that
   // satellite. Apply only if strictly newer than the cached/seeded TLE
   // (epoch guard) so a stale or failed fetch never regresses the seed.
-  // The fetch always runs — its clock-sync side effect is the point.
+  // The fetch always runs - its clock-sync side effect is the point.
   useEffect(() => {
     let cancelled = false;
     const store = usePassFinderStore.getState();
@@ -63,7 +63,7 @@ export default function SatellitePanel() {
   const hasTle = tle.line1.startsWith("1 ") && tle.line2.startsWith("2 ");
   const statusText =
     tleStatus === "fetching" ? (hasTle ? "checking for newer…" : "fetching TLE…")
-    : tleStatus === "error" ? "fetch failed — using cached element set."
+    : tleStatus === "error" ? "fetch failed - using cached element set."
     : "";
 
   return (
@@ -72,7 +72,7 @@ export default function SatellitePanel() {
       <dl className="sat-readout">
         <div><dt>NORAD</dt><dd>{entry.noradId}</dd></div>
         <div><dt>Inclination</dt><dd>{entry.inclinationDeg}°</dd></div>
-        <div><dt>Elements</dt><dd>{hasTle ? ageText(tle.line1) : "—"}{sourceRef.current ? ` · ${sourceRef.current}` : ""}</dd></div>
+        <div><dt>Elements</dt><dd>{hasTle ? ageText(tle.line1) : "-"}{sourceRef.current ? ` · ${sourceRef.current}` : ""}</dd></div>
       </dl>
       {entry.viewingHint && <p className="sat-hint">{entry.viewingHint}</p>}
       {statusText && <p className={`hint${tleStatus === "error" ? " error" : ""}`}>{statusText}</p>}

@@ -123,7 +123,7 @@ export default function AttemptPicker() {
   const onDelete = async () => {
     if (currentAttemptSource !== "user" || !currentAttemptId) return;
     if (
-      !confirm(`Delete this attempt? (browser-local only — won't touch data/)`)
+      !confirm(`Delete this attempt? (browser-local only - won't touch data/)`)
     ) {
       return;
     }

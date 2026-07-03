@@ -1,6 +1,6 @@
 // Ambient declaration for the Cesium global. We load Cesium from
 // CDN rather than the npm package (see next.config.ts) so TS doesn't
-// know about it otherwise. Typed as `any` for now — refine by
+// know about it otherwise. Typed as `any` for now - refine by
 // installing `cesium` as a devDependency just for its .d.ts later.
 //
 // Centralizing the `any` here lets call sites write `window.Cesium`

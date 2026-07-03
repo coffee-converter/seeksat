@@ -32,14 +32,14 @@ const {
 } = await import('../lib/store.ts');
 
 // pickInitialAttemptId lives in triangulate-attempts.ts, which imports
-// "./store" (no extension) — Next/TS handles that fine but raw Node
+// "./store" (no extension) - Next/TS handles that fine but raw Node
 // ESM under --experimental-strip-types refuses to resolve it. Skipping
 // those tests until we have a test runner that does TS resolution.
 
 // ---- USER_ATTEMPTS_KEY / MANIFEST_OVERRIDES_KEY constants ---------------
 
 test('localStorage keys: namespaced + stable across releases', () => {
-  // Renaming either key silently orphans existing users' data — pin
+  // Renaming either key silently orphans existing users' data - pin
   // the literal values here so any change shows up loudly.
   assert.equal(USER_ATTEMPTS_KEY, 'triangulation-user-attempts');
   assert.equal(MANIFEST_OVERRIDES_KEY, 'triangulation-manifest-overrides');
@@ -188,7 +188,7 @@ test('saveManifestOverride: overwrites an existing key', () => {
   uninstallLocalStorageMock();
 });
 
-// Final cleanup — leave globals in a known state for any test files
+// Final cleanup - leave globals in a known state for any test files
 // that might run after this one.
 afterEach(() => {
   uninstallLocalStorageMock();

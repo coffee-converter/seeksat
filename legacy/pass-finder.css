@@ -1,6 +1,6 @@
-/* pass-finder.css — page-specific layout, extends style.css */
+/* pass-finder.css - page-specific layout, extends style.css */
 
-/* Keep the page locked to viewport size — no scrolling. position:fixed
+/* Keep the page locked to viewport size - no scrolling. position:fixed
    on body broke fixed-positioned descendants (the polar modal), so we
    rely on overflow:hidden alone, and clip the observer-icons overlay
    so labels that project past the edge can't expand the document. */
@@ -86,7 +86,7 @@ html, body {
 #panel-toggle::before { content: "◂"; }
 #panel-toggle:hover { background: rgba(126, 184, 255, 0.18); }
 
-/* Panel slide animation — applies on the transform property only so the
+/* Panel slide animation - applies on the transform property only so the
    panel's other geometry (max-height etc.) remains immediate. */
 #panel-left { transition: transform 0.25s ease; }
 
@@ -168,7 +168,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   line-height: 1.2;
   flex: 0 0 auto;
 }
-/* The filler bar — takes the remaining horizontal room. Extra left
+/* The filler bar - takes the remaining horizontal room. Extra left
    margin so the bar reads visually separate from the title text. */
 #panel-left > details > summary::after {
   content: "";
@@ -198,7 +198,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   overflow-x: visible;
   min-height: 120px;
   /* Bleed past the panel's 16px horizontal padding so each row uses the
-     full panel width — the panel border becomes the visual gutter. */
+     full panel width - the panel border becomes the visual gutter. */
   margin-left: -16px;
   margin-right: -16px;
 }
@@ -213,7 +213,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   margin-bottom: 0;
   /* Parent grid defines the column widths; each .window-row participates
      via grid-template-columns: subgrid so all rows share a single set
-     of column tracks — numeric columns line up across the list.
+     of column tracks - numeric columns line up across the list.
      column-gap defines a MINIMUM gap that's preserved even on narrow
      viewports (the columns get cramped to that gap and the table
      horizontally scrolls inside #windows-list). justify-content
@@ -278,13 +278,13 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   border-radius: 6px;
 }
 /* Override the default #sim-time positioning (set in style.css) when it
-   lives inside the bottom-controls strip — it should sit inline, not pinned. */
+   lives inside the bottom-controls strip - it should sit inline, not pinned. */
 #bottom-controls #sim-time {
   position: static; transform: none; bottom: auto; left: auto;
   background: transparent; border: none; backdrop-filter: none;
   padding: 0; font-size: 12px;
 }
-/* Same override for #camera-controls — its default rule pins it to the
+/* Same override for #camera-controls - its default rule pins it to the
    bottom-right viewport corner, which overlaps the strip when reused here. */
 #bottom-controls #camera-controls {
   position: static; bottom: auto; right: auto;
@@ -323,7 +323,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .window-row {
   display: grid;
   /* Inherit the 5 column tracks (and their space-between distribution)
-     from #windows-list so every row's columns line up vertically — and
+     from #windows-list so every row's columns line up vertically - and
      pick up the same even spacing between them. */
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
@@ -334,7 +334,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 .window-row > * { white-space: nowrap; }
 /* All numeric columns right-align so they hit the same rightward anchor
-   in each cell — combined with subgrid this gives the columns a
+   in each cell - combined with subgrid this gives the columns a
    consistent vertical edge across rows. */
 .window-row .sun,
 .window-row .dur,
@@ -375,7 +375,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   letter-spacing: 0.03em;
 }
 
-/* "PASSES" section heading — matches the visual weight of the collapsible
+/* "PASSES" section heading - matches the visual weight of the collapsible
    summary headings, but without the chevron (the list is always shown). */
 #windows-section > .section-heading-row {
   display: flex;
@@ -457,7 +457,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .min-elev[hidden] { display: none; }
 /* Stepper buttons. Selector is `.min-elev button` (not just the class)
    so this rule matches the specificity of the global `.panel button`
-   reset and wins on later load order — a class-only `.min-elev-step`
+   reset and wins on later load order - a class-only `.min-elev-step`
    selector loses to `.panel button` and inherits its 6/10px padding. */
 .min-elev button {
   -webkit-appearance: none;
@@ -504,7 +504,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   border-color: rgba(248, 113, 113, 0.5);
   color: #f87171;
 }
-/* Floating "Copied!" / "Failed" tag to the LEFT of the button —
+/* Floating "Copied!" / "Failed" tag to the LEFT of the button -
    absolute positioning means it doesn't shift surrounding layout
    while the feedback class is active. The empty space between the
    left controls cluster and the right-pinned share button has room
@@ -545,16 +545,16 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .window-row .time.poor  { color: #f87171; }   /* dead-of-night locally */
 .window-row .dur { color: #8899bb; }
 .window-row .dur.good { color: #7fe5d1; }  /* ≥3 min */
-.window-row .dur.ok   { color: #facc15; }  /* 1–3 min */
+.window-row .dur.ok   { color: #facc15; }  /* 1-3 min */
 .window-row .dur.poor { color: #f87171; }  /* <1 min */
 .window-row .alt { text-align: right; }
 .window-row .alt.good { color: #7fe5d1; }  /* high alt: green */
 .window-row .alt.ok   { color: #facc15; }  /* mid alt: yellow */
 .window-row .alt.poor { color: #f87171; }  /* low alt (10-15°): red */
 .window-row .mag { text-align: right; }
-.window-row .mag.brilliant { color: #7fe5d1; } /* < −2 mag: wow pass */
-.window-row .mag.good      { color: #a3e635; } /* −2 to −1: bright */
-.window-row .mag.ok        { color: #facc15; } /* −1 to +1: naked-eye */
+.window-row .mag.brilliant { color: #7fe5d1; } /* < -2 mag: wow pass */
+.window-row .mag.good      { color: #a3e635; } /* -2 to -1: bright */
+.window-row .mag.ok        { color: #facc15; } /* -1 to +1: naked-eye */
 .window-row .mag.poor      { color: #f87171; } /* +1 and dimmer: faint */
 .window-row .mag.na        { color: #6a7a9a; }
 .window-row .cloud { text-align: right; }
@@ -608,7 +608,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   outline-offset: 1px;
 }
 /* Set by the sighting tracker when this observer's polar plot icon
-   is hidden — wrapper becomes non-interactive (no hover state, no
+   is hidden - wrapper becomes non-interactive (no hover state, no
    click handler reaches it, no :active scale animation, no focus
    ring) since there's no plot to open. Descendants need an explicit
    override because `.observer-label *` (above) re-enables their
@@ -631,7 +631,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 
 /* Polar-plot icon visibility is now driven per-observer by the
-   sighting tracker (preRender hook in pass-finder.js) — each plot
+   sighting tracker (preRender hook in pass-finder.js) - each plot
    shows whenever its observer can see ISS at the current clock
    instant, independent of whether all observers can. Horizon fill is
    a fallback; the JS sets an inline sky-shade fill per frame. */
@@ -646,7 +646,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   stroke-width: 0.8;
 }
 /* Arc is a <g> container; renderArcSegments fills it with <line> and
-   <polyline> children — stroke + dasharray are set inline per child
+   <polyline> children - stroke + dasharray are set inline per child
    so the per-segment magnitude opacity and dashed-when-eclipsed
    styling can vary along the path. Only width and join style are
    shared and live here. Stroke-width inflated because this icon
@@ -723,7 +723,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   background: rgba(10, 14, 26, 0.95);
   border: 1px solid rgba(100, 140, 255, 0.35);
   border-radius: 12px;
-  /* Minimal padding so the modal hugs the image — the image already
+  /* Minimal padding so the modal hugs the image - the image already
      has viewBox margins that act as visual padding within the render. */
   padding: 2px 3px 2px;
   max-width: min(98vw, 98vh);
@@ -791,7 +791,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .polar-modal-svg .iss-dot {
   fill: #ffffff; stroke: #7eb8ff; stroke-width: 0.7;
 }
-/* .star-dot fill is set inline per-star (spectral-class color) — no
+/* .star-dot fill is set inline per-star (spectral-class color) - no
    page rule, since a class selector would beat the presentation attr. */
 .polar-modal-svg .star-name {
   fill: #8aa0c8; font-size: 3.2px; opacity: 0.85;

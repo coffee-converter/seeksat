@@ -233,7 +233,7 @@ test('radioDurationFactor: asymptotes at 1', () => {
 
 test('magnitudeAt: returns null when ISS is between observer and sun (back-lit)', () => {
   // Observer at (lat=0, lon=0, alt=0) = ECEF roughly (6378137, 0, 0).
-  // Place ISS at (6378137 + 400_000, 0, 0) — directly above observer.
+  // Place ISS at (6378137 + 400_000, 0, 0) - directly above observer.
   // Sun direction = -x (sun at the antisun side, away from ISS-observer).
   // dx = obsEcef.x - issEcef.x = -400_000 (toward earth from ISS)
   // sunDir = (-1, 0, 0)
@@ -244,8 +244,8 @@ test('magnitudeAt: returns null when ISS is between observer and sun (back-lit)'
   // on the side AWAY from observer).
   // observer→ISS = (400_000, 0, 0), so vector from ISS to observer is
   // (-400_000, 0, 0), which is dx,dy,dz.
-  // If the sun is at sunDir = (-1, 0, 0) — pointing toward earth from
-  // ISS — then ISS is lit on the +x side; we look from -x. Lit side away.
+  // If the sun is at sunDir = (-1, 0, 0) - pointing toward earth from
+  // ISS - then ISS is lit on the +x side; we look from -x. Lit side away.
   // cosAlpha = dx*sunDir.x = (-400_000)*(-1)/400_000 = 1 → F=1 (BRIGHT).
   // For F=0 we need cosAlpha = -1 → dx and sunDir opposite signs.
   // sunDir = (+1,0,0): cosAlpha = -400_000 * 1 / 400_000 = -1 → F=0.
@@ -283,7 +283,7 @@ test('magnitudeAt: returns null when observer at ISS position (range 0)', () => 
   assert.equal(m, null);
 });
 
-test('magnitudeAt: range matters — further → dimmer (higher m)', () => {
+test('magnitudeAt: range matters - further → dimmer (higher m)', () => {
   const obs = { latDeg: 0, lonDeg: 0 };
   const sunDir = [-1, 0, 0]; // fully lit
   const closer = magnitudeAt(obs, [6378137 + 400_000, 0, 0], sunDir);

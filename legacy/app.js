@@ -24,11 +24,11 @@ import { wireCameraControls } from "./camera-controls.js";
 
 const Cesium = window.Cesium;
 
-// Build the viewer without imagery — we install our own provider via the
+// Build the viewer without imagery - we install our own provider via the
 // imagery-picker dropdown below.
 const viewer = makeViewer("cesium-container", { imagery: false });
 
-// No Cesium Ion auth — list of free imagery providers with no token required.
+// No Cesium Ion auth - list of free imagery providers with no token required.
 const IMAGERY_PROVIDERS = [
   { id: "esri-imagery",       label: "Esri Imagery (satellite)",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -80,16 +80,16 @@ wireSimTime(viewer, { precision: 4 }); // observation timestamp has 4-decimal su
 window.__viewer = viewer; // for debugging in dev console
 console.log("Cesium viewer ready");
 
-// Pane toggle — slides #panel-observations off-screen via the
+// Pane toggle - slides #panel-observations off-screen via the
 // .panel-collapsed body class (all visual changes are CSS-driven).
 document.getElementById("panel-toggle").addEventListener("click", () => {
   document.body.classList.toggle("panel-collapsed");
 });
 
 // Triangulation attempts come from two sources:
-//   - Manifest (data/attempts.json) — read-only, ships with the site.
+//   - Manifest (data/attempts.json) - read-only, ships with the site.
 //     Each entry: { id, label, file }.
-//   - User-created — stored in localStorage under USER_ATTEMPTS_KEY,
+//   - User-created - stored in localStorage under USER_ATTEMPTS_KEY,
 //     fully editable, downloadable as JSON so the user can commit
 //     them to data/ later. Each entry: { id, label, timestampUTC,
 //     observations, defaultTle?, createdAt }.
@@ -129,7 +129,7 @@ function loadUserAttempts() {
   }
 }
 function saveUserAttempts(list) {
-  // Drop transient source: flag before serializing — it's derived.
+  // Drop transient source: flag before serializing - it's derived.
   const serializable = list.map(({ source: _src, ...rest }) => rest);
   localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable));
 }
@@ -270,7 +270,7 @@ let recompute = function () {
 
   // Observers with complete location render a pin. Those that also
   // have a direction get a ray. Triangulation runs only when there
-  // are ≥2 fully-complete observations — but we still want each
+  // are ≥2 fully-complete observations - but we still want each
   // individual ray to render before that, so the user can see
   // alignment as they add data.
   const located = state.observations.filter(obsHasLocation);
@@ -289,7 +289,7 @@ let recompute = function () {
     state.residuals = [];
   }
 
-  // Observer pins — anchor at sea level (elev 0) so the dot sits on the
+  // Observer pins - anchor at sea level (elev 0) so the dot sits on the
   // rendered globe surface (Cesium's ellipsoid imagery has no 3D terrain).
   // Math still uses the observer's real elevation for the ray direction.
   for (const obs of located) {
@@ -315,7 +315,7 @@ let recompute = function () {
     }));
   }
 
-  // Rays as polylines extending past the triangulated point — drawn
+  // Rays as polylines extending past the triangulated point - drawn
   // whenever an observer has a complete direction, even when there
   // aren't yet ≥2 to triangulate. Length defaults to 1000 km when
   // there's nothing to anchor to.
@@ -489,7 +489,7 @@ function buildObsCard(obs, idx) {
   }
 
   // null-friendly defaults: a brand-new observation has no values
-  // for direction yet — show empty inputs rather than "0" zeros.
+  // for direction yet - show empty inputs rather than "0" zeros.
   const v1Source = obs.dir.mode === "radec" ? obs.dir.raHours : obs.dir.azDeg;
   const v2Source = obs.dir.mode === "radec" ? obs.dir.decDeg : obs.dir.altDeg;
   const v1Default = obs.rawV1 ?? (v1Source != null ? String(v1Source) : "");
@@ -519,7 +519,7 @@ function buildObsCard(obs, idx) {
 // bubbles to obsList's listener while DOM is partially empty, the
 // reparse will see fewer rows than state and shrink state.observations
 // to that shorter length. Setting a flag skips reparses for the
-// duration of the rebuild — state stays the authoritative source.
+// duration of the rebuild - state stays the authoritative source.
 let _suppressReparse = false;
 function renderObsList() {
   _suppressReparse = true;
@@ -542,7 +542,7 @@ function reparseObsFromDom() {
   if (_suppressReparse) return;
   const rows = [...obsList.querySelectorAll(".obs-card")];
   // Always preserve a slot per DOM row. When a field fails to parse,
-  // keep the previous state's value for that field — so partial
+  // keep the previous state's value for that field - so partial
   // typing doesn't drop the whole row, and the form keeps what the
   // user typed (rendered via the rawV1/rawV2/rawLat/rawLon fields).
   const next = rows.map((tr, idx) => {
@@ -588,7 +588,7 @@ function reparseObsFromDom() {
   // Refresh the "From <name>" camera buttons so renames in the obs-list
   // propagate immediately. Cheap DOM mutation that doesn't touch state.
   renderFromObserverButtons();
-  // Always recompute — even with 0 or 1 obs, so clearLayer() wipes
+  // Always recompute - even with 0 or 1 obs, so clearLayer() wipes
   // any stale rays / triangulated point from a previous state. The
   // function itself bails out before triangulating when there aren't
   // enough rays.
@@ -619,7 +619,7 @@ obsList.addEventListener("click", (ev) => {
 
 addBtn.addEventListener("click", () => {
   // Capture whatever the user has typed in existing rows BEFORE we
-  // wipe + rebuild the DOM — otherwise typing in row 0 and then
+  // wipe + rebuild the DOM - otherwise typing in row 0 and then
   // clicking +Add would lose row 0's edits.
   reparseObsFromDom();
   const idx = state.observations.length;
@@ -815,7 +815,7 @@ function renderTruth() {
 }
 
 // Read the TLE form into the JSON shape stored on disk / in attempts.
-// Returns null when all three textareas are empty — that distinguishes
+// Returns null when all three textareas are empty - that distinguishes
 // "user cleared the TLE" from "TLE was never set".
 function currentTleFromForm() {
   const name = tleL1.value.trim();
@@ -842,7 +842,7 @@ function updateTleControlsState() {
   const ageHours = Number.isFinite(ms) ? (Date.now() - ms) / 3_600_000 : 0;
   if (!hasContent && ageHours > 24) {
     tleWarnEl.hidden = false;
-    tleWarnEl.textContent = `⚠ ${Math.round(ageHours)}h ago — current TLE won't match`;
+    tleWarnEl.textContent = `⚠ ${Math.round(ageHours)}h ago - current TLE won't match`;
   } else {
     tleWarnEl.hidden = true;
   }
@@ -890,7 +890,7 @@ tleFetchBtn.addEventListener("click", async () => {
 
 // Pre-fill TLE inputs from the loaded attempt. switchAttempt() below
 // mirrors this when the user picks a different attempt from the
-// dropdown — passing null clears the form so a stale TLE from one
+// dropdown - passing null clears the form so a stale TLE from one
 // attempt can't bleed into the next.
 function applyDefaultTle(defaultTle) {
   if (defaultTle) {
@@ -971,7 +971,7 @@ const cameraCtrl = wireCameraControls(viewer, {
     const baselineDeg = Math.atan2(dx, dy) * 180 / Math.PI;
     // Two perpendiculars to the baseline give equally-valid "from
     // the side" views. Prefer whichever sits closer to looking-from-
-    // south (heading 180°) — keeps map north up and the scene
+    // south (heading 180°) - keeps map north up and the scene
     // tilted toward the viewer the way we naturally read maps.
     const norm = (a) => ((a % 360) + 360) % 360;
     const cand1 = norm(baselineDeg + 90);
@@ -994,7 +994,7 @@ const cameraCtrl = wireCameraControls(viewer, {
     for (const p of skyPoints) {
       ps.push(p);
       // Sample the ground projection so the bounding sphere isn't a
-      // thin sliver dominated by ISS altitude — pulling in the sub-
+      // thin sliver dominated by ISS altitude - pulling in the sub-
       // point gives the frame a sensible footprint even when observers
       // are close together.
       const cart = Cesium.Cartographic.fromCartesian(p);
@@ -1044,7 +1044,7 @@ function setObserverVisibility(hiddenIdx) {
 function viewFromObserver(idx) {
   const obs = state.observations[idx];
   if (!obs || !obsHasLocation(obs)) return;
-  // Keep all observers visible — camera sits 50 m behind the observer so the
+  // Keep all observers visible - camera sits 50 m behind the observer so the
   // pin/label is in the foreground rather than blocking the lens.
   const origin = geodeticToEcef(obs.latDeg, obs.lonDeg, obs.elevM || 0);
   // Target: the triangulated point if we have one; otherwise a virtual
@@ -1139,7 +1139,7 @@ function repopulateAttemptSelect(activeId) {
     attemptSelect.appendChild(opt);
   }
   if (activeId) attemptSelect.value = activeId;
-  // Download is always available — covers both built-in and user
+  // Download is always available - covers both built-in and user
   // attempts (exports current state). Delete is only for user-
   // created entries (built-ins can't be removed; they're in data/).
   const active = combined.find(a => a.id === attemptSelect.value);
@@ -1155,7 +1155,7 @@ async function switchAttempt(id) {
   const data = await fetchAttemptData(entry);
   state.timestampUTC = data.timestampUTC ?? "";
   state.observations = data.observations ?? [];
-  // Update active-attempt pointers BEFORE the render/recompute pass —
+  // Update active-attempt pointers BEFORE the render/recompute pass -
   // recompute fires persistCurrent, which keys on currentAttemptId.
   // If we updated those AFTER recompute, switching A→B would persist
   // B's just-loaded data under A's id and corrupt both records.
@@ -1227,7 +1227,7 @@ attemptNewForm.addEventListener("submit", async (ev) => {
   const id = `user-${slug || "attempt"}-${Date.now().toString(36)}`;
   const observations = copy ? JSON.parse(JSON.stringify(state.observations)) : [];
   // Reassign observation ids so the new attempt doesn't share rows
-  // with the source — otherwise editing one would update both via
+  // with the source - otherwise editing one would update both via
   // the obs-card's id-keyed DOM lookup.
   for (const o of observations) o.id = `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   persistUserAttempt({
@@ -1243,7 +1243,7 @@ attemptNewForm.addEventListener("submit", async (ev) => {
 
 // ---- Download JSON --------------------------------------------------
 // Exports CURRENT state (timestampUTC + observations + the active
-// attempt's defaultTle if any) regardless of source — that's the
+// attempt's defaultTle if any) regardless of source - that's the
 // natural "save my edits to disk" affordance for both built-in and
 // user-created attempts.
 attemptDownloadBtn.addEventListener("click", () => {
@@ -1273,7 +1273,7 @@ attemptDownloadBtn.addEventListener("click", () => {
 // ---- Delete attempt -------------------------------------------------
 attemptDeleteBtn.addEventListener("click", () => {
   if (currentAttemptSource !== "user") return;
-  if (!confirm(`Delete this attempt? (browser-local only — won't touch data/)`)) return;
+  if (!confirm(`Delete this attempt? (browser-local only - won't touch data/)`)) return;
   deleteUserAttempt(currentAttemptId);
   // Switch to first remaining attempt.
   const combined = [...manifestAttempts, ...loadUserAttempts()];

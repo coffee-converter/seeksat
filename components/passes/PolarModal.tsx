@@ -28,7 +28,7 @@ export default function PolarModal() {
   const linkRef = useRef<HTMLAnchorElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
-  // Modal stays hidden until the SVG + PNG blob are ready — matches
+  // Modal stays hidden until the SVG + PNG blob are ready - matches
   // the legacy flow (cursor: progress; then reveal). Without this, a
   // fast click would flash an empty modal for the ~50-250ms render
   // time. `renderedObsId === obsId` is the gate.
@@ -109,7 +109,7 @@ export default function PolarModal() {
       id="polar-modal"
       role="dialog"
       aria-modal="true"
-      aria-label={obsName ? `Sky chart — ${obsName}` : "Pass sky chart"}
+      aria-label={obsName ? `Sky chart - ${obsName}` : "Pass sky chart"}
       hidden={!visible}
     >
       <div className="polar-modal-backdrop" onClick={() => setObsId(null)} />

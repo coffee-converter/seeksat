@@ -1,4 +1,4 @@
-// lib/types.ts — shared type definitions for the React-ified app.
+// lib/types.ts - shared type definitions for the React-ified app.
 //
 // Pure TS; no DOM/Cesium imports. Used by the Zustand store, every UI
 // component, and the eventual alert-runner backend.
@@ -30,7 +30,7 @@ export type ObservationDirection =
 
 /** One observer-station reading. */
 export interface Observation {
-  /** Stable id — used as React key and for lookups. */
+  /** Stable id - used as React key and for lookups. */
   id: string;
   /** User-editable label ("Obs 1", "Roof of building A", etc.). */
   name: string;
@@ -45,10 +45,10 @@ export interface Observation {
    */
   elevM?: number | null;
   dir: ObservationDirection;
-  /** Raw user input — preserved across re-renders so the textarea
+  /** Raw user input - preserved across re-renders so the textarea
    *  doesn't snap back to the parsed value while the user is mid-type
    *  (e.g. "40°30'" parses, "40°30'1" doesn't, "40°30'15.9" parses
-   *  again — without rawLat the input would lose the user's keystrokes
+   *  again - without rawLat the input would lose the user's keystrokes
    *  between the second and third state). */
   rawLat?: string;
   rawLon?: string;
@@ -71,7 +71,7 @@ export interface ManifestAttemptEntry {
 }
 
 /**
- * User-created attempt — fully editable, stored as a single record
+ * User-created attempt - fully editable, stored as a single record
  * in localStorage under USER_ATTEMPTS_KEY. The `+` button on the
  * attempt picker creates one; the trash button deletes it.
  */
@@ -88,7 +88,7 @@ export interface UserAttemptEntry {
 export type AttemptEntry = ManifestAttemptEntry | UserAttemptEntry;
 
 /**
- * Resolved payload of an attempt — what fetchAttemptData returns.
+ * Resolved payload of an attempt - what fetchAttemptData returns.
  * For manifest attempts this is fetched from /data/<file>; for user
  * attempts it's the full record. Either way the runtime state shape
  * is the same.

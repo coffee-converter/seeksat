@@ -29,7 +29,7 @@ test('polarModalFileNameFor: positive-offset tz drops the +', () => {
   const fn = polarModalFileNameFor(
     { name: 'Tokyo', tz: 'Asia/Tokyo' }, ms,
   );
-  // Offset tag becomes "+0900" — the replace strips "GMT" + ":".
+  // Offset tag becomes "+0900" - the replace strips "GMT" + ":".
   assert.equal(fn, 'iss-pass-tokyo-2025-06-16T073541+0900.png');
 });
 
@@ -63,7 +63,7 @@ test('polarModalFileNameFor: null obs returns observer-prefixed name', () => {
 
 test('polarModalFileNameFor: invalid tz falls back to Z (no throw)', () => {
   const fn = polarModalFileNameFor({ name: 'X', tz: 'Not/A_Real_Zone' }, ms);
-  // The tz lookup is wrapped in try/catch — offsetSlug stays "Z" and
+  // The tz lookup is wrapped in try/catch - offsetSlug stays "Z" and
   // the timezone-formatted date may use the runtime's local zone OR
   // throw inside Intl.DateTimeFormat earlier. We just check the file
   // ends with .png and starts with iss-pass-x-.

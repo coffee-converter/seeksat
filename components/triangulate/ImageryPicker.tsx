@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useViewer } from "@/lib/cesium-viewer-context";
 
 // Imagery picker. The list is no-auth tile sources (Esri / OSM /
-// CartoDB) — same set the legacy bundle shipped with. Viewer comes
+// CartoDB) - same set the legacy bundle shipped with. Viewer comes
 // from the CesiumViewerProvider; until it lands the select is
 // rendered but inert and no layer install runs.
 const IMAGERY_PROVIDERS = [

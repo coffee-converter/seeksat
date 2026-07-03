@@ -26,7 +26,7 @@ export default function TriangulateApp() {
   const { viewer, status } = useCesiumViewer(containerRef, { imagery: false });
   const { ready: attemptsReady } = useTriangulateAttempts();
   const [sceneReady, setSceneReady] = useState(false);
-  // Panel-collapse is local state — nothing else (scene, sibling
+  // Panel-collapse is local state - nothing else (scene, sibling
   // pages) needs to read or set it, so the triangulate store doesn't
   // get a slice for it. body.panel-collapsed drives the CSS slide-out
   // (globals.css + the scene's camera viewport-inset calc).
@@ -38,8 +38,8 @@ export default function TriangulateApp() {
     let teardown: (() => void) | undefined;
     // Dynamic import (not static): the scene module + its transitive
     // deps capture window.Cesium at module-evaluation time. With a
-    // static import the module would evaluate at page load — before
-    // Cesium has finished downloading — and freeze in an undefined
+    // static import the module would evaluate at page load - before
+    // Cesium has finished downloading - and freeze in an undefined
     // Cesium. The dynamic import defers evaluation until
     // useCesiumViewer has confirmed Cesium is ready.
     (async () => {
@@ -112,7 +112,7 @@ export default function TriangulateApp() {
         </button>
       </nav>
 
-      <div id="sim-time">—</div>
+      <div id="sim-time">-</div>
 
       {showOverlay && (
         <div

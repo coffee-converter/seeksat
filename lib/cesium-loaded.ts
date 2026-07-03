@@ -1,4 +1,4 @@
-// lib/cesium-loaded.ts — single source of truth for "has the Cesium
+// lib/cesium-loaded.ts - single source of truth for "has the Cesium
 // CDN script finished loading?"
 //
 // Replaces the prior 100ms-polling-with-10s-timeout pattern in

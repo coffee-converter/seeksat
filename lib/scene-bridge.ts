@@ -1,8 +1,8 @@
-// lib/scene-bridge.ts — typed boundary between the imperative scene
+// lib/scene-bridge.ts - typed boundary between the imperative scene
 // island (lib/pass-finder-scene.js) and the React components.
 //
 // Why a registry instead of `window.__passes*` properties:
-//   - Single typed surface — components import wrapper functions
+//   - Single typed surface - components import wrapper functions
 //     instead of fishing functions off `window` with `as any` casts.
 //   - One registration call in scene init; one clear on teardown.
 //     No proliferation of `window.foo = bar` / `delete window.foo`.
@@ -11,7 +11,7 @@
 // The registry deliberately lives on `globalThis` (not module state)
 // so React's dynamic-import boundary doesn't end up with one copy
 // in the chunk that holds the components and a separate copy in the
-// chunk that holds the scene — there'd be no shared module state to
+// chunk that holds the scene - there'd be no shared module state to
 // register against, and components would always see an empty bridge.
 
 export interface PolarModalRenderResult {
@@ -61,7 +61,7 @@ declare global {
 
 // Scene init calls this with a fully-populated bridge; teardown
 // calls clearSceneBridge. Either call replaces the prior bridge in
-// one assignment — no partial updates.
+// one assignment - no partial updates.
 export function setSceneBridge(bridge: SceneBridge): void {
   globalThis.__sceneBridge = bridge;
 }
@@ -71,14 +71,14 @@ export function clearSceneBridge(): void {
 }
 
 // Wrappers consumed by React components. Each one throws a clear
-// error when the scene isn't initialized yet — better than silently
+// error when the scene isn't initialized yet - better than silently
 // no-op'ing, which historically masked bugs (e.g. the polar modal
 // silently failing because the scene's import order was wrong).
 function bridge(): SceneBridge {
   const b = globalThis.__sceneBridge;
   if (!b) {
     throw new Error(
-      "Scene bridge not initialized — the pass-finder scene module " +
+      "Scene bridge not initialized - the pass-finder scene module " +
       "must call setSceneBridge before any component invokes a bridge fn.",
     );
   }
@@ -109,7 +109,7 @@ export const toggleFps: SceneBridge["toggleFps"] = (obsId) =>
 /** True when the scene has registered its bridge. Components can
  *  check this before calling a wrapper if they need to render a
  *  placeholder during the brief window between mount and scene
- *  init. (None do currently — the scene init useEffect runs before
+ *  init. (None do currently - the scene init useEffect runs before
  *  any user interaction can reach the bridge consumers.) */
 export function isSceneBridgeReady(): boolean {
   return globalThis.__sceneBridge !== undefined;

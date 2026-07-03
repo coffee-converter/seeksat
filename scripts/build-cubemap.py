@@ -38,7 +38,7 @@ QUALITY = 85
 # Cesium's SkyBox loads cubemap faces with image-top == texture-top (verified
 # empirically with a labelled test cubemap), which is the opposite of the
 # raw OpenGL spec where texture t=0 is bottom. We compensate by negating the
-# t component of every face's ray equation — equivalent to a per-face vflip
+# t component of every face's ray equation - equivalent to a per-face vflip
 # on the OpenGL-spec output.
 FACES = {
     "px": lambda s, t: (np.ones_like(s),   t, -s),
@@ -78,7 +78,7 @@ def build_face(equirect, dir_fn):
     norm = np.sqrt(x * x + y * y + z * z)
     x, y, z = x / norm, y / norm, z / norm
     # NASA equirect: laid out as if viewed from OUTSIDE the celestial sphere
-    # (RA increases left-to-right with RA=0 at the image centre — the "star
+    # (RA increases left-to-right with RA=0 at the image centre - the "star
     # atlas" convention). Cesium's SkyBox is viewed from INSIDE the cube, so
     # we negate longitude in the lookup to invert east/west and produce the
     # correct in-sky orientation. NCP stays at row 0 because the polar axis

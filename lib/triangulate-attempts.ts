@@ -1,4 +1,4 @@
-// lib/triangulate-attempts.ts — pure data layer for the triangulate
+// lib/triangulate-attempts.ts - pure data layer for the triangulate
 // attempt list. Fetches the read-only manifest from /data/, overlays
 // browser-local manifest overrides + user attempts from localStorage,
 // and provides helpers for persisting / deleting user attempts.
@@ -81,7 +81,7 @@ export function persistUserAttempt(attempt: UserAttemptEntry): void {
   if (idx >= 0) next[idx] = attempt;
   else next.push(attempt);
   // Re-use saveUserAttempts logic inline so we don't need to export
-  // it separately — drops the transient `source` flag before serialise.
+  // it separately - drops the transient `source` flag before serialise.
   if (typeof localStorage === "undefined") return;
   const serializable = next.map(({ source: _s, ...rest }) => rest);
   localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable));

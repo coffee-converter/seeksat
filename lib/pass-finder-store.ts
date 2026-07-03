@@ -1,4 +1,4 @@
-// lib/pass-finder-store.ts — Zustand store for the pass-finder page.
+// lib/pass-finder-store.ts - Zustand store for the pass-finder page.
 //
 // Owns the React-visible slices of state: mode toggle, min elevation,
 // TLE form. The bulky observer / windows / cloud-forecast state still
@@ -13,11 +13,11 @@ import { selectionUpdate } from "./pass-finder/satellite-seed.js";
 export type PassMode = "visual" | "radio";
 
 /** One pass-finder observer station (lighter than the triangulate
- *  observer — no direction, just a location + cosmetic info). */
+ *  observer - no direction, just a location + cosmetic info). */
 export interface PassObserver {
   id: string;
   name: string;
-  /** Hex color from PALETTE — used for the polar plot arc + pin. */
+  /** Hex color from PALETTE - used for the polar plot arc + pin. */
   color: string;
   latDeg: number;
   lonDeg: number;
@@ -27,16 +27,16 @@ export interface PassObserver {
 
 /** One row in the passes table. The bootstrap pre-computes all the
  *  rating / color / formatted text per cell so the React renderer is
- *  pure presentation — keeps every domain function (passSuccessProb,
+ *  pure presentation - keeps every domain function (passSuccessProb,
  *  altitudeFactor, ratingCssColor, …) inside the scene island. */
 export interface WindowCell {
-  /** CSS class — drives column-specific styling (rating / time /
+  /** CSS class - drives column-specific styling (rating / time /
    *  dur / alt / mag / sun / cloud). */
   className: string;
   text: string;
   color?: string;
   title?: string;
-  /** Set when the cell renders "—" because data isn't available. */
+  /** Set when the cell renders "-" because data isn't available. */
   na?: boolean;
 }
 export interface WindowDisplayRow {
@@ -56,7 +56,7 @@ export interface PassFinderState {
   tleStatus: "idle" | "fetching" | "ready" | "error";
   /** NORAD id of the currently selected satellite (default ISS). */
   selectedNoradId: number;
-  /** Cached TLEs keyed by NORAD id — server-seeded, refreshed on select. */
+  /** Cached TLEs keyed by NORAD id - server-seeded, refreshed on select. */
   satelliteTles: Record<number, Tle>;
   /** When true, the next globe-click creates an observer at that
    *  ECEF point instead of doing normal camera interactions. */
@@ -93,7 +93,7 @@ export interface PassFinderState {
   windowSelectNonce: number;
   /** When set, the polar-modal renders for this observer id. */
   polarModalObsId: string | null;
-  /** Left panel collapsed state — body.panel-collapsed mirror.
+  /** Left panel collapsed state - body.panel-collapsed mirror.
    *  Drives both the user-toggleable panel and the auto-collapse on
    *  narrow viewports when a pass is selected. */
   panelCollapsed: boolean;

@@ -60,7 +60,7 @@ export default function McpDocsPage() {
           <li><strong>Cron-cached, epoch-guarded TLEs.</strong> A 6-hour cron refreshes TLEs
             into Edge Config; requests read from the cache (sub-ms), never upstream. A flaky
             source returning an older element set can&apos;t clobber good data, and an upstream
-            outage just means serving the last-known-good TLE — still SGP4-valid for days.</li>
+            outage just means serving the last-known-good TLE - still SGP4-valid for days.</li>
           <li><strong>Engine reuse.</strong> Every pass number comes from the same unit-tested
             <code> lib/pass-finder/*</code> modules that drive the web app, so the two faces
             can&apos;t drift.</li>

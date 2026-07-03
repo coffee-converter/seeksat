@@ -2,7 +2,7 @@ name: ci
 
 # Runs the test suite + TS type check on every push and every PR.
 # Failing checks block merges (when branch protection is enabled).
-# Build is intentionally NOT here — Next builds pull large deps and
+# Build is intentionally NOT here - Next builds pull large deps and
 # the build artifact isn't deployed from CI; cover that with Vercel's
 # own preview deploy or a separate workflow.
 
@@ -12,7 +12,7 @@ on:
   pull_request:
     branches: [main, react-port]
 
-# Cancel in-progress runs on the same ref when a new push arrives —
+# Cancel in-progress runs on the same ref when a new push arrives -
 # saves runner minutes on rapid pushes. Both inputs are predefined
 # GitHub context values (workflow name + branch ref), not user data.
 concurrency:

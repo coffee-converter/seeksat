@@ -1,4 +1,4 @@
-// app/llms.txt/route.ts — serves /llms.txt. A route handler (not a static
+// app/llms.txt/route.ts - serves /llms.txt. A route handler (not a static
 // public/ file) so it shares lib/mcp/discovery.mjs and can't drift.
 import { SITE_URL } from '@/lib/site.mjs';
 import { buildLlmsTxt } from '@/lib/mcp/llms-txt.mjs';

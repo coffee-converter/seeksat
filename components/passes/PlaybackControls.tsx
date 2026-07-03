@@ -8,7 +8,7 @@ import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 // Play / Pause / Reset buttons + speed picker. Clock manipulation is
 // pure Cesium API; Reset also clears the active window via the store
 // (the scene subscribes to activeWindowIdx and handles the visual
-// teardown). Viewer comes from the CesiumViewerProvider — null until
+// teardown). Viewer comes from the CesiumViewerProvider - null until
 // the CDN script + container both land.
 export default function PlaybackControls() {
   const { viewer } = useViewer();
@@ -16,7 +16,7 @@ export default function PlaybackControls() {
   // viewer.clock.multiplier is the source of truth. The dropdown just
   // mirrors it. The scene writes the clock directly (10× after a
   // search, 1× on the no-observers boot), so we can't sync once on
-  // mount — we'd go stale. Instead we track the clock every frame via
+  // mount - we'd go stale. Instead we track the clock every frame via
   // onTick (fires continuously even while paused) so the dropdown
   // always shows the real speed.
   const [multiplier, setMultiplier] = useState(1);

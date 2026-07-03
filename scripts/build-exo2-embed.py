@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# scripts/build-exo2-embed.py — regenerate lib/pass-finder/exo2-embed.js.
+# scripts/build-exo2-embed.py - regenerate lib/pass-finder/exo2-embed.js.
 #
 # Downloads the Exo 2 variable font (Google Fonts, OFL), instances it to
 # the two weights the SeekSat wordmark/URL watermark uses, subsets to
@@ -7,7 +7,7 @@
 # @font-face module that polar-modal-frame.js inlines into the chart SVG.
 #
 # Why embed instead of a <link>: the polar modal exports to PNG by
-# serializing the SVG into a standalone <img> and rasterizing it — a path
+# serializing the SVG into a standalone <img> and rasterizing it - a path
 # that can't fetch external fonts. Only data: URIs inside the SVG's own
 # <style> survive. See lib/pass-finder/polar-png.js.
 #
@@ -67,13 +67,13 @@ def main() -> None:
         )
     body = "\n".join(faces)
     js = (
-        "// lib/pass-finder/exo2-embed.js — Exo 2 (Google Fonts, OFL) subset\n"
+        "// lib/pass-finder/exo2-embed.js - Exo 2 (Google Fonts, OFL) subset\n"
         "// to just the glyphs used by the SeekSat wordmark + URL watermark,\n"
         "// instanced to two weights and embedded as base64 woff2 @font-face\n"
         "// rules. Embedding (rather than a Google Fonts <link>) is REQUIRED so\n"
         "// the font survives PNG export: the modal SVG is serialized into a\n"
         "// standalone <img> and rasterized to canvas, a path that can't fetch\n"
-        "// external font resources — only data: URIs inside the SVG's own\n"
+        "// external font resources - only data: URIs inside the SVG's own\n"
         "// <style> apply. The same rules also drive the on-screen modal, so a\n"
         "// single embed covers both. Regenerate via scripts/build-exo2-embed.py\n"
         "// if the wordmark text or weights change.\n"

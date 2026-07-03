@@ -6,15 +6,15 @@ import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
 import "./globals.css";
 const SITE_NAME = "SeekSat";
-// SEO title: ~52 chars (target 50–60) so search results don't truncate
+// SEO title: ~52 chars (target 50-60) so search results don't truncate
 // and the page reads as more than a bare brand name. SITE_NAME stays the
 // short brand for og:site_name, the title template, and applicationName.
-const SITE_TITLE = "SeekSat — Satellite & ISS Pass Forecasts for Any Sky";
-// Meta description: ~146 chars (target 110–160). The longer marketing
+const SITE_TITLE = "SeekSat - Satellite & ISS Pass Forecasts for Any Sky";
+// Meta description: ~146 chars (target 110-160). The longer marketing
 // blurb was 198 chars and got truncated in results.
 const SITE_DESCRIPTION =
   "Find when the ISS and other satellites pass over your ground stations " +
-  "— a 3D globe, multi-station overhead timing, and polar sky charts per pass.";
+  "- a 3D globe, multi-station overhead timing, and polar sky charts per pass.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     "satellite visibility",
   ],
   authors: [{ name: SITE_NAME }],
-  // Canonical link element — points search engines at the apex URL
+  // Canonical link element - points search engines at the apex URL
   // even when the page is reached via a www/Vercel-preview alias.
   alternates: { canonical: "/" },
   openGraph: {
@@ -41,14 +41,14 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     url: "/",
     locale: "en_US",
-    // /og.png is a 1200×630 image that doesn't exist yet — drop one
+    // /og.png is a 1200×630 image that doesn't exist yet - drop one
     // in public/og.png to populate. Until it exists, social previews
     // fall back to whatever the platform scrapes from the page.
     images: [{
       url: "/og.png",
       width: 1200,
       height: 630,
-      alt: `${SITE_NAME} — satellite pass forecasts`,
+      alt: `${SITE_NAME} - satellite pass forecasts`,
     }],
   },
   twitter: {
@@ -67,12 +67,12 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  // Hints to browsers/PWA installers. `manifest` is omitted — drop a
+  // Hints to browsers/PWA installers. `manifest` is omitted - drop a
   // public/manifest.webmanifest in later if a PWA install matters.
   formatDetection: { telephone: false, email: false, address: false },
 };
 
-// `themeColor` + `viewport` moved out of `metadata` in Next 14 — they
+// `themeColor` + `viewport` moved out of `metadata` in Next 14 - they
 // belong in a separate `viewport` export. Matches the page background
 // in globals.css (#0a0e1a) so mobile address-bar / standalone-PWA
 // chrome blends in instead of flashing white.
@@ -82,7 +82,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-// Cesium 1.141 — same version the legacy static pages used. Loaded
+// Cesium 1.141 - same version the legacy static pages used. Loaded
 // as a side-effect global from CDN; CSS first so widget styles are
 // present before any component mounts a Viewer. CesiumLoader is a
 // tiny client component wrapping next/script's <Script onReady> so
@@ -97,7 +97,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Exo 2 (subset, base64) for the SeekSat brand wordmark. Same
-            embed the polar-chart export uses — inlined here so the font
+            embed the polar-chart export uses - inlined here so the font
             is available document-wide (e.g. the on-scene corner mark)
             with no extra network fetch or flash of fallback text. */}
         <style dangerouslySetInnerHTML={{ __html: EXO2_FONT_FACE }} />

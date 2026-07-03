@@ -15,7 +15,7 @@ export default function CesiumLoader({ src }: { src: string }) {
       strategy="afterInteractive"
       // onReady fires after the script first loads AND on every
       // remount (e.g. SPA navigation back to a Cesium page), which
-      // is what we want — useCesiumViewer subscribes per mount.
+      // is what we want - useCesiumViewer subscribes per mount.
       onReady={() => markCesiumLoaded()}
       onError={() => markCesiumError()}
     />

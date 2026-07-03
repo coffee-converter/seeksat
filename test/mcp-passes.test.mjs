@@ -17,7 +17,7 @@ test('getPosition returns a geodetic sub-point and sunlit flag', () => {
 
 test('findPasses (radio mode) returns ordered windows with the expected shape', () => {
   // Radio mode is deterministic and not gated on twilight/illumination,
-  // so an observer under the ground track will always see passes — a
+  // so an observer under the ground track will always see passes - a
   // robust shape/ordering check independent of sun geometry.
   const passes = findPasses({
     line1: LINE1, line2: LINE2,

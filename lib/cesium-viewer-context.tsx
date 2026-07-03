@@ -1,13 +1,13 @@
 "use client";
 
-// lib/cesium-viewer-context.tsx — React context holding the Cesium
+// lib/cesium-viewer-context.tsx - React context holding the Cesium
 // viewer instance + its load status, so descendants don't have to
 // prop-drill or reach for window globals.
 //
 // Pattern: composition roots own the container ref + call
 // useCesiumViewer, then wrap children in <CesiumViewerProvider
 // viewer={...} status={...}>. Any descendant calls useViewer() to
-// get { viewer, status } back — null/"waiting" until the CDN
+// get { viewer, status } back - null/"waiting" until the CDN
 // script + container both land.
 
 import { createContext, useContext, type ReactNode } from "react";

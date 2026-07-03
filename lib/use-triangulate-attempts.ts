@@ -13,7 +13,7 @@ import {
 // store. Returns whether boot is complete so callers can gate UI.
 //
 // The hook fires once per mount. Re-entry is suppressed by an internal
-// flag — handy for React strict-mode double-invocation when that's
+// flag - handy for React strict-mode double-invocation when that's
 // re-enabled.
 export function useTriangulateAttempts(): { ready: boolean } {
   const [ready, setReady] = useState(false);

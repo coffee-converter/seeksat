@@ -1,4 +1,4 @@
-// lib/store.ts — Zustand store for the triangulate page.
+// lib/store.ts - Zustand store for the triangulate page.
 //
 // State + mutating actions for everything the page tracks:
 //  - the current attempt (manifest or user-created)
@@ -41,7 +41,7 @@ export interface TriangulateState {
   attempts: AttemptEntry[];
   /** Currently selected attempt id, null while loading. */
   currentAttemptId: string | null;
-  /** Source of the currently-selected attempt — drives persistence
+  /** Source of the currently-selected attempt - drives persistence
    *  (user → full record; manifest → overlay) and the delete button. */
   currentAttemptSource: "manifest" | "user" | null;
   /** Time the attempt is centered on (ISO UTC). */
@@ -52,11 +52,11 @@ export interface TriangulateState {
   tle: Tle;
   /** Apply Bennett refraction correction to apparent altitudes. */
   refractionEnabled: boolean;
-  /** Cached triangulated point (ECEF, meters) — null when degenerate. */
+  /** Cached triangulated point (ECEF, meters) - null when degenerate. */
   triangulated: [number, number, number] | null;
   /** Per-ray residuals in meters (parallel to observations by index). */
   residuals: ResidualMeters[];
-  /** TLE-propagated truth position (ECEF, meters) — null when TLE is missing/invalid. */
+  /** TLE-propagated truth position (ECEF, meters) - null when TLE is missing/invalid. */
   truthPos: [number, number, number] | null;
 
   // ---- Actions ----
@@ -169,7 +169,7 @@ export function loadUserAttempts(): UserAttemptEntry[] {
 
 export function saveUserAttempts(list: UserAttemptEntry[]): void {
   if (typeof localStorage === "undefined") return;
-  // Drop transient `source` flag before serializing — it's derived
+  // Drop transient `source` flag before serializing - it's derived
   // when loading.
   const serializable = list.map(({ source: _s, ...rest }) => rest);
   localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable));

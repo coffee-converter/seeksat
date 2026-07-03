@@ -16,7 +16,7 @@ const midnight = new Date(Date.UTC(2025, 2, 20, 0, 0, 0));
 
 // ---- observerSeesIss: mode-aware visibility predicate -------------------
 
-test('observerSeesIss: radio mode — overhead pass passes the elevation gate', () => {
+test('observerSeesIss: radio mode - overhead pass passes the elevation gate', () => {
   // Radio doesn't care about sun, only minElev. Noon → still visible
   // in radio mode.
   assert.equal(
@@ -25,7 +25,7 @@ test('observerSeesIss: radio mode — overhead pass passes the elevation gate', 
   );
 });
 
-test('observerSeesIss: radio mode — far-off ISS fails elevation gate', () => {
+test('observerSeesIss: radio mode - far-off ISS fails elevation gate', () => {
   // ISS at +y way offset: from observer at lat=0/lon=0, apparent alt ≈ 0.
   const issFar = [EARTH_R, 50_000_000, 0];
   assert.equal(
@@ -34,7 +34,7 @@ test('observerSeesIss: radio mode — far-off ISS fails elevation gate', () => {
   );
 });
 
-test('observerSeesIss: visual mode — daylight blocks visibility', () => {
+test('observerSeesIss: visual mode - daylight blocks visibility', () => {
   // Noon at the equator: sun overhead, observer in full daylight.
   // Visual mode also requires twilight + ISS sunlit → fails.
   assert.equal(
@@ -43,7 +43,7 @@ test('observerSeesIss: visual mode — daylight blocks visibility', () => {
   );
 });
 
-test('observerSeesIss: visual mode — midnight overhead pass is visible', () => {
+test('observerSeesIss: visual mode - midnight overhead pass is visible', () => {
   // Midnight equinox: sun at antipode → deep night for observer.
   // ISS at 400 km is sunlit (sun on the opposite side of Earth, but
   // ISS itself is far enough out to catch sun).
@@ -93,7 +93,7 @@ test('passWindowAtMsForObserver: returns null when issEcefAtFn returns null at a
   assert.equal(out, null);
 });
 
-test('passWindowAtMsForObserver: stationary ISS — returns anchor itself when neighbors fail', () => {
+test('passWindowAtMsForObserver: stationary ISS - returns anchor itself when neighbors fail', () => {
   // Synthesize an "ISS" that's only visible AT the anchor and nowhere
   // else (1-step pass). Window collapses to {startMs: anchor, endMs:
   // anchor}.
@@ -123,7 +123,7 @@ test('passWindowAtMsForObserver: walks outward while predicate holds', () => {
 });
 
 test('passWindowAtMsForObserver: caps walk at 15 minutes per side', () => {
-  // ISS always visible — walk should bottom out at the 15min cap.
+  // ISS always visible - walk should bottom out at the 15min cap.
   const anchorMs = noon.getTime();
   const issEcefAtFn = () => ISS_OVERHEAD;
   const out = passWindowAtMsForObserver(

@@ -5,7 +5,7 @@ import { buildShareUrl } from "@/lib/scene-bridge";
 
 // Copies a deep-linkable URL (observers + mode + active pass) to the
 // clipboard. URL construction lives in the scene island (it reads
-// state we haven't yet migrated — observers blob, active window
+// state we haven't yet migrated - observers blob, active window
 // timestamp); we call into it via the typed scene bridge.
 export default function ShareButton() {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");

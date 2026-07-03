@@ -7,7 +7,7 @@ import type { CesiumViewer } from "@/types/cesium";
 
 // Creates a Cesium.Viewer in the supplied container once the CDN
 // script reports ready (via the layout's CesiumLoader / cesium-loaded
-// promise — no polling). Returns:
+// promise - no polling). Returns:
 //   - viewer: the created Viewer, or null until ready
 //   - status: "waiting" | "ready" | "error"
 //

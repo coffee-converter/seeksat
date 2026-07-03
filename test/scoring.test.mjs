@@ -42,7 +42,7 @@ test('captureProbJoint: returns 0 when any observer is below 5° elevation', () 
 
 test('captureProbJoint: returns 0 when sun is above horizon at any observer', () => {
   // captureProbJoint reads sun position via sun.js (date-driven), not as a
-  // parameter — so we pick a real moment when the sun is up at the
+  // parameter - so we pick a real moment when the sun is up at the
   // observer's location. Noon UTC on the spring equinox at lat=0/lon=0
   // puts the sun nearly directly overhead → sun gate trips → score 0.
   const noon = new Date(Date.UTC(2025, 2, 20, 12, 0, 0));
@@ -53,7 +53,7 @@ test('captureProbJoint: returns 0 when sun is above horizon at any observer', ()
 });
 
 test('captureProbJoint: positive value at midnight overhead pass', () => {
-  // Midnight UTC at lon=0, equinox — sun is at the antipode, well below
+  // Midnight UTC at lon=0, equinox - sun is at the antipode, well below
   // horizon. ISS directly overhead at 400 km → high altitude + dark sky.
   const midnight = new Date(Date.UTC(2025, 2, 20, 0, 0, 0));
   const p = captureProbJoint(
@@ -79,7 +79,7 @@ test('captureProbJoint: cloud forecast knocks down the score (MIN combiner)', ()
 
 // ---- passSuccessProbability ---------------------------------------------
 
-test('passSuccessProbability: visual mode — empty window returns 0', () => {
+test('passSuccessProbability: visual mode - empty window returns 0', () => {
   const win = { startMs: 0, endMs: 0 };
   const p = passSuccessProbability(win, [OBS_EQUATOR], {
     mode: 'visual', minElevDeg: 10,
@@ -89,7 +89,7 @@ test('passSuccessProbability: visual mode — empty window returns 0', () => {
   assert.equal(p, 0);
 });
 
-test('passSuccessProbability: visual mode — no observers returns 0', () => {
+test('passSuccessProbability: visual mode - no observers returns 0', () => {
   const win = { startMs: 0, endMs: 60_000 };
   const p = passSuccessProbability(win, [], {
     mode: 'visual', minElevDeg: 10,
@@ -173,7 +173,7 @@ test('radioCaptureAt: any observer below minElev returns 0', () => {
 test('radioCaptureAt: worst observer caps the joint factor', () => {
   // For an ISS at 400 km overhead the equator/lon=0, the geometric
   // horizon limit is ~20° of longitude offset before the ISS dips below
-  // an observer's horizon. Pick obsWest at 10° west — ISS is still
+  // an observer's horizon. Pick obsWest at 10° west - ISS is still
   // ~45° elevation for them, while OBS_EQUATOR sees it overhead.
   const obsWest = { id: 'w', latDeg: 0, lonDeg: -10 };
   const v = radioCaptureAt([OBS_EQUATOR, obsWest], ISS_OVERHEAD, 5);
@@ -218,7 +218,7 @@ test('peakMagnitudeInWindow: returns brightest magnitude (most negative)', () =>
     return [EARTH_R, 2_000_000, 0];
   };
   const m = peakMagnitudeInWindow(w, [OBS_EQUATOR], fn);
-  // Just verify we got a finite number — exact value depends on real
+  // Just verify we got a finite number - exact value depends on real
   // sunPositionEcef at the chosen date.
   assert.ok(m !== null);
   assert.ok(typeof m === 'number');

@@ -66,7 +66,7 @@ export default function PageLoader({ done }: { done: boolean }) {
   useEffect(() => {
     if (done) return;
     const id = window.setInterval(() => {
-      // Loop around if we run out — page is taking a while.
+      // Loop around if we run out - page is taking a while.
       setIdx((i) => (i + 1) % messages.length);
     }, 1100);
     return () => window.clearInterval(id);

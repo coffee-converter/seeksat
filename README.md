@@ -1,5 +1,9 @@
 # SeekSat
 
+**▶ Live: [seeksat.com](https://seeksat.com)**
+
+![SeekSat: a 3D globe showing a live ISS pass over a Chicago observer, with a ranked list of upcoming visibility windows and a polar sky chart](docs/globe.png)
+
 Satellite pass forecasts for ground stations. Place one or more
 observer locations on the globe, pick a satellite + a mode (visual
 naked-eye or radio), and SeekSat finds the windows when every
@@ -7,14 +11,15 @@ observer can see (or reach) the satellite at once. Click a window to
 open a fullscreen polar sky chart showing the trajectory with sun /
 moon / planet / star context for that observer.
 
+![A pass sky chart: the ISS trajectory arc across a polar star map, with sun, moon, planet, and constellation context for the observer](docs/skychart.png)
+
 A multi-observer ray-triangulation tool also lives in this repo
 (`components/TriangulateApp.tsx` + `lib/triangulate-scene.js`) for
-verifying the math against recorded sightings. It's **not** wired
-up as a public route — the bundled sample data was sensitive and
-shipping the route to production wasn't worth the leak surface. To
-run it locally: drop `app/triangulate/page.tsx` back in (one-line
-file importing `TriangulateApp`) and move `_data/` back to
-`public/data/`.
+verifying the math against recorded sightings. It's a local dev
+tool, not wired up as a public route. To run it locally: add a
+one-line `app/triangulate/page.tsx` that imports `TriangulateApp`,
+and supply your own observation sample data under `_data/`
+(gitignored).
 
 Built on Next.js (App Router) + React + Zustand, with CesiumJS
 loaded from CDN. SGP4 propagation via `satellite.js`.
@@ -29,7 +34,7 @@ npm run dev      # http://localhost:3000
 ```
 
 Routes:
-- `/` — pass finder (the only public route)
+- `/` - pass finder (the only public route)
 
 Production build:
 
@@ -67,18 +72,18 @@ Both run on every push + PR via `.github/workflows/ci.yml`.
 - Alt/Az ray directions: ENU → ECEF via the observer's local frame.
 - Bennett refraction correction applied to apparent altitudes.
 - Closest point to all rays = least-squares minimizer of
-  `Σ ‖(I − dᵢ dᵢᵀ)(x − pᵢ)‖²`, solved via a direct 3×3 inverse.
+  `Σ ‖(I - dᵢ dᵢᵀ)(x - pᵢ)‖²`, solved via a direct 3×3 inverse.
 - Per-ray residuals (meters) reported per observation.
 - Optional SGP4-propagated TLE truth comparison with miss-distance.
 
 ## Adding observers
 
 The home page accepts:
-- **Lat/lon pair** — DMS (`40°30'30.0"N, 75°15'45.0"W`) or decimal
+- **Lat/lon pair** - DMS (`40°30'30.0"N, 75°15'45.0"W`) or decimal
   (`40.5083, -88.1999`)
-- **Place name** — any free text; geocoded via the OSM/Nominatim API
-- **Use my location** — browser geolocation
-- **Click on globe** — toggle the place-by-click mode, then click
+- **Place name** - any free text; geocoded via the OSM/Nominatim API
+- **Use my location** - browser geolocation
+- **Click on globe** - toggle the place-by-click mode, then click
   anywhere on the Cesium canvas
 
 Observer set is persisted to localStorage; a Share button copies a
@@ -88,23 +93,23 @@ URL that encodes the current set + the selected pass window.
 
 The two routes share the same Cesium viewer setup pattern:
 
-- **Page (`app/[route]/page.tsx`)** — server component, just renders
+- **Page (`app/[route]/page.tsx`)** - server component, just renders
   the app's client root.
 - **App composition root (`components/{Triangulate,PassFinder}App.tsx`)**
-  — `"use client"`, owns the container `ref`, calls `useCesiumViewer`,
+  - `"use client"`, owns the container `ref`, calls `useCesiumViewer`,
   dynamically imports the scene module once the viewer is ready, and
   wraps children in `<CesiumViewerProvider>` so descendants can read
   the viewer via `useViewer()` without prop-drilling.
-- **Scene module (`lib/{triangulate,pass-finder}-scene.js`)** —
+- **Scene module (`lib/{triangulate,pass-finder}-scene.js`)** -
   imperative Cesium island. Builds entities, subscribes to the
   relevant Zustand store, registers a typed `SceneBridge` (see
   `lib/scene-bridge.ts`) so React components can call back into the
   scene for one-shot commands like `addObserver` or
   `renderPolarModal`. Returns a teardown function.
-- **Store** — Zustand. Triangulate uses `lib/store.ts`; the pass
+- **Store** - Zustand. Triangulate uses `lib/store.ts`; the pass
   finder uses `lib/pass-finder-store.ts`. Each owns its own slice
   shape; nothing is shared across pages.
-- **Pure modules (`lib/pass-finder/*.js`)** — about a dozen files of
+- **Pure modules (`lib/pass-finder/*.js`)** - about a dozen files of
   pure math + SVG painters extracted out of what used to be a single
   ~4k-line scene file. All have explicit deps (no scene-state
   reach-throughs); test coverage is in `test/`.
@@ -120,8 +125,17 @@ as possible.
 
 ## MCP server env vars
 
-- `CRON_SECRET` — random string; Vercel Cron sends it as a Bearer token to `/api/refresh-tle`.
-- `EDGE_CONFIG` — read connection string (auto-set when an Edge Config store is linked to the project).
-- `EDGE_CONFIG_ID` — the Edge Config id (for writes).
-- `VERCEL_API_TOKEN` — token with Edge Config write scope (for the cron write).
-- `VERCEL_TEAM_ID` — only if the project lives under a team.
+- `CRON_SECRET` - random string; Vercel Cron sends it as a Bearer token to `/api/refresh-tle`.
+- `EDGE_CONFIG` - read connection string (auto-set when an Edge Config store is linked to the project).
+- `EDGE_CONFIG_ID` - the Edge Config id (for writes).
+- `VERCEL_API_TOKEN` - token with Edge Config write scope (for the cron write).
+- `VERCEL_TEAM_ID` - only if the project lives under a team.
+
+## License
+
+Copyright (c) 2026 Aaron Hanson. All rights reserved.
+
+This source is published for viewing and reference. It is **not** licensed
+for reuse, redistribution, or deployment. No permission is granted to copy,
+modify, or run this code as a service. If you'd like to use any of it, reach
+out.

@@ -25,3 +25,6 @@ next-env.d.ts
 **/assets/stars/*.tif
 **/assets/stars/cube_strip*
 .vercel
+
+# Private triangulation sample data (personal coordinates) - kept local only
+_data/

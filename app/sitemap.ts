@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 // App Router auto-serves /sitemap.xml from this file. One entry for
-// the home page — the only public route the app ships.
+// the home page - the only public route the app ships.
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {

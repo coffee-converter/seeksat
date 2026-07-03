@@ -81,7 +81,7 @@ test('arcSampleStyle: deep night, ISS in Earth shadow → dashed', () => {
   const issEcef = [6378137 + 400_000, 0, 0];
   const style = arcSampleStyle(obs, issEcef, midnight);
   // Whether the ISS is actually in shadow at this exact moment depends
-  // on the precise sun position from sun.js — we just check the
+  // on the precise sun position from sun.js - we just check the
   // contract that dashed alpha matches ARC_DASH_ALPHA.
   if (style.dashed) {
     assert.equal(style.alpha, ARC_DASH_ALPHA);

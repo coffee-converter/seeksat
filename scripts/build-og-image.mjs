@@ -1,4 +1,4 @@
-// scripts/build-og-image.mjs — write public/og.png: the default static
+// scripts/build-og-image.mjs - write public/og.png: the default static
 // OG card, a real upcoming pass for a default location. Uses the same
 // lib/og pipeline as the live /api/og route, so static and dynamic cards
 // are identical in style. env OBS_NAME/OBS_LAT/OBS_LON override.

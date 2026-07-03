@@ -44,7 +44,7 @@ test('sunAltitudeDeg: sun directly overhead at noon-equinox sub-solar point is ~
   // So we test that AT the sub-solar point, altitude is high (>80°).
   // Compute sub-solar lon from sun ECEF:
   // We just import sunPositionEcef.
-  // (Test simplified — see below.)
+  // (Test simplified - see below.)
   // Replaced by: test that opposite the sub-solar point sun is below horizon.
   // Skipping this specific assertion in favor of the simpler one below.
   assert.ok(true);
@@ -104,7 +104,7 @@ test('isVisibleAtAll: all conditions met -> true', () => {
 test('isVisibleAtAll: ISS too low for one observer -> false', () => {
   const a = { latDeg: 0, lonDeg: 0 };
   const b = { latDeg: 0, lonDeg: 90 }; // 90° away
-  // ISS over A's zenith — far below B's horizon
+  // ISS over A's zenith - far below B's horizon
   const ecefA = geodeticToEcef(0, 0, 0);
   const scale = (6378137 + 400000) / 6378137;
   const issEcef = ecefA.map(c => c * scale);

@@ -71,7 +71,7 @@ test('moonPhaseAngle: 2024-06-22 (full moon) phase angle near 0', () => {
   // NASA: full moon at 2024-06-22 01:08 UTC.
   const d = new Date('2024-06-22T01:08:00Z');
   const i = moonPhaseAngle(d);
-  // Low-precision ephemeris — accept within ~5° (≈ 0.087 rad).
+  // Low-precision ephemeris - accept within ~5° (≈ 0.087 rad).
   assert.ok(i < 0.09, `phase angle ${i} rad should be near 0 for full moon`);
 });
 

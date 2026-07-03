@@ -27,7 +27,7 @@ export default function OnboardingTour() {
       if (steps.length === 0) return;
       driver({ showProgress: true, popoverClass: "driverjs-theme", steps }).drive();
     } catch {
-      /* driver.js failed to load — no tour, no crash */
+      /* driver.js failed to load - no tour, no crash */
     }
   }, []);
 

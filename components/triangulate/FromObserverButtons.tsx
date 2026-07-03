@@ -7,7 +7,7 @@ import { useTriangulateStore } from "@/lib/store";
 // buttons. Each button carries data-cam="from-observer" + data-obs-idx
 // so the scene's wireCameraControls event delegation routes the click
 // to viewFromObserver(idx). Subscribes to observations so add/remove/
-// rename keeps the buttons in sync — no imperative DOM rebuild needed.
+// rename keeps the buttons in sync - no imperative DOM rebuild needed.
 export default function FromObserverButtons() {
   const observations = useTriangulateStore((s) => s.observations);
   return (

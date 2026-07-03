@@ -159,7 +159,7 @@ test('naturalSkyLimMag: monotonically increases as sun drops', () => {
 
 // ---- starAltAzForObs: ECEF unit vector → observer alt/az ----------------
 
-test('starAltAzForObs: zenith from equator/0 — vector along +x → alt 90', () => {
+test('starAltAzForObs: zenith from equator/0 - vector along +x → alt 90', () => {
   // Observer at (lat=0, lon=0). Local up at that point is +x in ECEF.
   // A star direction of (1,0,0) is straight overhead.
   const { alt, az } = starAltAzForObs(
@@ -169,7 +169,7 @@ test('starAltAzForObs: zenith from equator/0 — vector along +x → alt 90', ()
   assert.ok(close(alt, 90, 1e-9), `alt=${alt}`);
 });
 
-test('starAltAzForObs: horizon north — vector (0,0,1) is +z (rotation axis)', () => {
+test('starAltAzForObs: horizon north - vector (0,0,1) is +z (rotation axis)', () => {
   // For lat=0, lon=0, north (the local +y? actually local north points to
   // +z in this convention because Earth's axis is +z). Actually let me trace:
   //   e (east)  = -sin(lon)*dx + cos(lon)*dy  → for lon=0: dy
@@ -185,7 +185,7 @@ test('starAltAzForObs: horizon north — vector (0,0,1) is +z (rotation axis)', 
   assert.ok(close(az, 0, 1e-9));
 });
 
-test('starAltAzForObs: horizon east — vector (0,1,0) is +y', () => {
+test('starAltAzForObs: horizon east - vector (0,1,0) is +y', () => {
   // lat=0, lon=0: e=dy=1, n=dz=0, u=dx=0. alt=0, az=atan2(1,0)=90.
   const { alt, az } = starAltAzForObs(
     { latDeg: 0, lonDeg: 0 },

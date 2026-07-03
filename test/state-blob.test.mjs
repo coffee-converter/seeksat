@@ -10,7 +10,7 @@ import {
 
 test('LS_STATE_KEY: namespaced + versioned (so future schema changes are safe)', () => {
   // Keep the literal value in the test so a casual rename of the key
-  // shows up here loudly — silently changing it would orphan every
+  // shows up here loudly - silently changing it would orphan every
   // user's previously-saved observer set.
   assert.equal(LS_STATE_KEY, 'iss-triangulation/state/v1');
 });
@@ -83,7 +83,7 @@ test('round-trip: visual mode is the default (omitted from blob)', () => {
     observers: [{ name: 'X', latDeg: 0, lonDeg: 0 }],
     mode: 'visual',
   });
-  // Visual is the default — encoder omits the field, decoder fills it.
+  // Visual is the default - encoder omits the field, decoder fills it.
   assert.equal(decodeStateBlob(blob).mode, 'visual');
 });
 
@@ -140,8 +140,8 @@ test('decode: malformed JSON inside valid base64 returns null', () => {
 
 test('decode: drops observer entries missing coords', () => {
   // Hand-craft a blob with malformed entries:
-  //   ['missing'] — too short (filtered by length check)
-  //   ['bad', 'oops', 0] — non-numeric lat → +"oops" = NaN → finite check drops it
+  //   ['missing'] - too short (filtered by length check)
+  //   ['bad', 'oops', 0] - non-numeric lat → +"oops" = NaN → finite check drops it
   // Note: NaN can't survive JSON serialization (becomes null → +null = 0,
   // which IS finite), so we use a non-numeric string instead.
   const obj = { o: [['ok', 1, 2], ['missing'], ['bad', 'oops', 0]] };
@@ -183,13 +183,13 @@ test('decode: NaN observer name becomes "Observer" fallback', () => {
 // ---- localStorage wrappers (silent on undefined) ------------------------
 
 test('readPersistedBlob: returns null when localStorage is undefined', () => {
-  // localStorage is undefined in Node — the wrapper should silently
+  // localStorage is undefined in Node - the wrapper should silently
   // return null instead of throwing.
   assert.equal(typeof localStorage, 'undefined');
   assert.equal(readPersistedBlob(), null);
 });
 
 test('writePersistedBlob: silent no-op when localStorage is undefined', () => {
-  // Just verify it doesn't throw — there's nothing observable to assert.
+  // Just verify it doesn't throw - there's nothing observable to assert.
   assert.doesNotThrow(() => writePersistedBlob('whatever'));
 });

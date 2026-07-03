@@ -18,7 +18,7 @@ export default function TlePanel() {
 
   const hasContent = tleHasContent(tle);
 
-  // The TLE fetch helpers only serve the *current* TLE — warn when
+  // The TLE fetch helpers only serve the *current* TLE - warn when
   // the loaded attempt is from more than a day ago, since a freshly-
   // fetched TLE won't match the past pass.
   const tsMs = Date.parse(timestampUTC);
@@ -72,7 +72,7 @@ export default function TlePanel() {
         </button>
         {showStaleWarn && (
           <span id="tle-warn" className="hint">
-            ⚠ {Math.round(ageHours)}h ago — current TLE won&apos;t match
+            ⚠ {Math.round(ageHours)}h ago - current TLE won&apos;t match
           </span>
         )}
         {fetchError && (

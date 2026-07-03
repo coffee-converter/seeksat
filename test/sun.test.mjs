@@ -5,7 +5,7 @@ import { sunPositionEci, sunPositionEcef } from '../lib/pass-finder/sun.js';
 const close = (a, b, eps) => Math.abs(a - b) < eps;
 
 test('sunPositionEci: vernal equinox 2026 has declination ~0 and RA ~0', () => {
-  // March 20 2026 ~14:46 UTC — boreal equinox
+  // March 20 2026 ~14:46 UTC - boreal equinox
   const v = sunPositionEci(new Date(Date.UTC(2026, 2, 20, 14, 46, 0)));
   const len = Math.hypot(v[0], v[1], v[2]);
   // Declination = asin(z/len)

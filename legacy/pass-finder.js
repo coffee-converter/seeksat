@@ -72,7 +72,7 @@ let _fpsObserverId = null;
 const labelOffsets = new Map();
 
 // Approximate label box dimensions used by the declutter algorithm. Real
-// widths vary with text, but a single conservative estimate is fine —
+// widths vary with text, but a single conservative estimate is fine -
 // the goal is preventing perceptible overlap, not pixel-perfect packing.
 // Pin label spans 2 lines (name + clouds/sun) or 3 lines (when ISS is
 // visible and alt/az/mag also appears). Reserve the worst-case 3-line
@@ -84,7 +84,7 @@ const PIN_LABEL_W = 220, PIN_LABEL_H = 60;
 // in priority order. The first slot that doesn't collide with any
 // previously-placed label wins, so most labels stay at their natural
 // position and only conflicting ones get bumped to a small set of nearby
-// alternates — keeps every label close to its anchor (no long stack
+// alternates - keeps every label close to its anchor (no long stack
 // drift like an always-down algorithm).
 const PIN_CANDIDATES = [
   { dx: 0,    dy:   0 },   // natural (upper-right of pin)
@@ -111,7 +111,7 @@ function observerSeesIss(obs, issEcef, jsDate) {
 }
 
 // Per-observer pass cache. Each observer's polar plot lights up
-// independently of the joint window — when that observer can see ISS
+// independently of the joint window - when that observer can see ISS
 // right now (per observerSeesIss), we cache the full sweep where
 // that holds and draw the arc for it. Invalidated when mode /
 // minElev / observer set changes; per-observer entries also fall out
@@ -253,7 +253,7 @@ function removeObserver(id) {
   rerunSearchIfActive();
 }
 
-// SVG sky-chart polar plot — center = zenith, edge = horizon. ISS arc
+// SVG sky-chart polar plot - center = zenith, edge = horizon. ISS arc
 // across the active pass window plus a live-updating dot at the current
 // sim-time position.
 //
@@ -290,7 +290,7 @@ function buildPolarPlot(obs) {
     c.classList.add("grid");
     svg.appendChild(c);
   }
-  // Cardinal labels — sky-chart convention ("looking up"): N at top,
+  // Cardinal labels - sky-chart convention ("looking up"): N at top,
   // BUT east on the LEFT and west on the RIGHT (matches the negated-sin
   // projection in altAzToSvg). Labels sit just outside the horizon
   // ring (which has r=45 around 50,50) so they don't crowd it; SVG
@@ -311,14 +311,14 @@ function buildPolarPlot(obs) {
     t.textContent = c.l;
     svg.appendChild(t);
   }
-  // Sun + Moon discs — sky context, drawn behind the arc + event
+  // Sun + Moon discs - sky context, drawn behind the arc + event
   // markers so the trajectory is foreground. Sun/moon positions are
   // computed per-frame via paintIconSunMoon (they slew slowly but
   // visibly across the chart as the sim clock advances).
   const bodies = document.createElementNS(SVG_NS, "g");
   bodies.classList.add("bodies");
   svg.appendChild(bodies);
-  // ISS arc — <g> container that renderArcSegments fills with solid
+  // ISS arc - <g> container that renderArcSegments fills with solid
   // <line> children (per-segment magnitude opacity) plus optional
   // dashed <polyline> runs (eclipsed / sub-naked-eye stretches).
   // Stroke color comes from chartPalette(sunAltDeg) so the trace
@@ -327,7 +327,7 @@ function buildPolarPlot(obs) {
   const arc = document.createElementNS(SVG_NS, "g");
   arc.classList.add("arc");
   svg.appendChild(arc);
-  // Start / peak / end markers along the arc — colored diamonds drawn
+  // Start / peak / end markers along the arc - colored diamonds drawn
   // ON TOP of the arc trace so the user can pick out the pass shape
   // at a glance. Painted by paintIconEvents when the active window
   // changes; static for the duration of a pass.
@@ -344,7 +344,7 @@ function buildPolarPlot(obs) {
 // Cache per-pass arc samples on the arc element itself. Sample
 // positions + dashed/alpha flags depend only on the pass window and
 // observer (computed at sample TIMES inside the pass), not on the
-// current clock — so they're constant for the duration of a pass.
+// current clock - so they're constant for the duration of a pass.
 // Only the stroke COLOR changes per frame (with sun altitude), so the
 // per-frame repaint is just DOM rebuild + new color, no SGP4.
 const _arcSampleCache = new WeakMap();
@@ -365,7 +365,7 @@ function getCachedArcSamples(arc, obs, win, cx, cy, R, samples) {
 function updatePolarPlotArc(svg, obs, sunAltDeg) {
   const arc = svg.querySelector(".arc");
   if (!arc) return;
-  // Per-observer pass window — the observer's full sweep when they're
+  // Per-observer pass window - the observer's full sweep when they're
   // currently sighting ISS, not the joint multi-observer window. Lets
   // each station's mini chart show its actual horizon-to-horizon arc.
   const w = _obsCurrentPass.get(obs.id);
@@ -378,13 +378,13 @@ function updatePolarPlotArc(svg, obs, sunAltDeg) {
   const samples = getCachedArcSamples(arc, obs, w, 50, 50, 45, 30);
   // Dash + gap sized to the 4.5 stroke-width so the gap actually reads
   // as empty space. With butt caps (set in renderArcSegments), a gap
-  // of N renders as N user units of nothing — so we want gap > stroke
+  // of N renders as N user units of nothing - so we want gap > stroke
   // to make the dashed treatment visually distinct from the solid.
   renderArcSegments(arc, samples, stroke, "4 6");
 }
 
 // Paint the horizon disc to match the sky color at the observer's
-// current sun altitude — bright blue in daylight, deep navy after
+// current sun altitude - bright blue in daylight, deep navy after
 // astronomical twilight. Mirrors the inline `horizon.style.fill = ...`
 // trick used by the fullscreen modal (paintPolarModalStatic).
 function updatePolarPlotHorizon(svg, sunAltDeg) {
@@ -530,10 +530,10 @@ function buildObserverLabel(obs) {
   const wrapper = document.createElement("div");
   wrapper.className = "observer-label";
   wrapper.dataset.obsId = obs.id;
-  wrapper.title = `Open polar plot — ${obs.name}`;
+  wrapper.title = `Open polar plot - ${obs.name}`;
   wrapper.style.setProperty("--obs-color", obs.color);
   // Click handling is done via event delegation on iconLayerEl (see
-  // setup below renderObserverIcons) — any click that bubbles up
+  // setup below renderObserverIcons) - any click that bubbles up
   // from any descendant of the wrapper fires openPolarModal. Wrapper
   // is still keyboard-activatable.
   wrapper.setAttribute("role", "button");
@@ -566,7 +566,7 @@ function buildObserverLabel(obs) {
   svg.appendChild(nTri);
   // Arc <g> filled by renderArcSegments with magnitude-opacity-aware
   // <line> children and dashed <polyline> runs for eclipsed/sub-naked-
-  // eye stretches — identical rendering to the fullscreen modal so
+  // eye stretches - identical rendering to the fullscreen modal so
   // small-icon trajectories read as a faithful preview. Stroke color
   // comes from chartPalette(sunAltDeg), shared with the horizon shade.
   const arc = document.createElementNS(SVG_NS, "g");
@@ -591,7 +591,7 @@ function updateObserverIconArc(wrapper, obs, sunAltDeg) {
   }
   const stroke = chartPalette(sunAltDeg).arc;
   const samples = getCachedArcSamples(arc, obs, w, ICON_GEOM.cx, ICON_GEOM.cy, ICON_GEOM.R, 30);
-  // Dash + gap sized to the 8 stroke-width — gap > stroke ensures the
+  // Dash + gap sized to the 8 stroke-width - gap > stroke ensures the
   // butt-capped dashed polyline reads as actual dashes rather than a
   // continuous line. Bigger overall than the obs-card icon because
   // this one renders at 30px (0.3 scale from the 100-unit viewBox).
@@ -679,9 +679,9 @@ const MODAL_GEOM = { cx: 100, cy: 100, R: 90 };
 const rgbStr = ([r, g, b]) => `rgb(${r}, ${g}, ${b})`;
 
 // Twilight-aware chart shade. Linear interpolation between standard
-// twilight breakpoints — daylight blue at sun overhead, deep navy
+// twilight breakpoints - daylight blue at sun overhead, deep navy
 // after astronomical twilight (sun < -18°). Returns an [r, g, b]
-// triple in 0–255; callers can convert to a CSS string or derive
+// triple in 0-255; callers can convert to a CSS string or derive
 // a luminance-aware palette from it.
 function skyShadeRgb(altDeg) {
   const stops = [
@@ -720,7 +720,7 @@ function chartPalette(sunAltDeg) {
   // Grid + spoke share the same delta and stroke width so the
   // altitude rings and radial spokes read as one consistent
   // structural lattice rather than two competing layers.
-  // Grid, spoke (major + minor + cardinal) all share the same gray —
+  // Grid, spoke (major + minor + cardinal) all share the same gray -
   // size differences (stroke-width, font-size) carry the visual
   // hierarchy instead of color contrast.
   const gridDelta = dark ? -45 : 30;
@@ -737,7 +737,7 @@ function chartPalette(sunAltDeg) {
 }
 
 // Approximate limiting visual magnitude at zenith given sun altitude
-// — objects fainter than this aren't visible to the naked eye through
+// - objects fainter than this aren't visible to the naked eye through
 // the prevailing twilight glow. Looser than rigorous photometric
 // thresholds (real dark-sky limit is ~6.5) so the chart doesn't go
 // completely empty in deep night; tighter than reality near horizon
@@ -776,7 +776,7 @@ const polarModalImgLink = polarModalEl.querySelector(".polar-modal-png-link");
 polarModalImgLink.addEventListener("click", (ev) => ev.preventDefault());
 
 // Compute alt/az of a (unit) star direction vector for the given
-// observer. Star is "at infinity" so we don't subtract observer ECEF —
+// observer. Star is "at infinity" so we don't subtract observer ECEF -
 // we just project the direction into the observer's ENU basis.
 function starAltAzForObs(obs, starDirEcef) {
   const DEG = Math.PI / 180;
@@ -800,7 +800,7 @@ function starAltAzForObs(obs, starDirEcef) {
 const MODAL_SVG_STYLE = `
   .horizon { fill: rgba(4, 8, 20, 0.95); stroke: rgba(126, 184, 255, 0.55); stroke-width: 0.8; }
   /* Grid + spokes get their stroke set inline per chart, picked from
-     a luminance-aware palette derived from the horizon disc shade —
+     a luminance-aware palette derived from the horizon disc shade -
      light grays on dark sky, dark grays on bright sky, asymmetric
      deltas tuned for legibility at each end. */
   .grid           { fill: none; stroke-width: 0.3; }
@@ -810,7 +810,7 @@ const MODAL_SVG_STYLE = `
   .cardinal { fill: #6a7a9a; font-size: 11px; letter-spacing: 0.08em; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
   .az-num       { fill: #6a7a9a; font-size: 4.6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
   .az-num-minor { fill: #6a7a9a; font-size: 3.4px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-  /* Altitude ring labels — small tick text tucked just inside the
+  /* Altitude ring labels - small tick text tucked just inside the
      ring at the south spoke. Dark halo keeps the digits readable
      wherever a star or pass arc crosses. */
   .alt-num {
@@ -825,15 +825,15 @@ const MODAL_SVG_STYLE = `
      <line> child carries its own stroke-opacity so the visual-mode
      arc can fade with apparent magnitude across the pass; radio mode
      paints all segments at a uniform opacity.
-     stroke-linecap: butt is critical here — round caps on each segment
+     stroke-linecap: butt is critical here - round caps on each segment
      overlap their neighbors and double the alpha at every junction,
      producing a visible bead pattern when stroke-opacity varies. */
   .arc      { fill: none; stroke-width: 1.6; stroke-linecap: butt; }
-  /* Constellation outlines — deepest backdrop layer. Stroke + opacity
+  /* Constellation outlines - deepest backdrop layer. Stroke + opacity
      are set inline per-line (palette-derived gray + sky-brightness
      scaled opacity) so they match the prevailing chart shade. */
   .const-line { stroke-width: 0.22; stroke-linecap: round; }
-  /* Legend text below the chart — small, low-contrast so it reads as
+  /* Legend text below the chart - small, low-contrast so it reads as
      a reference key rather than competing with the chart content. */
   .legend-text {
     fill: #8aa0c8; font-size: 3.0px;
@@ -851,7 +851,7 @@ const MODAL_SVG_STYLE = `
   .star-name {
     fill: #b8c4dc; font-size: 2.8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     paint-order: stroke;
-    /* halo matched to .planet-glyph (0.45) — was 0.8 which read as
+    /* halo matched to .planet-glyph (0.45) - was 0.8 which read as
        a noticeably heavier border than the glyph treatment */
     stroke: rgba(10, 14, 26, 0.85); stroke-width: 0.45; stroke-linejoin: round;
     opacity: 0.65;
@@ -862,7 +862,7 @@ const MODAL_SVG_STYLE = `
   }
   /* Planet glyphs: colored astrological symbol with a thin dark halo.
      paint-order=stroke renders the stroke first so the fill paints
-     over it — gives an outline effect without thickening the strokes
+     over it - gives an outline effect without thickening the strokes
      inside the glyph. */
   .planet-glyph {
     font-weight: 700;
@@ -888,7 +888,7 @@ const MODAL_SVG_STYLE = `
 function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   svg.replaceChildren();
   const { cx, cy, R } = MODAL_GEOM;
-  // Embedded styles — duplicated from pass-finder.css so the exported
+  // Embedded styles - duplicated from pass-finder.css so the exported
   // standalone SVG/PNG still looks right.
   const styleEl = document.createElementNS(SVG_NS, "style");
   styleEl.textContent = MODAL_SVG_STYLE;
@@ -907,7 +907,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   // Anchor: caller passes the pass peak time so the date and tz-offset
   // tag both reflect when the pass actually occurs. Fall back to the
   // playback clock if no pass is active (modal opened without a
-  // selected window — shouldn't happen but stays defensive).
+  // selected window - shouldn't happen but stays defensive).
   const anchor = new Date(
     anchorMs ?? Cesium.JulianDate.toDate(viewer.clock.currentTime).getTime(),
   );
@@ -944,7 +944,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   titleT.setAttribute("y", -54);
   titleT.setAttribute("text-anchor", "middle");
   titleT.classList.add("meta-title");
-  titleT.textContent = `${obs.name} — ISS pass sky chart`;
+  titleT.textContent = `${obs.name} - ISS pass sky chart`;
   svg.appendChild(titleT);
   const subT = document.createElementNS(SVG_NS, "text");
   subT.setAttribute("x", cx);
@@ -971,7 +971,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   horizon.setAttribute("r", R);
   horizon.classList.add("horizon");
   if (sunAltDeg != null) {
-    // Inline style — `fill` as a presentation attribute loses to the
+    // Inline style - `fill` as a presentation attribute loses to the
     // `.horizon` class rule, but an inline style beats class CSS.
     horizon.style.fill = skyShadeForSunAlt(sunAltDeg);
   }
@@ -984,7 +984,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   // Azimuth spokes every 30°. Regular majors stop at 75° altitude
   // (15° zenith cap). Cardinals (N/E/S/W) extend all the way to the
   // zenith (alt=90) since the four of them just cross at the center
-  // — a classic compass crosshair — rather than crowding it.
+  // - a classic compass crosshair - rather than crowding it.
   const SPOKE_INNER_ALT = 75;
   const CARDINAL_INNER_ALT = 90;
   for (let az = 0; az < 360; az += 30) {
@@ -997,14 +997,14 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
     l.setAttribute("x2", xOut.toFixed(2)); l.setAttribute("y2", yOut.toFixed(2));
     l.classList.add(isCardinal ? "spoke-cardinal" : "spoke");
     // Cardinals get the same gray as the altitude rings and regular
-    // spokes — just thicker, not brighter. That's enough to read as
+    // spokes - just thicker, not brighter. That's enough to read as
     // the chart's primary orientation cue without competing with the
     // pass arc for contrast attention.
     l.style.stroke = palette.spoke;
     svg.appendChild(l);
   }
   // Minor spokes every 15° (offset from majors), only along the outer
-  // chart — from horizon up to 60° altitude. Near the horizon the
+  // chart - from horizon up to 60° altitude. Near the horizon the
   // major spokes are far apart in chart units and a finer azimuth
   // grid is useful; the inner zenith cap stays uncluttered. Drawn
   // thinner AND fainter than the major spokes so they read as
@@ -1031,7 +1031,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
     // Ring label tucked just east of the N-S line and clearly above
     // each ring (not touching). Positioned in SVG pixel space (not in
     // az/alt) so every ring sits the same screen distance from the
-    // cardinal — azimuth-based placement looked progressively farther
+    // cardinal - azimuth-based placement looked progressively farther
     // on rings closer to the horizon.
     const ringR = ((90 - altRing) / 90) * R;
     const labelX = cx + 0.8;
@@ -1044,7 +1044,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
     t.classList.add("alt-num");
     // Sky-shade-aware fill + halo. Fill is computed inline at a
     // luminance delta between palette.grid (±45) and palette.arc
-    // (±150) — splits the difference so the labels are clearly
+    // (±150) - splits the difference so the labels are clearly
     // readable on bright skies without shouting on dark skies.
     if (sunAltDeg != null) {
       const bg = skyShadeRgb(sunAltDeg);
@@ -1063,7 +1063,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   // without recomputing the palette.
   svg.dataset.arcStroke = palette.arc;
   if (sunAltDeg != null) svg.dataset.skyShade = skyShadeForSunAlt(sunAltDeg);
-  // Cardinal labels — sky-chart convention (E LEFT, W RIGHT) with
+  // Cardinal labels - sky-chart convention (E LEFT, W RIGHT) with
   // breathing room outside the ring.
   const cards = [
     { l: "N", x: cx,         y: cy - R - 8 },
@@ -1080,7 +1080,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
     t.textContent = c.l;
     svg.appendChild(t);
   }
-  // Azimuth labels — radius is computed per-label so the INNER edge
+  // Azimuth labels - radius is computed per-label so the INNER edge
   // of every label's bounding box sits the same distance from the
   // horizon ring, regardless of label width or position around the
   // chart. Without this, "30°" near North reads close to the ring
@@ -1112,7 +1112,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
     if (az % 90 === 0) continue;
     placeAzLabel(az, `${az}°`, "az-num", 4.6, 3.5);
   }
-  // Minor labels (15° offset from majors) — smaller font, gap nearly
+  // Minor labels (15° offset from majors) - smaller font, gap nearly
   // matching the majors so the two rings of labels read at similar
   // visual distance from the chart edge.
   for (let az = 15; az < 360; az += 30) {
@@ -1133,7 +1133,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   bodiesG.dataset.layer = "bodies";
   svg.appendChild(bodiesG);
   // Arc is a <g> rather than a single polyline so paintPolarModalArc
-  // can populate it with per-segment <line> elements — that's what
+  // can populate it with per-segment <line> elements - that's what
   // lets the visual-mode arc fade with apparent magnitude along the
   // pass.
   const arc = document.createElementNS(SVG_NS, "g");
@@ -1145,21 +1145,21 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
 }
 
 // Polar-modal arc paints in a neutral gray rather than the observer's
-// color — in this view the arc represents the ISS path, not the
+// color - in this view the arc represents the ISS path, not the
 // observer, so the observer color was easy to misread as "the
 // observer's arc is colored". The Start/Peak/End markers (green/gold/
 // red) and the obs-card icon (still observer-color) remain the
 // color-coded affordances.
 const POLAR_ARC_COLOR = "#aab8d4";
 // Arc-segment opacity. Whenever a segment is plausibly visible to the
-// naked eye at that instant — sun deep enough below the horizon, ISS
-// out of Earth's shadow, ISS brighter than the sky-glow limit — its
+// naked eye at that instant - sun deep enough below the horizon, ISS
+// out of Earth's shadow, ISS brighter than the sky-glow limit - its
 // alpha tracks the ISS's apparent magnitude (bright segments solid,
 // dim ones translucent). Segments that wouldn't be naked-eye visible
 // fall back to the uniform radio opacity. Applies in BOTH modes; in
 // visual mode the search predicate already guarantees the visibility
 // gate holds for every sample, so the magnitude curve covers the
-// whole arc — but a daytime radio pass arc still gets a brightness
+// whole arc - but a daytime radio pass arc still gets a brightness
 // gradient where the sun briefly dips below twilight, etc.
 const ARC_OPACITY_UNIFORM = 0.65;
 function issAlphaForMag(m) {
@@ -1170,7 +1170,7 @@ function issAlphaForMag(m) {
 }
 // Per-sample arc style. Returns { alpha, dashed } so the segment
 // renderer can mark "would be visible if not for the ISS being
-// eclipsed / too dim" stretches with a dotted-low-opacity treatment —
+// eclipsed / too dim" stretches with a dotted-low-opacity treatment -
 // that's diagnostically useful on a dark-sky radio pass where the
 // ISS dips into Earth's shadow mid-arc and the operator wants to
 // know "where would I be looking if it were lit?"
@@ -1234,7 +1234,7 @@ function renderArcSegments(arcGroup, samples, stroke, dashArray) {
     pl.setAttribute("stroke", stroke);
     pl.setAttribute("stroke-opacity", ARC_DASH_ALPHA.toFixed(3));
     pl.setAttribute("stroke-dasharray", dashArray);
-    // Butt caps on dashed runs so each gap is honored exactly — with
+    // Butt caps on dashed runs so each gap is honored exactly - with
     // round caps (the default from the .arc CSS) every dash extends
     // by half the stroke width on each side, which eats the gap on
     // thick small-icon strokes and makes the dashed run look solid.
@@ -1278,7 +1278,7 @@ function paintPolarModalArc(svg, obs, win) {
 
 // Minimum distance (in SVG units) two label centers must be from each
 // other before we'll place both. The chart spans ~180 SVG units across
-// (R=90 radius), so 14 units ≈ 7° of sky — keeps the Big Dipper and
+// (R=90 radius), so 14 units ≈ 7° of sky - keeps the Big Dipper and
 // Orion's belt from stacking name on name. We sort labels brightest
 // first so brighter stars always win the right to a label.
 const STAR_LABEL_MIN_DIST = 14;
@@ -1292,7 +1292,7 @@ const STAR_LABEL_MIN_DIST = 14;
 function moonLitPath(cx, cy, r, phaseAngleRad) {
   const cosI = Math.cos(phaseAngleRad);
   const termRx = r * Math.abs(cosI);
-  // SVG sweep-flag=1 means "increasing-angle direction" — for our
+  // SVG sweep-flag=1 means "increasing-angle direction" - for our
   // bottom→top return arc that goes through θ=π (the LEFT side of the
   // ellipse). sweep-flag=0 goes through θ=0 (the RIGHT side).
   //
@@ -1312,7 +1312,7 @@ function moonLitPath(cx, cy, r, phaseAngleRad) {
 // Plot the sun (if above horizon) and the moon (if above horizon, with
 // correct phase + orientation pointing toward the sun's chart position)
 // on the polar modal. Painted once when the modal opens. Both bodies
-// only show when ≥ 0° apparent altitude — below-horizon bodies are
+// only show when ≥ 0° apparent altitude - below-horizon bodies are
 // silently omitted.
 function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
   const layer = svg.querySelector('[data-layer="bodies"]');
@@ -1329,7 +1329,7 @@ function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
   const [sx, sy] = altAzToSvg(sunAA.alt, sunAA.az, cx, cy, R);
 
   // Moon FIRST so the Sun always paints on top of it (matters when
-  // they're geometrically close — e.g. on a new-moon day). Sun and
+  // they're geometrically close - e.g. on a new-moon day). Sun and
   // moon stay smaller than the event markers (diamonds), since they
   // are sky CONTEXT for the chart while the markers are the chart's
   // featured content.
@@ -1359,7 +1359,7 @@ function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
       layer.appendChild(lit);
     }
     // Difference blend means the white fill inverts whatever's beneath
-    // it — the M reads dark on the bright lit hemisphere and bright
+    // it - the M reads dark on the bright lit hemisphere and bright
     // on the dark unlit hemisphere automatically, including at the
     // terminator where one stroke can span both.
     appendBodyGlyph(layer, mx, my, "M", "#ffffff", "difference");
@@ -1374,7 +1374,7 @@ function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
     sun.setAttribute("stroke", "#ffd633");
     sun.setAttribute("stroke-width", "0.3");
     layer.appendChild(sun);
-    // Same difference trick on the S — white fill inverts the yellow
+    // Same difference trick on the S - white fill inverts the yellow
     // disc beneath it to a clearly readable dark blue-ish letter,
     // without competing with the peak marker's gold. Small upward
     // nudge: "central" baseline puts the S a hair low visually,
@@ -1387,7 +1387,7 @@ function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
   // (Pogson-scaled by approximate apparent magnitude) with their
   // traditional astrological glyph in difference-blend overlay. Hide
   // any planet whose angular position falls inside the sun's or
-  // moon's apparent disc — literal occlusion. Sun and moon both
+  // moon's apparent disc - literal occlusion. Sun and moon both
   // subtend ~0.5°, so the threshold is one apparent radius.
   const SUN_R_RAD = 0.267 * Math.PI / 180;
   const MOON_R_RAD = 0.259 * Math.PI / 180;
@@ -1415,7 +1415,7 @@ function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
     const pogson = 0.95 * Math.pow(10, -(mag ?? 1.0) / 5);
     const r = Math.max(1.1, Math.min(1.5, pogson));
     const [px, py] = altAzToSvg(aa.alt, aa.az, cx, cy, R);
-    // Glyph-only rendering — planet color on the glyph itself with a
+    // Glyph-only rendering - planet color on the glyph itself with a
     // thin dark stroke (paint-order: stroke) keeps it legible against
     // any sky shade. The disc-and-overlay approach made the inner
     // glyph too small to read; here the whole footprint IS the glyph.
@@ -1423,9 +1423,9 @@ function paintPolarModalSunMoon(svg, obs, jsDate, limMag) {
   }
 }
 
-// Planet glyph — traditional astrological symbol painted in the
+// Planet glyph - traditional astrological symbol painted in the
 // planet's own color with a thin dark halo (paint-order: stroke) for
-// legibility against any sky shade. No disc backing — the glyph itself
+// legibility against any sky shade. No disc backing - the glyph itself
 // is the planet marker. Font size scales off the disc radius the
 // caller would have used, so brighter planets read bigger.
 function appendPlanetGlyph(layer, cx, cy, glyph, discR, color) {
@@ -1444,7 +1444,7 @@ function appendPlanetGlyph(layer, cx, cy, glyph, discR, color) {
 }
 
 // Single-letter identifier painted at the center of a body disc.
-// Caller picks the fill (and optionally a CSS blend mode — the moon's
+// Caller picks the fill (and optionally a CSS blend mode - the moon's
 // "M" uses mix-blend-mode: difference so it inverts whatever the
 // lit/unlit fill is below it).
 function appendBodyGlyph(layer, cx, cy, letter, fill, blend) {
@@ -1473,7 +1473,7 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
   // Pull the chart's actual arc stroke (luminance-derived) and pair
   // it with a small "sky box" rect behind each pass-line swatch
   // painted in the matching sky shade. That way each swatch is a
-  // literal mini-render of the chart's pass arc — colors and contrast
+  // literal mini-render of the chart's pass arc - colors and contrast
   // exactly match what the user sees on the disc.
   const arcStroke = svg.dataset.arcStroke || "#aab8d4";
   const swatchBg = svg.dataset.skyShade || null;
@@ -1547,7 +1547,7 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
   // all paint against the actual disc shade. A thin half-transparent
   // blue border (same hue as the chart horizon ring) frames the box
   // without competing visually. No backdrop on dark-sky charts where
-  // the shade matches the modal background — invisible anyway.
+  // the shade matches the modal background - invisible anyway.
   if (swatchBg && rows.length > 0) {
     const firstContentY = y;
     const skyBox = document.createElementNS(SVG_NS, "rect");
@@ -1573,7 +1573,7 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
         const N = 22;
         const segW = swatchLen / N;
         // Quick ramp to ~full opacity in the first ~55%, then hold
-        // near 0.85 — mirrors the issAlphaForMag curve a bright pass
+        // near 0.85 - mirrors the issAlphaForMag curve a bright pass
         // produces on the actual chart.
         const opacityAt = (t) => 0.18 + (0.85 - 0.18) * Math.min(1, t * 1.8);
         for (let i = 0; i < N; i++) {
@@ -1638,7 +1638,7 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
       appendBodyGlyph(layer, xSymC, y, "M", "#ffffff", "difference");
       // Bucket the current phase into 6 named phases (matching the
       // user-chosen short names). Waxing vs waning is determined by
-      // sampling phaseAngle an hour later — phase angle increases
+      // sampling phaseAngle an hour later - phase angle increases
       // from full (0) to new (π), so a later-larger value means we're
       // moving toward new = waning; smaller means waxing.
       const phaseLater = moonPhaseAngle(new Date(jsDate.getTime() + 3600 * 1000));
@@ -1661,14 +1661,14 @@ function paintPolarModalLegend(svg, obs, jsDate, limMag) {
   svg.appendChild(layer);
 }
 
-// Constellation outline segments — each entry is
+// Constellation outline segments - each entry is
 // [[ra1Hours, dec1Deg], [ra2Hours, dec2Deg]]. Endpoints are J2000
 // positions of well-known asterism stars; we don't reference the
 // star catalogs by name so this list stays self-contained.
 // Coverage: the ~20 most-recognizable asterisms (Big Dipper, Orion,
 // Cassiopeia, Cygnus, Lyra, Aquila, Leo, Boötes, Scorpius, etc.).
 const CONSTELLATION_LINES = [
-  // Ursa Major (Big Dipper) — Dubhe-Merak-Phecda-Megrez-Alioth-Mizar-Alkaid + Dubhe-Megrez
+  // Ursa Major (Big Dipper) - Dubhe-Merak-Phecda-Megrez-Alioth-Mizar-Alkaid + Dubhe-Megrez
   [[11.0621, 61.7508], [11.0307, 56.3824]],
   [[11.0307, 56.3824], [11.8972, 53.6948]],
   [[11.8972, 53.6948], [12.2571, 57.0326]],
@@ -1676,69 +1676,69 @@ const CONSTELLATION_LINES = [
   [[12.9004, 55.9598], [13.3988, 54.9254]],
   [[13.3988, 54.9254], [13.7923, 49.3133]],
   [[11.0621, 61.7508], [12.2571, 57.0326]],
-  // Ursa Minor (Little Dipper) — Polaris-Yildun-εUMi-ζUMi-Kochab-Pherkad-ηUMi-Polaris (simplified)
+  // Ursa Minor (Little Dipper) - Polaris-Yildun-εUMi-ζUMi-Kochab-Pherkad-ηUMi-Polaris (simplified)
   [[ 2.5302, 89.2641], [17.5369, 86.5864]],  // Polaris-Yildun
   [[17.5369, 86.5864], [16.7660, 82.0372]],  // Yildun-εUMi
   [[16.7660, 82.0372], [15.7345, 77.7944]],  // εUMi-ζUMi
   [[15.7345, 77.7944], [14.8451, 74.1556]],  // ζUMi-Kochab
   [[14.8451, 74.1556], [15.3457, 71.8340]],  // Kochab-Pherkad
-  // Cassiopeia (W) — Caph-Schedar-γCas-Ruchbah-Segin
+  // Cassiopeia (W) - Caph-Schedar-γCas-Ruchbah-Segin
   [[ 0.1530, 59.1498], [ 0.6751, 56.5374]],
   [[ 0.6751, 56.5374], [ 0.9451, 60.7167]],
   [[ 0.9451, 60.7167], [ 1.4302, 60.2353]],
   [[ 1.4302, 60.2353], [ 1.9061, 63.6701]],
-  // Cepheus — Alderamin-Alfirk-Errai (simplified pentagon, partial)
+  // Cepheus - Alderamin-Alfirk-Errai (simplified pentagon, partial)
   [[21.3096, 62.5856], [21.4778, 70.5607]],  // Alderamin-Alfirk
   [[21.4778, 70.5607], [23.6553, 77.6322]],  // Alfirk-Errai
-  // Cygnus (Northern Cross) — Deneb-Sadr-Albireo + Sadr-δCyg + Sadr-εCyg
+  // Cygnus (Northern Cross) - Deneb-Sadr-Albireo + Sadr-δCyg + Sadr-εCyg
   [[20.6906, 45.2803], [20.3705, 40.2567]],
   [[20.3705, 40.2567], [19.5125, 27.9597]],
   [[20.3705, 40.2567], [19.7494, 45.1304]],
   [[20.3705, 40.2567], [20.7702, 33.9701]],
-  // Lyra — Vega + parallelogram (Vega-ζLyr-δLyr-Sulafat-Sheliak-Vega)
+  // Lyra - Vega + parallelogram (Vega-ζLyr-δLyr-Sulafat-Sheliak-Vega)
   [[18.6156, 38.7837], [18.7456, 37.6051]],  // Vega-Sulafat
   [[18.6156, 38.7837], [18.8358, 33.3625]],  // Vega-Sheliak
   [[18.7456, 37.6051], [18.8358, 33.3625]],  // Sulafat-Sheliak
-  // Aquila — Altair head (Tarazed-Altair-Alshain) + body to λAql
+  // Aquila - Altair head (Tarazed-Altair-Alshain) + body to λAql
   [[19.7717, 10.6133], [19.8464,  8.8683]],  // Tarazed-Altair
   [[19.8464,  8.8683], [19.9213,  6.4068]],  // Altair-Alshain
   [[19.8464,  8.8683], [19.1041, -4.8825]],  // Altair-λAql (long body)
-  // Boötes (kite) — Arcturus-Izar-Nekkar-γBoo-Arcturus  + Arcturus-Muphrid
+  // Boötes (kite) - Arcturus-Izar-Nekkar-γBoo-Arcturus  + Arcturus-Muphrid
   [[14.2610, 19.1824], [14.7497, 27.0741]],  // Arcturus-Izar
   [[14.7497, 27.0741], [14.5347, 38.3083]],  // Izar-Nekkar
   [[14.5347, 38.3083], [14.5346, 38.3083]],  // (stub, kept for parity)
   [[14.5347, 38.3083], [14.2702, 30.3714]],  // Nekkar-γBoo (Seginus)
   [[14.2702, 30.3714], [14.2610, 19.1824]],  // γBoo-Arcturus
   [[14.2610, 19.1824], [13.9114, 18.3977]],  // Arcturus-Muphrid
-  // Hercules keystone — π-η-ζ-ε (top half) + ζ-β (left side)
+  // Hercules keystone - π-η-ζ-ε (top half) + ζ-β (left side)
   [[17.2510, 36.8092], [16.7148, 38.9223]],  // πHer-ηHer
   [[16.7148, 38.9223], [16.6883, 31.6027]],  // ηHer-ζHer
   [[16.6883, 31.6027], [17.2575, 24.8392]],  // ζHer-εHer (approx)
   [[17.2510, 36.8092], [17.2575, 24.8392]],  // πHer-εHer (close keystone)
   [[16.6883, 31.6027], [16.5036, 21.4895]],  // ζHer-Kornephoros (βHer)
-  // Pegasus Great Square — Markab-Scheat-Alpheratz-Algenib
+  // Pegasus Great Square - Markab-Scheat-Alpheratz-Algenib
   [[23.0793, 15.2053], [23.0628, 28.0828]],
   [[23.0628, 28.0828], [ 0.1397, 29.0904]],
   [[ 0.1397, 29.0904], [ 0.2206, 15.1836]],
   [[ 0.2206, 15.1836], [23.0793, 15.2053]],
-  // Andromeda chain — Alpheratz-Mirach-Almach
+  // Andromeda chain - Alpheratz-Mirach-Almach
   [[ 0.1397, 29.0904], [ 1.1623, 35.6206]],
   [[ 1.1623, 35.6206], [ 2.0649, 42.3297]],
-  // Perseus — Mirfak-Algol-α' segment-bar
+  // Perseus - Mirfak-Algol-α' segment-bar
   [[ 3.4054, 49.8612], [ 3.1361, 40.9556]],  // Mirfak-Algol
   [[ 3.4054, 49.8612], [ 3.9624, 40.0102]],  // Mirfak-ε Per
   [[ 3.4054, 49.8612], [ 3.0792, 53.5063]],  // Mirfak-δ Per
-  // Auriga pentagon — Capella-Menkalinan-θAur-Hassaleh-βTau(Elnath) — Elnath shared w/ Taurus
+  // Auriga pentagon - Capella-Menkalinan-θAur-Hassaleh-βTau(Elnath) - Elnath shared w/ Taurus
   [[ 5.2782, 45.9981], [ 5.9921, 44.9474]],  // Capella-Menkalinan
   [[ 5.9921, 44.9474], [ 5.9952, 37.2125]],  // Menkalinan-θAur (~mag 2.62)
   [[ 5.9952, 37.2125], [ 5.4382, 28.6075]],  // θAur-Elnath
-  [[ 5.4382, 28.6075], [ 4.9498, 33.1661]],  // Elnath-ιAur (Hassaleh)? — using Hassaleh coords
+  [[ 5.4382, 28.6075], [ 4.9498, 33.1661]],  // Elnath-ιAur (Hassaleh)? - using Hassaleh coords
   [[ 4.9498, 33.1661], [ 5.2782, 45.9981]],  // Hassaleh-Capella
-  // Taurus — Aldebaran-Elnath (long horn) + Hyades V (just the spine)
+  // Taurus - Aldebaran-Elnath (long horn) + Hyades V (just the spine)
   [[ 4.5987, 16.5092], [ 5.4382, 28.6075]],
   [[ 4.4767, 19.1804], [ 4.5987, 16.5092]],  // εTau-Aldebaran
   [[ 4.3829, 17.5425], [ 4.5987, 16.5092]],  // γTau-Aldebaran (Hyades apex)
-  // Orion — Bellatrix-Betelgeuse-Alnitak-Saiph-Rigel-Mintaka-Bellatrix + belt
+  // Orion - Bellatrix-Betelgeuse-Alnitak-Saiph-Rigel-Mintaka-Bellatrix + belt
   [[ 5.4189,  6.3497], [ 5.9195,  7.4070]],  // Bellatrix-Betelgeuse
   [[ 5.9195,  7.4070], [ 5.6793, -1.9426]],  // Betelgeuse-Alnitak
   [[ 5.6793, -1.9426], [ 5.7959, -9.6696]],  // Alnitak-Saiph
@@ -1747,16 +1747,16 @@ const CONSTELLATION_LINES = [
   [[ 5.5334, -0.2991], [ 5.4189,  6.3497]],  // Mintaka-Bellatrix
   [[ 5.5334, -0.2991], [ 5.6035, -1.2019]],  // belt: Mintaka-Alnilam
   [[ 5.6035, -1.2019], [ 5.6793, -1.9426]],  // belt: Alnilam-Alnitak
-  // Canis Major — Sirius-Mirzam + Sirius-Adhara-Wezen triangle
+  // Canis Major - Sirius-Mirzam + Sirius-Adhara-Wezen triangle
   [[ 6.7525,-16.7161], [ 7.0140,-23.8336]],  // Sirius-Mirzam
   [[ 6.7525,-16.7161], [ 6.9770,-28.9721]],  // Sirius-Adhara
   [[ 6.9770,-28.9721], [ 7.1399,-26.3933]],  // Adhara-Wezen
-  // Canis Minor — Procyon-Gomeisa
+  // Canis Minor - Procyon-Gomeisa
   [[ 7.6550,  5.2250], [ 7.4528,  8.2893]],
-  // Gemini — Castor-Pollux (and to Alhena)
+  // Gemini - Castor-Pollux (and to Alhena)
   [[ 7.5767, 31.8884], [ 7.7553, 28.0262]],
   [[ 7.7553, 28.0262], [ 6.6285, 16.3993]],  // Pollux-Alhena
-  // Leo (sickle + back triangle) — Regulus-η-γAlgieba-ζAdhafera-μ-εRas Algethi (head)
+  // Leo (sickle + back triangle) - Regulus-η-γAlgieba-ζAdhafera-μ-εRas Algethi (head)
   [[10.1395, 11.9672], [10.3328, 19.8415]],  // Regulus-Algieba
   [[10.3328, 19.8415], [10.2786, 23.4173]],  // Algieba-ζLeo Adhafera (~mag 3.43)
   [[10.2786, 23.4173], [ 9.7639, 23.7740]],  // ζLeo-μLeo
@@ -1765,30 +1765,30 @@ const CONSTELLATION_LINES = [
   [[10.1395, 11.9672], [11.8177, 14.5720]],  // Regulus-Denebola
   [[11.8177, 14.5720], [11.2351, 20.5237]],  // Denebola-Zosma
   [[11.2351, 20.5237], [10.3328, 19.8415]],  // Zosma-Algieba
-  // Virgo — Spica-Vindemiatrix-γVirginis(Porrima)-ζVir
+  // Virgo - Spica-Vindemiatrix-γVirginis(Porrima)-ζVir
   [[13.4199,-11.1614], [13.0364, 10.9591]],  // Spica-Vindemiatrix
   [[13.0364, 10.9591], [12.6943, -1.4496]],  // Vindemiatrix-Porrima
   [[12.6943, -1.4496], [13.4199,-11.1614]],  // Porrima-Spica (close)
-  // Corona Borealis — half-circle: ζ-α(Alphecca)-γ
+  // Corona Borealis - half-circle: ζ-α(Alphecca)-γ
   [[15.5784, 26.7147], [15.6438, 28.6201]],  // Alphecca-γCrB (approx)
   [[15.5784, 26.7147], [15.4297, 26.0686]],  // Alphecca-βCrB (approx)
-  // Scorpius head + body — Acrab-Dschubba-π-Antares + Antares-εSco-...-Shaula-Sargas
+  // Scorpius head + body - Acrab-Dschubba-π-Antares + Antares-εSco-...-Shaula-Sargas
   [[16.0050,-19.8054], [16.0050,-22.6217]],  // Dschubba-Acrab
   [[16.0050,-22.6217], [16.0050,-26.1140]],  // Acrab-πSco (approx)
   [[16.0050,-22.6217], [16.4901,-26.4320]],  // Acrab-Antares
   [[16.4901,-26.4320], [16.8359,-34.2929]],  // Antares-Sargas-area εSco
   [[16.8359,-34.2929], [17.5601,-37.1038]],  // Sargas-Shaula
-  // Sagittarius teapot — Kaus Australis-KausMedia-KausBorealis-Nunki-Phi-Tau (abbreviated)
+  // Sagittarius teapot - Kaus Australis-KausMedia-KausBorealis-Nunki-Phi-Tau (abbreviated)
   [[18.4029,-34.3847], [18.3536,-29.8281]],  // KausAus-KausMedia
   [[18.3536,-29.8281], [18.2333,-25.4217]],  // KausMedia-KausBorealis (λSgr)
   [[18.2333,-25.4217], [19.0444,-27.6699]],  // KausBorealis-Nunki
   [[19.0444,-27.6699], [18.4029,-34.3847]],  // Nunki-KausAus (close teapot)
-  // Crux (Southern Cross) — Acrux-Mimosa-Gacrux-δCru
+  // Crux (Southern Cross) - Acrux-Mimosa-Gacrux-δCru
   [[12.4433,-63.0991], [12.7953,-59.6886]],
   [[12.7953,-59.6886], [12.5194,-57.1131]],
   [[12.5194,-57.1131], [12.2522,-58.7489]],
   [[12.2522,-58.7489], [12.4433,-63.0991]],
-  // Centaurus pointers — Rigil Kentaurus-Hadar (point at Crux)
+  // Centaurus pointers - Rigil Kentaurus-Hadar (point at Crux)
   [[14.6601,-60.8354], [14.0637,-60.3729]],
 ];
 
@@ -1796,7 +1796,7 @@ function paintPolarModalConstellations(svg, obs, jsDate, sunAltDeg) {
   const layer = svg.querySelector('[data-layer="constellations"]');
   if (!layer) return;
   layer.replaceChildren();
-  // Visibility gate — connecting unseen stars looks worse than blank
+  // Visibility gate - connecting unseen stars looks worse than blank
   // sky. Naked-eye limit must reach ~mag 3 for typical outline stars
   // to be plausibly visible; tied to sunAlt via the same model that
   // governs star/planet visibility, so the lines appear precisely when
@@ -1806,7 +1806,7 @@ function paintPolarModalConstellations(svg, obs, jsDate, sunAltDeg) {
   // Fade up between civil and astronomical twilight so the lines
   // emerge gracefully rather than popping in.
   const fade = Math.max(0, Math.min(1, (limMag - 3.0) / 1.5));
-  // Cool blue-violet tint — distinct from the neutral grid gray so
+  // Cool blue-violet tint - distinct from the neutral grid gray so
   // the eye can separate "chart structure" from "sky overlay" at a
   // glance, and warm enough to read as star-related rather than
   // graph-paper. Opacity scales with sky darkness so the lines feel
@@ -1845,7 +1845,7 @@ function paintPolarModalStars(svg, obs, jsDate, limMag) {
   const labelEligible = [...BRIGHT_STARS].sort((a, b) => a.mag - b.mag);
   const placedLabels = [];
   // Twilight gate: stars dimmer than this magnitude are washed out by
-  // sky glow at the prevailing sun altitude — skip rendering them.
+  // sky glow at the prevailing sun altitude - skip rendering them.
   // limMag === null means "no filter" (legacy callers).
   const passesLimMag = (mag) => limMag == null || mag <= limMag;
 
@@ -1883,7 +1883,7 @@ function paintPolarModalStars(svg, obs, jsDate, limMag) {
   };
   // Labeled (brightest-first so declutter favors them)
   for (const star of labelEligible) drawStar(star, true);
-  // Dots only — fill-in catalogs for visual density. DIM_STARS adds
+  // Dots only - fill-in catalogs for visual density. DIM_STARS adds
   // the mag 4-5 layer that only appears on dark-sky nights (limMag
   // filter above gates it out at brighter twilight stages).
   for (const star of MORE_STARS)  drawStar(star, false);
@@ -1915,7 +1915,7 @@ const EVENT_ROW_POS_Y   = -9;
 // side the path came from and "later" on the side it heads toward.
 // Returns null if either sample falls below the horizon or off-chart.
 function pathTangentSvg(obs, ms) {
-  const DT = 2000; // ±2s window — fine enough that the tangent is well-defined
+  const DT = 2000; // ±2s window - fine enough that the tangent is well-defined
   const ePrev = issEcefAt(new Date(ms - DT));
   const eNext = issEcefAt(new Date(ms + DT));
   if (!ePrev || !eNext) return null;
@@ -1931,10 +1931,10 @@ function pathTangentSvg(obs, ms) {
 }
 
 // Diamond-marker geometry. A diamond at (cx, cy) with half-extent r
-// is rotated by `ang` so its long diagonal points ALONG the path —
+// is rotated by `ang` so its long diagonal points ALONG the path -
 // gives the marker a sense of direction. Vertices in moon-local
-// (before rotation): forward (+r,0), perp (0,+r), backward (−r,0),
-// anti-perp (0,−r). After rotating each by `ang`:
+// (before rotation): forward (+r,0), perp (0,+r), backward (-r,0),
+// anti-perp (0,-r). After rotating each by `ang`:
 function diamondVerts(cx, cy, r, ang) {
   const cosA = Math.cos(ang), sinA = Math.sin(ang);
   return {
@@ -2012,7 +2012,7 @@ function paintPolarModalEvents(svg, obs, peakMs, win) {
   // Markers are DIAMONDS so they're visually distinct from the
   // circular sun/moon discs. If two adjacent events (start↔peak or
   // peak↔end) land within one diamond extent of each other, render a
-  // SPLIT diamond — rotated to align one of its diagonals with the
+  // SPLIT diamond - rotated to align one of its diagonals with the
   // path tangent, then cut by the perpendicular diagonal into two
   // triangles. Earlier-color sits on the inbound side, later-color on
   // the outbound side.
@@ -2069,7 +2069,7 @@ function paintPolarModalEvents(svg, obs, peakMs, win) {
 
   // ---- Info row beneath the chart (one column per event) ---------
   // Info-row diamonds are IDENTICAL to chart markers (same size,
-  // unrotated — "along the path" of the horizontal info row), each
+  // unrotated - "along the path" of the horizontal info row), each
   // sitting just left of its centered label. Two gray segments
   // connect "right of START text" → "left of PEAK diamond" and
   // "right of PEAK text" → "left of END diamond", mirroring the
@@ -2088,7 +2088,7 @@ function paintPolarModalEvents(svg, obs, peakMs, win) {
   const LINE_DIAMOND_GAP = 2.6;
   // Approx half-width of an uppercase label rendered at the title
   // CSS (5.2px, letter-spacing 0.06em). Empirical constant scales
-  // with character count — exact measurement would require getBBox
+  // with character count - exact measurement would require getBBox
   // after the title is in the DOM, which adds layout cost we don't
   // need at this scale.
   const halfTextWidth = (label) => label.length * 1.85;
@@ -2165,11 +2165,11 @@ function paintPolarModalEvents(svg, obs, peakMs, win) {
 // the SVG stays offscreen purely as the render source.
 //
 // Resolves only AFTER the resulting bitmap has fully decoded into the
-// <img> element, so the caller can wait before unhiding the modal —
+// <img> element, so the caller can wait before unhiding the modal -
 // otherwise the user sees a frame of empty <img> while the PNG paints.
 async function renderPolarModal(obs) {
   // Modal uses the OBSERVER's full pass (extended from the joint
-  // window outward until this station can't see ISS) — that's the
+  // window outward until this station can't see ISS) - that's the
   // user's actual horizon-to-horizon view, regardless of when other
   // observers join in. Resolution order:
   //   1) Joint window selected → expand from its midpoint
@@ -2195,7 +2195,7 @@ async function renderPolarModal(obs) {
     }
   }
   // Sky backdrop (stars / sun / moon / planets) is anchored at the
-  // pass PEAK time, not the playback clock — opening the modal for a
+  // pass PEAK time, not the playback clock - opening the modal for a
   // pass three hours away would otherwise show today's sky behind a
   // chart annotated with that distant pass's timestamp. Sun altitude
   // at that instant drives both the chart's shade and the limiting
@@ -2215,11 +2215,11 @@ async function renderPolarModal(obs) {
   const url = URL.createObjectURL(blob);
   if (_polarModalImgUrl) URL.revokeObjectURL(_polarModalImgUrl);
   _polarModalImgUrl = url;
-  // decode() resolves once the bitmap is ready to paint — strictly
+  // decode() resolves once the bitmap is ready to paint - strictly
   // stronger than `onload`, which can fire before the first paint.
   polarModalImg.src = url;
   // Wrap-anchor mirrors the img so right-click save picks up a real
-  // filename. Same blob URL as the img — browsers that honor the
+  // filename. Same blob URL as the img - browsers that honor the
   // anchor's download attribute on img right-click will use it.
   polarModalImgLink.href = url;
   polarModalImgLink.download = polarModalFileName();
@@ -2232,8 +2232,8 @@ async function openPolarModal(obsId) {
   const obs = state.observers.find(o => o.id === obsId);
   if (!obs) return;
   _polarModalObsId = obsId;
-  // Briefly hint that something's happening — render typically takes
-  // 50-250 ms — without flashing an empty modal at the user.
+  // Briefly hint that something's happening - render typically takes
+  // 50-250 ms - without flashing an empty modal at the user.
   document.body.style.cursor = "progress";
   try {
     await renderPolarModal(obs);
@@ -2257,7 +2257,7 @@ function closePolarModal() {
   polarModalImg.removeAttribute("src");
 }
 
-// (Polar-plot click handling lives on the whole .obs-card now — see
+// (Polar-plot click handling lives on the whole .obs-card now - see
 // renderObsList. No delegated listener here.)
 
 polarModalEl.querySelector(".polar-modal-close").addEventListener("click", closePolarModal);
@@ -2303,7 +2303,7 @@ function polarModalFileName() {
   const obsSlug = (obs?.name ?? "observer").toLowerCase()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   // Timestamp from the ACTIVE pass start, formatted in the observer's
-  // local timezone — filename describes when the pass is, not when
+  // local timezone - filename describes when the pass is, not when
   // the file was saved. Output shape:
   //   iss-pass-<obs>-YYYY-MM-DDTHHMMSS-OOOO.png
   // ISO 8601 extended date + basic-format time + basic UTC offset.
@@ -2322,7 +2322,7 @@ function polarModalFileName() {
   const dateSlug = `${get("year")}-${get("month")}-${get("day")}`;
   const timeSlug = `${get("hour")}${get("minute")}${get("second")}`;
   // UTC offset for the tz at that instant. `longOffset` formats it
-  // as "GMT-05:00" or "GMT+05:30" — strip prefix and colon for the
+  // as "GMT-05:00" or "GMT+05:30" - strip prefix and colon for the
   // basic-format tag. Fall back to "Z" when no tz is known.
   let offsetSlug = "Z";
   if (tz) {
@@ -2381,8 +2381,8 @@ function renderObsList() {
     const card = document.createElement("div");
     card.className = "obs-card";
     card.dataset.obsId = obs.id;
-    card.title = `Open polar plot — ${obs.name}`;
-    // Whole card opens the polar modal — inner buttons stopPropagation
+    card.title = `Open polar plot - ${obs.name}`;
+    // Whole card opens the polar modal - inner buttons stopPropagation
     // so they don't accidentally trigger it too.
     card.addEventListener("click", () => openPolarModal(obs.id));
     const header = document.createElement("div");
@@ -2404,7 +2404,7 @@ function renderObsList() {
     coordsSpan.textContent = `${obs.latDeg.toFixed(4)}°, ${obs.lonDeg.toFixed(4)}°`;
     meta.appendChild(coordsSpan);
     header.appendChild(meta);
-    // "View from here" button — toggles first-person camera mode.
+    // "View from here" button - toggles first-person camera mode.
     const fps = document.createElement("button");
     fps.type = "button";
     fps.className = "fps-view" + (obs.id === _fpsObserverId ? " active" : "");
@@ -2516,7 +2516,7 @@ let loadTle = async function () {
     tleStatusEl.textContent = `fetched ${new Date().toUTCString()}`;
     tleStatusEl.className = "hint ok";
   } else {
-    tleStatusEl.textContent = "fetch failed — paste a TLE below.";
+    tleStatusEl.textContent = "fetch failed - paste a TLE below.";
     tleStatusEl.className = "hint error";
   }
 };
@@ -2566,7 +2566,7 @@ function issEcefAt(jsDate) {
 //
 // Candidate-slot algorithm (per-label):
 //   1. Project each visible label to screen space (its natural position).
-//   2. Try a small ordered list of nearby candidate slots — natural slot
+//   2. Try a small ordered list of nearby candidate slots - natural slot
 //      first, then a handful of cardinal/diagonal offsets near the
 //      anchor.
 //   3. The first slot that doesn't overlap any previously-placed label
@@ -2574,7 +2574,7 @@ function issEcefAt(jsDate) {
 //
 // Result: each label stays at or very near its natural anchor unless
 // it actually collides with something, and even then it only moves to a
-// nearby slot — no long downward "drift" like the previous always-down
+// nearby slot - no long downward "drift" like the previous always-down
 // stacker. O(N²·K) per frame for N labels and K candidates (small N, K
 // ≤ ~10 here).
 function updateLabelOffsets() {
@@ -2602,7 +2602,7 @@ function updateLabelOffsets() {
         });
       }
     }
-    // (Midpoint labels removed — alt/az now lives in the pin label as
+    // (Midpoint labels removed - alt/az now lives in the pin label as
     // a conditional second line, so the only declutter targets are pin
     // labels themselves.)
   }
@@ -2612,7 +2612,7 @@ function updateLabelOffsets() {
   for (const it of items) {
     const cands = PIN_CANDIDATES;
     // Default to the last candidate so we always produce some placement
-    // even if every slot collides — labels overlapping is preferable to
+    // even if every slot collides - labels overlapping is preferable to
     // crashing the layout pass.
     let chosen = cands[cands.length - 1];
     for (const c of cands) {
@@ -2708,7 +2708,7 @@ let orbitCachedPositions = [];
 let orbitCacheCenterMs = null;
 // Simulated-time interval between orbit recomputes. Low enough that Earth's
 // rotation in this window (0.0021° ≈ 250 m of horizontal offset at 400 km)
-// is invisible — so the dot stays on the line at all playback speeds.
+// is invisible - so the dot stays on the line at all playback speeds.
 const ORBIT_REFRESH_MS = 500;
 
 function invalidateOrbitCache() { orbitCacheCenterMs = null; }
@@ -2785,7 +2785,7 @@ function ensureOrbitEntity() {
 // hours, Dec in decimal degrees, J2000 epoch.
 // `cls` is the dominant spectral class letter (O/B/A/F/G/K/M). It maps
 // to a representative color via SPECTRAL_COLOR (cooler stars redder,
-// hotter stars bluer) — see starDotColor() below.
+// hotter stars bluer) - see starDotColor() below.
 const BRIGHT_STARS = [
   { name: "Sirius",         ra:  6.7525, dec: -16.7161, mag: -1.46, cls: "A" },
   { name: "Canopus",        ra:  6.3992, dec: -52.6957, mag: -0.74, cls: "A" },
@@ -2848,10 +2848,10 @@ const BRIGHT_STARS = [
   { name: "Alcyone",        ra:  3.7913, dec:  24.1052, mag:  2.87, cls: "B" },
 ];
 
-// Supplemental fainter catalog — RA/Dec/mag, no names. Plotted as dots
+// Supplemental fainter catalog - RA/Dec/mag, no names. Plotted as dots
 // in the fullscreen polar modal to give the sky chart visual density,
 // but NOT added as labels in the 3D scene (would crowd the globe).
-// J2000 epoch, mostly mag 2.0 – 3.5.
+// J2000 epoch, mostly mag 2.0 - 3.5.
 const MORE_STARS = [
   { ra:  1.1623, dec:  35.6206, mag: 2.07, cls: "M" },  // Mirach β And
   { ra: 22.0964, dec:  -0.3198, mag: 2.95, cls: "G" },  // Sadalmelik α Aqr
@@ -2931,10 +2931,10 @@ function starDotColor(star) {
   return SPECTRAL_COLOR[star.cls] ?? "#e8eefc";
 }
 
-// Even fainter fill-in catalog — RA/Dec/mag/cls. No names, no labels.
+// Even fainter fill-in catalog - RA/Dec/mag/cls. No names, no labels.
 // Used to give the polar modal real sky density (typical naked-eye
-// limit on a dark night is ~mag 6, suburban ~4 — these are mostly
-// mag 3.0–4.0 stars on common constellation outlines).
+// limit on a dark night is ~mag 6, suburban ~4 - these are mostly
+// mag 3.0-4.0 stars on common constellation outlines).
 const FAINT_STARS = [
   { ra:  0.66, dec:  30.86, mag: 3.27, cls: "K" },  // δ And
   { ra:  0.95, dec:  38.50, mag: 3.86, cls: "A" },  // μ And
@@ -3008,9 +3008,9 @@ const FAINT_STARS = [
   { ra: 17.92, dec:   2.93, mag: 3.74, cls: "K" },  // β Ser
 ];
 
-// Deep-sky fill catalog — mag 4.0 to 5.0, mostly constellation
+// Deep-sky fill catalog - mag 4.0 to 5.0, mostly constellation
 // infill so the chart looks naturally dense on dark-sky nights
-// (naturalSkyLimMag returns 5.0+ for sun below ~−15°). Same
+// (naturalSkyLimMag returns 5.0+ for sun below ~-15°). Same
 // {ra,dec,mag,cls} shape as the other catalogs. No names; dots only.
 const DIM_STARS = [
   // Andromeda
@@ -3173,7 +3173,7 @@ const DIM_STARS = [
 // Star "dot" radius scales with apparent flux: area ∝ flux, so
 // radius = const × 10^(-mag/5) (one mag step → flux ratio of 10^(2/5) ≈
 // 2.512, so r ratio of 10^(1/5) ≈ 1.585). This matches the Pogson scale
-// and gives a visually proper sense of relative brightness — Sirius and
+// and gives a visually proper sense of relative brightness - Sirius and
 // Vega read as bigger than Polaris, Polaris bigger than mag-3 fillers.
 // Saturated at the bright end (mag < -1) so Sirius doesn't dwarf the
 // chart, and at the faint end so mag-4 stars stay readable.
@@ -3181,11 +3181,11 @@ function starDotRadius(mag) {
   if (mag == null) mag = 2.5;
   const r = 0.95 * Math.pow(10, -mag / 5);
   // Lower max clamp keeps brightest stars (Sirius, Canopus) from
-  // dominating the chart visually — Pogson would happily render
+  // dominating the chart visually - Pogson would happily render
   // Sirius at 2.5× Vega's radius, which looks like a small planet.
   return Math.max(0.18, Math.min(1.15, r));
 }
-// Opacity scale takes over where the radius clamp flattens out — once
+// Opacity scale takes over where the radius clamp flattens out - once
 // stars all hit the 0.18 minimum radius (mag ~3.7 and dimmer), they'd
 // otherwise look identical even though a mag 5 star is ~3× fainter
 // than a mag 3.5 star. Fading opacity preserves the Pogson "more flux
@@ -3201,7 +3201,7 @@ function starDotOpacity(mag) {
 }
 // Stars are functionally at infinity, so a label needs to appear in the
 // star's direction regardless of camera position. We place each label
-// at (camera + starDir × very_large_distance), updated every frame —
+// at (camera + starDir × very_large_distance), updated every frame -
 // any reasonable camera→label distance dwarfs the camera-to-Earth
 // distance, so the apparent sky direction stays effectively constant
 // at any zoom level. Distance is well inside Cesium's far plane but
@@ -3217,7 +3217,7 @@ function starDirectionEcef(star, jsDate) {
   const ez = Math.sin(dec);
   const gmst = sat.gstime(jsDate);
   const c = Math.cos(gmst), s = Math.sin(gmst);
-  // ECI → ECEF: rotate by −gmst about Z so stars stay fixed in the
+  // ECI → ECEF: rotate by -gmst about Z so stars stay fixed in the
   // celestial frame as the (Earth-fixed) scene clock advances.
   return [c * ex + s * ey, -s * ex + c * ey, ez];
 }
@@ -3252,7 +3252,7 @@ for (const star of BRIGHT_STARS) {
       showBackground: false,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
       // Match the planet-label clearance so stars and planets read
-      // with the same label spacing — a few pixels of gap above the
+      // with the same label spacing - a few pixels of gap above the
       // (skybox-rendered) star dot.
       pixelOffset: new Cesium.Cartesian2(0, -5),
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
@@ -3265,7 +3265,7 @@ for (const star of BRIGHT_STARS) {
 
 // Five classical naked-eye planets as colored dots at their apparent
 // sky position. Uses the same camera-relative STAR_FAR_M trick as the
-// bright-star labels — keeps each planet stuck at its real direction
+// bright-star labels - keeps each planet stuck at its real direction
 // in the sky regardless of where the camera flies. Pixel sizes are
 // typical naked-eye visibility (Venus brightest → biggest; Mercury /
 // Saturn dimmer → smaller). Hidden when behind Earth from the camera.
@@ -3301,7 +3301,7 @@ for (const pname of PLANET_NAMES) {
         return isInFrontOfEarth(planetSkyPos(pname, Cesium.JulianDate.toDate(time)));
       }, false),
     },
-    // Name label sits ABOVE the planet dot — bottom-anchored at the
+    // Name label sits ABOVE the planet dot - bottom-anchored at the
     // entity position with a small upward pixel offset, matching the
     // bright-star label placement. Tinted with the planet's
     // traditional naked-eye color so the label reads as belonging to
@@ -3333,7 +3333,7 @@ for (const pname of PLANET_NAMES) {
 // (altitude × twilight × cloud), so the user can see at a glance WHERE in
 // the arc the pass peaks and how it fades on either side.
 //
-// Rendered as N short polyline entities (one per sample segment) — each
+// Rendered as N short polyline entities (one per sample segment) - each
 // gets a single solid material color, so the segments together form a
 // smooth gradient line along the ISS path.
 // ---------------------------------------------------------------------------
@@ -3341,10 +3341,10 @@ for (const pname of PLANET_NAMES) {
 const PASS_GRADIENT_SAMPLES = 60;
 let activePassEntities = [];
 
-// Stops for the rating gradient — used by both the orbit overlay
+// Stops for the rating gradient - used by both the orbit overlay
 // (returning Cesium.Color via ratingColorAt) and every colored column
 // in the passes list (returning a CSS rgb() string via ratingCssColor).
-// Even thirds — red below 1/3 (success unlikely), yellow at 1/3 (coin
+// Even thirds - red below 1/3 (success unlikely), yellow at 1/3 (coin
 // flip-ish), green at 2/3+ (success very likely). 2/3 ≈ 0.67 is the
 // "very likely" threshold; anything above that is fully saturated green.
 const RATING_STOPS = [
@@ -3376,7 +3376,7 @@ function ratingCssColor(score) {
 }
 
 // Like ratingCssColor but desaturates toward a neutral gray as the
-// forecast skill decays — used for the clouds column, since point
+// forecast skill decays - used for the clouds column, since point
 // cloud-cover forecasts past day 1-2 carry diminishing trust. The
 // skill curve matches effectivePClear (exp decay with tau = 4 days),
 // FLOORED at 1/3 so the cell never gets more than 2/3 gray: a far-out
@@ -3398,14 +3398,14 @@ function ratingColorAt(score) {
 }
 
 // ---------------------------------------------------------------------------
-// Probability-factor curves — single source of truth for both the rating
+// Probability-factor curves - single source of truth for both the rating
 // math AND the gradient coloring of the passes-list columns. The number
 // you see colored in any column IS the value that contributed to the
 // joint capture probability for that pass.
 // ---------------------------------------------------------------------------
 
 // Sky-darkness factor from sun altitude (apparent, refraction-corrected).
-// Linear from horizon (sun = 0°) to nautical (sun = −12°), saturating at 1.
+// Linear from horizon (sun = 0°) to nautical (sun = -12°), saturating at 1.
 // Camera-reality threshold: nautical twilight is dark enough for sub-mag-3
 // reference stars in a short exposure, even when the eye still sees glow.
 function twilightFactor(sunAltDeg) {
@@ -3457,7 +3457,7 @@ function effectivePClear(cloudPct, ageDays) {
 //   - twilightFactor (sky darkness): MIN across observers. Sun altitude
 //     is essentially the same for observers within a few hundred km, so
 //     the joint probability is determined by the worst-positioned
-//     observer's twilight — not by cubing nearly-identical values.
+//     observer's twilight - not by cubing nearly-identical values.
 //   - altitudeFactor (ISS height): PRODUCT across observers. Each
 //     observer's view geometry is genuinely independent, so independent
 //     successes legitimately compound.
@@ -3491,12 +3491,12 @@ function captureProbJoint(observers, issEcef, jsDate, ms, nowMs) {
 // scaled by a duration factor that captures the practical coordination
 // premium of longer passes (more time to set up, multiple-frame
 // redundancy, recoverable from transient cloud blips). We don't OR
-// across moments — geometry is deterministic and clouds are
+// across moments - geometry is deterministic and clouds are
 // near-constant within a pass, so consecutive sample probabilities are
-// heavily correlated, and a naïve "1 − ∏(1 − p)" would overcount.
+// heavily correlated, and a naïve "1 - ∏(1 - p)" would overcount.
 //
 // Duration sigmoid: pCoord = dur / (dur + 30). 30s → 0.50, 60s → 0.67,
-// 120s → 0.80, 240s → 0.89, asymptotic to 1 — captures diminishing
+// 120s → 0.80, 240s → 0.89, asymptotic to 1 - captures diminishing
 // returns past ~2 minutes (more time doesn't keep helping forever).
 function passSuccessProbability(win, observers) {
   if (state.mode === "radio") {
@@ -3521,14 +3521,14 @@ function passSuccessProbability(win, observers) {
 // Radio-reception score. The visibility filter already guaranteed
 // every observer's apparent elevation ≥ minElevDeg throughout the
 // window, so the only remaining variables are (a) how HIGH the pass
-// gets — the worst observer's peak elevation, which limits the joint
-// best signal-to-noise — and (b) how LONG the window lasts (more time
+// gets - the worst observer's peak elevation, which limits the joint
+// best signal-to-noise - and (b) how LONG the window lasts (more time
 // = more opportunities for a QSO / better Doppler measurement).
 function peakElevFactor(deg) {
   return Math.max(0, Math.min(1, (deg - 5) / 50));
 }
 // Duration → quality curve. Exponential approach to 1.0 with a 90s
-// time constant — short passes (<2 min) score low, a typical 6-7 min
+// time constant - short passes (<2 min) score low, a typical 6-7 min
 // overhead pass lands in the high 90s, and the curve asymptotes so
 // implausibly long passes don't break the upper bound.
 //   60s   →  0.49
@@ -3538,7 +3538,7 @@ function peakElevFactor(deg) {
 //  420s   →  0.99
 //  600s   →  ~1.00
 // min(1, ·) is belt-and-braces against numerical drift at very large
-// sec — the bare exp form already stays < 1 mathematically.
+// sec - the bare exp form already stays < 1 mathematically.
 function radioDurationFactor(sec) {
   return Math.min(1, 1 - Math.exp(-sec / 90));
 }
@@ -3565,7 +3565,7 @@ function radioPassSuccessProbability(win, observers, minElevDeg) {
 }
 
 // Per-moment radio-link quality used by the orbit-arc gradient.
-// Worst observer's elevation factor at this instant — gradient turns
+// Worst observer's elevation factor at this instant - gradient turns
 // red where the worst observer is near the horizon, green near zenith.
 function radioCaptureAt(observers, issEcef, minElevDeg) {
   let worst = 1;
@@ -3581,12 +3581,12 @@ function radioCaptureAt(observers, issEcef, minElevDeg) {
 
 // Visual magnitude of the (sunlit) ISS from one observer at one instant.
 // Standard satellite-magnitude formula:
-//   m = m_std + 5·log10(range / 1000 km)  −  2.5·log10(F(α))
-// where m_std = −1.8 is the intrinsic magnitude at 1000 km / full phase,
+//   m = m_std + 5·log10(range / 1000 km)  -  2.5·log10(F(α))
+// where m_std = -1.8 is the intrinsic magnitude at 1000 km / full phase,
 // α is the phase angle (satellite→sun vs satellite→observer), and
 // F(α) = (1 + cos α) / 2 is the Lambertian-sphere phase function.
 // Returns null when the observer is looking at the unlit hemisphere
-// (F ≤ 0) — in that case the satellite isn't visible at all.
+// (F ≤ 0) - in that case the satellite isn't visible at all.
 function magnitudeAt(obs, issEcef, sunDir) {
   const obsEcef = geodeticToEcef(obs.latDeg, obs.lonDeg, 0);
   const dx = obsEcef[0] - issEcef[0];
@@ -3605,8 +3605,8 @@ function magnitudeAt(obs, issEcef, sunDir) {
 
 // Peak joint-visibility magnitude within the window.
 // At each sampled moment we take the WORST (dimmest, highest m)
-// magnitude across the observers — the floor everyone is guaranteed to
-// see at that instant — and then across moments we take the BRIGHTEST
+// magnitude across the observers - the floor everyone is guaranteed to
+// see at that instant - and then across moments we take the BRIGHTEST
 // (lowest m) of those floors. This is the minimax magnitude: the
 // moment where even the dimmest observer sees the ISS at its best
 // across the joint-visibility window.
@@ -3662,7 +3662,7 @@ function renderActivePassGradient(win) {
     });
   }
   // Draw each segment between adjacent samples with color from the
-  // midpoint quality. Solid color material (not glow — glow's white core
+  // midpoint quality. Solid color material (not glow - glow's white core
   // washes the color out) keeps the gradient vivid against the dashed
   // full-orbit guide underneath.
   for (let i = 0; i < samples.length - 1; i++) {
@@ -3707,7 +3707,7 @@ loadTle();
 // behind ?s=...  Compact JSON shape:
 //   { o: [[name, lat, lon], ...], t?: passStartMs }
 // where `t` (if present) is the start time of a specific pass window
-// the user had selected — when someone opens the link, we jump to the
+// the user had selected - when someone opens the link, we jump to the
 // window matching that start time so they land exactly where the
 // sharer was looking.
 //
@@ -3718,7 +3718,7 @@ loadTle();
 //   3. The seeded Chicago/Milwaukee/Cincinnati defaults
 const LS_STATE_KEY = "iss-triangulation/state/v1";
 
-// Time-of-pass that was on the URL when the page loaded — consumed by
+// Time-of-pass that was on the URL when the page loaded - consumed by
 // the first runSearch to jump to the matching window instead of #0.
 let _pendingPassTimeMs = null;
 
@@ -3769,14 +3769,14 @@ function decodeStateBlob(blob) {
   }
 }
 
-// localStorage only — the URL is left clean. Share button (below)
+// localStorage only - the URL is left clean. Share button (below)
 // generates a fresh ?s=... URL on demand so the ugly blob only shows
 // up when explicitly copying a link to share with someone else.
 function persistState() {
   const blob = encodeStateBlob();
   try {
     localStorage.setItem(LS_STATE_KEY, blob);
-  } catch (_) { /* private browsing etc. — silently skip */ }
+  } catch (_) { /* private browsing etc. - silently skip */ }
 }
 
 // Build the URL a recipient would open to land on the current pass +
@@ -3822,7 +3822,7 @@ function loadInitialObservers() {
 loadInitialObservers();
 
 // Periodic cloud-forecast refresh. Pairs with the cache's 10-minute
-// TTL — every 15-minute tick crosses the TTL and triggers a real
+// TTL - every 15-minute tick crosses the TTL and triggers a real
 // network fetch, so a long-open page keeps near-fresh data without
 // reloading. (Open-Meteo's HRRR model only updates hourly, but
 // catching the next update within 15 min of it landing is the goal.)
@@ -3853,8 +3853,8 @@ state.searchEndMs = null;
 // a search.
 //
 // Paused (not animating) during init so the sim clock can't sprint
-// ahead during the 1–5s of Cesium boot + TLE fetch + first window
-// search. Otherwise a slow first-load can elapse 30–50s of sim time
+// ahead during the 1-5s of Cesium boot + TLE fetch + first window
+// search. Otherwise a slow first-load can elapse 30-50s of sim time
 // before any UI appears, and on reload that looks like "the clock is
 // racing and no passes loaded." Resumed at state.multiplier inside
 // runSearch once the first results are rendered.
@@ -3870,7 +3870,7 @@ state.searchEndMs = null;
 const speedSelect = document.getElementById("speed-select");
 const windowsListEl = document.getElementById("windows-list");
 
-// Pane toggle — slides #panel-left off-screen, swaps the toggle's icon
+// Pane toggle - slides #panel-left off-screen, swaps the toggle's icon
 // via the .panel-collapsed body class (all visual changes are CSS-driven).
 document.getElementById("panel-toggle").addEventListener("click", () => {
   document.body.classList.toggle("panel-collapsed");
@@ -3918,7 +3918,7 @@ minElevControlEl.addEventListener("click", (ev) => {
   if (!btn || btn.disabled) return;
   const step = parseInt(btn.dataset.step, 10);
   if (!Number.isFinite(step)) return;
-  // Snap the new value to the nearest step multiple — handles legacy
+  // Snap the new value to the nearest step multiple - handles legacy
   // state loaded from URL/storage with a non-multiple value (e.g.,
   // someone shared a "min=12°" link from before the stepper).
   const raw = state.minElevDeg + step;
@@ -3934,10 +3934,10 @@ minElevControlEl.addEventListener("click", (ev) => {
   _minElevDebounce = setTimeout(() => { rerunSearchIfActive(); }, 250);
 });
 
-// Share button — copies a URL encoding the current setup (observers +
+// Share button - copies a URL encoding the current setup (observers +
 // active pass + mode/min-elev) to the clipboard. The URL bar itself
 // stays clean; the ?s=... blob only materializes here, on demand.
-// Click feedback runs through CSS classes only — replacing textContent
+// Click feedback runs through CSS classes only - replacing textContent
 // would wipe the inline SVG icon and shift the button's height as
 // "Copied!" text is taller than the 12px icon.
 const shareBtn = document.getElementById("share-btn");
@@ -3973,7 +3973,7 @@ function runSearch(startMs, endMs) {
   // Only show the "searching…" placeholder if the list is currently empty
   // (initial load or after clearing observers). On subsequent searches the
   // old results stay visible until renderWindowsList atomically swaps in
-  // the new ones — avoids a jarring blank/flash on observer add/remove.
+  // the new ones - avoids a jarring blank/flash on observer add/remove.
   const hasResults = !!windowsListEl.querySelector(".window-row:not(.header)");
   if (!hasResults) {
     windowsListEl.replaceChildren();
@@ -3998,7 +3998,7 @@ function runSearch(startMs, endMs) {
     );
     const elapsedMs = performance.now() - t0;
     if (elapsedMs > 1500 || wins.length === 0) {
-      // Surface slow searches and empty results — the most common cause
+      // Surface slow searches and empty results - the most common cause
       // of "panel never populated after reload" was a search exceeding
       // the 5s page-loader safety net while finding 0 windows.
       console.info(
@@ -4048,7 +4048,7 @@ function dismissPageLoader() {
 // Safety net: if something goes wrong (TLE fetch fails, no observers,
 // etc.) and runSearch never fires, drop the loader so the user isn't
 // stuck on a black screen. 12s covers slow first-load searches (30-day
-// horizon × multiple observers can run 3–8s on cold caches); shorter
+// horizon × multiple observers can run 3-8s on cold caches); shorter
 // timeouts would dismiss while the search is still running, surfacing
 // an empty "no passes" panel that fills in a few seconds later.
 setTimeout(dismissPageLoader, 12000);
@@ -4058,7 +4058,7 @@ setTimeout(dismissPageLoader, 12000);
 // TLE load. No-op if either prerequisite is missing.
 function rerunSearchIfActive() {
   // Per-observer pass cache depends on mode + minElevDeg + observer
-  // set — any change that triggers a search re-run invalidates them
+  // set - any change that triggers a search re-run invalidates them
   // too. The next preRender will repopulate any observer currently
   // sighting ISS.
   invalidateObsPassCache();
@@ -4086,7 +4086,7 @@ function rerunSearchIfActive() {
 
 function setupClockForSearch(startMs, endMs) {
   // Update the clock's range to span the search, but DON'T touch
-  // currentTime — the user's scrubbed position (or a previously-clicked
+  // currentTime - the user's scrubbed position (or a previously-clicked
   // window) must survive across re-searches (observer add/remove) and
   // "Find more" extensions. Reset the clock via the Reset button.
   viewer.clock.startTime = Cesium.JulianDate.fromDate(new Date(startMs));
@@ -4137,7 +4137,7 @@ function renderWindowsList() {
       }
     }
     if (!Number.isFinite(minAlt)) { minAlt = 0; maxAlt = 0; }
-    const cloud = cloudRange(peakMs); // { min, max } or null — display only
+    const cloud = cloudRange(peakMs); // { min, max } or null - display only
     const timeFactor = worstLocalTimeScore(peakMs); // colors the time col only
     // Rating = P(every observer captures ISS + reference stars at the
     // same instant in the window), scaled by a duration sigmoid for
@@ -4152,7 +4152,7 @@ function renderWindowsList() {
     row.className = "window-row";
     if (i === state.activeWindowIdx) row.classList.add("active");
 
-    // Rating column — joint capture-probability digits (no % sign, saves
+    // Rating column - joint capture-probability digits (no % sign, saves
     // width), colored continuously on the same gradient the orbit
     // overlay uses.
     const r = document.createElement("span");
@@ -4162,7 +4162,7 @@ function renderWindowsList() {
     r.title = ratingTooltip;
     row.appendChild(r);
 
-    // Time column (UTC, peak/best moment) — left intentionally uncolored
+    // Time column (UTC, peak/best moment) - left intentionally uncolored
     // so the colored columns (rating, sun, dur, alt, mag, clouds) carry
     // the visual signal and the date/time reads as neutral context.
     const time = document.createElement("span");
@@ -4170,7 +4170,7 @@ function renderWindowsList() {
     time.textContent = new Date(peakMs).toISOString().slice(5, 19).replace("T", " ");
     row.appendChild(time);
 
-    // Duration column — color formula depends on mode. Visual uses
+    // Duration column - color formula depends on mode. Visual uses
     // coordinationFactor (sigmoid centered ~60s, matching capture-
     // setup time); Radio uses radioDurationFactor (centered ~120s,
     // matching the "time to make a QSO / measure Doppler" threshold).
@@ -4185,7 +4185,7 @@ function renderWindowsList() {
     row.appendChild(dur);
 
     if (state.mode === "radio") {
-      // Peak elevation — worst observer's maximum elevation across the
+      // Peak elevation - worst observer's maximum elevation across the
       // window. Limits the joint link quality (signal at the worst
       // station is what bounds coordinated radio work). Colored on the
       // same peakElevFactor that drives the rating math.
@@ -4207,7 +4207,7 @@ function renderWindowsList() {
         pk.textContent = `${Math.round(worstPeakElev)}°`;
         pk.style.color = ratingCssColor(peakElevFactor(worstPeakElev));
       } else {
-        pk.textContent = "—";
+        pk.textContent = "-";
         pk.classList.add("na");
       }
       row.appendChild(pk);
@@ -4218,7 +4218,7 @@ function renderWindowsList() {
       return;
     }
 
-    // Altitude range — value is min–max alt across observers at peak.
+    // Altitude range - value is min-max alt across observers at peak.
     // Color is the PRODUCT of altitudeFactor across observers (matches
     // the joint model's treatment of altitude as the genuinely-
     // independent factor that legitimately compounds). Single observer:
@@ -4227,7 +4227,7 @@ function renderWindowsList() {
     const alt = document.createElement("span");
     alt.className = "alt";
     const altLo = Math.round(minAlt), altHi = Math.round(maxAlt);
-    alt.textContent = altLo === altHi ? `${altHi}°` : `${altLo}–${altHi}°`;
+    alt.textContent = altLo === altHi ? `${altHi}°` : `${altLo}-${altHi}°`;
     let prodAlt = 1;
     if (issEcef) {
       for (const obs of state.observers) {
@@ -4239,13 +4239,13 @@ function renderWindowsList() {
     alt.style.color = ratingCssColor(prodAlt);
     row.appendChild(alt);
 
-    // Peak magnitude — colored on the same gradient: mag = −3 → green
+    // Peak magnitude - colored on the same gradient: mag = -3 → green
     // (brilliant), 0 → yellow, +1 → red (very faint).
     const mag = document.createElement("span");
     mag.className = "mag";
     const peakMag = peakMagnitudeInWindow(w, state.observers);
     if (peakMag == null) {
-      mag.textContent = "—";
+      mag.textContent = "-";
       mag.classList.add("na");
     } else {
       mag.textContent = peakMag.toFixed(1);
@@ -4253,7 +4253,7 @@ function renderWindowsList() {
     }
     row.appendChild(mag);
 
-    // Sun-altitude column — worst (highest = brightest) observer at
+    // Sun-altitude column - worst (highest = brightest) observer at
     // the peak moment, refraction-corrected. Color is the literal
     // twilight factor used in the rating math: twilightFactor(sunAlt).
     // Positioned after Mag so the table reads left→right as
@@ -4267,7 +4267,7 @@ function renderWindowsList() {
     }
     const sun = document.createElement("span");
     sun.className = "sun";
-    sun.textContent = Number.isFinite(worstSunAlt) ? `${Math.round(worstSunAlt)}°` : "—";
+    sun.textContent = Number.isFinite(worstSunAlt) ? `${Math.round(worstSunAlt)}°` : "-";
     if (Number.isFinite(worstSunAlt)) {
       sun.style.color = ratingCssColor(twilightFactor(worstSunAlt));
     } else {
@@ -4275,19 +4275,19 @@ function renderWindowsList() {
     }
     row.appendChild(sun);
 
-    // Cloud cover range — gradient color indexed by P(clear), DESAT'd
+    // Cloud cover range - gradient color indexed by P(clear), DESAT'd
     // toward gray as the forecast horizon stretches out. Uses the same
-    // exp(−age/4) skill curve effectivePClear uses inside the rating
+    // exp(-age/4) skill curve effectivePClear uses inside the rating
     // math: a clouds value 8+ days out displays mostly gray, signaling
     // "this number isn't trustworthy enough to color." 0 days → vivid.
     const cl = document.createElement("span");
     cl.className = "cloud";
     if (cloud === null) {
-      cl.textContent = "—";
+      cl.textContent = "-";
       cl.classList.add("na");
     } else {
       const clLo = Math.round(cloud.min), clHi = Math.round(cloud.max);
-      cl.textContent = clLo === clHi ? `${clHi}%` : `${clLo}–${clHi}%`;
+      cl.textContent = clLo === clHi ? `${clHi}%` : `${clLo}-${clHi}%`;
       const ageDays = (peakMs - Date.now()) / 86_400_000;
       cl.style.color = ratingCssColorWithSkill(1 - clHi / 100, ageDays);
     }
@@ -4300,7 +4300,7 @@ function renderWindowsList() {
 
 // Per-observer time-of-day preference for naked-eye viewing, 0-1.
 // Peaks during prime evening (7-11pm), troughs in the dead of night (3-4am).
-// Uses longitude/15 as the local-time offset — close enough for "people are
+// Uses longitude/15 as the local-time offset - close enough for "people are
 // awake or asleep" purposes without an IANA timezone lookup.
 function localTimeScore(localHour) {
   const h = ((localHour % 24) + 24) % 24;
@@ -4368,7 +4368,7 @@ function bestMomentMs(w) {
 }
 
 // Index of the window whose [startMs, endMs] contains `ms`, or -1.
-// Small tolerance on each edge — clicking a pass parks the clock at
+// Small tolerance on each edge - clicking a pass parks the clock at
 // the window's startMs via JulianDate.fromDate→toDate, which can
 // introduce sub-millisecond float drift. Without tolerance, the
 // roundtripped ms can land at startMs - 0.0001 and the auto-tracker
@@ -4392,7 +4392,7 @@ function windowIdxAtMs(ms) {
 // active pass gradient is cleared too.
 function setActiveWindowSoft(i) {
   // Class always reflects current activeWindowIdx, even when the
-  // auto-tracker would otherwise no-op — catches stale state from
+  // auto-tracker would otherwise no-op - catches stale state from
   // outside callers that reset activeWindowIdx directly (reset
   // button, window-list rebuild, etc.).
   document.body.classList.toggle("has-active-pass", i >= 0);
@@ -4483,7 +4483,7 @@ resetBtn.addEventListener("click", () => {
 // is clicked, the camera locks to that observer's location looking up
 // at the ISS, updated every frame so the user can play through a pass
 // and watch the ISS arc across the sky from their POV. (`_fpsObserverId`
-// itself is declared higher up in the file — it's read during initial
+// itself is declared higher up in the file - it's read during initial
 // renderObsList before this section runs.)
 //
 // FPS mode widens the camera FOV to ~90° (roughly human-eye coverage)
@@ -4514,14 +4514,14 @@ function exitFpsMode() {
 }
 
 // Per-frame: keep each observer card's polar plot ISS dot in sync with
-// the current sim time. Arc is static for the active window — only the
+// the current sim time. Arc is static for the active window - only the
 // dot moves frame-to-frame.
 viewer.scene.preRender.addEventListener(autoTrackActiveWindow);
 
 // Per-observer "sighting now" tracker. Toggles the polar-plot icons
 // (obs-list + 3D-scene) per observer based on observerSeesIss at the
 // current clock time. On the invisible→visible transition, computes
-// the observer's full pass window and refreshes their arc — so a
+// the observer's full pass window and refreshes their arc - so a
 // station that catches the ISS rising before others have their plot
 // already populated with the right path.
 viewer.scene.preRender.addEventListener(() => {
@@ -4555,9 +4555,9 @@ viewer.scene.preRender.addEventListener(() => {
     // placements. Computed every frame so the disc and arc track the
     // sun as the clock advances. Arc samples are cached per-pass (see
     // getCachedArcSamples) so the per-frame work is just a DOM rebuild
-    // with the new stroke color — no SGP4 re-propagation.
+    // with the new stroke color - no SGP4 re-propagation.
     const sunAltDeg = apparentAltDeg(sunAltitudeDeg(obs, d));
-    // Display toggle — same per-observer flag drives both placements.
+    // Display toggle - same per-observer flag drives both placements.
     for (const svg of obsListEl.querySelectorAll(`.polar-plot[data-obs-id="${obs.id}"]`)) {
       svg.style.display = visible ? "" : "none";
       updatePolarPlotHorizon(svg, sunAltDeg);
@@ -4600,7 +4600,7 @@ viewer.scene.preRender.addEventListener(() => {
     if (!isInFrontOfEarth(posCart)) { wrapper.style.display = "none"; continue; }
     const screen = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, posCart);
     if (!screen) { wrapper.style.display = "none"; continue; }
-    // Skip labels whose anchor is off-screen — they'd just sit
+    // Skip labels whose anchor is off-screen - they'd just sit
     // clipped at the viewport edge and on mobile they have been
     // observed to expand the document layout area.
     if (screen.x < -8 || screen.y < -8 ||
@@ -4614,7 +4614,7 @@ viewer.scene.preRender.addEventListener(() => {
     wrapper.style.top = `${screen.y - 10 + off.dy}px`;
     updateObserverLabelText(wrapper, obs, _nowDate, _nowMs);
   }
-  // The fullscreen modal is a PNG snapshot taken when it opens — no
+  // The fullscreen modal is a PNG snapshot taken when it opens - no
   // per-frame updates there. Close/reopen to refresh.
 });
 
@@ -4669,7 +4669,7 @@ const cameraCtrl = wireCameraControls(viewer, {
   // Tell the shared frameAll how much of the canvas is covered by the
   // left panel so it can fit the bounding sphere into the visible
   // (un-occluded) area rather than the full canvas. Bottom-controls
-  // strip is ~50px tall — reserve a little vertical room too.
+  // strip is ~50px tall - reserve a little vertical room too.
   getFrameViewportInset: () => {
     const panel = document.getElementById("panel-left");
     const leftPx = (panel && !document.body.classList.contains("panel-collapsed"))
@@ -4714,7 +4714,7 @@ const cameraCtrl = wireCameraControls(viewer, {
     const issEcef = issEcefAt(Cesium.JulianDate.toDate(viewer.clock.currentTime));
     if (issEcef) ps.push(Cesium.Cartesian3.fromElements(issEcef[0], issEcef[1], issEcef[2]));
     // When a pass is selected, sample positions along its visibility
-    // window so the frame includes the full colored arc — not just the
+    // window so the frame includes the full colored arc - not just the
     // ISS at "now". Without this the frame is too tight when the
     // current clock time happens to be at the pass start/end.
     const w = state.windows?.[state.activeWindowIdx];

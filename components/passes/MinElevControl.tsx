@@ -34,7 +34,7 @@ export default function MinElevControl() {
         disabled={minElevDeg - MIN_ELEV_STEP < MIN_ELEV_MIN}
         onClick={() => step(-MIN_ELEV_STEP)}
       >
-        −
+        -
       </button>
       <span id="min-elev-value" className="min-elev-value">
         {minElevDeg}°

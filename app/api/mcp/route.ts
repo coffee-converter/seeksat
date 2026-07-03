@@ -1,4 +1,4 @@
-// app/api/mcp/route.ts — Streamable-HTTP MCP server. Thin adapter:
+// app/api/mcp/route.ts - Streamable-HTTP MCP server. Thin adapter:
 // validates input with zod, delegates to the pure handlers in
 // lib/mcp/tools.mjs, returns the result as JSON text content.
 import { createMcpHandler } from 'mcp-handler';
@@ -41,7 +41,7 @@ const asError = (e: unknown) => ({
 });
 
 // Like asText, but when a handler embedded a rendered chart (`pngBase64`),
-// split it into a trailing image content block — JSON data first, image LAST —
+// split it into a trailing image content block - JSON data first, image LAST -
 // so the chart returns in the same single tool call and gets the best shot at
 // rendering inline.
 const asResult = (res: unknown) => {
@@ -70,7 +70,7 @@ const mcpHandler = createMcpHandler(
 
     server.tool(
       'find_passes',
-      'List ALL upcoming passes of one satellite over a location, ranked by a quality score. Returns an array of passes, each with rise/peak/set times, peak elevation (deg), brightness (magnitude — lower/more-negative is brighter), duration, and a quality score 0–1. Scans windowHours ahead (default 48, up to 240 = 10 days), so this is the tool for comparing passes or finding the best/brightest one over a span of days — not just the next one. mode "visual" returns only sunlit, after-dark (naked-eye) passes; "radio" returns all line-of-sight passes. Provide lat+lon or a location string. Feed any pass\'s peak time to get_pass_chart (to draw it) or get_pass_weather (to check clouds). To rank across ALL tracked satellites at once, use best_pass.',
+      'List ALL upcoming passes of one satellite over a location, ranked by a quality score. Returns an array of passes, each with rise/peak/set times, peak elevation (deg), brightness (magnitude - lower/more-negative is brighter), duration, and a quality score 0-1. Scans windowHours ahead (default 48, up to 240 = 10 days), so this is the tool for comparing passes or finding the best/brightest one over a span of days - not just the next one. mode "visual" returns only sunlit, after-dark (naked-eye) passes; "radio" returns all line-of-sight passes. Provide lat+lon or a location string. Feed any pass\'s peak time to get_pass_chart (to draw it) or get_pass_weather (to check clouds). To rank across ALL tracked satellites at once, use best_pass.',
       {
         satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
         lat: z.number().min(-90).max(90).optional(),
@@ -110,7 +110,7 @@ const mcpHandler = createMcpHandler(
         lon: z.number().min(-180).max(180).optional(),
         location: z.string().optional(),
         mode: z.enum(['visual', 'radio']).optional(),
-        chart: z.boolean().optional().describe('When true, also render the pass\'s polar sky chart (PNG) and include it in this result — use whenever the user wants to see or visualise the pass.'),
+        chart: z.boolean().optional().describe('When true, also render the pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the pass.'),
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -137,7 +137,7 @@ const mcpHandler = createMcpHandler(
 
     server.tool(
       'get_pass_chart',
-      'Render a polar sky chart (PNG) of a satellite\'s pass over a location — where to look, with the moon, planets, and stars in their real positions. By default it charts the NEXT pass; pass `time` (the rise or peak of a specific pass from find_passes / best_pass) to chart THAT pass instead — this is how you visualise the best pass rather than just the next one. mode "visual" (default) or "radio".',
+      'Render a polar sky chart (PNG) of a satellite\'s pass over a location - where to look, with the moon, planets, and stars in their real positions. By default it charts the NEXT pass; pass `time` (the rise or peak of a specific pass from find_passes / best_pass) to chart THAT pass instead - this is how you visualise the best pass rather than just the next one. mode "visual" (default) or "radio".',
       {
         satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
         lat: z.number().min(-90).max(90).optional(),
@@ -166,7 +166,7 @@ const mcpHandler = createMcpHandler(
 
     server.tool(
       'best_pass',
-      'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. Set chart:true to also render the winning pass\'s sky chart and return it in this same call — prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
+      'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
       {
         satellite: z.string().optional().describe('NORAD id or name (e.g. "iss") to rank one satellite. Omit to scan and rank across every tracked satellite.'),
         lat: z.number().min(-90).max(90).optional(),
@@ -176,7 +176,7 @@ const mcpHandler = createMcpHandler(
         minElevation: z.number().min(0).max(90).optional().describe('ignore passes peaking below this many degrees. Default 10.'),
         limit: z.number().int().positive().max(20).optional().describe('how many ranked passes to return. Default 3.'),
         mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye sunlit passes after dark; "radio" = all line-of-sight passes.'),
-        chart: z.boolean().optional().describe('When true, also render the winning pass\'s polar sky chart (PNG) and include it in this result — use whenever the user wants to see or visualise the best pass.'),
+        chart: z.boolean().optional().describe('When true, also render the winning pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the best pass.'),
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -187,7 +187,7 @@ const mcpHandler = createMcpHandler(
   },
   // serverOptions
   { serverInfo: { name: 'seeksat', version: '1.0.0' } },
-  // config — route lives at /api/mcp, so basePath '/api' derives the
+  // config - route lives at /api/mcp, so basePath '/api' derives the
   // streamable-HTTP endpoint to '/api/mcp'. No redisUrl needed: redis is
   // only used for SSE session resumability, not streamable HTTP.
   { basePath: '/api' },
@@ -195,7 +195,7 @@ const mcpHandler = createMcpHandler(
 
 // Wrap the MCP dispatch: resolve the caller's tier from the API key and
 // run the whole dispatch inside the ALS scope so the tool callbacks above
-// can read it. Fail-open — an unknown/absent key is simply 'free'.
+// can read it. Fail-open - an unknown/absent key is simply 'free'.
 async function handler(req: Request): Promise<Response> {
   const { tier, keyId } = resolveTier(presentedKey(req), PRO_KEYS);
   return runWithRequestContext({ tier, keyId }, () => mcpHandler(req));

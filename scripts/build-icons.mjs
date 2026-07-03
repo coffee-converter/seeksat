@@ -1,17 +1,17 @@
-// scripts/build-icons.mjs — generate the site icons from the app's OWN
+// scripts/build-icons.mjs - generate the site icons from the app's OWN
 // renderers (no recreation), both showing the SAME real ISS pass:
 //
-//   app/icon.svg       — the chunky Cesium globe-label plot icon: horizon
+//   app/icon.svg       - the chunky Cesium globe-label plot icon: horizon
 //                        disc + single altitude ring + north marker + a fat
 //                        (stroke-width 8) pass arc, painted by the real
 //                        computeArcSamples/renderArcSegments.
-//   app/apple-icon.png — the full polar sky chart (renderPassChartSVG, the
+//   app/apple-icon.png - the full polar sky chart (renderPassChartSVG, the
 //                        same output the OG card + get_pass_chart MCP tool
 //                        produce), rasterized 180×180.
 //
 // Pass selection (pickPass, below) scans real passes and prefers a HIGH,
 // CURVED overhead pass whose peak falls in medium twilight (sun ≈ -6°), so
-// the horizon shades a contrasty blue and the arc has real curvature —
+// the horizon shades a contrasty blue and the arc has real curvature -
 // rather than selectPass's first-visible pick, which tends to be a low,
 // straight, deep-night graze. Rendering is still 100% the app's code.
 //
@@ -30,7 +30,7 @@ import { passWindowAtMsForObserver } from "../lib/pass-finder/observer-pass.js";
 import { passPeakMs } from "../lib/pass-finder/polar-events.js";
 import { skyShadeForSunAlt, chartPalette, SVG_NS } from "../lib/pass-finder/sky-helpers.js";
 
-// Above-horizon crossings around a peak — the same fallback selectPass uses
+// Above-horizon crossings around a peak - the same fallback selectPass uses
 // when passWindowAtMsForObserver returns null (horizonWindow isn't exported).
 function horizonWindow(obs, issEcefAt, peakMs) {
   const STEP = 1000, CAP = 12 * 60 * 1000;
@@ -67,7 +67,7 @@ function pickPass(obs, issEcefAt, nowMs, scanDays) {
   // Want a SOLID, curved arc on a still-blue sky. Solid needs the ISS
   // naked-eye visible (sun below ~-6 → the renderer stops dashing);
   // "medium twilight" keeps the sky blue by staying above astronomical
-  // dark (sun down to ~-11). Within that band, take the HIGHEST pass —
+  // dark (sun down to ~-11). Within that band, take the HIGHEST pass -
   // higher peak = the arc curves harder around the zenith.
   const band = (lo, hi) => scored.filter((p) =>
     p.lit && p.sunAlt <= hi && p.sunAlt >= lo);
@@ -99,7 +99,7 @@ console.log(`Pass: peak ${best.peakAlt.toFixed(0)}° alt, sun ${best.sunAlt.toFi
 
 const addNs = (s) => s.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
 
-// Render the full chart FIRST — it stamps the exact sky shade + arc color
+// Render the full chart FIRST - it stamps the exact sky shade + arc color
 // it used onto the root (data-sky-shade / data-arc-stroke). We reuse those
 // for the favicon so the two icons share one palette by construction,
 // rather than recomputing (which risked a hue mismatch).

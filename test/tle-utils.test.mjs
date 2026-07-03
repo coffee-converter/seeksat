@@ -78,12 +78,12 @@ test('pickTleLines: 3-line form is preferred when both shapes could match', () =
   };
   const out = pickTleLines(tle);
   // Canonical shape: line1 starts with "1 " and line2 starts with
-  // "2 " — that branch wins because it's tested first.
+  // "2 " - that branch wins because it's tested first.
   assert.deepEqual(out, [tle.line1, tle.line2]);
 });
 
 test('pickTleLines: returns null if line2 is missing the "2 " prefix in 3-line form', () => {
-  // Defensive — corrupted data shouldn't accidentally match the
+  // Defensive - corrupted data shouldn't accidentally match the
   // 2-line shape (which would feed garbage to SGP4).
   const tle = {
     name: 'ISS',

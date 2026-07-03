@@ -17,7 +17,7 @@ test('cloudRange: empty observers returns null', () => {
   assert.equal(cloudRange(Date.now(), [], () => null), null);
 });
 
-test('cloudRange: single observer — min and max equal', () => {
+test('cloudRange: single observer - min and max equal', () => {
   const ms = Date.now();
   const observers = [{ id: 'a' }];
   const cloudForecastFor = () => makeForecast(ms, [42]);
@@ -25,7 +25,7 @@ test('cloudRange: single observer — min and max equal', () => {
   assert.deepEqual(out, { min: 42, max: 42 });
 });
 
-test('cloudRange: two observers — picks min and max', () => {
+test('cloudRange: two observers - picks min and max', () => {
   const ms = Date.now();
   const observers = [{ id: 'a' }, { id: 'b' }];
   const cloudForecastFor = (id) =>
@@ -35,7 +35,7 @@ test('cloudRange: two observers — picks min and max', () => {
 });
 
 // Helper: build a minimal forecast shape that cloudAt understands.
-// cloudAt looks up the hour bucket — startMs is the bucket start, hours[]
+// cloudAt looks up the hour bucket - startMs is the bucket start, hours[]
 // is hourly percent values from there.
 function makeForecast(atMs, hourValues) {
   return { startMs: atMs, hours: hourValues };
@@ -59,7 +59,7 @@ test('bestMomentMs: picks instant where ISS is highest', () => {
   const issEcefAtFn = (date) => {
     const t = date.getTime();
     if (t === 30_000) return [RADIUS + 400_000, 0, 0]; // overhead
-    // Offset horizontally by ~1000 km at non-peak — lower altitude.
+    // Offset horizontally by ~1000 km at non-peak - lower altitude.
     return [RADIUS, 1_000_000, 0];
   };
   const out = bestMomentMs(w, [obs], issEcefAtFn);
@@ -77,7 +77,7 @@ test('bestMomentMs: with two observers, finds best joint instant', () => {
   const issEcefAtFn = (date) => {
     const t = date.getTime();
     // ISS at altitude 400km, longitude varies linearly from -90 to +90
-    // across the window — passes overhead lon=0 at t=30_000.
+    // across the window - passes overhead lon=0 at t=30_000.
     const lonDeg = -90 + 180 * (t / 60_000);
     const lonRad = lonDeg * Math.PI / 180;
     const r = RADIUS + 400_000;

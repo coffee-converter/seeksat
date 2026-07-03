@@ -45,7 +45,7 @@ export default function PolarPlot({ obs }: { obs: PassObserver }) {
           r={((90 - altDeg) / 90) * INNER_R}
         />
       ))}
-      {/* Cardinal labels — sky-chart convention (looking up):
+      {/* Cardinal labels - sky-chart convention (looking up):
           N top, E LEFT, W RIGHT, matching altAzToSvg's negated-sin
           projection. Positioned just outside the horizon ring;
           CSS sets overflow: visible so they render past the viewBox. */}
@@ -53,7 +53,7 @@ export default function PolarPlot({ obs }: { obs: PassObserver }) {
       <text className="cardinal" x={-2}  y={50}  textAnchor="middle" dominantBaseline="central">E</text>
       <text className="cardinal" x={50}  y={102} textAnchor="middle" dominantBaseline="central">S</text>
       <text className="cardinal" x={102} y={50}  textAnchor="middle" dominantBaseline="central">W</text>
-      {/* Empty groups + placeholder dot — scene paints into these. */}
+      {/* Empty groups + placeholder dot - scene paints into these. */}
       <g className="bodies" />
       <g className="arc" />
       <g className="events" />

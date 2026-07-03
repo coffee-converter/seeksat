@@ -12,7 +12,7 @@ export default function AboutPane() {
   const [copied, setCopied] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Keep Tab focus inside the dialog while it's open — aria-modal="true"
+  // Keep Tab focus inside the dialog while it's open - aria-modal="true"
   // promises focus containment, so enforce it (no library, just cycle
   // between the first and last focusable controls).
   const trapTab = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -45,7 +45,7 @@ export default function AboutPane() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard unavailable (insecure origin) — the command stays selectable */
+      /* clipboard unavailable (insecure origin) - the command stays selectable */
     }
   };
 
@@ -76,7 +76,7 @@ export default function AboutPane() {
               ×
             </button>
             <h2 className="about-title"><span className="seek">Seek</span><span className="sat">Sat</span></h2>
-            <p>Satellite &amp; ISS pass forecasts — a 3D globe with multi-station overhead timing and per-pass sky charts.</p>
+            <p>Satellite &amp; ISS pass forecasts - a 3D globe with multi-station overhead timing and per-pass sky charts.</p>
 
             <h3>Agent-queryable via MCP</h3>
             <p>The same SGP4 + visibility engine is exposed to AI agents over the Model Context Protocol:</p>

@@ -9,7 +9,7 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; col
   font-size: 13px; line-height: 1.5; }
 #cesium-container { width: 100vw; height: 100vh; height: 100dvh; }
 
-/* Disable text selection by default on the whole UI — accidental
+/* Disable text selection by default on the whole UI - accidental
    double-clicks on buttons/labels picking up stray text selection is
    more annoying than the rare case of wanting to copy a timestamp.
    Re-enable specifically for input controls (where text-selection
@@ -39,7 +39,7 @@ input, textarea, [contenteditable="true"] {
 .panel-left { left: 16px; }
 .panel-right { right: 16px; max-width: 340px; }
 
-/* Left panel collapse — mirrors pass-finder. Toggle button sits on
+/* Left panel collapse - mirrors pass-finder. Toggle button sits on
    the right edge of the panel when open; slides with the panel to the
    viewport edge when collapsed so the user can always re-open. */
 :root { --panel-left-width: 460px; }
@@ -143,7 +143,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 /* Shared collapsible-section styling for the three sibling details
    panels in #panel-observations (#result-section, #obs-details,
    #tle-section). Chevron + label + horizontal rule across the rest of
-   the header — gives each section a clear banded look. */
+   the header - gives each section a clear banded look. */
 #panel-observations > details + details {
   margin-top: 8px;
 }
@@ -169,7 +169,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   margin: 0;
   flex: 0 0 auto;
 }
-/* Filler bar — takes the remaining horizontal room beside the label.
+/* Filler bar - takes the remaining horizontal room beside the label.
    Extra left margin so the bar reads visually separate from the title. */
 #panel-observations > details > summary::after {
   content: "";

@@ -1,4 +1,4 @@
-// lib/tle-utils.ts — pure helpers for the Tle shape stored in the
+// lib/tle-utils.ts - pure helpers for the Tle shape stored in the
 // triangulate Zustand store. Used by ResultPanel/TlePanel/bootstrap to
 // agree on what counts as "a TLE has been entered" and which two
 // lines to feed satellite.js.

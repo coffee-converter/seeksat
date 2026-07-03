@@ -28,7 +28,7 @@ FPS = 10
 N_FRAMES = int(LOOP_PERIOD * FPS)
 PALETTE_COLORS = 32
 
-# SVG geometry — matches passes.html.
+# SVG geometry - matches passes.html.
 VIEW_X, VIEW_Y, VIEW_W, VIEW_H = 32, 32, 156, 156
 CX, CY = 110, 110
 EARTH_R = 46
@@ -37,7 +37,7 @@ ORBIT_RX = 56
 ORBIT_RY = 14
 BAND_WIDTH = 92  # one earth diameter
 
-BG_RGBA = (10, 14, 26, 255)  # #0a0e1a — page loader background
+BG_RGBA = (10, 14, 26, 255)  # #0a0e1a - page loader background
 OCEAN_FILL = "#2b78c9"
 CONTINENT_FILL = "#4fc070"
 OUTLINE_STROKE = "#0c2c5a"

@@ -23,8 +23,8 @@ import OnboardingTour from "@/components/OnboardingTour";
 // Pass-finder composition root. Same shape as TriangulateApp but the
 // scene island inside is much bigger (~4.7k lines of imperative
 // Cesium / observer / windows-list code, still wrap-and-mounted into
-// the JSX skeleton below). A panel-by-panel React refactor —
-// matching what we did for triangulate — can follow this file as
+// the JSX skeleton below). A panel-by-panel React refactor -
+// matching what we did for triangulate - can follow this file as
 // the template; the foundation (viewer hook, scene init, JSX
 // skeleton) is in place.
 export default function PassFinderApp(
@@ -35,7 +35,7 @@ export default function PassFinderApp(
 
   // Server-seed the per-satellite TLE map once on mount, then select the
   // default satellite (ISS) so the scene paints immediately. No-op when
-  // the map is empty (e.g. Edge Config unset) — selection still sets the
+  // the map is empty (e.g. Edge Config unset) - selection still sets the
   // default id and the client fetch fills the TLE in.
   useEffect(() => {
     if (seededRef.current) return;
@@ -63,8 +63,8 @@ export default function PassFinderApp(
     let teardown: (() => void) | undefined;
     // Dynamic import (not static) because the scene module + its
     // transitive deps capture window.Cesium at module-evaluation time.
-    // With a static import the module would evaluate at page load —
-    // before Cesium has finished downloading — and freeze in an
+    // With a static import the module would evaluate at page load -
+    // before Cesium has finished downloading - and freeze in an
     // undefined Cesium. The dynamic import defers evaluation until
     // useCesiumViewer has confirmed Cesium is ready.
     (async () => {
@@ -91,7 +91,7 @@ export default function PassFinderApp(
 
       {/* Inconspicuous brand mark, top-right corner of the scene. Mirrors
           the side panel diagonally; pointer-events:none so it never
-          intercepts globe drag/zoom. Decorative — hidden from a11y tree. */}
+          intercepts globe drag/zoom. Decorative - hidden from a11y tree. */}
       <div className="brand-mark" aria-hidden="true">
         <span className="seek">Seek</span><span className="sat">Sat</span>
       </div>
@@ -146,7 +146,7 @@ export default function PassFinderApp(
 
       <nav id="bottom-controls">
         <PlaybackControls />
-        <div id="sim-time">—</div>
+        <div id="sim-time">-</div>
         <div id="camera-controls" className="ctl-group">
           <button data-cam="frame" title="Frame all observers">Frame</button>
           <button data-cam="top" title="Top-down view">Top</button>
@@ -171,7 +171,7 @@ export default function PassFinderApp(
             zIndex: 1000,
           }}
         >
-          Cesium failed to load — check the console.
+          Cesium failed to load - check the console.
         </div>
       )}
     </CesiumViewerProvider>

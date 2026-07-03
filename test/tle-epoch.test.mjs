@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseTleEpoch } from '../lib/pass-finder/tle.js';
 
-// Sample TLE line 1 — fields 19-32 hold "YYDDD.dddddddd".
+// Sample TLE line 1 - fields 19-32 hold "YYDDD.dddddddd".
 // Year 26 → 2026, day 141.81013265 → May 21 2026 19:26:35 UTC.
 const REAL_LINE1 =
   "1 25544U 98067A   26141.81013265  .00006598  00000+0  12646-3 0  9999";
@@ -69,7 +69,7 @@ test('parseTleEpoch: garbage epoch field → NaN', () => {
   assert.ok(Number.isNaN(parseTleEpoch(line)));
 });
 
-test('parseTleEpoch: monotonic — later epoch produces larger ms', () => {
+test('parseTleEpoch: monotonic - later epoch produces larger ms', () => {
   const earlier = "1 12345U 23456A   25001.00000000".padEnd(69, " ");
   const later   = "1 12345U 23456A   25002.00000000".padEnd(69, " ");
   assert.ok(parseTleEpoch(later) - parseTleEpoch(earlier) === DAY_MS);

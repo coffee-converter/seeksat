@@ -1,4 +1,4 @@
-// lib/cesium-viewer.ts — typed port of legacy/viewer-setup.js
+// lib/cesium-viewer.ts - typed port of legacy/viewer-setup.js
 //
 // makeViewer constructs a Cesium.Viewer wired up with our app-wide
 // defaults: no Cesium Ion, Esri World Imagery as the base layer, the
@@ -73,7 +73,7 @@ export function makeViewer(
     // brightness multiplies imagery RGB; contrast bump keeps the
     // sunlit hemisphere vivid at the lower brightness (the contrast
     // curve in Cesium's imagery filter crushes blacks while preserving
-    // highlights — exactly what we want for a stronger day/night gap).
+    // highlights - exactly what we want for a stronger day/night gap).
     // saturation slightly below 1 gives the night a mildly greyed-out
     // feel without making the day side look washed out.
     layer.brightness = 0.55;
@@ -109,7 +109,7 @@ export function makeViewer(
   // decorative behind the globe; the polar-modal sky chart renders
   // its stars from a separate ~250-entry catalog, not the cubemap.
   setTimeout(installSkyBox, 5000);
-  // Atmospheric glow disabled — the rim halo gets clipped along part
+  // Atmospheric glow disabled - the rim halo gets clipped along part
   // of the terminator (visible band/dashed cut on the dark side
   // edge of the globe) and isn't worth the visual artifact for an
   // app that's mostly looking up at orbits rather than down at the
@@ -123,12 +123,12 @@ export function makeViewer(
   // the terminator. Setting fade-out near 0 keeps real Lambert
   // lighting active at all distances. Leave nightFadeOut/In at the
   // far-pushed values so the "dim earth glow" mode never kicks in
-  // — Lambert shading handles night-side appearance uniformly.
+  // - Lambert shading handles night-side appearance uniformly.
   viewer.scene.globe.lightingFadeOutDistance = 1;
   viewer.scene.globe.lightingFadeInDistance = 100;
   viewer.scene.globe.nightFadeOutDistance = 1e9;
   viewer.scene.globe.nightFadeInDistance = 2e9;
-  // Moderate diffuse multiplier — real darkening comes from imagery
+  // Moderate diffuse multiplier - real darkening comes from imagery
   // brightness; higher values saturate without sharpening the
   // terminator more.
   viewer.scene.globe.lambertDiffuseMultiplier = 3;
@@ -136,17 +136,17 @@ export function makeViewer(
   // polyline depthFailMaterial actually kicks in (X-ray through-Earth
   // rendering for the orbit ring + ground line). The known side
   // effects of this flag (entity ground-clamping, camera-collision
-  // tweaks) don't apply to our scene — we don't ship real terrain,
+  // tweaks) don't apply to our scene - we don't ship real terrain,
   // and the ISS dot / observer pins use
   // disableDepthTestDistance: Infinity to bypass the depth buffer.
   viewer.scene.globe.depthTestAgainstTerrain = true;
-  // Ground atmosphere also off — it was contributing to the same
+  // Ground atmosphere also off - it was contributing to the same
   // hazy rim that gets clipped on the night side. atmosphereLight
   // values are now moot since both atmospheric layers are disabled,
   // but kept for the lambert lighting block.
   viewer.scene.globe.showGroundAtmosphere = false;
   viewer.scene.globe.dynamicAtmosphereLighting = false;
-  // Disable scene fog — Cesium's distance fog brightens distant
+  // Disable scene fog - Cesium's distance fog brightens distant
   // terrain and contributes to the brightness step at certain zooms.
   viewer.scene.fog.enabled = false;
   viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");

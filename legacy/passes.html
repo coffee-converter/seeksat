@@ -10,7 +10,7 @@
 </head>
 <body>
   <!-- Full-page loader covers everything until the initial search has
-       rendered + the camera has framed the first pass — prevents the
+       rendered + the camera has framed the first pass - prevents the
        awkward pop-in of pins, labels, and panels during boot. JS removes
        this once the first runSearch completes. -->
   <div id="page-loader">
@@ -51,7 +51,7 @@
             <button type="button" data-mode="radio">Radio</button>
           </div>
           <div id="min-elev-control" class="min-elev" hidden title="Minimum elevation every observer must clear">
-            <button type="button" class="min-elev-step" data-step="-1" aria-label="Decrease minimum elevation">−</button>
+            <button type="button" class="min-elev-step" data-step="-1" aria-label="Decrease minimum elevation">-</button>
             <span id="min-elev-value" class="min-elev-value">10°</span>
             <button type="button" class="min-elev-step" data-step="1" aria-label="Increase minimum elevation">+</button>
           </div>
@@ -113,7 +113,7 @@
         <option value="30000">×30000</option>
       </select>
     </label>
-    <div id="sim-time">—</div>
+    <div id="sim-time">-</div>
     <div id="camera-controls" class="ctl-group">
       <button data-cam="frame" title="Frame all observers">Frame</button>
       <button data-cam="top" title="Top-down view">Top</button>
@@ -122,7 +122,7 @@
     </div>
   </nav>
 
-  <!-- Fullscreen polar-plot modal — populated dynamically when the user
+  <!-- Fullscreen polar-plot modal - populated dynamically when the user
        clicks an observer card's polar plot. Bigger SVG with star dots
        and live current-ISS position. -->
   <div id="polar-modal" hidden>
@@ -137,7 +137,7 @@
         <button class="polar-modal-save" type="button" title="Download as PNG">Save PNG</button>
       </div>
       <!-- The SVG is rendered off-screen and rasterized to the <img>
-           below — that's what the user actually sees and what they get
+           below - that's what the user actually sees and what they get
            via right-click → Save image / Open in new tab / Copy image.
            Chart ring is centered at (100,100), R=90. -->
       <svg class="polar-modal-svg" viewBox="-24 -68 248 278" aria-hidden="true"></svg>
@@ -145,7 +145,7 @@
            Chrome/Edge picks up the download attribute's filename
            instead of the blob URL's UUID. Click handler prevents
            the anchor from triggering a download on accidental left-
-           clicks — those should still go to the modal close handler
+           clicks - those should still go to the modal close handler
            if needed. -->
       <a class="polar-modal-png-link" download="iss-pass.png" href="#">
         <img class="polar-modal-png" alt="ISS pass sky chart" />

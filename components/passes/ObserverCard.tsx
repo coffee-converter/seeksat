@@ -21,12 +21,12 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
     <div
       className="obs-card"
       data-obs-id={obs.id}
-      title={`Open polar plot — ${obs.name}`}
+      title={`Open polar plot - ${obs.name}`}
       role="button"
       tabIndex={0}
       onClick={() => setPolarModalObsId(obs.id)}
       onKeyDown={(ev) => {
-        // Only the card itself opens the modal — inner buttons stop
+        // Only the card itself opens the modal - inner buttons stop
         // propagation, so this only fires on direct card activation.
         if (ev.target === ev.currentTarget && (ev.key === "Enter" || ev.key === " ")) {
           ev.preventDefault();

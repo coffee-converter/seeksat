@@ -51,7 +51,7 @@ export default function ClockSkewBanner() {
 
   return (
     <div className="clock-skew-banner" role="status">
-      <strong>Heads up:</strong> your device clock is ~{formatSkew(skewMs)} —
+      <strong>Heads up:</strong> your device clock is ~{formatSkew(skewMs)} -
       forecasts use server time, so they'll still be right.
     </div>
   );

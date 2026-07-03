@@ -42,7 +42,7 @@ export function makeViewer(containerId, opts = {}) {
     // brightness multiplies imagery RGB; contrast bump keeps the sunlit
     // hemisphere vivid at the lower brightness (the contrast curve in
     // Cesium's imagery filter crushes blacks while preserving highlights
-    // — exactly what we want for a stronger day/night gap). saturation
+    // - exactly what we want for a stronger day/night gap). saturation
     // slightly below 1 gives the night a mildly greyed-out feel without
     // making the day side look washed out.
     layer.brightness = 0.55;
@@ -70,7 +70,7 @@ export function makeViewer(containerId, opts = {}) {
   // By default Cesium turns OFF the sun-direction lighting calculation
   // as the camera approaches the surface (lightingFadeOutDistance, which
   // defaults to ~½π × earthRadius ≈ 10,000 km), so imagery stays bright
-  // and readable when zoomed in — which also flattens the day/night
+  // and readable when zoomed in - which also flattens the day/night
   // terminator. Setting the fade-out to ~0 keeps real Lambert lighting
   // active at all camera distances, giving a natural twilight gradient
   // and a dark unlit hemisphere.
@@ -78,12 +78,12 @@ export function makeViewer(containerId, opts = {}) {
   // Note: we deliberately leave nightFadeOut/InDistance at their
   // defaults. Forcing them small pushes the entire night side into the
   // "dim earth glow" appearance regardless of camera position, which
-  // also greys out twilight zones near the terminator — not what we want.
+  // also greys out twilight zones near the terminator - not what we want.
   viewer.scene.globe.lightingFadeOutDistance = 1;
   viewer.scene.globe.lightingFadeInDistance = 100;
   // Push the night-atmosphere fade distances out past any reasonable
   // camera range so the hard transition between "lit-atmosphere night"
-  // (close) and "dim-glow night" (far) never happens — Lambert shading
+  // (close) and "dim-glow night" (far) never happens - Lambert shading
   // handles the day/night appearance uniformly at every zoom level
   // instead.
   viewer.scene.globe.nightFadeOutDistance = 1e9;
@@ -95,12 +95,12 @@ export function makeViewer(containerId, opts = {}) {
   // Atmosphere settings widen the day/night gap rather than eliminating
   // both. dynamicAtmosphereLighting=true makes the ground atmosphere
   // track the actual sun direction (lifting the DAY side without lifting
-  // the night) — the previous false setting + intensity=0 dimmed the day
+  // the night) - the previous false setting + intensity=0 dimmed the day
   // side too. Moderate intensity gives a visible bonus lift to lit terrain.
   viewer.scene.globe.atmosphereLightIntensity = 4;
   viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.globe.dynamicAtmosphereLighting = true;
-  // Disable scene fog — Cesium's distance fog brightens distant terrain
+  // Disable scene fog - Cesium's distance fog brightens distant terrain
   // and contributes to the brightness step seen at certain zooms.
   viewer.scene.fog.enabled = false;
   viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0a0e1a");
@@ -121,7 +121,7 @@ export function makeViewer(containerId, opts = {}) {
 
 // Wire the bottom-center sim-time readout. Pages with a #sim-time element
 // get a UTC clock display that ticks with the viewer's clock. `precision`
-// is the number of fractional-second digits to show — defaults to 0 (whole
+// is the number of fractional-second digits to show - defaults to 0 (whole
 // seconds). Use Cesium's JulianDate ISO formatter so values like the
 // observation timestamp's 4-decimal sub-seconds round-trip intact (JS
 // Date.toISOString only carries 3-decimal milliseconds).

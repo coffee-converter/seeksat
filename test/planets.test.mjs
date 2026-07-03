@@ -53,14 +53,14 @@ test('planetPositionEci: outer planets are farther from earth than inner', () =>
     `saturn ${lens.saturn} should exceed jupiter ${lens.jupiter}`);
   assert.ok(lens.jupiter > lens.mars,
     `jupiter ${lens.jupiter} should exceed mars ${lens.mars}`);
-  // Mercury + Venus are inner planets — both stay close to earth-sun
+  // Mercury + Venus are inner planets - both stay close to earth-sun
   // line, so |geocentric pos| < ~1.7 AU.
   assert.ok(lens.mercury < 2);
   assert.ok(lens.venus < 2);
 });
 
 test('planetPositionEci: vector magnitude in AU is plausible for each planet', () => {
-  // Loose bounds — geocentric distance ranges (perihelion-to-aphelion
+  // Loose bounds - geocentric distance ranges (perihelion-to-aphelion
   // worst case across both planet's orbit + earth's):
   //   mercury: 0.5 - 1.5 AU
   //   venus:   0.25 - 1.75 AU
@@ -99,14 +99,14 @@ test('planetPositionEcef: returns a unit vector', () => {
 });
 
 test('planetPositionEcef: rotates with GMST relative to ECI', () => {
-  // At noon UTC, GMST is roughly π/2 rad — x/y in ECEF should differ
+  // At noon UTC, GMST is roughly π/2 rad - x/y in ECEF should differ
   // from ECI. (Z is invariant under Z-axis rotation.)
   const eci = planetPositionEci('jupiter', new Date('2025-06-15T12:00:00Z'));
   const eciUnit = [eci[0], eci[1], eci[2]].map(c => c / unitLen(eci));
   const ecef = planetPositionEcef('jupiter', new Date('2025-06-15T12:00:00Z'));
   // Z component unchanged by GMST rotation about Z axis.
   assert.ok(close(eciUnit[2], ecef[2], 1e-9), `eciZ=${eciUnit[2]} ecefZ=${ecef[2]}`);
-  // X/Y rotated — expect noticeable difference.
+  // X/Y rotated - expect noticeable difference.
   assert.ok(Math.abs(eciUnit[0] - ecef[0]) + Math.abs(eciUnit[1] - ecef[1]) > 0.01);
 });
 
@@ -126,7 +126,7 @@ test('planetApparentMagnitude: ranges are plausible per planet', () => {
   //   mars:    -3.0 to +1.6
   //   jupiter: -2.9 to -1.6
   //   saturn:   0.4 to +1.4
-  // Our formula ignores phase function — accept generous bounds.
+  // Our formula ignores phase function - accept generous bounds.
   const bounds = {
     mercury: [-3, 7],
     venus:   [-6, 0],
@@ -171,7 +171,7 @@ test('mars opposition 2025-01-16: high ecliptic latitude / declination shape', (
 });
 
 test('venus is always brighter than mars on a random date', () => {
-  // Venus is the brightest planet — its m0 = -4.4 dominates so much
+  // Venus is the brightest planet - its m0 = -4.4 dominates so much
   // that on essentially any date Venus is brighter than Mars.
   // (Strictly: Mars at opposition CAN beat Venus near greatest
   // elongation, but for an arbitrary 2025-06-15 date Venus wins.)

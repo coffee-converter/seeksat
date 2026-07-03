@@ -11,8 +11,8 @@ import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 // place name. tryParseLatLon decides: a comma-split into two
 // successfully-parsed DMS/decimal numbers wins, otherwise we
 // geocode. Two helper buttons:
-//   - "Use my location" — browser Geolocation API
-//   - "Click on globe to place" — toggle the scene's click-to-place
+//   - "Use my location" - browser Geolocation API
+//   - "Click on globe to place" - toggle the scene's click-to-place
 //     mode (canvas-click handler in pass-finder-scene.js)
 //
 // Each path calls the typed scene-bridge addObserver, which handles

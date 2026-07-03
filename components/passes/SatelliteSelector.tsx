@@ -9,7 +9,7 @@ import { usePassFinderStore } from "@/lib/pass-finder-store";
 // satellite + a tier badge; the list is portaled to <body> and positioned
 // fixed against the trigger so the left panel's `overflow: hidden` can't
 // clip it (an in-flow absolute popover got cut off after ~2 rows). Premium
-// entries render disabled with a lock (dormant — none are premium yet).
+// entries render disabled with a lock (dormant - none are premium yet).
 export default function SatelliteSelector() {
   const selectedNoradId = usePassFinderStore((s) => s.selectedNoradId);
   const setSelectedSatellite = usePassFinderStore((s) => s.setSelectedSatellite);
@@ -83,7 +83,7 @@ export default function SatelliteSelector() {
                   aria-selected={s.noradId === selectedNoradId}
                   className={`sat-option${s.noradId === selectedNoradId ? " active" : ""}${locked ? " locked" : ""}`}
                   disabled={locked}
-                  title={locked ? "Premium satellite — upgrade to track" : undefined}
+                  title={locked ? "Premium satellite - upgrade to track" : undefined}
                   onClick={() => { setSelectedSatellite(s.noradId); setOpen(false); }}
                 >
                   <span className="sat-name">{s.name}</span>

@@ -13,7 +13,7 @@ const EARTH_R_M = 6378137;
 const ISS_ALT_LOW_M  = 350_000;
 const ISS_ALT_HIGH_M = 460_000;
 
-// Propagate at the TLE epoch itself so SGP4 doesn't extrapolate far —
+// Propagate at the TLE epoch itself so SGP4 doesn't extrapolate far -
 // any reasonable epoch within a few days of the TLE works the same.
 const epochDate = new Date(Date.UTC(2024, 0, 1, 12, 0, 0));
 
@@ -26,7 +26,7 @@ test('tlePositionEcef: returns a 3-element ECEF array (meters)', () => {
   for (const c of pos) assert.ok(Number.isFinite(c), `non-finite: ${c}`);
 });
 
-test('tlePositionEcef: ISS altitude lands in 350–460km band', () => {
+test('tlePositionEcef: ISS altitude lands in 350-460km band', () => {
   // ISS orbits at ~400 km. Allow a generous band to absorb mean motion
   // drift between TLE epoch and the propagated instant.
   const pos = tlePositionEcef(ISS_TLE.line1, ISS_TLE.line2, epochDate);
@@ -43,7 +43,7 @@ test('tlePositionEcef: deterministic for same inputs', () => {
 });
 
 test('tlePositionEcef: position moves between two instants 30s apart', () => {
-  // The ISS moves ~7.7 km/s — 30 seconds of propagation should shift
+  // The ISS moves ~7.7 km/s - 30 seconds of propagation should shift
   // the ECEF position by ~230 km. (Bigger than any rounding error,
   // smaller than half an orbit so we don't wrap.)
   const a = tlePositionEcef(ISS_TLE.line1, ISS_TLE.line2, epochDate);
