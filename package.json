@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.{mjs,js} test/og/*.{mjs,js}",
-    "og:build": "node scripts/build-og-image.mjs"
+    "og:build": "node scripts/build-og-image.mjs",
+    "icons:build": "node scripts/build-icons.mjs"
   },
   "dependencies": {
     "@resvg/resvg-wasm": "^2.6.2",

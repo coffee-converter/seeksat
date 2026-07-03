@@ -10,12 +10,13 @@ import type { NextConfig } from "next";
 // Next's own /_next/static/* chunks already get cache-control:
 // public, max-age=31536000, immutable from the framework (their
 // filenames are content-hashed), so we don't touch that path.
-// Content-Security-Policy. Shipped in *Report-Only* mode first: the
-// browser reports violations to the console without blocking anything,
-// so we can watch the real Cesium globe + Vercel Analytics load and
-// tighten the allowlist before enforcing. To ENFORCE, change the header
-// key below from "Content-Security-Policy-Report-Only" to
-// "Content-Security-Policy" (and re-verify the globe on a preview deploy).
+// Content-Security-Policy — now ENFORCING. It shipped Report-Only first
+// and was tuned against the live Cesium globe + Vercel Analytics until the
+// browser console was violation-free, then flipped to enforce. If you add
+// a new external origin (a script CDN, tile server, data API), extend the
+// matching directive below or the browser will block it. To debug a
+// suspected CSP breakage, temporarily rename the header key to
+// "Content-Security-Policy-Report-Only" to log instead of block.
 //
 // Origins are driven by what the app actually loads:
 //   cesium.com                     — Cesium.js + widgets.css from the CDN
@@ -51,8 +52,7 @@ const CSP = [
   "font-src 'self' data:",
   "img-src 'self' data: blob: https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
   "connect-src 'self' https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.met.no https://api.wheretheiss.at https://api.open-elevation.com https://tle.ivanstanojevic.me https://celestrak.org https://timeapi.io https://ssd.jpl.nasa.gov",
-  // NOTE: add "upgrade-insecure-requests" back here when flipping to
-  // enforcing — it's spec-ignored (and warns) in a Report-Only policy.
+  "upgrade-insecure-requests",
 ].join("; ");
 
 // Baseline security headers applied to every response. These are all
@@ -74,7 +74,7 @@ const SECURITY_HEADERS = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
-  { key: "Content-Security-Policy-Report-Only", value: CSP },
+  { key: "Content-Security-Policy", value: CSP },
 ];
 
 const nextConfig: NextConfig = {

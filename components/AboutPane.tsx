@@ -102,6 +102,17 @@ export default function AboutPane() {
               )}
             </div>
             <p className="about-stack">Next.js · Cesium · satellite.js · SGP4</p>
+            <p className="about-stack">
+              built by{" "}
+              <a
+                className="about-link"
+                href="https://aaronhanson.dev"
+                target="_blank"
+                rel="noopener"
+              >
+                Aaron Hanson
+              </a>
+            </p>
           </div>
         </div>
       )}

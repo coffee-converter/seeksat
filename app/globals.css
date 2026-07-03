@@ -400,6 +400,20 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .brand-mark .seek { color: #8aa0c8; }
 .brand-mark .sat  { color: #7eb8ff; }
 
+/* Attribution under the brand mark, stacked below the About (i) button
+   at top:42px so it never overlaps it. Floating + subtle like the wordmark,
+   but clickable (a real link), so it opts back into pointer events. */
+.brand-credit {
+  position: absolute; top: 72px; right: 18px; z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px; letter-spacing: 0.01em; text-decoration: none;
+  color: #8aa0c8; opacity: 0.5; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+.brand-credit:hover { opacity: 0.85; text-decoration: underline; }
+.brand-credit:focus-visible {
+  outline: 2px solid rgba(126, 184, 255, 0.7); outline-offset: 2px; border-radius: 4px;
+}
+
 #camera-controls { position: absolute; bottom: 16px; right: 16px;
   display: flex; gap: 6px; z-index: 1000; }
 #camera-controls button {

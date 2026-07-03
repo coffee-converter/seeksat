@@ -95,6 +95,17 @@ export default function PassFinderApp(
       <div className="brand-mark" aria-hidden="true">
         <span className="seek">Seek</span><span className="sat">Sat</span>
       </div>
+      {/* Subtle attribution tucked under the brand mark. Unlike the
+          decorative wordmark this is a real link, so it stays in the a11y
+          tree and takes pointer events (only the link itself, not a bar). */}
+      <a
+        className="brand-credit"
+        href="https://aaronhanson.dev"
+        target="_blank"
+        rel="noopener"
+      >
+        built by Aaron Hanson
+      </a>
       <AboutPane />
       <OnboardingTour />
 
