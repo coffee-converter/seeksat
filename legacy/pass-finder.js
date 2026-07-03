@@ -944,7 +944,7 @@ function paintPolarModalStatic(svg, obs, anchorMs, sunAltDeg) {
   titleT.setAttribute("y", -54);
   titleT.setAttribute("text-anchor", "middle");
   titleT.classList.add("meta-title");
-  titleT.textContent = `${obs.name} - ISS pass sky chart`;
+  titleT.textContent = `${obs.name} — ISS pass sky chart`;
   svg.appendChild(titleT);
   const subT = document.createElementNS(SVG_NS, "text");
   subT.setAttribute("x", cx);
