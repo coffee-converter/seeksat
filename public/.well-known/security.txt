@@ -1,0 +1,7 @@
+# found a hole? tell me before you tell the internet.
+Contact: mailto:coffee.becomes.code@gmail.com
+# PGP fingerprint: A029 315D E6D1 32E2 AF9C 0CF6 5C18 39BD 8F51 C89A
+Encryption: https://seeksat.com/.well-known/pgp-key.txt
+Expires: 2027-07-02T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://seeksat.com/.well-known/security.txt

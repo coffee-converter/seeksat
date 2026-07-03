@@ -10,6 +10,63 @@ import type { NextConfig } from "next";
 // Next's own /_next/static/* chunks already get cache-control:
 // public, max-age=31536000, immutable from the framework (their
 // filenames are content-hashed), so we don't touch that path.
+// Content-Security-Policy. Shipped in *Report-Only* mode first: the
+// browser reports violations to the console without blocking anything,
+// so we can watch the real Cesium globe + Vercel Analytics load and
+// tighten the allowlist before enforcing. To ENFORCE, change the header
+// key below from "Content-Security-Policy-Report-Only" to
+// "Content-Security-Policy" (and re-verify the globe on a preview deploy).
+//
+// Origins are driven by what the app actually loads:
+//   cesium.com                     — Cesium.js + widgets.css from the CDN
+//   *.arcgisonline / carto / osm   — globe imagery tiles
+//   nominatim / open-meteo / met.no / wheretheiss / open-elevation
+//     / celestrak / ivanstanojevic / timeapi / ssd.jpl.nasa.gov
+//                                  — client-side geocode/weather/TLE/ephemeris
+//   'wasm-unsafe-eval'             — Cesium's WebAssembly
+//   blob:                          — Cesium web workers
+//   'unsafe-inline' (script)       — Next.js hydration bootstrap inlines a
+//                                    <script>; drop it once we move to nonces
+//   'unsafe-inline' (style)        — the inlined Exo 2 @font-face <style> +
+//                                    Cesium widget styles
+//   data: (font/img)               — the base64 Exo 2 font + canvas data URIs
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cesium.com",
+  "worker-src 'self' blob:",
+  "style-src 'self' 'unsafe-inline' https://cesium.com",
+  "font-src 'self' data:",
+  "img-src 'self' data: blob: https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
+  "connect-src 'self' https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.met.no https://api.wheretheiss.at https://api.open-elevation.com https://tle.ivanstanojevic.me https://celestrak.org https://timeapi.io https://ssd.jpl.nasa.gov",
+  "upgrade-insecure-requests",
+].join("; ");
+
+// Baseline security headers applied to every response. These are all
+// non-breaking for this app:
+//   HSTS               — force HTTPS for 2y incl. subdomains (Vercel is
+//                        HTTPS-only anyway; this pins it in the browser).
+//   nosniff            — stop MIME-sniffing our JSON/image responses.
+//   frame DENY         — no clickjacking; belt-and-suspenders with the
+//                        CSP frame-ancestors above (older scanners still
+//                        look for the X-Frame-Options header specifically).
+//   Referrer-Policy    — send only the origin to cross-origin destinations.
+//   Permissions-Policy — deny powerful features we never use; geolocation
+//                        stays self-enabled because AddObserverForm calls
+//                        navigator.geolocation.getCurrentPosition to fill
+//                        in the observer's location.
+const SECURITY_HEADERS = [
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), browsing-topics=(), interest-cohort=()" },
+  { key: "Content-Security-Policy-Report-Only", value: CSP },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // The OG renderer (lib/og) is intentionally all-bundleable: linkedom
@@ -25,6 +82,13 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
+      {
+        // Security headers on every response. Listed first; Next merges
+        // all matching source blocks, so the asset Cache-Control rules
+        // below still apply on top of these for their paths.
+        source: "/(.*)",
+        headers: SECURITY_HEADERS,
+      },
       {
         // NASA SVS starfield cubemap. Six JPGs, ~10MB total, identical
         // across deploys — safe to mark immutable with a 1-year TTL.
