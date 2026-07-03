@@ -23,8 +23,17 @@ import type { NextConfig } from "next";
 //   nominatim / open-meteo / met.no / wheretheiss / open-elevation
 //     / celestrak / ivanstanojevic / timeapi / ssd.jpl.nasa.gov
 //                                  — client-side geocode/weather/TLE/ephemeris
-//   'wasm-unsafe-eval'             — Cesium's WebAssembly
-//   blob:                          — Cesium web workers
+//   'unsafe-eval'                  — Cesium evaluates strings as JS (shader
+//                                    / expression compilation) and needs
+//                                    real eval, not just wasm-unsafe-eval;
+//                                    this also covers its WebAssembly. It
+//                                    means script-src gives little XSS
+//                                    protection, but the host allowlist,
+//                                    object-src/base-uri/frame-ancestors
+//                                    still do useful work.
+//   blob: + cesium.com (worker)    — Cesium's CDN build spawns web workers
+//                                    both from blob: URLs and directly from
+//                                    the CDN origin
 //   'unsafe-inline' (script)       — Next.js hydration bootstrap inlines a
 //                                    <script>; drop it once we move to nonces
 //   'unsafe-inline' (style)        — the inlined Exo 2 @font-face <style> +
@@ -36,13 +45,14 @@ const CSP = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cesium.com",
-  "worker-src 'self' blob:",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com",
+  "worker-src 'self' blob: https://cesium.com",
   "style-src 'self' 'unsafe-inline' https://cesium.com",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
   "connect-src 'self' https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.met.no https://api.wheretheiss.at https://api.open-elevation.com https://tle.ivanstanojevic.me https://celestrak.org https://timeapi.io https://ssd.jpl.nasa.gov",
-  "upgrade-insecure-requests",
+  // NOTE: add "upgrade-insecure-requests" back here when flipping to
+  // enforcing — it's spec-ignored (and warns) in a Report-Only policy.
 ].join("; ");
 
 // Baseline security headers applied to every response. These are all
@@ -63,7 +73,7 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), browsing-topics=(), interest-cohort=()" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
   { key: "Content-Security-Policy-Report-Only", value: CSP },
 ];
 
