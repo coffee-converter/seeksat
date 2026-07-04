@@ -133,7 +133,7 @@ as possible.
 
 ## License
 
-Copyright (c) 2026 Aaron Hanson. All rights reserved.
+Copyright (c) 2026 [Aaron Hanson](https://aaronhanson.dev). All rights reserved.
 
 This source is published for viewing and reference. It is **not** licensed
 for reuse, redistribution, or deployment. No permission is granted to copy,
