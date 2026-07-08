@@ -90,6 +90,43 @@ export const viewport: Viewport = {
 const CESIUM_VERSION = "1.141";
 const CESIUM_CDN = `https://cesium.com/downloads/cesiumjs/releases/${CESIUM_VERSION}`;
 
+// Structured data: what SeekSat is, that it's free, and who built it. The
+// Person's url + sameAs consolidate the "Aaron Hanson" entity across sites.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: `${SITE_URL}/`,
+      name: SITE_NAME,
+      description: SITE_DESCRIPTION,
+      publisher: { "@id": `${SITE_URL}/#person` },
+    },
+    {
+      "@type": "WebApplication",
+      name: SITE_NAME,
+      url: `${SITE_URL}/`,
+      applicationCategory: "UtilitiesApplication",
+      operatingSystem: "Web",
+      description: SITE_DESCRIPTION,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      creator: { "@id": `${SITE_URL}/#person` },
+    },
+    {
+      "@type": "Person",
+      "@id": `${SITE_URL}/#person`,
+      name: "Aaron Hanson",
+      url: "https://aaronhanson.dev",
+      sameAs: [
+        "https://aaronhanson.dev",
+        "https://github.com/coffee-converter",
+        "https://www.linkedin.com/in/ildiscgolfer",
+      ],
+    },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -116,6 +153,10 @@ export default function RootLayout({
             Both no-op in development; only emit on Vercel deploys. */}
         <Analytics />
         <SpeedInsights />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
       </body>
     </html>
   );
