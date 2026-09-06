@@ -119,15 +119,17 @@ export default function RadioModal() {
   // 1s-step series (finer than the 2s chart) for driving a rig or a
   // camera trigger. Header carries the epoch age, clock skew, and
   // elevation provenance the reader needs to judge the data.
-  const onCsv = async () => {
+  const onCsv = () => {
     if (!obsId) return;
-    const csv = await radioPassCsvFor(obsId);
+    const csv = radioPassCsvFor(obsId);
     if (!csv) return;
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = `radio-pass-${obsName ?? "observer"}.csv`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   };
 
