@@ -193,3 +193,29 @@ test('writePersistedBlob: silent no-op when localStorage is undefined', () => {
   // Just verify it doesn't throw - there's nothing observable to assert.
   assert.doesNotThrow(() => writePersistedBlob('whatever'));
 });
+
+// ---- radio-mode downlink frequency --------------------------------------
+
+test('radio mode round-trips the selected downlink frequency', () => {
+  // Without this the Doppler axis is 3x wrong between 145.800 and 437.800
+  // when a shared link is opened.
+  const snap = { mode: 'radio', downlinkHz: 437_800_000, observers: [], minElevDeg: 10 };
+  const blob = encodeStateBlob(snap);
+  const out = decodeStateBlob(blob);
+  assert.equal(out.mode, 'radio');
+  assert.equal(out.downlinkHz, 437_800_000);
+});
+
+test('a legacy radio link with no frequency decodes to null', () => {
+  const out = decodeStateBlob(encodeStateBlob({ mode: 'radio', observers: [], minElevDeg: 10 }));
+  assert.equal(out.mode, 'radio');
+  assert.equal(out.downlinkHz, null);
+});
+
+test('visual mode does not carry a frequency', () => {
+  const out = decodeStateBlob(encodeStateBlob({
+    mode: 'visual', downlinkHz: 437_800_000, observers: [], minElevDeg: 10,
+  }));
+  assert.equal(out.mode, 'visual');
+  assert.equal(out.downlinkHz, null);
+});

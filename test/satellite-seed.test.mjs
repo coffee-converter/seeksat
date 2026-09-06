@@ -30,3 +30,13 @@ test('selectionUpdate applies visual mode for NOAA-19 (decommissioned)', () => {
 test('selectionUpdate ignores an unknown id', () => {
   assert.equal(selectionUpdate(CATALOG, {}, 99999), null);
 });
+
+test('selecting a satellite sets its default downlink frequency', () => {
+  const u = selectionUpdate(CATALOG, {}, 25544);
+  assert.equal(u.downlinkHz, 437_800_000);
+});
+
+test('selecting a satellite with no downlinks clears the frequency', () => {
+  const u = selectionUpdate(CATALOG, {}, 33591);
+  assert.equal(u.downlinkHz, null);
+});
