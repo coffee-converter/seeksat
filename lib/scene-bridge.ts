@@ -60,6 +60,10 @@ export interface SceneBridge {
   /** Toggle first-person camera lock to a specific observer. Passing
    *  the currently-locked observer unlocks. */
   toggleFps: (obsId: string) => void;
+  /** Manually override an observer's elevation (spec §12): sets
+   *  `elevM` and marks `elevSource: "user"`, and reruns the active
+   *  search since elevation affects visibility/window timing. */
+  setObserverElevM: (obsId: string, elevM: number) => void;
 }
 
 // Augment the global Window so the JS scene file can assign to
@@ -123,6 +127,9 @@ export const removeObserver: SceneBridge["removeObserver"] = (obsId) =>
 
 export const toggleFps: SceneBridge["toggleFps"] = (obsId) =>
   bridge().toggleFps(obsId);
+
+export const setObserverElevM: SceneBridge["setObserverElevM"] = (obsId, elevM) =>
+  bridge().setObserverElevM(obsId, elevM);
 
 /** True when the scene has registered its bridge. Components can
  *  check this before calling a wrapper if they need to render a

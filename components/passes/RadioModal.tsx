@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
-import { renderRadioModal, copyPolarPng, radioPassCsvFor } from "@/lib/scene-bridge";
+import { renderRadioModal, copyPolarPng, radioPassCsvFor, setObserverElevM } from "@/lib/scene-bridge";
 import { CATALOG } from "@/lib/catalog.mjs";
 
 // Find observer name from id without subscribing to the entire
@@ -11,6 +11,21 @@ import { CATALOG } from "@/lib/catalog.mjs";
 function useObserverName(obsId: string | null): string | undefined {
   return usePassFinderStore((s) =>
     obsId ? s.observers.find((o) => o.id === obsId)?.name : undefined,
+  );
+}
+
+// Elevation + its provenance (spec §12), read the same way as the name -
+// two separate primitive selectors (not one object-returning selector) so
+// an unrelated store update doesn't look like a change to Zustand's
+// default reference-equality check.
+function useObserverElevM(obsId: string | null): number | undefined {
+  return usePassFinderStore((s) =>
+    obsId ? s.observers.find((o) => o.id === obsId)?.elevM : undefined,
+  );
+}
+function useObserverElevSource(obsId: string | null): string | undefined {
+  return usePassFinderStore((s) =>
+    obsId ? s.observers.find((o) => o.id === obsId)?.elevSource : undefined,
   );
 }
 
@@ -25,6 +40,8 @@ export default function RadioModal() {
   const obsId = usePassFinderStore((s) => s.radioModalObsId);
   const setObsId = usePassFinderStore((s) => s.setRadioModalObsId);
   const obsName = useObserverName(obsId);
+  const elevM = useObserverElevM(obsId);
+  const elevSource = useObserverElevSource(obsId);
   const svgRef = useRef<SVGSVGElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
@@ -64,7 +81,19 @@ export default function RadioModal() {
       try {
         if (!svgRef.current) return;
         const result = await renderRadioModal(svgRef.current, obsId);
-        if (cancelled || !result) return;
+        if (cancelled) return;
+        if (!result) {
+          // renderRadioModal resolves null when the series can't be built
+          // (e.g. no window yet - toggling radio mode before running a
+          // search). Without this, renderedObsId never updates, `visible`
+          // stays false forever, and the effect's deps ([obsId,
+          // downlinkHz]) mean clicking the same observer again is a
+          // no-op - the modal is stuck open-but-invisible with no
+          // feedback. Close it instead.
+          console.warn("Radio modal: no series for this observer yet");
+          setObsId(null);
+          return;
+        }
         // Revoke previous URL before adopting the new one.
         if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = result.blobUrl;
@@ -84,7 +113,7 @@ export default function RadioModal() {
       cancelled = true;
       document.body.style.cursor = "";
     };
-  }, [obsId, downlinkHz]);
+  }, [obsId, downlinkHz, elevM, setObsId]);
 
   const visible = !!obsId && renderedObsId === obsId;
 
@@ -130,7 +159,11 @@ export default function RadioModal() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    // Defer the revoke past this tick - revoking synchronously right
+    // after a programmatic click is a known source of dropped downloads
+    // in Safari. The PNG path (linkRef) keeps its URL alive until the
+    // next render; match that here instead of racing the browser.
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   return (
@@ -182,12 +215,22 @@ export default function RadioModal() {
             value={downlinkHz ?? ""}
             onChange={(ev) => setDownlinkHz(ev.target.value ? Number(ev.target.value) : null)}
           >
-            {options.length === 0 && <option value="">no known downlink</option>}
+            {options.length === 0 && !downlinkHz && <option value="">no known downlink</option>}
             {options.map((d) => (
               <option key={d.hz} value={d.hz}>
                 {(d.hz / 1e6).toFixed(3)} MHz — {d.label}
               </option>
             ))}
+            {/* A freeform frequency (from the input below) that isn't in the
+                catalog matches no <option> above - without this the select
+                silently falls back to its first option while the chart
+                keeps using the typed frequency, which looks like the
+                picker desynced from the chart. */}
+            {downlinkHz != null && !options.some((d) => d.hz === downlinkHz) && (
+              <option value={downlinkHz}>
+                custom — {(downlinkHz / 1e6).toFixed(3)} MHz
+              </option>
+            )}
           </select>
           <input
             className="radio-freq-input"
@@ -198,6 +241,26 @@ export default function RadioModal() {
             onBlur={(ev) => {
               const mhz = Number(ev.target.value);
               if (Number.isFinite(mhz) && mhz > 1) setDownlinkHz(Math.round(mhz * 1e6));
+            }}
+          />
+          {/* Manual elevation override (spec §12): the chart's methods
+              section shows elevM + elevSource (lookup/default/user); this
+              is the "user" input. Committing a value repaints the chart
+              the same way the frequency picker does, via the elevM
+              dependency on the render effect above. */}
+          <input
+            className="radio-elev-input"
+            type="number"
+            step="1"
+            placeholder="elev (m)"
+            defaultValue={elevM ?? ""}
+            key={`${obsId ?? ""}-${elevSource ?? ""}`}
+            aria-label="Observer elevation in metres above the WGS-84 ellipsoid"
+            title={`Elevation used: ${elevM ?? 0} m (${elevSource ?? "unknown"})`}
+            onBlur={(ev) => {
+              if (!obsId) return;
+              const m = Number(ev.target.value);
+              if (Number.isFinite(m)) setObserverElevM(obsId, m);
             }}
           />
         </div>

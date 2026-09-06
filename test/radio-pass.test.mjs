@@ -195,6 +195,44 @@ test('dopplerAtElevation is null on a leg that never reaches the target elevatio
   assert.equal(summary.dopplerAtElevation[30].set, null);
 });
 
+test('dopplerRateHzPerSec is a central difference, one-sided at the edges', () => {
+  const stateAt = straightLineTarget(420000, 7500);
+  const { samples } = radioPassSamples(
+    OBS,
+    { startMs: T0 - 20000, endMs: T0 + 20000 },
+    { satStateAt: stateAt, obsEcef: OBS_ECEF, upEcef: UP },
+    { freqHz: 437.8e6, stepMs: 2000 },
+  );
+  assert.ok(samples.length >= 3);
+  const mid = Math.floor(samples.length / 2);
+  const expectedMid = (samples[mid + 1].dopplerHz - samples[mid - 1].dopplerHz) /
+    ((samples[mid + 1].tMs - samples[mid - 1].tMs) / 1000);
+  assert.ok(Math.abs(samples[mid].dopplerRateHzPerSec - expectedMid) < 1e-9,
+    `interior sample ${samples[mid].dopplerRateHzPerSec} vs central diff ${expectedMid}`);
+  // Edges fall back to one-sided differences against their single neighbour.
+  const first = samples[0], second = samples[1];
+  const expectedFirst = (second.dopplerHz - first.dopplerHz) /
+    ((second.tMs - first.tMs) / 1000);
+  assert.ok(Math.abs(first.dopplerRateHzPerSec - expectedFirst) < 1e-9,
+    `first sample ${first.dopplerRateHzPerSec} vs one-sided ${expectedFirst}`);
+  const last = samples[samples.length - 1], penultimate = samples[samples.length - 2];
+  const expectedLast = (last.dopplerHz - penultimate.dopplerHz) /
+    ((last.tMs - penultimate.tMs) / 1000);
+  assert.ok(Math.abs(last.dopplerRateHzPerSec - expectedLast) < 1e-9,
+    `last sample ${last.dopplerRateHzPerSec} vs one-sided ${expectedLast}`);
+});
+
+test('dopplerRateHzPerSec is null on every sample with no frequency set', () => {
+  const stateAt = straightLineTarget(420000, 7500);
+  const { samples } = radioPassSamples(
+    OBS,
+    { startMs: T0 - 20000, endMs: T0 + 20000 },
+    { satStateAt: stateAt, obsEcef: OBS_ECEF, upEcef: UP },
+    { freqHz: null, stepMs: 2000 },
+  );
+  assert.ok(samples.every((s) => s.dopplerRateHzPerSec == null));
+});
+
 test('maxDopplerRateHzPerSec is positive and peaks near TCA', () => {
   const stateAt = straightLineTarget(420000, 7500);
   const { samples, summary } = radioPassSamples(
@@ -204,10 +242,16 @@ test('maxDopplerRateHzPerSec is positive and peaks near TCA', () => {
     { freqHz: 437.8e6, stepMs: 2000 },
   );
   assert.ok(summary.maxDopplerRateHzPerSec > 0);
+  // Central difference (§9.3), matching the sampler - a one-sided
+  // (backward) recomputation no longer agrees to 1e-6 once the sampler
+  // itself moved off backward differencing.
   let bestIdx = 1, bestRate = -Infinity;
-  for (let i = 1; i < samples.length; i++) {
-    const dt = (samples[i].tMs - samples[i - 1].tMs) / 1000;
-    const rate = Math.abs(samples[i].dopplerHz - samples[i - 1].dopplerHz) / dt;
+  for (let i = 0; i < samples.length; i++) {
+    const prev = samples[Math.max(0, i - 1)];
+    const next = samples[Math.min(samples.length - 1, i + 1)];
+    const dt = (next.tMs - prev.tMs) / 1000;
+    if (dt <= 0) continue;
+    const rate = Math.abs(next.dopplerHz - prev.dopplerHz) / dt;
     if (rate > bestRate) { bestRate = rate; bestIdx = i; }
   }
   assert.ok(Math.abs(bestRate - summary.maxDopplerRateHzPerSec) < 1e-6,

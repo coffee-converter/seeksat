@@ -25,6 +25,7 @@ test('selectionUpdate applies visual mode for NOAA-19 (decommissioned)', () => {
   const u = selectionUpdate(CATALOG, {}, 33591);
   assert.equal(u.selectedNoradId, 33591);
   assert.equal(u.mode, 'visual');
+  assert.equal(u.tle, undefined); // no seeded TLE → no `tle` in the patch
 });
 
 test('selectionUpdate ignores an unknown id', () => {

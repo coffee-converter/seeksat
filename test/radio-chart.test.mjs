@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -47,4 +47,17 @@ test('fmtDopplerLeg renders a negative value as a signed negative kHz reading', 
 
 test('fmtDopplerLeg does not confuse an actual 0 Hz reading with null', () => {
   assert.equal(fmtDopplerLeg(0), '+0.0 kHz');
+});
+
+test('formatLocalTime renders HH:MM:SS in the given IANA zone', () => {
+  const ms = Date.UTC(2024, 5, 1, 18, 30, 15);
+  assert.equal(formatLocalTime(ms, 'UTC'), '18:30:15');
+  assert.equal(formatLocalTime(ms, 'America/Chicago'), '13:30:15');
+});
+
+test('formatLocalTime degrades to null with no tz or an unrecognized one', () => {
+  const ms = Date.UTC(2024, 5, 1, 18, 30, 15);
+  assert.equal(formatLocalTime(ms, undefined), null);
+  assert.equal(formatLocalTime(ms, ''), null);
+  assert.equal(formatLocalTime(ms, 'Not/A_Zone'), null);
 });

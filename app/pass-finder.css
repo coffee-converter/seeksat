@@ -1080,12 +1080,13 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   background: rgba(127,229,209,0.18); color: #7fe5d1;
   border-color: rgba(127,229,209,0.5);
 }
-.radio-freq-select, .radio-freq-input {
+.radio-freq-select, .radio-freq-input, .radio-elev-input {
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
   color: #cfe0ff; font-size: 11px; padding: 4px 6px; border-radius: 6px;
   font-family: inherit;
 }
 .radio-freq-input { width: 74px; }
+.radio-elev-input { width: 74px; }
 /* The SVG is rendered offscreen and rasterized into .radio-modal-png.
    Kept attached so paint functions can run against real layout. */
 .radio-modal-svg {
