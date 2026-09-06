@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -31,4 +31,20 @@ test('timeTicks spans the window inclusively and is monotonic', () => {
   assert.equal(ticks[0], 1000);
   assert.equal(ticks[ticks.length - 1], 401000);
   for (let i = 1; i < ticks.length; i++) assert.ok(ticks[i] > ticks[i - 1]);
+});
+
+test('fmtDopplerLeg renders a null leg as an em dash, never 0 or "null"', () => {
+  assert.equal(fmtDopplerLeg(null), '—');
+});
+
+test('fmtDopplerLeg renders a positive value as a signed kHz reading', () => {
+  assert.equal(fmtDopplerLeg(9600), '+9.6 kHz');
+});
+
+test('fmtDopplerLeg renders a negative value as a signed negative kHz reading', () => {
+  assert.equal(fmtDopplerLeg(-9600), '-9.6 kHz');
+});
+
+test('fmtDopplerLeg does not confuse an actual 0 Hz reading with null', () => {
+  assert.equal(fmtDopplerLeg(0), '+0.0 kHz');
 });
