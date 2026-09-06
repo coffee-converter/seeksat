@@ -156,3 +156,76 @@ test('a null frequency still yields range-rate samples', () => {
   assert.ok(samples.every((s) => s.dopplerHz === null));
   assert.ok(samples.every((s) => Number.isFinite(s.rangeRateMps)));
 });
+
+test('dopplerAtElevation reports independent rise/set legs, not a nearest-sample pick', () => {
+  // Each leg crosses 10deg and 30deg once, with near-equal magnitude and
+  // opposite sign (approaching on the rise, receding on the set). A
+  // nearest-sample implementation would pick arbitrarily between the two
+  // depending on the phase of the sampling grid; this checks both legs are
+  // resolved independently by interpolated crossing instead.
+  const stateAt = straightLineTarget(420000, 7500);
+  const { summary } = radioPassSamples(
+    OBS,
+    { startMs: T0 - 400000, endMs: T0 + 400000 },
+    { satStateAt: stateAt, obsEcef: OBS_ECEF, upEcef: UP },
+    { freqHz: 437.8e6, stepMs: 2000 },
+  );
+  for (const target of [10, 30]) {
+    const { rise, set } = summary.dopplerAtElevation[target];
+    assert.ok(rise > 0, `${target}deg rise ${rise} must be positive`);
+    assert.ok(set < 0, `${target}deg set ${set} must be negative`);
+    const mismatch = Math.abs(Math.abs(rise) - Math.abs(set)) / rise;
+    assert.ok(mismatch < 0.01,
+      `${target}deg rise/set magnitude mismatch: ${rise} vs ${set}`);
+  }
+});
+
+test('dopplerAtElevation is null on a leg that never reaches the target elevation', () => {
+  // Window starts well after TCA (elevation already past its 90deg peak
+  // and monotonically falling) and never gets back above 30deg, so neither
+  // leg should report a value - not a nearby sample mislabeled as "30deg".
+  const stateAt = straightLineTarget(420000, 7500);
+  const { summary } = radioPassSamples(
+    OBS,
+    { startMs: T0 + 150000, endMs: T0 + 400000 },
+    { satStateAt: stateAt, obsEcef: OBS_ECEF, upEcef: UP },
+    { freqHz: 437.8e6, stepMs: 2000 },
+  );
+  assert.equal(summary.dopplerAtElevation[30].rise, null);
+  assert.equal(summary.dopplerAtElevation[30].set, null);
+});
+
+test('maxDopplerRateHzPerSec is positive and peaks near TCA', () => {
+  const stateAt = straightLineTarget(420000, 7500);
+  const { samples, summary } = radioPassSamples(
+    OBS,
+    { startMs: T0 - 200000, endMs: T0 + 200000 },
+    { satStateAt: stateAt, obsEcef: OBS_ECEF, upEcef: UP },
+    { freqHz: 437.8e6, stepMs: 2000 },
+  );
+  assert.ok(summary.maxDopplerRateHzPerSec > 0);
+  let bestIdx = 1, bestRate = -Infinity;
+  for (let i = 1; i < samples.length; i++) {
+    const dt = (samples[i].tMs - samples[i - 1].tMs) / 1000;
+    const rate = Math.abs(samples[i].dopplerHz - samples[i - 1].dopplerHz) / dt;
+    if (rate > bestRate) { bestRate = rate; bestIdx = i; }
+  }
+  assert.ok(Math.abs(bestRate - summary.maxDopplerRateHzPerSec) < 1e-6,
+    `recomputed max rate ${bestRate} vs summary ${summary.maxDopplerRateHzPerSec}`);
+  assert.ok(Math.abs(samples[bestIdx].tMs - T0) < 3000,
+    `peak rate is ${samples[bestIdx].tMs - T0} ms from TCA`);
+});
+
+test('absoluteFsplDb matches the closed-form FSPL at closest approach', () => {
+  const F = 437.8e6;
+  const stateAt = straightLineTarget(420000, 7500);
+  const { summary } = radioPassSamples(
+    OBS,
+    { startMs: T0 - 200000, endMs: T0 + 200000 },
+    { satStateAt: stateAt, obsEcef: OBS_ECEF, upEcef: UP },
+    { freqHz: F, stepMs: 2000 },
+  );
+  const expected = 20 * Math.log10((4 * Math.PI * summary.closestRangeM * F) / 299792458);
+  assert.ok(Math.abs(summary.absoluteFsplDb - expected) < 1e-9,
+    `fspl ${summary.absoluteFsplDb} vs ${expected}`);
+});
