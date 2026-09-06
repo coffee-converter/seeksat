@@ -77,3 +77,13 @@ test('polarModalFileNameFor: filename is Windows-safe (no colons)', () => {
   );
   assert.ok(!fn.includes(':'), `filename contains colon: ${fn}`);
 });
+
+test('polarModalFileNameFor accepts a prefix for radio exports', () => {
+  const fn = polarModalFileNameFor({ name: 'Chicago' }, ms, 'radio-pass');
+  assert.match(fn, /^radio-pass-chicago-2025-06-\d{2}T\d{6}Z\.png$/);
+});
+
+test('polarModalFileNameFor keeps its original default prefix', () => {
+  const fn = polarModalFileNameFor({ name: 'Chicago' }, ms);
+  assert.match(fn, /^iss-pass-chicago-/);
+});

@@ -31,6 +31,13 @@ export interface SceneBridge {
     svgEl: SVGSVGElement,
     obsId: string,
   ) => Promise<PolarModalRenderResult | null>;
+  /** Paint the fullscreen radio-pass modal SVG (Doppler / angular
+   *  rate / signal panels) and return a PNG blob URL + suggested
+   *  filename, same contract as renderPolarModal. */
+  renderRadioModal: (
+    svgEl: SVGSVGElement,
+    obsId: string,
+  ) => Promise<PolarModalRenderResult | null>;
   /** Rasterize the modal SVG to a PNG Blob and write it to the
    *  system clipboard. Throws if the Clipboard API is unavailable
    *  or the user denies permission. */
@@ -90,6 +97,9 @@ export const paintPolarPlot: SceneBridge["paintPolarPlot"] = (svg, obsId) =>
 
 export const renderPolarModal: SceneBridge["renderPolarModal"] = (svg, obsId) =>
   bridge().renderPolarModal(svg, obsId);
+
+export const renderRadioModal: SceneBridge["renderRadioModal"] = (svg, obsId) =>
+  bridge().renderRadioModal(svg, obsId);
 
 export const copyPolarPng: SceneBridge["copyPolarPng"] = (svg) =>
   bridge().copyPolarPng(svg);

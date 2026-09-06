@@ -13,6 +13,8 @@ import PolarPlot from "./PolarPlot";
 export default function ObserverCard({ obs }: { obs: PassObserver }) {
   const fpsObserverId = usePassFinderStore((s) => s.fpsObserverId);
   const setPolarModalObsId = usePassFinderStore((s) => s.setPolarModalObsId);
+  const mode = usePassFinderStore((s) => s.mode);
+  const setRadioModalObsId = usePassFinderStore((s) => s.setRadioModalObsId);
   const isFps = fpsObserverId === obs.id;
 
   const stop = (ev: React.MouseEvent) => ev.stopPropagation();
@@ -42,6 +44,16 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
             {obs.latDeg.toFixed(4)}°, {obs.lonDeg.toFixed(4)}°
           </div>
         </div>
+        {mode === "radio" && (
+          <button
+            type="button"
+            className="radio-chart"
+            title="Doppler + signal chart for this pass"
+            onClick={(ev) => { stop(ev); setRadioModalObsId(obs.id); }}
+          >
+            〜
+          </button>
+        )}
         <button
           type="button"
           className={`fps-view${isFps ? " active" : ""}`}
