@@ -21,11 +21,10 @@ test('selectionUpdate pushes the seeded TLE and the default mode', () => {
   assert.equal(u.mode, 'visual');
 });
 
-test('selectionUpdate applies radio mode for NOAA-19', () => {
+test('selectionUpdate applies visual mode for NOAA-19 (decommissioned)', () => {
   const u = selectionUpdate(CATALOG, {}, 33591);
   assert.equal(u.selectedNoradId, 33591);
-  assert.equal(u.mode, 'radio');
-  assert.equal(u.tle, undefined);   // no seeded TLE → no tle in the patch
+  assert.equal(u.mode, 'visual');
 });
 
 test('selectionUpdate ignores an unknown id', () => {
