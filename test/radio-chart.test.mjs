@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -60,4 +60,59 @@ test('formatLocalTime degrades to null with no tz or an unrecognized one', () =>
   assert.equal(formatLocalTime(ms, undefined), null);
   assert.equal(formatLocalTime(ms, ''), null);
   assert.equal(formatLocalTime(ms, 'Not/A_Zone'), null);
+});
+
+
+// ---- fmtTick: y-axis tick formatting ------------------------------------
+
+test('fmtTick renders zero plainly, not 0.00', () => {
+  assert.equal(fmtTick(0), '0');
+});
+
+test('fmtTick decimals follow magnitude, so a dB axis is not over-precise', () => {
+  // A signal axis running to -8 dB should read "-8.0", not "-8.00" - the
+  // extra digit implies precision the free-space envelope does not have.
+  assert.equal(fmtTick(-8), '-8.0');
+  assert.equal(fmtTick(10), '10.0');
+  assert.equal(fmtTick(-10), '-10.0');
+});
+
+test('fmtTick keeps two decimals below 1, where one would lose the scale', () => {
+  // An angular-rate axis topping out near 0.6 deg/s needs the second digit.
+  assert.equal(fmtTick(0.6), '0.60');
+  assert.equal(fmtTick(0.05), '0.05');
+});
+
+test('fmtTick drops decimals above 100', () => {
+  assert.equal(fmtTick(150), '150');
+  assert.equal(fmtTick(-1200), '-1200');
+});
+
+// ---- formatZoneAbbr: axis row name --------------------------------------
+
+const TZ_MS = Date.UTC(2026, 8, 7, 9, 25, 0);
+
+test('formatZoneAbbr gives a short zone name, not the IANA identifier', () => {
+  // The gutter cannot fit "America/Chicago", and a reader checking a
+  // capture wants the abbreviation anyway.
+  const abbr = formatZoneAbbr(TZ_MS, 'America/Chicago');
+  assert.ok(abbr && abbr.length <= 6, `expected a short abbreviation, got ${abbr}`);
+  assert.ok(!abbr.includes('/'), 'must not be the IANA identifier');
+});
+
+test('formatZoneAbbr returns null for an absent or bogus zone', () => {
+  assert.equal(formatZoneAbbr(TZ_MS, null), null);
+  assert.equal(formatZoneAbbr(TZ_MS, undefined), null);
+  assert.equal(formatZoneAbbr(TZ_MS, 'Not/AZone'), null);
+});
+
+// ---- panelScale exposes its bounds so the painter can label the axis ----
+
+test('panelScale exposes the nice bounds it computed', () => {
+  const s = panelScale([-9500, 9500], 100);
+  assert.equal(s.hi, 10000);
+  assert.equal(s.lo, -10000);
+  // The bounds must agree with the mapping: hi maps to the top of the panel.
+  assert.ok(Math.abs(s(s.hi)) < 1e-9);
+  assert.ok(Math.abs(s(s.lo) - 100) < 1e-9);
 });

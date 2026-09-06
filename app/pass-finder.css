@@ -799,9 +799,10 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   /* Minimal padding so the modal hugs the image - the image already
      has viewBox margins that act as visual padding within the render. */
   padding: 2px 3px 2px;
-  max-width: min(98vw, 98vh);
+  max-width: 98vw;
   max-height: 98vh;
-  display: flex; flex-direction: column; align-items: center; gap: 0;
+  overflow: auto;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 .polar-modal-actions {
@@ -1052,16 +1053,28 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   border: 1px solid rgba(100, 140, 255, 0.35);
   border-radius: 12px;
   padding: 2px 3px 2px;
-  max-width: min(98vw, 98vh);
+  max-width: 98vw;
   max-height: 98vh;
-  display: flex; flex-direction: column; align-items: center; gap: 0;
+  overflow: auto;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 .radio-modal-actions {
-  position: absolute;
-  top: 10px; right: 10px;
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-  z-index: 1;
+  align-self: stretch;
+  display: flex; flex-direction: row; align-items: center;
+  flex-wrap: wrap; gap: 6px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(126, 184, 255, 0.16);
+  margin-bottom: 6px;
+}
+/* Close sits at the far right of the toolbar, away from the actions it
+   would otherwise be mistaken for. */
+.radio-modal-actions .radio-modal-close { margin-left: auto; order: 99; }
+/* Labelled field: the elevation input shows a value, so its placeholder is
+   never visible and the number reads as unexplained without this. */
+.radio-field {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #8aa0c8;
 }
 .radio-modal-actions button {
   background: transparent; border: 1px solid rgba(255,255,255,0.12);
@@ -1097,14 +1110,17 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 .radio-modal-png {
   display: block;
-  width: auto; height: auto;
+  width: 100%; height: auto;
   max-width: min(96vw, 1400px);
-  max-height: 94vh;
+  max-height: 82vh;
+  object-fit: contain;
+  align-self: center;
   border-radius: 6px;
   user-select: none;
 }
 .radio-modal-hint {
   font-size: 10px; color: #6a7a9a; letter-spacing: 0.06em;
+  text-align: center; padding-top: 6px;
 }
 
 @media (max-width: 600px) {
@@ -1117,8 +1133,9 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
     max-width: 92vw;
     max-width: 92dvw;
   }
-  .radio-modal-actions { top: 6px; right: 6px; gap: 4px; }
+  .radio-modal-actions { gap: 4px; padding: 4px 2px; }
   .radio-modal-actions button { font-size: 11px; padding: 3px 8px; }
+  .radio-field { font-size: 10px; }
 }
 
 /* Observer-card trigger for the radio modal - only rendered in radio

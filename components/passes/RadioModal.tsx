@@ -232,37 +232,45 @@ export default function RadioModal() {
               </option>
             )}
           </select>
-          <input
-            className="radio-freq-input"
-            type="number"
-            step="0.001"
-            placeholder="MHz"
-            aria-label="Custom downlink frequency in MHz"
-            onBlur={(ev) => {
-              const mhz = Number(ev.target.value);
-              if (Number.isFinite(mhz) && mhz > 1) setDownlinkHz(Math.round(mhz * 1e6));
-            }}
-          />
+          <label className="radio-field">
+            <span>Custom</span>
+            <input
+              className="radio-freq-input"
+              type="number"
+              step="0.001"
+              placeholder="000.000"
+              aria-label="Custom downlink frequency in MHz"
+              onBlur={(ev) => {
+                const mhz = Number(ev.target.value);
+                if (Number.isFinite(mhz) && mhz > 1) setDownlinkHz(Math.round(mhz * 1e6));
+              }}
+            />
+            <span>MHz</span>
+          </label>
           {/* Manual elevation override (spec §12): the chart's methods
               section shows elevM + elevSource (lookup/default/user); this
               is the "user" input. Committing a value repaints the chart
               the same way the frequency picker does, via the elevM
               dependency on the render effect above. */}
-          <input
-            className="radio-elev-input"
-            type="number"
-            step="1"
-            placeholder="elev (m)"
-            defaultValue={elevM ?? ""}
-            key={`${obsId ?? ""}-${elevSource ?? ""}`}
-            aria-label="Observer elevation in metres above the WGS-84 ellipsoid"
-            title={`Elevation used: ${elevM ?? 0} m (${elevSource ?? "unknown"})`}
-            onBlur={(ev) => {
-              if (!obsId) return;
-              const m = Number(ev.target.value);
-              if (Number.isFinite(m)) setObserverElevM(obsId, m);
-            }}
-          />
+          <label className="radio-field">
+            <span>Elevation</span>
+            <input
+              className="radio-elev-input"
+              type="number"
+              step="1"
+              placeholder="0"
+              defaultValue={elevM ?? ""}
+              key={`${obsId ?? ""}-${elevSource ?? ""}`}
+              aria-label="Observer elevation in metres above the WGS-84 ellipsoid"
+              title={`Elevation used: ${elevM ?? 0} m (${elevSource ?? "unknown"})`}
+              onBlur={(ev) => {
+                if (!obsId) return;
+                const m = Number(ev.target.value);
+                if (Number.isFinite(m)) setObserverElevM(obsId, m);
+              }}
+            />
+            <span>m</span>
+          </label>
         </div>
         <svg
           ref={svgRef}
