@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
-import { renderRadioModal, copyPolarPng } from "@/lib/scene-bridge";
+import { renderRadioModal, copyPolarPng, radioPassCsvFor } from "@/lib/scene-bridge";
 import { CATALOG } from "@/lib/catalog.mjs";
 
 // Find observer name from id without subscribing to the entire
@@ -116,6 +116,21 @@ export default function RadioModal() {
     }
   };
 
+  // 1s-step series (finer than the 2s chart) for driving a rig or a
+  // camera trigger. Header carries the epoch age, clock skew, and
+  // elevation provenance the reader needs to judge the data.
+  const onCsv = async () => {
+    if (!obsId) return;
+    const csv = await radioPassCsvFor(obsId);
+    if (!csv) return;
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `radio-pass-${obsName ?? "observer"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div
       id="radio-modal"
@@ -151,6 +166,14 @@ export default function RadioModal() {
             onClick={() => linkRef.current?.click()}
           >
             Save PNG
+          </button>
+          <button
+            className="radio-modal-csv"
+            type="button"
+            title="Download 1s-step Doppler series as CSV"
+            onClick={onCsv}
+          >
+            CSV
           </button>
           <select
             className="radio-freq-select"

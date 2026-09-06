@@ -38,6 +38,11 @@ export interface SceneBridge {
     svgEl: SVGSVGElement,
     obsId: string,
   ) => Promise<PolarModalRenderResult | null>;
+  /** Build the radio-pass CSV for an observer at a 1s step (finer
+   *  than the 2s chart step - a rig can be up to 360 Hz out between
+   *  2s-spaced points near TCA). Returns null when the observer or
+   *  its pass window can't be resolved. */
+  radioPassCsvFor: (obsId: string) => string | null;
   /** Rasterize the modal SVG to a PNG Blob and write it to the
    *  system clipboard. Throws if the Clipboard API is unavailable
    *  or the user denies permission. */
@@ -100,6 +105,9 @@ export const renderPolarModal: SceneBridge["renderPolarModal"] = (svg, obsId) =>
 
 export const renderRadioModal: SceneBridge["renderRadioModal"] = (svg, obsId) =>
   bridge().renderRadioModal(svg, obsId);
+
+export const radioPassCsvFor: SceneBridge["radioPassCsvFor"] = (obsId) =>
+  bridge().radioPassCsvFor(obsId);
 
 export const copyPolarPng: SceneBridge["copyPolarPng"] = (svg) =>
   bridge().copyPolarPng(svg);
