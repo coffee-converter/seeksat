@@ -183,11 +183,17 @@ all in TEME:
 
 ```
 f_rx / f_tx = (1 − n̂·v_rx/c) / (1 − n̂·v_tx/c)
-              × (γ_tx / γ_rx)
-              × (1 + (Φ_rx − Φ_tx)/c²)
+              × (γ_rx / γ_tx)
+              × (1 + (Φ_tx − Φ_rx)/c²)
 
 dopplerHz = f_rx − f_tx
 ```
+
+Sign conventions, because both factors are easy to invert: the proper-time
+ratio is `dτ_tx/dτ_rx = γ_rx/γ_tx`, so a fast-moving transmitter clock runs
+slow and is seen redshifted. `Φ = −GM/r` (negative), so a satellite higher in
+the well has the larger `Φ` and is seen blueshifted. For LEO the velocity term
+dominates and the net is a redshift.
 
 Use the **exact ratio**, not `−f·ṙ/c`. The linear approximation carries
 0.242 Hz of its own error — larger than the light-time term it would be
