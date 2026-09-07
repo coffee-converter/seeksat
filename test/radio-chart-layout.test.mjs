@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newSvgRoot } from '../lib/og/dom.mjs';
-import { paintRadioChart } from '../lib/pass-finder/radio-chart.js';
+import { paintRadioChart, FONT_PX, ADVANCE_EM } from '../lib/pass-finder/radio-chart.js';
 import { radioPassSamples } from '../lib/pass-finder/radio-pass.js';
 import { geodeticToEcef } from '../lib/coords.js';
 
@@ -16,14 +16,11 @@ import { geodeticToEcef } from '../lib/coords.js';
 // was added. Nothing failed; the tail just disappeared.
 
 const VIEWBOX_W = 320;
-// Conservative average advance as a fraction of font size. Arimo measures
-// nearer 0.45 for this copy; 0.6 leaves headroom for a wide fallback face
-// (a Linux sans-serif resolving to DejaVu runs ~8-10% wider than Arial).
-const ADVANCE = 0.6;
-const FONT_PX = {
-  'rc-head': 4.4, 'rc-label': 3.2, 'rc-meth': 2.9,
-  'rc-panel': 3.0, 'rc-tick': 2.7, 'rc-axis': 2.7,
-};
+// Type sizes and the advance estimate come from the painter itself. They
+// used to be restated here, which meant a font-size bump in CHART_STYLE
+// would leave both the wrap budget and this guard measuring the old value:
+// the chart would overflow and the suite would stay green.
+const ADVANCE = ADVANCE_EM;
 
 const E = geodeticToEcef(90, 0, 0);
 const T0 = Date.UTC(2026, 8, 7, 9, 25, 0);
@@ -98,4 +95,20 @@ test('the guard actually catches an overflow', () => {
     observerName: 'x'.repeat(400),
   });
   assert.ok(bad.length > 0, 'a 400-character observer name must overflow');
+});
+
+
+test('the guard reads its type sizes from the painter, not a local copy', () => {
+  // Regression on the one edit that defeats this guard: bumping a font-size
+  // in CHART_STYLE while the budget and the test keep the old number.
+  for (const cls of ['rc-head', 'rc-label', 'rc-meth']) {
+    assert.equal(typeof FONT_PX[cls], 'number', `${cls} size must be exported`);
+  }
+  const svg = newSvgRoot('0 0 320 250');
+  paintRadioChart(svg, series(437.8e6), { ...BASE, freqHz: 437.8e6 });
+  const style = svg.querySelector('style').textContent;
+  for (const [cls, px] of Object.entries(FONT_PX)) {
+    assert.ok(style.includes(`.${cls}`) && style.includes(`font-size: ${px}px`),
+      `${cls} stylesheet size must match FONT_PX[${cls}] = ${px}`);
+  }
 });
