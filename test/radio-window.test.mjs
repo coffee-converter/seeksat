@@ -120,6 +120,19 @@ test('a never-setting target is clamped, not walked forever', () => {
   assert.ok(sec >= 30 * 60 - 2, `expected the full cap, got ${sec}s`);
 });
 
+test('a clamped window is reported as clamped, so callers can stop claiming', () => {
+  // The chart labels its swing "horizon-to-horizon" and the CSV reports
+  // aos/los/duration from these bounds. A truncated window makes all of
+  // that confidently wrong unless the flag reaches them.
+  const overhead = () => [0, 0, A_ORB];
+  assert.equal(radioChartWindows(OBS, T0, 10, overhead).clamped, true);
+});
+
+test('a real pass is not reported as clamped', () => {
+  // The negative half: without this, always-true would pass the test above.
+  assert.equal(radioChartWindows(OBS, T0, 10, issEcefAt).clamped, false);
+});
+
 
 test('the walk uses the radio predicate, not whatever mode the app is in', () => {
   // The caller's mode must not reach the walk: in visual mode the predicate

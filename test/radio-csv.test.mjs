@@ -177,3 +177,13 @@ test('every data row has exactly as many fields as the column header', () => {
     assert.equal(r.split(',').length, width, `field count drifted: ${r}`);
   }
 });
+
+
+test('a truncated window says so, and a normal one stays quiet', () => {
+  // aos/los/duration and the swing are all derived from the window bounds,
+  // so a clamped window must not present them as a complete pass.
+  const clamped = radioPassCsv(SAMPLES, { ...META, clamped: true });
+  assert.match(clamped, /# window_truncated:\s+yes/);
+  assert.match(clamped, /lower bounds/);
+  assert.ok(!radioPassCsv(SAMPLES, META).includes('window_truncated'));
+});
