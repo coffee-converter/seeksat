@@ -87,3 +87,14 @@ test('polarModalFileNameFor keeps its original default prefix', () => {
   const fn = polarModalFileNameFor({ name: 'Chicago' }, ms);
   assert.match(fn, /^iss-pass-chicago-/);
 });
+
+
+test('polarModalFileNameFor takes an extension, so CSV and PNG exports pair up', () => {
+  // The CSV of a pass should sort next to its PNG, not invent a second
+  // naming convention - both anchor to the same instant in the observer's
+  // timezone.
+  const png = polarModalFileNameFor({ name: 'Chicago' }, ms, 'radio-iss');
+  const csv = polarModalFileNameFor({ name: 'Chicago' }, ms, 'radio-iss', 'csv');
+  assert.equal(csv, png.replace(/\.png$/, '.csv'));
+  assert.match(csv, /\.csv$/);
+});

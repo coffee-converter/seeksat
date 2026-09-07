@@ -150,12 +150,14 @@ export default function RadioModal() {
   // elevation provenance the reader needs to judge the data.
   const onCsv = () => {
     if (!obsId) return;
-    const csv = radioPassCsvFor(obsId);
-    if (!csv) return;
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const result = radioPassCsvFor(obsId);
+    if (!result) return;
+    const url = URL.createObjectURL(new Blob([result.csv], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `radio-pass-${obsName ?? "observer"}.csv`;
+    // The scene names the file - it is the only place that knows the
+    // satellite, the observer's timezone, and the pass instant.
+    a.download = result.filename;
     document.body.appendChild(a);
     a.click();
     a.remove();

@@ -42,7 +42,7 @@ export interface SceneBridge {
    *  than the 2s chart step - a rig can be up to 360 Hz out between
    *  2s-spaced points near TCA). Returns null when the observer or
    *  its pass window can't be resolved. */
-  radioPassCsvFor: (obsId: string) => string | null;
+  radioPassCsvFor: (obsId: string) => { csv: string; filename: string } | null;
   /** Rasterize the modal SVG to a PNG Blob and write it to the
    *  system clipboard. Throws if the Clipboard API is unavailable
    *  or the user denies permission. */

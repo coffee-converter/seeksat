@@ -36,7 +36,7 @@ test('column order is fixed and values keep useful precision', () => {
   const lines = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim());
   assert.equal(
     lines[0],
-    'time_utc,az_deg,el_deg,range_m,range_rate_mps,doppler_hz,doppler_rate_hz_s,rel_signal_db',
+    'time_utc,az_deg,el_deg,range_m,range_rate_mps,doppler_hz,rx_freq_hz,doppler_rate_hz_s,rel_signal_db',
   );
   const cells = lines[1].split(',');
   assert.equal(cells[0], '2024-01-01T12:00:00.250Z', 'millisecond timestamps');
@@ -53,4 +53,34 @@ test('a null frequency leaves the Doppler columns empty, not NaN', () => {
   assert.ok(!csv.includes('NaN'));
   const row = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[1];
   assert.equal(row.split(',')[5], '');
+});
+
+
+// ---- rx_freq_hz: the absolute frequency to tune to ----------------------
+
+test('rx_freq_hz is downlink plus Doppler, as an integer Hz value', () => {
+  // A rig takes an absolute frequency, not an offset. 437.800 MHz with
+  // +9551.4 Hz of Doppler tunes to 437809551 Hz.
+  const csv = radioPassCsv(SAMPLES, META);
+  const row = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[1];
+  const cells = row.split(',');
+  assert.equal(cells[6], String(Math.round(437_800_000 + 9551.4)));
+});
+
+test('rx_freq_hz is empty, not NaN, when no frequency is set', () => {
+  const csv = radioPassCsv(
+    [{ ...SAMPLES[0], dopplerHz: null }],
+    { ...META, freqHz: null },
+  );
+  assert.ok(!csv.includes('NaN'));
+  const row = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[1];
+  assert.equal(row.split(',')[6], '');
+});
+
+test('the header warns that rx_freq_hz is not good to its printed precision', () => {
+  // The shape is good to ~1 Hz; the absolute value is not, because the
+  // transmitter's own oscillator offset is unknown.
+  const csv = radioPassCsv(SAMPLES, META);
+  assert.match(csv, /rx_freq_hz = downlink_hz \+ doppler_hz/);
+  assert.match(csv, /1\.1 kHz/);
 });
