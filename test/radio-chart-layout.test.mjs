@@ -112,3 +112,24 @@ test('the guard reads its type sizes from the painter, not a local copy', () => 
       `${cls} stylesheet size must match FONT_PX[${cls}] = ${px}`);
   }
 });
+
+
+test('a truncated window says so, and does not claim horizon-to-horizon', () => {
+  // The only branch 7a208bc introduced that had no test. The wording must
+  // also survive the wrap without overflowing.
+  const svg = newSvgRoot('0 0 320 250');
+  paintRadioChart(svg, series(437.8e6), { ...BASE, freqHz: 437.8e6, clamped: true });
+  const text = [...svg.querySelectorAll('text')].map((t) => t.textContent).join(' ');
+  assert.match(text, /WINDOW TRUNCATED/);
+  assert.ok(!text.includes('horizon-to-horizon'),
+    'a truncated window must not claim horizon-to-horizon');
+  assert.deepEqual(overflows({ ...BASE, freqHz: 437.8e6, clamped: true }), []);
+});
+
+test('an untruncated window still claims horizon-to-horizon', () => {
+  const svg = newSvgRoot('0 0 320 250');
+  paintRadioChart(svg, series(437.8e6), { ...BASE, freqHz: 437.8e6 });
+  const text = [...svg.querySelectorAll('text')].map((t) => t.textContent).join(' ');
+  assert.match(text, /horizon-to-horizon/);
+  assert.ok(!text.includes('WINDOW TRUNCATED'));
+});

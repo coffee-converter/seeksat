@@ -44,12 +44,20 @@ pin the geometry far more tightly than either alone.
 Four units, following the existing separation of pure math in
 `lib/pass-finder/` from imperative scene code:
 
+*Updated 2026-09-06 to match what was built.* The four units below became
+eight as testability forced splits; each is noted with why.
+
 | unit | file | responsibility |
 |---|---|---|
+| state sampler | `lib/pass-finder/sat-state.js` | pure; SGP4 position **and velocity**, TEME + ECEF. Split out so the frame discipline in §5.1 has one home and one test. |
+| Doppler | `lib/pass-finder/doppler.js` | pure; light-time retardation + the exact frequency ratio |
+| optics | `lib/pass-finder/radio-optics.js` | pure; apparent angular rate, refraction direction, signal envelope |
+| window rule | `lib/pass-finder/radio-window.js` | pure; which slice of time to chart (§15.1). Split out because the rule was untestable while it lived in the scene. |
 | sampler | `lib/pass-finder/radio-pass.js` | pure; window + observer + frequency → time series + summary |
 | painter | `lib/pass-finder/radio-chart.js` | pure; series → SVG with embedded CSS |
-| modal | `components/passes/RadioModal.tsx` | open/close lifecycle, copy/save, mirrors `PolarModal.tsx` |
 | export | `lib/pass-finder/radio-csv.js` | pure; series → CSV text |
+| shared | `lib/pass-finder/radio-format.js`, `text.js` | the transmit-oscillator assumption, and generic string helpers |
+| modal | `components/passes/RadioModal.tsx` | open/close lifecycle, copy/save, mirrors `PolarModal.tsx` |
 
 The sampler is the single source of physics. The painter, the CSV, the
 chart header readouts, and any future MCP tool all consume its output.
@@ -88,6 +96,7 @@ For a single observer the two coincide.
 | `dopplerHz` | §5.3, exact ratio, light-time corrected |
 | `elDeg`, `azDeg` | via existing `issAltAzDeg`; **apparent** (refracted) |
 | `angRateDegPerSec` | §6 |
+| `dopplerRateHzPerSec` | §9.3, central difference. Lives on the sample so the CSV and the summary read one value rather than each recomputing it (§3). |
 | `relSignalDb` | §7 |
 
 ## 5. Doppler
@@ -450,10 +459,17 @@ finite slant range changes by roughly `h / r_slant`, about 0.05° at 2 km.
   chart on the wrong carrier — and the Doppler axis differs 3× between
   145.800 and 437.800. Add an `f` key; absent `f` falls back to the
   satellite's default. Extend `test/state-blob.test.mjs`.
-- `polarModalFileNameFor` gains a prefix parameter so radio exports land
-  as `radio-pass-<obs>-<iso>.png`.
-- CSV columns: `time_utc, az_deg, el_deg, range_m, range_rate_mps,
-  doppler_hz, doppler_rate_hz_s, rel_signal_db`. Azimuth and elevation
+- `polarModalFileNameFor` gains prefix and extension parameters so radio
+  exports land as `radio-<satellite>-<obs>-<iso>.png`, with the CSV taking
+  the same name and a `.csv` extension so a pass's two files sort together.
+  The satellite is in the name because the observer alone does not identify
+  a pass.
+- CSV columns: `time_utc, az_deg, el_deg, ang_rate_deg_s, range_m,
+  range_rate_mps, doppler_hz, rx_freq_hz, doppler_rate_hz_s, rel_signal_db`.
+  `rx_freq_hz` is `downlink_hz + doppler_hz` — a rig tunes to an absolute
+  frequency, not an offset. `ang_rate_deg_s` is the camera half of §1's
+  joint reading and belongs in the export for the same reason it is panel 1
+  on the chart. Azimuth and elevation
   are apparent (refracted, light-time retarded), for pointing. Header
   carries the TLE epoch, its age, and the detected clock skew.
 
@@ -546,8 +562,10 @@ Header: satellite · frequency picker (catalog downlinks + freeform) ·
 observer · date, plus the §8 readouts and the emission duty. Axis labels
 carry UTC and observer-local time.
 
-Methods, error budget, and elevation provenance go in a collapsible
-section — three curves plus a header is already dense.
+Methods, error budget, and elevation provenance go at the foot of the
+chart, wrapped to the plot width. *Amended 2026-09-06:* the original said
+"collapsible", which is not achievable — the chart is rasterised to a PNG,
+so anything collapsed would simply be absent from the export.
 
 Degrade gracefully when a satellite has no downlink and the user has
 entered no frequency: draw range rate in m/s plus the angular and signal

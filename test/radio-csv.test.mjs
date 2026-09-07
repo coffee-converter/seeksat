@@ -2,6 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { radioPassCsv } from '../lib/pass-finder/radio-csv.js';
 
+/** Value of `column` in the Nth data row, looked up by header name so a new
+ *  column cannot silently shift what an assertion is checking. */
+function cell(csv, column, row = 1) {
+  const lines = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim());
+  const i = lines[0].split(',').indexOf(column);
+  assert.ok(i >= 0, `no such column: ${column}`);
+  return lines[row].split(',')[i];
+}
+
 const SAMPLES = [{
   tMs: Date.UTC(2024, 0, 1, 12, 0, 0, 250),
   rangeM: 812345.678, rangeRateMps: -6543.21, dopplerHz: 9551.4,
@@ -36,13 +45,13 @@ test('column order is fixed and values keep useful precision', () => {
   const lines = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim());
   assert.equal(
     lines[0],
-    'time_utc,az_deg,el_deg,range_m,range_rate_mps,doppler_hz,rx_freq_hz,doppler_rate_hz_s,rel_signal_db',
+    'time_utc,az_deg,el_deg,ang_rate_deg_s,range_m,range_rate_mps,doppler_hz,rx_freq_hz,doppler_rate_hz_s,rel_signal_db',
   );
   const cells = lines[1].split(',');
-  assert.equal(cells[0], '2024-01-01T12:00:00.250Z', 'millisecond timestamps');
-  assert.equal(cells[1], '271.900');
-  assert.equal(cells[2], '12.346');
-  assert.equal(cells[3], '812345.7');
+  assert.equal(cell(csv, 'time_utc'), '2024-01-01T12:00:00.250Z', 'millisecond timestamps');
+  assert.equal(cell(csv, 'az_deg'), '271.900');
+  assert.equal(cell(csv, 'el_deg'), '12.346');
+  assert.equal(cell(csv, 'range_m'), '812345.7');
 });
 
 test('a null frequency leaves the Doppler columns empty, not NaN', () => {
@@ -52,7 +61,7 @@ test('a null frequency leaves the Doppler columns empty, not NaN', () => {
   );
   assert.ok(!csv.includes('NaN'));
   const row = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[1];
-  assert.equal(row.split(',')[5], '');
+  assert.equal(cell(csv, 'doppler_hz'), '');
 });
 
 
@@ -64,7 +73,7 @@ test('rx_freq_hz is downlink plus Doppler, as an integer Hz value', () => {
   const csv = radioPassCsv(SAMPLES, META);
   const row = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[1];
   const cells = row.split(',');
-  assert.equal(cells[6], String(Math.round(437_800_000 + 9551.4)));
+  assert.equal(cell(csv, 'rx_freq_hz'), String(Math.round(437_800_000 + 9551.4)));
 });
 
 test('rx_freq_hz is empty, not NaN, when no frequency is set', () => {
@@ -74,7 +83,7 @@ test('rx_freq_hz is empty, not NaN, when no frequency is set', () => {
   );
   assert.ok(!csv.includes('NaN'));
   const row = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[1];
-  assert.equal(row.split(',')[6], '');
+  assert.equal(cell(csv, 'rx_freq_hz'), '');
 });
 
 test('the header warns that rx_freq_hz is not good to its printed precision', () => {
@@ -184,6 +193,24 @@ test('a truncated window says so, and a normal one stays quiet', () => {
   // so a clamped window must not present them as a complete pass.
   const clamped = radioPassCsv(SAMPLES, { ...META, clamped: true });
   assert.match(clamped, /# window_truncated:\s+yes/);
-  assert.match(clamped, /lower bounds/);
+  assert.match(clamped, /search cap, not horizon crossings/);
   assert.ok(!radioPassCsv(SAMPLES, META).includes('window_truncated'));
+});
+
+
+test('the CSV carries angular rate, the camera half of the pass', () => {
+  // The chart draws this as its first panel and the feature exists for the
+  // joint radio+optical reading, but the export - the thing you drive a
+  // mount with - used to omit it entirely.
+  const csv = radioPassCsv(SAMPLES, META);
+  const lines = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim());
+  assert.equal(cell(csv, 'ang_rate_deg_s'), SAMPLES[0].angRateDegPerSec.toFixed(4));
+});
+
+test('the clamped note stays aligned instead of printing a bare colon', () => {
+  const csv = radioPassCsv(SAMPLES, { ...META, clamped: true });
+  assert.ok(!csv.includes('# :'), 'no keyless continuation line');
+  for (const l of csv.split('\n').filter((x) => x.startsWith('#'))) {
+    assert.ok(l.length <= 94, `clamped note overflows at ${l.length}: ${l}`);
+  }
 });

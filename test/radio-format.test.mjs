@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  TX_OSC_PPM, txOscTolerance, wrapText, slug,
-} from '../lib/pass-finder/radio-format.js';
+import { TX_OSC_PPM, txOscTolerance } from '../lib/pass-finder/radio-format.js';
+import { wrapText, slug } from '../lib/pass-finder/text.js';
 
 // ---- txOscTolerance -----------------------------------------------------
 
