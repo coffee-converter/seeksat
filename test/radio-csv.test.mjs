@@ -82,7 +82,8 @@ test('the header warns that rx_freq_hz is not good to its printed precision', ()
   // transmitter's own oscillator offset is unknown.
   const csv = radioPassCsv(SAMPLES, META);
   assert.match(csv, /^# rx_freq_hz\s+Hz\s+The frequency to tune to: downlink_hz \+ doppler_hz\./m);
-  assert.match(csv, /Absolute accuracy is ~\+\/-1\.1 kHz, NOT the 1 Hz printed\./);
+  assert.match(csv, /~\+\/-1\.09 kHz/);
+  assert.match(csv, /Rounded to whole Hz/);
 });
 
 
@@ -131,4 +132,21 @@ test('legend lines stay inside the header rule width', () => {
   for (const l of lines.slice(start + 1, end)) {
     assert.ok(l.length <= 92, `legend line overflows: ${l.length} chars\n${l}`);
   }
+});
+
+
+test('the oscillator tolerance scales with the carrier', () => {
+  // 2.5 ppm is ~1.09 kHz at 437.800 MHz but only ~365 Hz at 145.800 - a
+  // hardcoded figure was three times too pessimistic on 2 m.
+  const uhf = radioPassCsv(SAMPLES, { ...META, freqHz: 437_800_000 });
+  const vhf = radioPassCsv(SAMPLES, { ...META, freqHz: 145_800_000 });
+  assert.match(uhf, /~\+\/-1\.09 kHz/);
+  assert.match(vhf, /~\+\/-365 Hz/);
+  assert.ok(!vhf.includes('1.09 kHz'), 'VHF must not carry the UHF figure');
+});
+
+test('the assumed oscillator spec is stated, not hidden', () => {
+  // It is an assumption, not a published spacecraft figure, so a reader
+  // must be able to see it and substitute their own.
+  assert.match(radioPassCsv(SAMPLES, META), /assumed 2\.5 ppm/);
 });
