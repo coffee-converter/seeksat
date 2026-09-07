@@ -81,8 +81,8 @@ test('the header warns that rx_freq_hz is not good to its printed precision', ()
   // The shape is good to ~1 Hz; the absolute value is not, because the
   // transmitter's own oscillator offset is unknown.
   const csv = radioPassCsv(SAMPLES, META);
-  assert.match(csv, /^# rx_freq_hz\s+downlink_hz \+ doppler_hz/m);
-  assert.match(csv, /ABSOLUTE accuracy is ~\+\/-1\.1 kHz/);
+  assert.match(csv, /^# rx_freq_hz\s+Hz\s+The frequency to tune to: downlink_hz \+ doppler_hz\./m);
+  assert.match(csv, /Absolute accuracy is ~\+\/-1\.1 kHz, NOT the 1 Hz printed\./);
 });
 
 
@@ -94,7 +94,7 @@ test('every emitted column is documented in the header legend', () => {
   const csv = radioPassCsv(SAMPLES, META);
   const header = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[0];
   for (const name of header.split(',')) {
-    const doc = new RegExp(`^# ${name}\\s+\\S`, 'm');
+    const doc = new RegExp(`^# ${name}\\s+\\S+\\s+\\S`, 'm');
     assert.match(csv, doc, `column ${name} has no legend entry`);
   }
 });
@@ -103,5 +103,32 @@ test('the header is organised into labelled sections', () => {
   const csv = radioPassCsv(SAMPLES, META);
   for (const s of ['Satellite', 'Observer', 'Pass', 'Provenance', 'Columns', 'Notes']) {
     assert.match(csv, new RegExp(`^# --- ${s} -+$`, 'm'), `missing section ${s}`);
+  }
+});
+
+
+test('legend entries are separated, so caveats do not run into the next column', () => {
+  // A wrapped caveat sitting flush above the next column name was what made
+  // the block read as one run-on paragraph.
+  const csv = radioPassCsv(SAMPLES, META);
+  const lines = csv.split('\n');
+  const start = lines.findIndex((l) => l.startsWith('# --- Columns'));
+  const end = lines.findIndex((l, i) => i > start && l.startsWith('# --- Notes'));
+  const block = lines.slice(start, end);
+  // Every column after the first is immediately preceded by a bare '#'.
+  for (const name of ['az_deg', 'rx_freq_hz', 'rel_signal_db']) {
+    const at = block.findIndex((l) => l.startsWith(`# ${name} `));
+    assert.ok(at > 0, `${name} missing from legend`);
+    assert.equal(block[at - 1], '#', `${name} has no separator above it`);
+  }
+});
+
+test('legend lines stay inside the header rule width', () => {
+  const csv = radioPassCsv(SAMPLES, META);
+  const lines = csv.split('\n');
+  const start = lines.findIndex((l) => l.startsWith('# --- Columns'));
+  const end = lines.findIndex((l, i) => i > start && l.startsWith('# --- Notes'));
+  for (const l of lines.slice(start + 1, end)) {
+    assert.ok(l.length <= 92, `legend line overflows: ${l.length} chars\n${l}`);
   }
 });
