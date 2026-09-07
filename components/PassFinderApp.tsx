@@ -17,6 +17,7 @@ import ObserversList from "@/components/passes/ObserversList";
 import WindowsList from "@/components/passes/WindowsList";
 import ShareButton from "@/components/passes/ShareButton";
 import PolarModal from "@/components/passes/PolarModal";
+import RadioModal from "@/components/passes/RadioModal";
 import AboutPane from "@/components/AboutPane";
 import OnboardingTour from "@/components/OnboardingTour";
 
@@ -155,6 +156,7 @@ export default function PassFinderApp(
       </nav>
 
       <PolarModal />
+      <RadioModal />
 
       {status === "error" && (
         <div

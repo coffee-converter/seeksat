@@ -28,3 +28,6 @@ next-env.d.ts
 
 # Private triangulation sample data (personal coordinates) - kept local only
 _data/
+
+# SDD scratch workspace
+.superpowers/

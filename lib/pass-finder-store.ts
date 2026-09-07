@@ -23,6 +23,16 @@ export interface PassObserver {
   lonDeg: number;
   /** IANA timezone resolved lazily after add; null until then. */
   tz?: string;
+  /** Ground elevation in metres above the WGS-84 ellipsoid, resolved
+   *  lazily after add - same pattern as `tz`. Undefined until then.
+   *  NOTE: Open-Elevation returns ORTHOMETRIC height (above the geoid);
+   *  the geoid undulation is about -105 m to +85 m globally, roughly
+   *  -30 m over CONUS. That is 0.024% of a typical pass range, below the
+   *  TLE error floor - accepted, not corrected. */
+  elevM?: number;
+  /** How elevM was obtained, so the radio chart can show provenance
+   *  instead of silently quoting a range computed from a failed lookup. */
+  elevSource?: "lookup" | "default" | "user";
 }
 
 /** One row in the passes table. The bootstrap pre-computes all the
@@ -93,6 +103,11 @@ export interface PassFinderState {
   windowSelectNonce: number;
   /** When set, the polar-modal renders for this observer id. */
   polarModalObsId: string | null;
+  /** When set, the radio (Doppler chart) modal renders for this observer id. */
+  radioModalObsId: string | null;
+  /** Downlink frequency (Hz) selected for the radio-mode Doppler chart;
+   *  null when the satellite has no known downlink. */
+  downlinkHz: number | null;
   /** Left panel collapsed state - body.panel-collapsed mirror.
    *  Drives both the user-toggleable panel and the auto-collapse on
    *  narrow viewports when a pass is selected. */
@@ -121,6 +136,8 @@ export interface PassFinderState {
    *  the scene always runs jumpToWindow, even when idx is unchanged. */
   selectWindow: (idx: number) => void;
   setPolarModalObsId: (id: string | null) => void;
+  setRadioModalObsId: (id: string | null) => void;
+  setDownlinkHz: (hz: number | null) => void;
   setPanelCollapsed: (collapsed: boolean) => void;
   setFirstSearchComplete: (done: boolean) => void;
 }
@@ -143,6 +160,8 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   activeWindowIdx: -1,
   windowSelectNonce: 0,
   polarModalObsId: null,
+  radioModalObsId: null,
+  downlinkHz: null,
   panelCollapsed: false,
   firstSearchComplete: false,
 
@@ -165,6 +184,8 @@ export const usePassFinderStore = create<PassFinderState>((set) => ({
   selectWindow: (idx) =>
     set((s) => ({ activeWindowIdx: idx, windowSelectNonce: s.windowSelectNonce + 1 })),
   setPolarModalObsId: (polarModalObsId) => set({ polarModalObsId }),
+  setRadioModalObsId: (radioModalObsId) => set({ radioModalObsId }),
+  setDownlinkHz: (downlinkHz) => set({ downlinkHz }),
   setPanelCollapsed: (panelCollapsed) => set({ panelCollapsed }),
   setFirstSearchComplete: (firstSearchComplete) => set({ firstSearchComplete }),
 }));

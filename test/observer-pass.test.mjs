@@ -103,7 +103,7 @@ test('passWindowAtMsForObserver: stationary ISS - returns anchor itself when nei
   const out = passWindowAtMsForObserver(
     OBS_EQUATOR, anchorMs, 'radio', 10, issEcefAtFn,
   );
-  assert.deepEqual(out, { startMs: anchorMs, endMs: anchorMs });
+  assert.deepEqual(out, { startMs: anchorMs, endMs: anchorMs, clamped: false });
 });
 
 test('passWindowAtMsForObserver: walks outward while predicate holds', () => {
@@ -119,6 +119,8 @@ test('passWindowAtMsForObserver: walks outward while predicate holds', () => {
   assert.deepEqual(out, {
     startMs: anchorMs - 5000,
     endMs: anchorMs + 5000,
+    // A real rise and set, so the window is not a truncation.
+    clamped: false,
   });
 });
 
@@ -148,4 +150,31 @@ test('passWindowAtMsForObserver: gap on one side, hard end on the other', () => 
   );
   assert.equal(out.startMs, anchorMs - 2000);
   assert.equal(out.endMs, anchorMs + 8000);
+});
+
+
+test('passWindowAtMsForObserver: flags a clamped window as clamped', () => {
+  // A satellite that never sets walks to the cap on both sides. The edges
+  // are then the search budget, not horizon crossings - and callers say
+  // things about the window ("horizon-to-horizon", aos/los/duration) that
+  // stop being true when it is truncated, so the distinction has to survive
+  // the return value.
+  const anchorMs = noon.getTime();
+  const alwaysUp = () => ISS_OVERHEAD;
+  const out = passWindowAtMsForObserver(OBS_EQUATOR, anchorMs, 'radio', 10, alwaysUp);
+  assert.equal(out.clamped, true);
+  assert.equal(out.startMs, anchorMs - 15 * 60 * 1000);
+  assert.equal(out.endMs, anchorMs + 15 * 60 * 1000);
+});
+
+test('passWindowAtMsForObserver: one clamped side is enough to flag it', () => {
+  // Visible from well before the cap through to long after it: the backward
+  // walk finds a real rise, the forward one runs out of budget.
+  const anchorMs = noon.getTime();
+  const risesAt = anchorMs - 5000;
+  const issEcefAtFn = (d) => (d.getTime() >= risesAt ? ISS_OVERHEAD : null);
+  const out = passWindowAtMsForObserver(OBS_EQUATOR, anchorMs, 'radio', 10, issEcefAtFn);
+  assert.equal(out.startMs, risesAt, 'backward walk should find the real edge');
+  assert.equal(out.endMs, anchorMs + 15 * 60 * 1000, 'forward walk should hit the cap');
+  assert.equal(out.clamped, true);
 });

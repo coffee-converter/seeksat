@@ -31,6 +31,18 @@ export interface SceneBridge {
     svgEl: SVGSVGElement,
     obsId: string,
   ) => Promise<PolarModalRenderResult | null>;
+  /** Paint the fullscreen radio-pass modal SVG (Doppler / angular
+   *  rate / signal panels) and return a PNG blob URL + suggested
+   *  filename, same contract as renderPolarModal. */
+  renderRadioModal: (
+    svgEl: SVGSVGElement,
+    obsId: string,
+  ) => Promise<PolarModalRenderResult | null>;
+  /** Build the radio-pass CSV for an observer at a 1s step (finer
+   *  than the 2s chart step - a rig can be up to 360 Hz out between
+   *  2s-spaced points near TCA). Returns null when the observer or
+   *  its pass window can't be resolved. */
+  radioPassCsvFor: (obsId: string) => { csv: string; filename: string } | null;
   /** Rasterize the modal SVG to a PNG Blob and write it to the
    *  system clipboard. Throws if the Clipboard API is unavailable
    *  or the user denies permission. */
@@ -48,6 +60,10 @@ export interface SceneBridge {
   /** Toggle first-person camera lock to a specific observer. Passing
    *  the currently-locked observer unlocks. */
   toggleFps: (obsId: string) => void;
+  /** Manually override an observer's elevation (spec §12): sets
+   *  `elevM` and marks `elevSource: "user"`, and reruns the active
+   *  search since elevation affects visibility/window timing. */
+  setObserverElevM: (obsId: string, elevM: number) => void;
 }
 
 // Augment the global Window so the JS scene file can assign to
@@ -91,6 +107,12 @@ export const paintPolarPlot: SceneBridge["paintPolarPlot"] = (svg, obsId) =>
 export const renderPolarModal: SceneBridge["renderPolarModal"] = (svg, obsId) =>
   bridge().renderPolarModal(svg, obsId);
 
+export const renderRadioModal: SceneBridge["renderRadioModal"] = (svg, obsId) =>
+  bridge().renderRadioModal(svg, obsId);
+
+export const radioPassCsvFor: SceneBridge["radioPassCsvFor"] = (obsId) =>
+  bridge().radioPassCsvFor(obsId);
+
 export const copyPolarPng: SceneBridge["copyPolarPng"] = (svg) =>
   bridge().copyPolarPng(svg);
 
@@ -105,6 +127,9 @@ export const removeObserver: SceneBridge["removeObserver"] = (obsId) =>
 
 export const toggleFps: SceneBridge["toggleFps"] = (obsId) =>
   bridge().toggleFps(obsId);
+
+export const setObserverElevM: SceneBridge["setObserverElevM"] = (obsId, elevM) =>
+  bridge().setObserverElevM(obsId, elevM);
 
 /** True when the scene has registered its bridge. Components can
  *  check this before calling a wrapper if they need to render a
