@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -115,4 +115,29 @@ test('panelScale exposes the nice bounds it computed', () => {
   // The bounds must agree with the mapping: hi maps to the top of the panel.
   assert.ok(Math.abs(s(s.hi)) < 1e-9);
   assert.ok(Math.abs(s(s.lo) - 100) < 1e-9);
+});
+
+
+// ---- panelsFor: panel order and the no-frequency degrade path -----------
+
+test('panels run angular rate, Doppler, signal - Doppler in the middle', () => {
+  // Doppler is the reference the other two are read against (both peak
+  // where it crosses zero), so it sits adjacent to both.
+  assert.deepEqual(panelsFor(true).map((p) => p.key),
+    ['angRateDegPerSec', 'dopplerHz', 'relSignalDb']);
+});
+
+test('with no frequency, Doppler is replaced by range rate in place', () => {
+  const keys = panelsFor(false).map((p) => p.key);
+  assert.deepEqual(keys, ['angRateDegPerSec', 'rangeRateMps', 'relSignalDb']);
+});
+
+test('the degrade swap matches on key, not position', () => {
+  // A positional swap (PANELS[0]) silently replaces the wrong panel the
+  // moment the order changes - which it did. Angular rate and signal must
+  // survive the swap untouched.
+  const on = panelsFor(true), off = panelsFor(false);
+  assert.equal(off[0].label, on[0].label, 'angular rate must be untouched');
+  assert.equal(off[2].label, on[2].label, 'signal must be untouched');
+  assert.equal(off[1].unit, 'm/s');
 });
