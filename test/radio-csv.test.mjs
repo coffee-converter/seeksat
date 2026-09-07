@@ -72,7 +72,6 @@ test('rx_freq_hz is downlink plus Doppler, as an integer Hz value', () => {
   // +9551.4 Hz of Doppler tunes to 437809551 Hz.
   const csv = radioPassCsv(SAMPLES, META);
   const row = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[1];
-  const cells = row.split(',');
   assert.equal(cell(csv, 'rx_freq_hz'), String(Math.round(437_800_000 + 9551.4)));
 });
 

@@ -44,8 +44,8 @@ pin the geometry far more tightly than either alone.
 Four units, following the existing separation of pure math in
 `lib/pass-finder/` from imperative scene code:
 
-*Updated 2026-09-06 to match what was built.* The four units below became
-eight as testability forced splits; each is noted with why.
+*Updated 2026-09-06 to match what was built.* The original four units below
+became nine as testability forced splits; each is noted with why.
 
 | unit | file | responsibility |
 |---|---|---|
@@ -66,11 +66,13 @@ Nothing downstream recomputes.
 ## 4. The sampler
 
 ```
-radioPassSamples(obs, window, satState, { freqHz, stepMs = 2000 })
+radioPassSamples(obs, window, deps, { freqHz, stepMs = 2000 })
   -> { samples: [...], summary: {...} }
 ```
 
-`satState(jsDate)` returns `{ rTeme, vTeme, rEcef }` in metres and m/s.
+`deps` is `{ satStateAt, obsEcef, upEcef }`. `satStateAt(jsDate)` returns
+`{ rTeme, vTeme, rEcef, gmst }` in metres and m/s — `gmst` is needed to put
+the observer into TEME for the Doppler calculation (§5.1).
 See §5.1 — this replaces the current `issEcefAt`, which discards
 velocity.
 
