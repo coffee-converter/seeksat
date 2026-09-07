@@ -16,19 +16,19 @@ const META = {
 
 test('header block records the inputs a reader needs to judge the data', () => {
   const csv = radioPassCsv(SAMPLES, META);
-  assert.match(csv, /# satellite: ISS \(ZARYA\)/);
-  assert.match(csv, /# downlink_hz: 437800000/);
-  assert.match(csv, /# tle_epoch: 2023-12-30T12:00:00\.000Z/);
-  assert.match(csv, /# tle_epoch_age_days: 2\.0/);
-  assert.match(csv, /# observer_elev_m: 180 \(lookup\)/);
-  assert.match(csv, /# clock_skew_ms: -420/);
+  assert.match(csv, /# satellite:\s+ISS \(ZARYA\)/);
+  assert.match(csv, /# downlink_hz:\s+437800000/);
+  assert.match(csv, /# tle_epoch:\s+2023-12-30T12:00:00\.000Z/);
+  assert.match(csv, /# tle_epoch_age_days:\s+2\.0/);
+  assert.match(csv, /# observer_elev_m:\s+180 \(lookup\)/);
+  assert.match(csv, /# clock_skew_ms:\s+-420/);
 });
 
 test('TLE age is reported as a magnitude with direction, never bare negative', () => {
   // Propagating to a time BEFORE epoch is legitimate and gives a negative
   // age; "-0.45 days old" would read as a bug.
   const csv = radioPassCsv(SAMPLES, { ...META, tleEpochMs: Date.UTC(2024, 0, 3) });
-  assert.match(csv, /# tle_epoch_age_days: 1\.5 \(before epoch\)/);
+  assert.match(csv, /# tle_epoch_age_days:\s+1\.5 \(before epoch\)/);
 });
 
 test('column order is fixed and values keep useful precision', () => {
@@ -81,6 +81,27 @@ test('the header warns that rx_freq_hz is not good to its printed precision', ()
   // The shape is good to ~1 Hz; the absolute value is not, because the
   // transmitter's own oscillator offset is unknown.
   const csv = radioPassCsv(SAMPLES, META);
-  assert.match(csv, /rx_freq_hz = downlink_hz \+ doppler_hz/);
-  assert.match(csv, /1\.1 kHz/);
+  assert.match(csv, /^# rx_freq_hz\s+downlink_hz \+ doppler_hz/m);
+  assert.match(csv, /ABSOLUTE accuracy is ~\+\/-1\.1 kHz/);
+});
+
+
+// ---- header legend ------------------------------------------------------
+
+test('every emitted column is documented in the header legend', () => {
+  // The legend and the column list share one source of truth, so a column
+  // added without a description is a construction error, not a doc lapse.
+  const csv = radioPassCsv(SAMPLES, META);
+  const header = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim())[0];
+  for (const name of header.split(',')) {
+    const doc = new RegExp(`^# ${name}\\s+\\S`, 'm');
+    assert.match(csv, doc, `column ${name} has no legend entry`);
+  }
+});
+
+test('the header is organised into labelled sections', () => {
+  const csv = radioPassCsv(SAMPLES, META);
+  for (const s of ['Satellite', 'Observer', 'Pass', 'Provenance', 'Columns', 'Notes']) {
+    assert.match(csv, new RegExp(`^# --- ${s} -+$`, 'm'), `missing section ${s}`);
+  }
 });

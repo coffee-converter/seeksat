@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, wrapText } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -140,4 +140,27 @@ test('the degrade swap matches on key, not position', () => {
   assert.equal(off[0].label, on[0].label, 'angular rate must be untouched');
   assert.equal(off[2].label, on[2].label, 'signal must be untouched');
   assert.equal(off[1].unit, 'm/s');
+});
+
+
+// ---- wrapText: methods block reflow -------------------------------------
+
+test('wrapText fills to the budget rather than breaking early', () => {
+  const out = wrapText('aaa bbb ccc ddd', 7);
+  assert.deepEqual(out, ['aaa bbb', 'ccc ddd']);
+});
+
+test('wrapText never splits a word, even one over budget', () => {
+  const out = wrapText('short supercalifragilistic end', 8);
+  assert.ok(out.includes('supercalifragilistic'),
+    'an over-long word must survive intact rather than be truncated');
+});
+
+test('wrapText collapses runs of whitespace', () => {
+  assert.deepEqual(wrapText('a   b\n\nc', 80), ['a b c']);
+});
+
+test('wrapText returns nothing for empty input', () => {
+  assert.deepEqual(wrapText('', 40), []);
+  assert.deepEqual(wrapText('   ', 40), []);
 });
