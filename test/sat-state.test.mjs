@@ -19,7 +19,8 @@ const CHICAGO = geodeticToEcef(41.88, -87.63, 180);
 
 test('OMEGA_EARTH is the sidereal rate, not the solar-day rate', () => {
   assert.ok(Math.abs(OMEGA_EARTH - 7.292115855e-5) < 1e-13);
-  // 2*PI/86400 = 7.2722e-5 would be a 0.27% error => 2.0 Hz at 437.8 MHz.
+  // 2*PI/86400 = 7.2722e-5 would be a 0.27% error => up to 1.27 m/s of
+  // observer velocity at the equator, 1.9 Hz at 437.8 MHz.
   assert.ok(Math.abs(OMEGA_EARTH - (2 * Math.PI) / 86400) > 1e-7);
 });
 
