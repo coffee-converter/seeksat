@@ -287,7 +287,8 @@ export default function RadioModal() {
               defaultValue={elevM ?? ""}
               key={`${obsId ?? ""}-${elevSource ?? ""}`}
               aria-label="Observer elevation in metres above the WGS-84 ellipsoid"
-              title={`Elevation used: ${elevM ?? 0} m (${elevSource ?? "unknown"})`}
+              title={`Elevation used: ${elevM ?? 0} m (${elevSource ?? "unknown"}) `
+                + `- WGS-84 ellipsoidal height`}
               onBlur={(ev) => {
                 if (!obsId) return;
                 const m = Number(ev.target.value);

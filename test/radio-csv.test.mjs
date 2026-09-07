@@ -29,7 +29,7 @@ test('header block records the inputs a reader needs to judge the data', () => {
   assert.match(csv, /# downlink_hz:\s+437800000/);
   assert.match(csv, /# tle_epoch:\s+2023-12-30T12:00:00\.000Z/);
   assert.match(csv, /# tle_epoch_age_days:\s+2\.0/);
-  assert.match(csv, /# observer_elev_m:\s+180 \(lookup, orthometric\)/);
+  assert.match(csv, /# observer_elev_m:\s+180 \(lookup\)/);
   assert.match(csv, /# clock_skew_ms:\s+-420/);
 });
 
@@ -204,6 +204,40 @@ test('the CSV carries angular rate, the camera half of the pass', () => {
   const csv = radioPassCsv(SAMPLES, META);
   const lines = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim());
   assert.equal(cell(csv, 'ang_rate_deg_s'), SAMPLES[0].angRateDegPerSec.toFixed(4));
+});
+
+test('the elevation datum mismatch is stated, not absorbed', () => {
+  // Spec 12 accepted the geoid undulation instead of shipping an EGM96 grid,
+  // but required it be stated. The old label said "orthometric", which named
+  // the SOURCE and implied the pipeline handled it - geodeticToEcef consumes
+  // an ellipsoidal height, so the undulation is simply uncorrected. A reader
+  // seeing only "180 m" cannot tell that up to 100 m of it is unmodelled.
+  const csv = radioPassCsv(SAMPLES, META);
+  assert.match(csv, /# elev_datum:\s+used as WGS-84 ellipsoidal height/);
+  assert.match(csv, /orthometric/, 'must still say where a lookup sits');
+  assert.match(csv, /uncorrected/, 'and that it is not corrected for');
+});
+
+test('range_rate_mps is not described as frame-dependent', () => {
+  // Range is a scalar, so a correctly computed ECEF range rate matches this
+  // exactly - verified against satellite.js to central-difference truncation.
+  // The old caveat quoted "up to 30 m/s", which is the RELATIVE SPEED
+  // difference (omega x range), a different quantity. Left in place it would
+  // have let a reader wave through a genuinely broken velocity rotation,
+  // which is the ~300 m/s failure sat-state.js exists to prevent.
+  const csv = radioPassCsv(SAMPLES, META);
+  assert.match(csv, /Frame-independent/);
+  assert.ok(!csv.includes('30 m/s'), 'the 30 m/s claim belongs to relative speed');
+});
+
+test('the clamped note does not call aos_utc a lower bound', () => {
+  // A truncated window starts LATER than the real AOS, so aos_utc is an upper
+  // bound on it, not a lower one. The chart already enumerates rather than
+  // generalising for exactly this reason; the CSV said "all lower bounds".
+  const csv = radioPassCsv(SAMPLES, { ...META, clamped: true });
+  assert.match(csv, /starts before aos_utc and ends after los_utc/);
+  assert.ok(!/aos_utc[\s\S]{0,80}?lower bound/.test(csv),
+    'aos_utc must not be presented as a lower bound');
 });
 
 test('the clamped note stays aligned instead of printing a bare colon', () => {
