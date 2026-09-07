@@ -563,8 +563,10 @@ Gating the chart on the filter let a UI control change a physical
 measurement: the largest range rate is at the horizon, so a gated window
 stops short of it and understates the reported swing by ~1.5% on a zenith
 pass. (Not the ~6% first claimed: 92% and 98% are both fractions of the
-relative speed, and dividing one by the other is what produced the wrong
-number. Peak range rate is 93.6% of orbital speed over the full window and
+relative speed, and dividing one by the other produced the wrong number.
+Measured on the synthetic polar-orbit fixture in
+`test/radio-window.test.mjs` — a different geometry from §18's real ISS
+pass — peak range rate is 93.6% of orbital speed over the full window and
 92.2% over a 10° one, so 92.2/93.6 = 98.5%.)
 
 The rule lives in `lib/pass-finder/radio-window.js`. It deliberately does
