@@ -60,6 +60,9 @@ export default function RadioModal() {
   // means the sampler returns dopplerHz: null for every sample and the
   // painter skips the Doppler polyline - the other two panels still draw.
   const selectedNoradId = usePassFinderStore((s) => s.selectedNoradId);
+  // The chart draws a band from this, so it belongs in the repaint deps
+  // even though a full-screen overlay means it cannot change while open.
+  const minElevDeg = usePassFinderStore((s) => s.minElevDeg);
   const downlinkHz = usePassFinderStore((s) => s.downlinkHz);
   const setDownlinkHz = usePassFinderStore((s) => s.setDownlinkHz);
   const entry = CATALOG.find((s) => s.noradId === selectedNoradId);
@@ -113,7 +116,7 @@ export default function RadioModal() {
       cancelled = true;
       document.body.style.cursor = "";
     };
-  }, [obsId, downlinkHz, elevM, setObsId]);
+  }, [obsId, downlinkHz, elevM, minElevDeg, setObsId]);
 
   const visible = !!obsId && renderedObsId === obsId;
 

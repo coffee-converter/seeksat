@@ -164,3 +164,16 @@ test('no header line exceeds the rule width, TLE lines included', () => {
     assert.ok(l.length <= 94, `header line overflows at ${l.length}: ${l}`);
   }
 });
+
+
+test('every data row has exactly as many fields as the column header', () => {
+  // The row is a hand-written literal in the emit loop; nothing else
+  // catches a column added to COLUMN_DOCS without a matching value.
+  const csv = radioPassCsv(SAMPLES, META);
+  const rows = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim());
+  const width = rows[0].split(',').length;
+  assert.ok(rows.length > 1, 'expected at least one data row');
+  for (const r of rows.slice(1)) {
+    assert.equal(r.split(',').length, width, `field count drifted: ${r}`);
+  }
+});
