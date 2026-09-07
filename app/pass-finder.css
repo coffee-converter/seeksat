@@ -1138,12 +1138,31 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 
 /* Observer-card trigger for the radio modal - only rendered in radio
-   mode, sits alongside .fps-view / .remove in the card header. */
+   mode, sits alongside .fps-view / .remove in the card header.
+   Carries a word rather than a glyph: as a bare tilde nobody could tell
+   what it opened, which is the whole reason this control was reworked.
+   Styled as a filled pill so it reads as the one labelled action among
+   the icon buttons, and shrink-proofed so the observer name (which
+   ellipsises) absorbs the width instead. */
 .obs-card-header .radio-chart {
-  background: transparent; border: 1px solid transparent; color: #8899bb;
-  cursor: pointer; font-size: 12px; padding: 2px 6px; margin: 0;
-  border-radius: 4px; line-height: 1;
+  background: rgba(126, 184, 255, 0.10);
+  border: 1px solid rgba(126, 184, 255, 0.30); color: #7eb8ff;
+  cursor: pointer; font-size: 10px; padding: 2px 7px; margin: 0;
+  border-radius: 999px; line-height: 1.4; flex-shrink: 0;
+  font-family: inherit;
 }
 .obs-card-header .radio-chart:hover {
-  background: rgba(126, 184, 255, 0.12); color: #cfe0ff;
+  background: rgba(126, 184, 255, 0.22); color: #cfe0ff;
+  border-color: rgba(126, 184, 255, 0.55);
+}
+
+/* Cross-links between the two per-pass modals: the sky chart says where
+   to point, the radio chart says what to tune, and each is the obvious
+   next question from the other. Tinted so they read as navigation rather
+   than as another export sitting next to Copy / Save PNG. */
+.polar-modal-actions .polar-modal-radio,
+.radio-modal-actions .radio-modal-polar {
+  color: #7eb8ff;
+  border-color: rgba(126, 184, 255, 0.35);
+  background: rgba(126, 184, 255, 0.08);
 }

@@ -22,6 +22,12 @@ function useObserverName(obsId: string | null): string | undefined {
 export default function PolarModal() {
   const obsId = usePassFinderStore((s) => s.polarModalObsId);
   const setObsId = usePassFinderStore((s) => s.setPolarModalObsId);
+  // Cross-link to the radio chart for the same observer. Gated on radio
+  // mode for two reasons: it matches the observer card's own gating, and
+  // in visual mode the pass windows behind it are illumination-gated, so
+  // renderRadioModal would have no radio series to draw.
+  const mode = usePassFinderStore((s) => s.mode);
+  const setRadioModalObsId = usePassFinderStore((s) => s.setRadioModalObsId);
   const obsName = useObserverName(obsId);
   const svgRef = useRef<SVGSVGElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -93,6 +99,14 @@ export default function PolarModal() {
     if (visible) closeBtnRef.current?.focus();
   }, [visible]);
 
+  // Swap to the radio chart. Both modals are full-screen overlays, so
+  // this closes ours rather than stacking one on top of the other.
+  const toRadio = () => {
+    if (!obsId) return;
+    setRadioModalObsId(obsId);
+    setObsId(null);
+  };
+
   const onCopy = async () => {
     if (!svgRef.current) return;
     try {
@@ -140,6 +154,16 @@ export default function PolarModal() {
           >
             Save PNG
           </button>
+          {mode === "radio" && (
+            <button
+              className="polar-modal-radio"
+              type="button"
+              title="Doppler + signal chart for this pass"
+              onClick={toRadio}
+            >
+              Doppler
+            </button>
+          )}
         </div>
         <svg
           ref={svgRef}

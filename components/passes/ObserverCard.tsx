@@ -51,7 +51,7 @@ export default function ObserverCard({ obs }: { obs: PassObserver }) {
             title="Doppler + signal chart for this pass"
             onClick={(ev) => { stop(ev); setRadioModalObsId(obs.id); }}
           >
-            〜
+            Doppler
           </button>
         )}
         <button

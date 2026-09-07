@@ -39,6 +39,10 @@ function useObserverElevSource(obsId: string | null): string | undefined {
 export default function RadioModal() {
   const obsId = usePassFinderStore((s) => s.radioModalObsId);
   const setObsId = usePassFinderStore((s) => s.setRadioModalObsId);
+  // The other half of the pair: this chart says what to tune, the sky
+  // chart says where to point. Ungated - reaching this modal at all
+  // already means radio mode.
+  const setPolarModalObsId = usePassFinderStore((s) => s.setPolarModalObsId);
   const obsName = useObserverName(obsId);
   const elevM = useObserverElevM(obsId);
   const elevSource = useObserverElevSource(obsId);
@@ -137,6 +141,14 @@ export default function RadioModal() {
     if (visible) closeBtnRef.current?.focus();
   }, [visible]);
 
+  // Swap to the sky chart. Both modals are full-screen overlays, so this
+  // closes ours rather than stacking one on top of the other.
+  const toPolar = () => {
+    if (!obsId) return;
+    setPolarModalObsId(obsId);
+    setObsId(null);
+  };
+
   const onCopy = async () => {
     if (!svgRef.current) return;
     try {
@@ -214,6 +226,14 @@ export default function RadioModal() {
             onClick={onCsv}
           >
             CSV
+          </button>
+          <button
+            className="radio-modal-polar"
+            type="button"
+            title="Sky chart for this pass - where to point"
+            onClick={toPolar}
+          >
+            Sky chart
           </button>
           <select
             className="radio-freq-select"
