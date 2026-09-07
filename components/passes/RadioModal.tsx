@@ -116,7 +116,7 @@ export default function RadioModal() {
       cancelled = true;
       document.body.style.cursor = "";
     };
-  }, [obsId, downlinkHz, elevM, minElevDeg, setObsId]);
+  }, [obsId, downlinkHz, elevM, minElevDeg, selectedNoradId, setObsId]);
 
   const visible = !!obsId && renderedObsId === obsId;
 

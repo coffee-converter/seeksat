@@ -562,8 +562,10 @@ shaded band rather than applying it.
 Gating the chart on the filter let a UI control change a physical
 measurement: the largest range rate is at the horizon, so a gated window
 stops short of it and understates the reported swing by ~1.5% on a zenith
-pass. (Not the ~6% first claimed — the 92%/98% figures in §18 are fractions
-of the relative speed, not of each other.)
+pass. (Not the ~6% first claimed: 92% and 98% are both fractions of the
+relative speed, and dividing one by the other is what produced the wrong
+number. Peak range rate is 93.6% of orbital speed over the full window and
+92.2% over a 10° one, so 92.2/93.6 = 98.5%.)
 
 The rule lives in `lib/pass-finder/radio-window.js`. It deliberately does
 **not** take the app's mode: the visual predicate also gates on

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { radioChartWindows } from '../lib/pass-finder/radio-window.js';
 import { radioPassSamples } from '../lib/pass-finder/radio-pass.js';
+import { passWindowAtMsForObserver } from '../lib/pass-finder/observer-pass.js';
 import { geodeticToEcef } from '../lib/coords.js';
 
 // A circular polar orbit passing directly over an observer at the North
@@ -94,9 +95,10 @@ test('and the old behaviour understated it by a small but real margin', () => {
   // rate is still climbing toward the horizon when a 10 deg cutoff stops it.
   //
   // Worth pinning the magnitude, because it is easy to overstate: the
-  // often-quoted "92% at 10 deg vs 98% at 0 deg" figures are fractions of
-  // the RELATIVE SPEED, not of each other. The window-to-window ratio is
-  // 92.2/98.4, i.e. ~98.5% - a percent and a half, not six.
+  // commonly quoted "92% at 10 deg" figure is a fraction of the RELATIVE
+  // SPEED, not of the full window. Peak |rdot| here is 93.6% of orbital
+  // speed over the full pass and 92.2% over the 10 deg one, so the
+  // window-to-window ratio is 92.2/93.6 = 98.5% - a percent and a half.
   const { full, workable } = radioChartWindows(OBS, T0, 10, issEcefAt);
   const ratio = sampleSwing(workable) / sampleSwing(full);
   assert.ok(ratio < 0.99,
@@ -119,9 +121,16 @@ test('a never-setting target is clamped, not walked forever', () => {
 });
 
 
-test('the radio predicate is used regardless of the app mode', () => {
+test('the walk uses the radio predicate, not whatever mode the app is in', () => {
   // The caller's mode must not reach the walk: in visual mode the predicate
   // also gates on sunlit + twilight, which would truncate the chart by an
-  // illumination condition. The signature takes no mode for that reason.
+  // illumination condition.
+  //
+  // The arity pin catches a re-added positional `mode` (which would land in
+  // minElevDeg); the equality below is what actually proves "radio", since
+  // arity alone would hold if the module hardcoded "visual".
   assert.equal(radioChartWindows.length, 4, 'signature must not take a mode');
+  const { full } = radioChartWindows(OBS, T0, 10, issEcefAt);
+  const radio = passWindowAtMsForObserver(OBS, T0, 'radio', 0, issEcefAt);
+  assert.deepEqual(full, radio);
 });
