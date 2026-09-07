@@ -20,7 +20,7 @@ test('header block records the inputs a reader needs to judge the data', () => {
   assert.match(csv, /# downlink_hz:\s+437800000/);
   assert.match(csv, /# tle_epoch:\s+2023-12-30T12:00:00\.000Z/);
   assert.match(csv, /# tle_epoch_age_days:\s+2\.0/);
-  assert.match(csv, /# observer_elev_m:\s+180 \(lookup\)/);
+  assert.match(csv, /# observer_elev_m:\s+180 \(lookup, orthometric\)/);
   assert.match(csv, /# clock_skew_ms:\s+-420/);
 });
 
@@ -130,7 +130,7 @@ test('legend lines stay inside the header rule width', () => {
   const start = lines.findIndex((l) => l.startsWith('# --- Columns'));
   const end = lines.findIndex((l, i) => i > start && l.startsWith('# --- Notes'));
   for (const l of lines.slice(start + 1, end)) {
-    assert.ok(l.length <= 92, `legend line overflows: ${l.length} chars\n${l}`);
+    assert.ok(l.length <= 94, `legend line overflows: ${l.length} chars\n${l}`);
   }
 });
 
@@ -149,4 +149,18 @@ test('the assumed oscillator spec is stated, not hidden', () => {
   // It is an assumption, not a published spacecraft figure, so a reader
   // must be able to see it and substitute their own.
   assert.match(radioPassCsv(SAMPLES, META), /assumed 2\.5 ppm/);
+});
+
+
+test('no header line exceeds the rule width, TLE lines included', () => {
+  // The TLE lines are fixed-format 69 chars and cannot be wrapped, so they
+  // set the floor for the rule rather than being allowed to overhang it.
+  const csv = radioPassCsv(SAMPLES, {
+    ...META,
+    tleLine1: '1 25544U 98067A   26248.50000000  .00016717  00000-0  30777-3 0  9993',
+    tleLine2: '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.49814556 20000',
+  });
+  for (const l of csv.split('\n').filter((x) => x.startsWith('#'))) {
+    assert.ok(l.length <= 94, `header line overflows at ${l.length}: ${l}`);
+  }
 });

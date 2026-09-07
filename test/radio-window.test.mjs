@@ -39,7 +39,7 @@ const sampleSwing = (win) => {
 // ---- window selection ---------------------------------------------------
 
 test('the full window reaches the horizon, well past a 10 degree cutoff', () => {
-  const { full, workable } = radioChartWindows(OBS, T0, 'radio', 10, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 10, issEcefAt);
   const fullSec = (full.endMs - full.startMs) / 1000;
   const workSec = (workable.endMs - workable.startMs) / 1000;
   // Horizon crossing for this geometry is at cos(Nt) = b/a, about 319 s
@@ -49,13 +49,13 @@ test('the full window reaches the horizon, well past a 10 degree cutoff', () => 
 });
 
 test('the workable window sits strictly inside the full one', () => {
-  const { full, workable } = radioChartWindows(OBS, T0, 'radio', 10, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 10, issEcefAt);
   assert.ok(workable.startMs > full.startMs, 'workable must start later');
   assert.ok(workable.endMs < full.endMs, 'workable must end earlier');
 });
 
 test('no workable window when the threshold is zero - nothing to mark', () => {
-  const { full, workable } = radioChartWindows(OBS, T0, 'radio', 0, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 0, issEcefAt);
   assert.ok(full);
   assert.equal(workable, null);
 });
@@ -63,13 +63,13 @@ test('no workable window when the threshold is zero - nothing to mark', () => {
 test('null when the satellite is not up at the anchor moment', () => {
   // Half an orbit later it is on the far side of the Earth.
   const belowMs = T0 + (Math.PI / N) * 1000;
-  assert.equal(radioChartWindows(OBS, belowMs, 'radio', 10, issEcefAt), null);
+  assert.equal(radioChartWindows(OBS, belowMs, 10, issEcefAt), null);
 });
 
 test('a higher threshold never widens the full window', () => {
   // The full window is the physics; only the band inside it may move.
-  const a = radioChartWindows(OBS, T0, 'radio', 5, issEcefAt).full;
-  const b = radioChartWindows(OBS, T0, 'radio', 40, issEcefAt).full;
+  const a = radioChartWindows(OBS, T0, 5, issEcefAt).full;
+  const b = radioChartWindows(OBS, T0, 40, issEcefAt).full;
   assert.equal(a.startMs, b.startMs);
   assert.equal(a.endMs, b.endMs);
 });
@@ -80,7 +80,7 @@ test('the reported Doppler swing does not move with the search filter', () => {
   // THE regression guard. Before this split, the chart spanned the gated
   // window, so nudging a filter control changed a physical measurement.
   const swings = [0, 5, 10, 25, 40].map(
-    (deg) => sampleSwing(radioChartWindows(OBS, T0, 'radio', deg, issEcefAt).full),
+    (deg) => sampleSwing(radioChartWindows(OBS, T0, deg, issEcefAt).full),
   );
   for (const s of swings) {
     assert.ok(Math.abs(s - swings[0]) < 1e-6,
@@ -97,7 +97,7 @@ test('and the old behaviour understated it by a small but real margin', () => {
   // often-quoted "92% at 10 deg vs 98% at 0 deg" figures are fractions of
   // the RELATIVE SPEED, not of each other. The window-to-window ratio is
   // 92.2/98.4, i.e. ~98.5% - a percent and a half, not six.
-  const { full, workable } = radioChartWindows(OBS, T0, 'radio', 10, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 10, issEcefAt);
   const ratio = sampleSwing(workable) / sampleSwing(full);
   assert.ok(ratio < 0.99,
     `a 10 deg cutoff should understate the swing, got ${(ratio * 100).toFixed(1)}%`);
@@ -112,8 +112,16 @@ test('a never-setting target is clamped, not walked forever', () => {
   // Lowering the threshold to 0 lengthened every window, so confirm the cap
   // still bounds the degenerate case rather than hanging.
   const overhead = () => [0, 0, A_ORB];           // parked above the pole
-  const { full } = radioChartWindows(OBS, T0, 'radio', 10, overhead);
+  const { full } = radioChartWindows(OBS, T0, 10, overhead);
   const sec = (full.endMs - full.startMs) / 1000;
   assert.ok(sec <= 30 * 60, `walk must be capped, got ${sec}s`);
   assert.ok(sec >= 30 * 60 - 2, `expected the full cap, got ${sec}s`);
+});
+
+
+test('the radio predicate is used regardless of the app mode', () => {
+  // The caller's mode must not reach the walk: in visual mode the predicate
+  // also gates on sunlit + twilight, which would truncate the chart by an
+  // illumination condition. The signature takes no mode for that reason.
+  assert.equal(radioChartWindows.length, 4, 'signature must not take a mode');
 });

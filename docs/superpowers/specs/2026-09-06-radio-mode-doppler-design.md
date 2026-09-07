@@ -526,9 +526,21 @@ remains useful in radio mode — it is where to point the antenna.
 Three panels, one shared time axis, one vertical TCA rule through all
 three:
 
-1. **Doppler** — kHz offset from carrier, zero gridline emphasised
-2. **Angular rate** — °/s
+1. **Angular rate** — °/s
+2. **Doppler** — kHz offset from carrier, zero gridline emphasised
 3. **Signal** — dB relative to peak
+
+*Amended 2026-09-06, after seeing it rendered.* The original order led with
+Doppler. Angular rate first groups the panels by instrument — the camera
+measures the first, the radio measures the other two — and puts Doppler in
+the middle, adjacent to both quantities read against it. It also reads as
+the operational sequence: where to point, what to tune, how strong.
+`test/radio-chart.test.mjs` pins the order.
+
+Each panel carries a y-axis scale (top, zero, bottom on a readable tick
+ladder), with the panel name above the plot and numbers alone in the left
+gutter. The painter computes its own viewBox height from its content, so a
+taller header cannot clip the methods block.
 
 Header: satellite · frequency picker (catalog downlinks + freeform) ·
 observer · date, plus the §8 readouts and the emission duty. Axis labels
@@ -540,6 +552,23 @@ section — three curves plus a header is already dense.
 Degrade gracefully when a satellite has no downlink and the user has
 entered no frequency: draw range rate in m/s plus the angular and signal
 panels, and mark the Doppler panel as needing a frequency.
+
+### 15.1 The chart spans the full pass, not the filtered one
+
+*Added 2026-09-06.* `minElevDeg` is a search filter. The chart and CSV span
+the **full geometric pass, horizon to horizon**, and draw the threshold as a
+shaded band rather than applying it.
+
+Gating the chart on the filter let a UI control change a physical
+measurement: the largest range rate is at the horizon, so a gated window
+stops short of it and understates the reported swing by ~1.5% on a zenith
+pass. (Not the ~6% first claimed — the 92%/98% figures in §18 are fractions
+of the relative speed, not of each other.)
+
+The rule lives in `lib/pass-finder/radio-window.js`. It deliberately does
+**not** take the app's mode: the visual predicate also gates on
+illumination, so passing it through would truncate the chart by daylight —
+the same class of bug this rule exists to remove.
 
 ## 16. Implementation traps
 
