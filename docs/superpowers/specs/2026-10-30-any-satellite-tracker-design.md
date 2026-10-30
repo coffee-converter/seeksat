@@ -104,6 +104,10 @@ browser. Contents:
   reference: `/Users/aaron/work/vrgm/vrgm.py`, `one_orbit` / card diagram).
 - Passes from your location (6.5).
 - Known downlink frequencies when the catalog has them.
+- The raw elements, with copy buttons: 2LE and 3LE (name line plus the
+  two TLE lines) when the NORAD ID fits the TLE format, and the OMM for
+  every object (the only form for IDs above 99999). Added 2026-10-30 at
+  Aaron's request.
 
 ### 6.4 Honest numbers
 
