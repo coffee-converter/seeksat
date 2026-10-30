@@ -67,3 +67,20 @@ test('a rejected fetch returns null and is retried next call', async () => {
   assert.equal(r.noradId, 25544);
   assert.equal(calls.length, 2);
 });
+
+test('parallel gets for one cold id share one fetch and one budget slot', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const { f, calls } = setup(async (id) => { await gate; return id === 25544 ? ISS_OMM : null; });
+  const ps = [f.get(25544), f.get(25544), f.get(25544)];
+  release();
+  const out = await Promise.all(ps);
+  assert.equal(calls.length, 1);
+  assert.equal(out[0], out[1]);
+  assert.equal(out[1], out[2]);
+  assert.equal(out[0].noradId, 25544);
+  for (let i = 1; i <= 59; i++) await f.get(i);
+  assert.equal(calls.length, 60);
+  await f.get(1000);
+  assert.equal(calls.length, 60);
+});
