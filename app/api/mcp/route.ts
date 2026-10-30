@@ -58,7 +58,7 @@ const mcpHandler = createMcpHandler(
   (server: McpServer) => {
     server.tool(
       'list_satellites',
-      'List the satellites this server can track, with each one\'s current TLE freshness.',
+      'List the popular satellites (ISS, Tiangong, Hubble and a few others) with each one\'s current orbit data freshness. This is not the full list: every other tool also accepts any NORAD catalog number, e.g. "25544".',
       {},
       async () => {
         const { tier, keyId } = getRequestContext();
