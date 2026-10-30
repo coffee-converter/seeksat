@@ -14,6 +14,7 @@
   "dependencies": {
     "@resvg/resvg-wasm": "^2.6.2",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/blob": "^2.8.2",
     "@vercel/edge-config": "^1.4.3",
     "@vercel/speed-insights": "^2.0.0",
     "driver.js": "^1.4.0",
