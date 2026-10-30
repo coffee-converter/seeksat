@@ -7,6 +7,7 @@ import { createBlobSnapshotStore } from '@/lib/mirror/snapshot-store.mjs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 export async function GET(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
