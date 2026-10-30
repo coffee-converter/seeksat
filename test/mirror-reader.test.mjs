@@ -70,6 +70,8 @@ test('unknown id goes to onDemand and gets lines', async () => {
   assert.equal(await none.reader.getRecord(77777), null);
 });
 
+const tick = () => new Promise((r) => setImmediate(r));
+
 test('snapshot reloads only after reloadMs', async () => {
   let reads = 0;
   const store = { async read() { reads++; return snap([rec(25544, 'ISS (ZARYA)')], T0 + reads); }, async write() {} };
@@ -81,7 +83,65 @@ test('snapshot reloads only after reloadMs', async () => {
   clock.t += 2;
   await reader.getRecord(25544);
   assert.equal(reads, 2);
+  await tick();
   assert.equal(reader.generatedAtMs(), T0 + 2);
+});
+
+test('a reload runs in the background: callers get the current snapshot without waiting', { timeout: 2000 }, async () => {
+  let reads = 0;
+  let release;
+  const store = {
+    async read() {
+      reads++;
+      if (reads === 1) return snap([rec(1, 'OLD')], T0);
+      await new Promise((r) => { release = r; });
+      return snap([rec(1, 'NEW')], T0 + 1);
+    },
+    async write() {},
+  };
+  const { reader, clock, calls } = make({ store });
+  assert.equal((await reader.getRecord(1)).name, 'OLD');
+  clock.t += RELOAD;
+  // The reload is stuck; these must still resolve from the old snapshot.
+  assert.equal((await reader.getRecord(1)).name, 'OLD');
+  assert.equal(await reader.ready(), true);
+  assert.equal((await reader.search('old')).length, 1);
+  assert.equal(reads, 2, 'one reload started, not one per caller');
+  assert.deepEqual(calls, []);
+  release();
+  await tick();
+  assert.equal((await reader.getRecord(1)).name, 'NEW');
+  assert.equal(reader.generatedAtMs(), T0 + 1);
+  assert.equal(reads, 2);
+});
+
+test('the first load is awaited and shared even when slow', async () => {
+  let reads = 0;
+  let release;
+  const store = {
+    async read() { reads++; await new Promise((r) => { release = r; }); return snap([rec(1, 'A')]); },
+    async write() {},
+  };
+  const { reader } = make({ store });
+  const pending = Promise.all([reader.getRecord(1), reader.ready()]);
+  await tick();
+  release();
+  const [r, ok] = await pending;
+  assert.equal(r.name, 'A');
+  assert.equal(ok, true);
+  assert.equal(reads, 1);
+});
+
+test('getSnapshotRecord serves snapshot records and never calls on-demand', async () => {
+  const store = createMemorySnapshotStore(snap([rec(25544, 'ISS (ZARYA)')]));
+  const { reader, calls } = make({ store });
+  const r = await reader.getSnapshotRecord(25544);
+  assert.equal(r.line1, ISS_LINE1);
+  assert.equal(await reader.getSnapshotRecord(99999), null);
+  const empty = make({ store: createMemorySnapshotStore(null) });
+  assert.equal(await empty.reader.getSnapshotRecord(25544), null);
+  assert.deepEqual(calls, []);
+  assert.deepEqual(empty.calls, []);
 });
 
 test('concurrent first calls share one read', async () => {
