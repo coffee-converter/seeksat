@@ -34,10 +34,10 @@ test('hit is cached within hitTtlMs and tagged as catnr', async () => {
 test('miss is cached for missTtlMs then refetched', async () => {
   const { f, calls, clock } = setup(async () => null);
   assert.equal(await f.get(1), null);
-  clock.t += HOUR - 1;
+  clock.t += 2 * HOUR - 1;
   assert.equal(await f.get(1), null);
   assert.equal(calls.length, 1);
-  clock.t += 2;
+  clock.t += 1;
   await f.get(1);
   assert.equal(calls.length, 2);
 });

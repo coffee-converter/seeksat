@@ -6,7 +6,16 @@ test('builds per-source URLs for the ISS', () => {
   const urls = tleSourcesFor(25544).map(s => s.url);
   assert.ok(urls.some(u => u === 'https://api.wheretheiss.at/v1/satellites/25544/tles'));
   assert.ok(urls.some(u => u === 'https://tle.ivanstanojevic.me/api/tle/25544'));
-  assert.ok(urls.some(u => u.includes('CATNR=25544')));
+  assert.equal(urls[0], '/api/sats?ids=25544', 'our mirror is tried first');
+  assert.ok(!urls.some(u => u.includes('celestrak')), 'browsers never call CelesTrak');
+});
+
+test('the mirror source reads line1/line2 from /api/sats', async () => {
+  const [mirror] = tleSourcesFor(25544);
+  const resp = new Response(JSON.stringify({ objects: [{ name: 'ISS (ZARYA)', line1: 'L1', line2: 'L2' }], missing: [] }));
+  assert.deepEqual(await mirror.parse(resp), { name: 'ISS (ZARYA)', line1: 'L1', line2: 'L2' });
+  const miss = new Response(JSON.stringify({ objects: [], missing: [25544] }));
+  await assert.rejects(mirror.parse(miss), /not in the mirror/);
 });
 
 test('parameterizes by NORAD id for other satellites', () => {
