@@ -54,3 +54,10 @@ test('blob store read rethrows other errors and bad fetches', async () => {
   });
   await assert.rejects(bad.read(), /500/);
 });
+
+test('blob store read returns null on the real SDK BlobNotFoundError class', async () => {
+  const { BlobNotFoundError } = await import('@vercel/blob');
+  const blob = { BlobNotFoundError, head: async () => { throw new BlobNotFoundError(); } };
+  const store = createBlobSnapshotStore({ blob, fetchImpl: async () => { throw new Error('no fetch'); } });
+  assert.equal(await store.read(), null);
+});
