@@ -61,3 +61,27 @@ test('blob store read returns null on the real SDK BlobNotFoundError class', asy
   const store = createBlobSnapshotStore({ blob, fetchImpl: async () => { throw new Error('no fetch'); } });
   assert.equal(await store.read(), null);
 });
+
+test('blob store read aborts a hung snapshot fetch after the timeout', { timeout: 5000 }, async () => {
+  let signal;
+  const fetchImpl = (url, opts) => {
+    signal = opts?.signal;
+    return new Promise((_, reject) => {
+      signal?.addEventListener('abort', () => reject(new Error('aborted')));
+    });
+  };
+  const store = createBlobSnapshotStore({ blob: { head: async () => ({ url: 'u' }) }, fetchImpl, timeoutMs: 20 });
+  await assert.rejects(store.read(), /abort/i);
+  assert.equal(signal.aborted, true);
+});
+
+test('blob store read defaults to a 15 s fetch timeout', async () => {
+  const delays = [];
+  const setTimeoutImpl = (fn, ms) => { delays.push(ms); return 1; };
+  const clearTimeoutImpl = () => {};
+  const blob = { head: async () => ({ url: 'u' }) };
+  const fetchImpl = async () => ({ ok: false, status: 503 });
+  const store = createBlobSnapshotStore({ blob, fetchImpl, setTimeoutImpl, clearTimeoutImpl });
+  await assert.rejects(store.read(), /503/);
+  assert.deepEqual(delays, [15_000]);
+});
