@@ -31,3 +31,10 @@ test('omits the magnitude from the summary when standardMag is unknown', async (
   assert.ok(res.pngBase64);
   assert.doesNotMatch(res.summary, /mag/);
 });
+
+test('titles a synthesized satellite with the record name', async () => {
+  const observer = { name: 'Equator', latDeg: 0, lonDeg: 0 };
+  const entry = { noradId: 25485, name: '25485', shortName: null, standardMag: null };
+  const res = await renderPassChartPng({ entry, record: { ...REC, noradId: 25485, name: 'SYNTH SAT' }, observer, mode: 'radio', nowMs: NOW });
+  assert.match(res.summary, /^SYNTH SAT over Equator/);
+});

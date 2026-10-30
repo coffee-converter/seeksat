@@ -90,7 +90,7 @@ test('getPositionTool serves an OMM-only synthesized satellite with the record n
 test('tools throw "no orbit data" when getRecord resolves null', async () => {
   const d = { ...deps, getRecord: async () => null };
   await assert.rejects(() => getPositionTool({ satellite: 'iss' }, d), /no orbit data for ISS \(ZARYA\) \(25544\) yet/);
-  await assert.rejects(() => getPositionTool({ satellite: '25485' }, d), /no orbit data for 25485 \(25485\) yet/);
+  await assert.rejects(() => getPositionTool({ satellite: '25485' }, d), /no orbit data for NORAD 25485 yet/);
 });
 
 import { bestPassTool } from '../lib/mcp/tools.mjs';
@@ -110,4 +110,24 @@ test('find_passes / next_visible_pass / best_pass leave magnitude null for a syn
   const bp = await bestPassTool({ satellite: '25485', ...VIS }, synDeps);
   assert.ok(bp.best);
   assert.equal(bp.best.peakMagnitude, null);
+});
+
+test('synthesized satellites are named from the record; curated ones keep the curated name', async () => {
+  const pos = await getPositionTool({ satellite: '25485' }, synDeps);
+  assert.equal(pos.name, 'SYNTH SAT');
+  const bp = await bestPassTool({ satellite: '25485', ...VIS }, synDeps);
+  assert.equal(bp.best.satellite, 'SYNTH SAT');
+  const fp = await findPassesTool({ satellite: '25485', ...VIS }, synDeps);
+  assert.equal(fp.satellite, 'SYNTH SAT');
+  // Curated: the catalog name wins over whatever CelesTrak calls it.
+  const renamed = { ...deps, getRecord: async (id) => (id === 25544 ? { ...REC, name: 'ISS (ZARYA) NEW' } : null) };
+  assert.equal((await getPositionTool({ satellite: 'iss' }, renamed)).name, 'ISS (ZARYA)');
+  const bpIss = await bestPassTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, renamed);
+  assert.equal(bpIss.best.satellite, 'ISS (ZARYA)');
+});
+
+test('best_pass skips a synthesized satellite with no record under its NORAD name', async () => {
+  const d = { ...deps, getRecord: async () => null };
+  const out = await bestPassTool({ satellite: '25485', lat: 0, lon: 0 }, d);
+  assert.deepEqual(out.skipped, [{ satellite: 'NORAD 25485', reason: 'no orbit data yet' }]);
 });
