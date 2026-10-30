@@ -70,3 +70,28 @@ test('getPosition works for a 6-digit, OMM-only record', () => {
   assert.equal(six.latDeg, five.latDeg);
   assert.equal(six.lonDeg, five.lonDeg);
 });
+
+// Visual-mode fixture: with LINE1/LINE2 an observer at (-30, 150) gets
+// sunlit, dark-sky passes within 48 h of START.
+const VIS_OBS = { latDeg: -30, lonDeg: 150 };
+
+test('findPasses (visual) leaves peakMagnitude null when standardMag is null', () => {
+  const passes = findPasses({
+    record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS,
+    startMs: START, windowHours: 48, mode: 'visual', standardMag: null,
+  });
+  assert.ok(passes.length > 0, 'finds a visual pass');
+  for (const p of passes) {
+    assert.equal(p.peakMagnitude, null);
+    assert.ok(p.quality > 0, 'quality does not depend on magnitude');
+  }
+});
+
+test('findPasses (visual) still computes a magnitude when standardMag is known', () => {
+  const passes = findPasses({
+    record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS,
+    startMs: START, windowHours: 48, mode: 'visual', standardMag: -1.8,
+  });
+  assert.ok(passes.length > 0);
+  assert.equal(typeof passes[0].peakMagnitude, 'number');
+});

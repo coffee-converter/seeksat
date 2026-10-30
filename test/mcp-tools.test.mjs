@@ -92,3 +92,22 @@ test('tools throw "no orbit data" when getRecord resolves null', async () => {
   await assert.rejects(() => getPositionTool({ satellite: 'iss' }, d), /no orbit data for ISS \(ZARYA\) \(25544\) yet/);
   await assert.rejects(() => getPositionTool({ satellite: '25485' }, d), /no orbit data for 25485 \(25485\) yet/);
 });
+
+import { bestPassTool } from '../lib/mcp/tools.mjs';
+
+// A synthesized (non-curated) satellite has no standardMag: visual passes
+// must report peakMagnitude null rather than a made-up number.
+const SYN = { ...REC, noradId: 25485, name: 'SYNTH SAT' };
+const synDeps = { ...deps, getRecord: async (id) => (id === 25485 ? SYN : null) };
+const VIS = { lat: -30, lon: 150, mode: 'visual' };
+
+test('find_passes / next_visible_pass / best_pass leave magnitude null for a synthesized satellite', async () => {
+  const fp = await findPassesTool({ satellite: '25485', ...VIS }, synDeps);
+  assert.ok(fp.passes.length > 0, 'fixture yields visual passes');
+  for (const p of fp.passes) assert.equal(p.peakMagnitude, null);
+  const nv = await nextVisiblePassTool({ satellite: 25485, ...VIS }, synDeps);
+  assert.equal(nv.pass.peakMagnitude, null);
+  const bp = await bestPassTool({ satellite: '25485', ...VIS }, synDeps);
+  assert.ok(bp.best);
+  assert.equal(bp.best.peakMagnitude, null);
+});
