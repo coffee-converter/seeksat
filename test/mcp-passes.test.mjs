@@ -95,3 +95,16 @@ test('findPasses (visual) still computes a magnitude when standardMag is known',
   assert.ok(passes.length > 0);
   assert.equal(typeof passes[0].peakMagnitude, 'number');
 });
+
+test('findPasses and nextPassWindow work on an OMM-only (6-digit) record', () => {
+  const start = Date.UTC(2026, 2, 1, 12);
+  const args = { observer: { latDeg: 0, lonDeg: 0 }, startMs: start, windowHours: 48, mode: 'radio' };
+  const omm = { omm: { ...ISS_OMM, NORAD_CAT_ID: 100001 } };
+  const tle = { line1: ISS_LINE1, line2: ISS_LINE2 };
+  const fromOmm = findPasses({ record: omm, ...args });
+  assert.ok(fromOmm.length > 0, 'finds passes from OMM alone');
+  assert.deepEqual(fromOmm, findPasses({ record: tle, ...args }));
+  const win = nextPassWindow({ record: omm, ...args });
+  assert.ok(win);
+  assert.deepEqual(win, nextPassWindow({ record: tle, ...args }));
+});
