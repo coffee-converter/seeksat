@@ -1,10 +1,9 @@
-// app/api/refresh-tle/route.ts - Vercel Cron target. Reads catalog,
-// fetches each TLE, epoch-guard merges into Edge Config. Guarded by
-// CRON_SECRET so only Vercel Cron (or an authorized caller) can run it.
-import { CATALOG } from '@/lib/catalog.mjs';
-import { fetchTleForId } from '@/lib/mcp/tle-fetch.mjs';
-import { refreshCatalog } from '@/lib/mcp/refresh.mjs';
-import { createEdgeConfigStore } from '@/lib/mcp/tle-store.mjs';
+// app/api/refresh-tle/route.ts - Vercel Cron target. Fetches the CelesTrak
+// OMM groups and rewrites the Blob catalog snapshot. Guarded by CRON_SECRET
+// so only Vercel Cron (or an authorized caller) can run it.
+import { MIRROR_GROUPS, fetchGroup } from '@/lib/mirror/celestrak.mjs';
+import { refreshMirror } from '@/lib/mirror/refresh.mjs';
+import { createBlobSnapshotStore } from '@/lib/mirror/snapshot-store.mjs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,11 +14,11 @@ export async function GET(req: Request): Promise<Response> {
   if (!secret || auth !== `Bearer ${secret}`) {
     return new Response('Unauthorized', { status: 401 });
   }
-  const result = await refreshCatalog({
-    store: createEdgeConfigStore(),
-    catalog: CATALOG,
-    fetchTle: (id: string) => fetchTleForId(id),
-    now: () => Date.now(),
+  const result = await refreshMirror({
+    store: createBlobSnapshotStore(),
+    groups: MIRROR_GROUPS,
+    fetchGroup,
+    now: Date.now,
   });
   return Response.json({ ok: true, ...result });
 }
