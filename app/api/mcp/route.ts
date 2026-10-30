@@ -7,7 +7,7 @@ import { z } from 'zod';
 import {
   listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool, getPassChartTool, bestPassTool,
 } from '@/lib/mcp/tools.mjs';
-import { createEdgeConfigStore } from '@/lib/mcp/tle-store.mjs';
+import { getCatalogReader } from '@/lib/mirror/server.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
 import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
 import { parseProKeys, resolveTier } from '@/lib/mcp/auth.mjs';
@@ -24,9 +24,8 @@ function presentedKey(req: Request): string | null {
 
 export const runtime = 'nodejs';
 
-const store = createEdgeConfigStore();
 const deps = {
-  readMap: () => store.readMap(),
+  getRecord: (id: number) => getCatalogReader().getRecord(id),
   geocode: (q: string, opts?: object) => geocodeOne(q, opts),
   fetchWeather: (lat: number, lon: number) => fetchCloudForecast(lat, lon),
   now: () => Date.now(),

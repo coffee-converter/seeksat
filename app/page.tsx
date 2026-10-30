@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import PassFinderApp from "@/components/PassFinderApp";
 import { ogImageMetadata } from "@/lib/og/og-metadata.mjs";
-import { createEdgeConfigStore } from "@/lib/mcp/tle-store.mjs";
+import { getCatalogReader } from "@/lib/mirror/server.mjs";
 import { recordsToSatelliteTles } from "@/lib/pass-finder/satellite-seed.js";
 import { CATALOG } from "@/lib/catalog.mjs";
 import type { Tle } from "@/lib/types";
@@ -18,15 +18,18 @@ export async function generateMetadata(
   return ogImageMetadata(s);
 }
 
-// Read the cron-cached TLEs for the whole catalog from Edge Config so
+// Read the cron-cached TLEs for the whole catalog from the catalog mirror so
 // the globe can paint the default satellite immediately and switch to
-// any other without waiting on a client fetch. Any failure (Edge Config
-// unset locally, read error) falls back to {} - the page then behaves
+// any other without waiting on a client fetch. Any failure (mirror
+// unreachable locally, read error) falls back to {} - the page then behaves
 // as before and the client fetch fills each satellite on selection.
 async function readInitialSatelliteTles(): Promise<Record<number, Tle>> {
   try {
-    const map = await createEdgeConfigStore().readMap() as Record<string, unknown>;
-    return recordsToSatelliteTles(CATALOG, map) as Record<number, Tle>;
+    const reader = getCatalogReader();
+    const entries = await Promise.all(
+      CATALOG.map(async (s) => [s.noradId, await reader.getRecord(s.noradId)] as const),
+    );
+    return recordsToSatelliteTles(CATALOG, Object.fromEntries(entries)) as Record<number, Tle>;
   } catch {
     return {} as Record<number, Tle>;
   }

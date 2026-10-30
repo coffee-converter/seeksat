@@ -9,7 +9,7 @@ const REC = { noradId: 25544, name: 'ISS (ZARYA)', line1: LINE1, line2: LINE2, e
 const NOW = Date.parse('2024-01-01T13:00:00Z');
 
 const deps = {
-  readMap: async () => ({ 25544: REC }),
+  getRecord: async (id) => (id === 25544 ? REC : null),
   geocode: async (q) => (q.toLowerCase() === 'tokyo' ? { latDeg: 35.68, lonDeg: 139.69, displayName: 'Tokyo, Japan' } : null),
   fetchWeather: async () => null,
   now: () => NOW,
@@ -71,4 +71,24 @@ test('listSatellites includes each satellite tier', async () => {
 test('getPositionTool still works at the default free tier for a free satellite', async () => {
   const out = await getPositionTool({ satellite: 'iss' }, deps);
   assert.ok(out.altitudeKm > 300);
+});
+
+test('getPositionTool serves an OMM-only synthesized satellite with the record name', async () => {
+  const omm = {
+    OBJECT_NAME: 'BIG ONE', OBJECT_ID: '2024-001A', EPOCH: '2024-01-01T12:00:00.000000',
+    MEAN_MOTION: 15.5, ECCENTRICITY: 0.00035, INCLINATION: 51.64, RA_OF_ASC_NODE: 100,
+    ARG_OF_PERICENTER: 100, MEAN_ANOMALY: 260, EPHEMERIS_TYPE: 0, CLASSIFICATION_TYPE: 'U',
+    NORAD_CAT_ID: 100001, ELEMENT_SET_NO: 999, REV_AT_EPOCH: 1, BSTAR: 0, MEAN_MOTION_DOT: 0, MEAN_MOTION_DDOT: 0,
+  };
+  const rec = { noradId: 100001, name: 'BIG ONE', omm, epochMs: Date.parse('2024-01-01T12:00:00Z'), source: 'snapshot', fetchedAtMs: 0, groups: [] };
+  const d = { ...deps, getRecord: async (id) => (id === 100001 ? rec : null) };
+  const out = await getPositionTool({ satellite: '100001' }, d);
+  assert.equal(out.name, 'BIG ONE');
+  assert.ok(out.altitudeKm > 300 && out.altitudeKm < 500);
+});
+
+test('tools throw "no orbit data" when getRecord resolves null', async () => {
+  const d = { ...deps, getRecord: async () => null };
+  await assert.rejects(() => getPositionTool({ satellite: 'iss' }, d), /no orbit data for ISS \(ZARYA\) \(25544\) yet/);
+  await assert.rejects(() => getPositionTool({ satellite: '25485' }, d), /no orbit data for 25485 \(25485\) yet/);
 });

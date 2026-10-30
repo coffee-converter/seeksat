@@ -11,6 +11,8 @@ test('recordsToSatelliteTles maps present records, skips missing/invalid', () =>
   assert.deepEqual(out[25544], { name: 'ISS (ZARYA)', line1: '1 25544U ...', line2: '2 25544 ...' });
   assert.equal(out[20580], undefined);   // structurally invalid → skipped
   assert.equal(out[53807], undefined);   // absent → skipped
+  const omm = recordsToSatelliteTles(CATALOG, { 25544: { noradId: 25544, name: 'X', omm: {} }, 20580: null });
+  assert.deepEqual(omm, {});   // OMM-only and null records are skipped
 });
 
 test('selectionUpdate pushes the seeded TLE and the default mode', () => {

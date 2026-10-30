@@ -76,3 +76,16 @@ test('resolveSatellite handles new aliases and ids', () => {
   assert.equal(resolveSatellite(20580).name, 'Hubble Space Telescope');
   assert.equal(resolveSatellite('nope'), null);
 });
+
+test('resolveSatellite synthesizes entries for any positive integer id', () => {
+  const e = resolveSatellite(25485);
+  assert.equal(e.noradId, 25485);
+  assert.equal(e.defaultMode, 'radio');
+  assert.equal(e.tier, 'free');
+  assert.equal(resolveSatellite('25485').noradId, 25485);
+  assert.equal(resolveSatellite('molniya'), null);
+  assert.equal(resolveSatellite(0), null);
+  assert.equal(resolveSatellite(-5), null);
+  assert.equal(resolveSatellite(1.5), null);
+  assert.equal(resolveSatellite(25544).name, 'ISS (ZARYA)');
+});
