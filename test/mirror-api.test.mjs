@@ -76,7 +76,8 @@ test('not ready and nothing found gives 503', async () => {
   assert.equal(s.status, 503);
 });
 
-test('reader throwing gives 503', async () => {
+test('reader throwing gives 503', async (t) => {
+  t.mock.method(console, 'error', () => {});
   const r = await satsHandler(stub({ throws: true }), q({ ids: '1' }), NOW);
   assert.equal(r.status, 503);
   assert.equal(r.headers['Cache-Control'], 'no-store');
@@ -102,4 +103,11 @@ test('ready search with no matches is a 200 with empty results', async () => {
   const r = await searchHandler(stub({ results: [] }), q({ q: 'zzz' }));
   assert.equal(r.status, 200);
   assert.deepEqual(r.body, { results: [] });
+});
+
+test('response with misses is cached only 60 seconds', async () => {
+  const r = await satsHandler(stub({ records: { 1: rec(1) } }), q({ ids: '1,2' }), NOW);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.missing, [2]);
+  assert.equal(r.headers['Cache-Control'], 'public, s-maxage=60');
 });
