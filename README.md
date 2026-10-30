@@ -126,10 +126,23 @@ as possible.
 ## MCP server env vars
 
 - `CRON_SECRET` - random string; Vercel Cron sends it as a Bearer token to `/api/refresh-tle`.
-- `EDGE_CONFIG` - read connection string (auto-set when an Edge Config store is linked to the project).
-- `EDGE_CONFIG_ID` - the Edge Config id (for writes).
-- `VERCEL_API_TOKEN` - token with Edge Config write scope (for the cron write).
-- `VERCEL_TEAM_ID` - only if the project lives under a team.
+- `BLOB_READ_WRITE_TOKEN` - Vercel Blob token (auto-set when a Blob store is linked to the project). The cron writes the catalog snapshot to `catalog/snapshot.json.gz` and the site reads it back.
+
+### Deploy order
+
+1. Create a Blob store in the Vercel dashboard and link it to the project, so `BLOB_READ_WRITE_TOKEN` is set.
+2. Set `CRON_SECRET` and deploy.
+3. Run the cron once by hand so the snapshot exists before anyone needs it:
+
+   ```sh
+   curl -H "Authorization: Bearer $CRON_SECRET" https://seeksat.app/api/refresh-tle
+   ```
+
+4. Check the JSON reply: `written` should be `true` and `objectCount` should be in the thousands. A 502 means no group could be fetched and nothing was written; `failedGroups` lists which ones.
+
+After that the cron runs every 4 hours on its own.
+
+`EDGE_CONFIG`, `EDGE_CONFIG_ID` and `VERCEL_API_TOKEN` are no longer used by this code. Leave them in place until production is verified on the Blob snapshot, since `main` still reads them and a rollback would need them; then remove them.
 
 ## License
 
