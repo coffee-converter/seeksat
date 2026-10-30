@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { refreshMirror } from '../lib/mirror/refresh.mjs';
+import { refreshMirror, refreshResponse } from '../lib/mirror/refresh.mjs';
 import { buildSnapshot } from '../lib/mirror/snapshot.mjs';
 import { createMemorySnapshotStore } from '../lib/mirror/snapshot-store.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
@@ -74,4 +74,16 @@ test('one group returning [] carries its previous records forward', async () => 
   const s = await store.read();
   assert.ok(s.objects['25544']);
   assert.ok(s.objects['99999']);
+});
+
+test('refreshResponse: nothing written with failed groups is a 502', () => {
+  const result = { written: false, objectCount: 7, failedGroups: ['active', 'stations'] };
+  assert.deepEqual(refreshResponse(result), { status: 502, body: { ok: false, ...result } });
+});
+
+test('refreshResponse: a write, or no write with no failed groups, is a 200', () => {
+  const wrote = { written: true, objectCount: 3, failedGroups: ['stations'] };
+  assert.deepEqual(refreshResponse(wrote), { status: 200, body: { ok: true, ...wrote } });
+  const empty = { written: false, objectCount: 0, failedGroups: [] };
+  assert.deepEqual(refreshResponse(empty), { status: 200, body: { ok: true, ...empty } });
 });

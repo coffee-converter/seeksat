@@ -2,7 +2,7 @@
 // OMM groups and rewrites the Blob catalog snapshot. Guarded by CRON_SECRET
 // so only Vercel Cron (or an authorized caller) can run it.
 import { MIRROR_GROUPS, fetchGroup } from '@/lib/mirror/celestrak.mjs';
-import { refreshMirror } from '@/lib/mirror/refresh.mjs';
+import { refreshMirror, refreshResponse } from '@/lib/mirror/refresh.mjs';
 import { createBlobSnapshotStore } from '@/lib/mirror/snapshot-store.mjs';
 
 export const runtime = 'nodejs';
@@ -21,5 +21,6 @@ export async function GET(req: Request): Promise<Response> {
     fetchGroup,
     now: Date.now,
   });
-  return Response.json({ ok: true, ...result });
+  const { status, body } = refreshResponse(result);
+  return Response.json(body, { status });
 }
