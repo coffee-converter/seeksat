@@ -26,3 +26,13 @@ test('normalizeOmm rejects a record missing MEAN_MOTION or with a non-integer NO
 test('normalizeOmm rejects an unparseable EPOCH', () => {
   assert.equal(normalizeOmm({ ...ISS_OMM, EPOCH: 'yesterday' }), null);
 });
+test('ommToTleLines wraps REV_AT_EPOCH to 5 digits and keeps line 2 at 69 chars', () => {
+  const { line2 } = ommToTleLines({ ...ISS_OMM, REV_AT_EPOCH: 123456 });
+  assert.equal(line2.length, 69);
+  assert.equal(line2.slice(63, 68), '23456');
+});
+test('ommToTleLines wraps ELEMENT_SET_NO to 4 digits and keeps line 1 at 69 chars', () => {
+  const { line1 } = ommToTleLines({ ...ISS_OMM, ELEMENT_SET_NO: 12345 });
+  assert.equal(line1.length, 69);
+  assert.equal(line1.slice(64, 68), '2345');
+});
