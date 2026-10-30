@@ -2,13 +2,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { findPasses, getPosition, nextPassWindow } from '../lib/mcp/passes.mjs';
+import { ISS_OMM, ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 
 const LINE1 = '1 25544U 98067A   24001.50000000  .00000000  00000+0  00000+0 0  9990';
 const LINE2 = '2 25544  51.6400 100.0000 0003500 100.0000 260.0000 15.50000000000010';
 const START = Date.parse('2024-01-01T12:00:00Z');
 
 test('getPosition returns a geodetic sub-point and sunlit flag', () => {
-  const p = getPosition(LINE1, LINE2, new Date(START));
+  const p = getPosition({ line1: LINE1, line2: LINE2 }, new Date(START));
   assert.ok(p.latDeg >= -90 && p.latDeg <= 90);
   assert.ok(p.lonDeg >= -180 && p.lonDeg <= 180);
   assert.ok(p.altitudeKm > 300 && p.altitudeKm < 500, `alt ${p.altitudeKm}`);
@@ -20,7 +21,7 @@ test('findPasses (radio mode) returns ordered windows with the expected shape', 
   // so an observer under the ground track will always see passes - a
   // robust shape/ordering check independent of sun geometry.
   const passes = findPasses({
-    line1: LINE1, line2: LINE2,
+    record: { line1: LINE1, line2: LINE2 },
     observer: { latDeg: 0, lonDeg: 100 },
     startMs: START, windowHours: 48,
     minElevationDeg: 10, mode: 'radio',
@@ -46,7 +47,7 @@ const NP_NOW = Date.parse('2024-01-01T00:00:00Z');
 
 test('nextPassWindow finds a radio pass over the equator within the scan', () => {
   const pass = nextPassWindow({
-    line1: NP_LINE1, line2: NP_LINE2,
+    record: { line1: NP_LINE1, line2: NP_LINE2 },
     observer: { latDeg: 0, lonDeg: 0 }, startMs: NP_NOW, windowHours: 72, mode: 'radio',
   });
   assert.ok(pass, 'a pass exists');
@@ -56,8 +57,16 @@ test('nextPassWindow finds a radio pass over the equator within the scan', () =>
 
 test('nextPassWindow returns null where the satellite never reaches (lat 85, incl 51.6)', () => {
   const pass = nextPassWindow({
-    line1: NP_LINE1, line2: NP_LINE2,
+    record: { line1: NP_LINE1, line2: NP_LINE2 },
     observer: { latDeg: 85, lonDeg: 0 }, startMs: NP_NOW, windowHours: 72, mode: 'radio',
   });
   assert.equal(pass, null);
+});
+
+test('getPosition works for a 6-digit, OMM-only record', () => {
+  const t = new Date(Date.UTC(2026, 2, 1, 13, 30));
+  const six = getPosition({ omm: { ...ISS_OMM, NORAD_CAT_ID: 100001 } }, t);
+  const five = getPosition({ line1: ISS_LINE1, line2: ISS_LINE2 }, t);
+  assert.equal(six.latDeg, five.latDeg);
+  assert.equal(six.lonDeg, five.lonDeg);
 });
