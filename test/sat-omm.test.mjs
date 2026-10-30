@@ -36,3 +36,16 @@ test('ommToTleLines wraps ELEMENT_SET_NO to 4 digits and keeps line 1 at 69 char
   assert.equal(line1.length, 69);
   assert.equal(line1.slice(64, 68), '2345');
 });
+
+test('ommToTleLines writes tiny exponent-field values as 00000+0 and keeps 69 chars', () => {
+  for (const x of [1e-12, -3e-14, 9.9e-11, 5e-300]) {
+    const { line1, line2 } = ommToTleLines({ ...ISS_OMM, BSTAR: x, MEAN_MOTION_DDOT: x });
+    assert.equal(line1.length, 69, `line1 for ${x}`);
+    assert.equal(line2.length, 69);
+    assert.equal(line1.slice(44, 52), ' 00000+0', `ddot field for ${x}`);
+    assert.equal(line1.slice(53, 61), ' 00000+0', `bstar field for ${x}`);
+  }
+  // At the threshold the value is still written.
+  const { line1 } = ommToTleLines({ ...ISS_OMM, BSTAR: 1e-10 });
+  assert.equal(line1.slice(53, 61), ' 10000-9');
+});
