@@ -42,13 +42,19 @@ test('miss is cached for missTtlMs then refetched', async () => {
   assert.equal(calls.length, 2);
 });
 
-test('61 distinct unknown ids in one hour make exactly 60 fetches', async () => {
+test('default cap: 16 distinct unknown ids in one hour make exactly 15 fetches', async () => {
   const { f, calls, clock } = setup(async () => null);
-  for (let i = 1; i <= 61; i++) assert.equal(await f.get(i), null);
-  assert.equal(calls.length, 60);
+  for (let i = 1; i <= 16; i++) assert.equal(await f.get(i), null);
+  assert.equal(calls.length, 15);
   clock.t += HOUR;
-  await f.get(61);
-  assert.equal(calls.length, 61);
+  await f.get(16);
+  assert.equal(calls.length, 16);
+});
+
+test('maxPerHour + 1 distinct ids make maxPerHour fetches', async () => {
+  const { f, calls } = setup(async () => null, { maxPerHour: 4 });
+  for (let i = 1; i <= 5; i++) await f.get(i);
+  assert.equal(calls.length, 4);
 });
 
 test('cached hits and misses do not spend budget', async () => {
@@ -79,8 +85,8 @@ test('parallel gets for one cold id share one fetch and one budget slot', async 
   assert.equal(out[0], out[1]);
   assert.equal(out[1], out[2]);
   assert.equal(out[0].noradId, 25544);
-  for (let i = 1; i <= 59; i++) await f.get(i);
-  assert.equal(calls.length, 60);
+  for (let i = 1; i <= 14; i++) await f.get(i);
+  assert.equal(calls.length, 15);
   await f.get(1000);
-  assert.equal(calls.length, 60);
+  assert.equal(calls.length, 15);
 });
