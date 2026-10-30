@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATALOG, resolveSatellite, defaultDownlink } from '../lib/catalog.mjs';
+import { CATALOG, resolveSatellite, defaultDownlink, displayName } from '../lib/catalog.mjs';
 
 test('catalog has the 5 starter satellites', () => {
   assert.equal(CATALOG.length, 5);
@@ -88,4 +88,22 @@ test('resolveSatellite synthesizes entries for any positive integer id', () => {
   assert.equal(resolveSatellite(-5), null);
   assert.equal(resolveSatellite(1.5), null);
   assert.equal(resolveSatellite(25544).name, 'ISS (ZARYA)');
+});
+
+test('resolveSatellite caps numeric ids at 999999999', () => {
+  assert.equal(resolveSatellite(999999999).noradId, 999999999);
+  assert.equal(resolveSatellite('999999999').noradId, 999999999);
+  assert.equal(resolveSatellite(1000000000), null);
+  assert.equal(resolveSatellite('12345678901234567890'), null);
+  assert.equal(resolveSatellite(Number.MAX_SAFE_INTEGER), null);
+});
+
+test('displayName: curated name for catalog entries, record name for synthesized ones', () => {
+  const iss = resolveSatellite(25544);
+  assert.equal(displayName(iss, { name: 'ISS (ZARYA) CELESTRAK' }), 'ISS (ZARYA)');
+  assert.equal(displayName(iss, null), 'ISS (ZARYA)');
+  const syn = resolveSatellite(25485);
+  assert.equal(displayName(syn, { name: 'SOME SAT' }), 'SOME SAT');
+  assert.equal(displayName(syn, null), 'NORAD 25485');
+  assert.equal(displayName(syn, { name: '' }), 'NORAD 25485');
 });
