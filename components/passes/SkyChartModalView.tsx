@@ -197,7 +197,8 @@ export default function SkyChartModalView({
           <img ref={imgRef} className="polar-modal-png" alt="Pass sky chart" />
         </a>
         <p className="polar-modal-hint">
-          Right-click the image to save · click outside or press Esc to close.
+          <span className="chart-hint--mouse">Right-click the image to save · click outside or press Esc to close.</span>
+          <span className="chart-hint--touch">Press and hold the image to save · tap outside to close.</span>
         </p>
       </div>
     </div>

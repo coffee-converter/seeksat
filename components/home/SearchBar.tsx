@@ -177,7 +177,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={active >= 0 ? `${uid}-opt-${active}` : undefined}
-          placeholder="Search by name or NORAD ID"
+          placeholder="Name or NORAD ID"
           autoComplete="off"
           value={text}
           onChange={(e) => onChange(e.target.value)}

@@ -285,7 +285,8 @@ export default function RadioChartModalView({
           <img ref={imgRef} className="radio-modal-png" alt="Radio pass chart" />
         </a>
         <p className="radio-modal-hint">
-          Right-click the image to save · click outside or press Esc to close.
+          <span className="chart-hint--mouse">Right-click the image to save · click outside or press Esc to close.</span>
+          <span className="chart-hint--touch">Press and hold the image to save · tap outside to close.</span>
         </p>
       </div>
     </div>

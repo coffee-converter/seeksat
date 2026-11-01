@@ -354,6 +354,7 @@
 .home-input::placeholder { color: var(--map-muted); }
 .home-link {
   padding: 0;
+  min-height: 24px;
   background: none;
   border: 0;
   color: var(--map-accent);
@@ -555,12 +556,17 @@
   display: flex; flex-direction: column; align-items: center; gap: 0;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
+/* A toolbar row above the image, as in the radio modal, so the buttons never
+   cover the chart's own header on a narrow screen. */
 .polar-modal-actions {
-  position: absolute;
-  top: 10px; right: 10px;
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-  z-index: 1;
+  align-self: stretch;
+  display: flex; flex-direction: row; align-items: center; justify-content: flex-end;
+  flex-wrap: wrap; gap: 6px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(126, 184, 255, 0.16);
+  margin-bottom: 6px;
 }
+.polar-modal-actions .polar-modal-close { order: 99; }
 .polar-modal-actions button,
 .radio-modal-actions button {
   background: transparent; border: 1px solid rgba(255,255,255,0.12);
@@ -600,7 +606,7 @@
   display: block;
   width: auto; height: auto;
   max-width: min(96vw, 1400px);
-  max-height: 94vh;
+  max-height: calc(94vh - 48px);
   border-radius: 6px;
   user-select: none;
 }
@@ -631,6 +637,15 @@
 }
 .polar-modal-hint {
   font-size: 10px; color: #6a7a9a; letter-spacing: 0.06em;
+}
+.chart-hint--touch { display: none; }
+@media (hover: none) {
+  .chart-hint--mouse { display: none; }
+  .chart-hint--touch { display: inline; }
+}
+@media (pointer: coarse) {
+  .polar-modal-actions button,
+  .radio-modal-actions button { min-height: 32px; min-width: 32px; }
 }
 .radio-modal-content {
   position: relative;
@@ -700,11 +715,13 @@
     max-width: 92vw;
     max-width: 92dvw;
   }
-  .polar-modal-actions { top: 6px; right: 6px; gap: 4px; }
+  .polar-modal-actions,
   .radio-modal-actions { gap: 4px; padding: 4px 2px; }
   .polar-modal-actions button,
   .radio-modal-actions button { font-size: 11px; padding: 3px 8px; }
-  .radio-field { font-size: 10px; }
+  .radio-field { font-size: 10px; max-width: 100%; min-width: 0; }
+  /* A long downlink name would push the menu past the modal's edge. */
+  .radio-freq-select { max-width: 100%; min-width: 0; flex: 1 1 auto; }
 }
 /* chart-block:end */
 
@@ -775,9 +792,15 @@
 .sat-chip--hidden { opacity: 0.5; }
 .sat-chip--hidden .sat-chip__name { text-decoration: line-through; }
 
+/* iOS zooms into any form control under 16px when it gets focus. */
+@media (pointer: coarse) {
+  .flat-map__menu { font-size: 16px; }
+}
+
 /* Cards: the headline focuses the satellite; a focus dims the other cards. */
 .pass-card__focus {
   padding: 0;
+  min-height: 24px;
   background: none;
   color: inherit;
   border: 0;

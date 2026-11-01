@@ -93,7 +93,7 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
           className="home-input"
           type="text"
           autoComplete="off"
-          placeholder='Place, "lat, lon" or grid square (FN31)'
+          placeholder='Place, "lat, lon" or grid'
           value={text}
           onChange={(e) => {
             setText(e.target.value);
