@@ -90,19 +90,6 @@ const nextConfig: NextConfig = {
   // (same approach as the legacy static pages) - keeps the bundle
   // out of Webpack/Turbopack and avoids the asset-copy ceremony.
 
-  // Old share links (/?s=...) open the 3D app, which now lives at /classic.
-  // Next keeps the query string on the redirect.
-  async redirects() {
-    return [
-      {
-        source: "/",
-        has: [{ type: "query" as const, key: "s" }],
-        destination: "/classic",
-        permanent: false,
-      },
-    ];
-  },
-
   async headers() {
     return [
       {
