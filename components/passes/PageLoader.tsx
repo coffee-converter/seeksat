@@ -28,7 +28,7 @@ const FLAVOR = [
   "Refraction-correcting horizon…",
   "Buffering starlight…",
   "Triangulating triangulation…",
-  "Asking ISS to slow down…",
+  "Asking the satellite to slow down…",
   "Counting stars (twice for redundancy)…",
   "Loading two-line elements…",
   "Greasing the orbital mechanics…",

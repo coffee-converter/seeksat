@@ -2,38 +2,38 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ARC_OPACITY_UNIFORM, ARC_DASH_ALPHA,
-  issAlphaForMag, arcSampleStyle, moonLitPath,
+  satAlphaForMag, arcSampleStyle, moonLitPath,
 } from '../lib/pass-finder/polar-arc.js';
 
 const close = (a, b, eps) => Math.abs(a - b) < eps;
 
-// ---- issAlphaForMag: magnitude → alpha curve ----------------------------
+// ---- satAlphaForMag: magnitude → alpha curve ----------------------------
 
-test('issAlphaForMag: null/undefined returns the uniform default', () => {
-  assert.equal(issAlphaForMag(null), ARC_OPACITY_UNIFORM);
-  assert.equal(issAlphaForMag(undefined), ARC_OPACITY_UNIFORM);
+test('satAlphaForMag: null/undefined returns the uniform default', () => {
+  assert.equal(satAlphaForMag(null), ARC_OPACITY_UNIFORM);
+  assert.equal(satAlphaForMag(undefined), ARC_OPACITY_UNIFORM);
 });
 
-test('issAlphaForMag: bright end (m = -3) reaches max alpha 0.88', () => {
-  assert.ok(close(issAlphaForMag(-3), 0.88, 1e-9));
+test('satAlphaForMag: bright end (m = -3) reaches max alpha 0.88', () => {
+  assert.ok(close(satAlphaForMag(-3), 0.88, 1e-9));
 });
 
-test('issAlphaForMag: dim end (m = +2) drops to min alpha 0.18', () => {
-  assert.ok(close(issAlphaForMag(2), 0.18, 1e-9));
+test('satAlphaForMag: dim end (m = +2) drops to min alpha 0.18', () => {
+  assert.ok(close(satAlphaForMag(2), 0.18, 1e-9));
 });
 
-test('issAlphaForMag: clamps brighter-than-range to max', () => {
-  assert.equal(issAlphaForMag(-10), issAlphaForMag(-3));
+test('satAlphaForMag: clamps brighter-than-range to max', () => {
+  assert.equal(satAlphaForMag(-10), satAlphaForMag(-3));
 });
 
-test('issAlphaForMag: clamps dimmer-than-range to min', () => {
-  assert.equal(issAlphaForMag(10), issAlphaForMag(2));
+test('satAlphaForMag: clamps dimmer-than-range to min', () => {
+  assert.equal(satAlphaForMag(10), satAlphaForMag(2));
 });
 
-test('issAlphaForMag: monotonically decreasing with rising magnitude', () => {
-  let prev = issAlphaForMag(-5);
+test('satAlphaForMag: monotonically decreasing with rising magnitude', () => {
+  let prev = satAlphaForMag(-5);
   for (let m = -3; m <= 3; m += 0.5) {
-    const v = issAlphaForMag(m);
+    const v = satAlphaForMag(m);
     assert.ok(v <= prev, `m=${m}: ${v} > prev ${prev}`);
     prev = v;
   }
@@ -45,8 +45,8 @@ test('arcSampleStyle: daylight (sun above horizon) → dashed + low alpha', () =
   // Noon UTC equinox at lat=0/lon=0: sun overhead.
   const obs = { latDeg: 0, lonDeg: 0 };
   const noon = new Date(Date.UTC(2025, 2, 20, 12, 0, 0));
-  const issEcef = [6378137 + 400_000, 0, 0];
-  const style = arcSampleStyle(obs, issEcef, noon);
+  const satEcef = [6378137 + 400_000, 0, 0];
+  const style = arcSampleStyle(obs, satEcef, noon);
   assert.equal(style.dashed, true);
   assert.equal(style.alpha, ARC_DASH_ALPHA);
 });
@@ -60,8 +60,8 @@ test('arcSampleStyle: civil twilight (sun -3°) → dashed (not yet dark enough)
   // Aim for sun ~ -3° at equator/lon=0: a few minutes before sunrise on
   // equinox. At 05:50 UTC sun is ~ -3° at lon=0 (sunrise is 06:00).
   const date = new Date(Date.UTC(2025, 2, 20, 5, 50, 0));
-  const issEcef = [6378137 + 400_000, 0, 0];
-  const style = arcSampleStyle(obs, issEcef, date);
+  const satEcef = [6378137 + 400_000, 0, 0];
+  const style = arcSampleStyle(obs, satEcef, date);
   // Either dashed (likely, sun > -6°) or solid (if our timing was off).
   // The contract: if dashed === true, alpha === ARC_DASH_ALPHA.
   if (style.dashed) {
@@ -78,8 +78,8 @@ test('arcSampleStyle: deep night, ISS in Earth shadow → dashed', () => {
   // So ISS at +x IS in Earth's shadow → not illuminated → dashed.
   const obs = { latDeg: 0, lonDeg: 0 };
   const midnight = new Date(Date.UTC(2025, 2, 20, 0, 0, 0));
-  const issEcef = [6378137 + 400_000, 0, 0];
-  const style = arcSampleStyle(obs, issEcef, midnight);
+  const satEcef = [6378137 + 400_000, 0, 0];
+  const style = arcSampleStyle(obs, satEcef, midnight);
   // Whether the ISS is actually in shadow at this exact moment depends
   // on the precise sun position from sun.js - we just check the
   // contract that dashed alpha matches ARC_DASH_ALPHA.

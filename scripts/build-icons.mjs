@@ -18,13 +18,13 @@
 // Rerun to refresh against the current TLE. OBS_* env overrides observer.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { getIssTle, issEcefAtFactory } from "../lib/og/tle.mjs";
+import { getIssTle, ecefAtFactory } from "../lib/og/tle.mjs";
 import { firstObserver } from "../lib/og/pass-select.mjs";
 import { renderPassChartSVG } from "../lib/og/render-pass-chart.mjs";
 import { rasterizeSvg } from "../lib/og/rasterize.mjs";
 import { newSvgRoot, serialize } from "../lib/og/dom.mjs";
 import { computeArcSamples, renderArcSegments } from "../lib/pass-finder/polar-arc.js";
-import { issAltAzDeg, issIlluminated, sunAltitudeDeg } from "../lib/pass-finder/visibility.js";
+import { satAltAzDeg, satIlluminated, sunAltitudeDeg } from "../lib/pass-finder/visibility.js";
 import { sunPositionEcef } from "../lib/pass-finder/sun.js";
 import { passWindowAtMsForObserver } from "../lib/pass-finder/observer-pass.js";
 import { passPeakMs } from "../lib/pass-finder/polar-events.js";
@@ -32,26 +32,26 @@ import { skyShadeForSunAlt, chartPalette, SVG_NS } from "../lib/pass-finder/sky-
 
 // Above-horizon crossings around a peak - the same fallback selectPass uses
 // when passWindowAtMsForObserver returns null (horizonWindow isn't exported).
-function horizonWindow(obs, issEcefAt, peakMs) {
+function horizonWindow(obs, ecefAt, peakMs) {
   const STEP = 1000, CAP = 12 * 60 * 1000;
   let s = peakMs, e = peakMs;
   for (let t = peakMs; t >= peakMs - CAP; t -= STEP) {
-    const p = issEcefAt(new Date(t)); if (!p || issAltAzDeg(obs, p).alt <= 0) break; s = t;
+    const p = ecefAt(new Date(t)); if (!p || satAltAzDeg(obs, p).alt <= 0) break; s = t;
   }
   for (let t = peakMs; t <= peakMs + CAP; t += STEP) {
-    const p = issEcefAt(new Date(t)); if (!p || issAltAzDeg(obs, p).alt <= 0) break; e = t;
+    const p = ecefAt(new Date(t)); if (!p || satAltAzDeg(obs, p).alt <= 0) break; e = t;
   }
   return { startMs: s, endMs: e };
 }
 
 // Scan real passes and pick the best HIGH + TWILIGHT one. Same pass-walk as
 // pass-select's findNextVisiblePass; different scoring.
-function pickPass(obs, issEcefAt, nowMs, scanDays) {
+function pickPass(obs, ecefAt, nowMs, scanDays) {
   const t1 = nowMs + scanDays * 86400_000, STEP = 30_000;
   let inPass = false, cur = null; const passes = [];
   for (let t = nowMs; t <= t1; t += STEP) {
-    const e = issEcefAt(new Date(t)); if (!e) continue;
-    const { alt } = issAltAzDeg(obs, e);
+    const e = ecefAt(new Date(t)); if (!e) continue;
+    const { alt } = satAltAzDeg(obs, e);
     if (alt > 0) {
       if (!inPass) { inPass = true; cur = { peakMs: t, peakAlt: alt }; }
       else if (alt > cur.peakAlt) { cur.peakAlt = alt; cur.peakMs = t; }
@@ -62,7 +62,7 @@ function pickPass(obs, issEcefAt, nowMs, scanDays) {
   const scored = passes.map((p) => {
     const d = new Date(p.peakMs);
     return { ...p, sunAlt: sunAltitudeDeg(obs, d),
-             lit: issIlluminated(issEcefAt(d), sunPositionEcef(d)) };
+             lit: satIlluminated(ecefAt(d), sunPositionEcef(d)) };
   });
   // Want a SOLID, curved arc on a still-blue sky. Solid needs the ISS
   // naked-eye visible (sun below ~-6 → the renderer stops dashing);
@@ -86,13 +86,13 @@ const decoded = {
   }],
 };
 
-const issEcefAt = issEcefAtFactory(await getIssTle());
+const ecefAt = ecefAtFactory(await getIssTle());
 const observer = firstObserver(decoded);
-const best = pickPass(observer, issEcefAt, Date.now(), 45);
+const best = pickPass(observer, ecefAt, Date.now(), 45);
 if (!best) throw new Error("no suitable high/twilight pass found");
-const win = passWindowAtMsForObserver(observer, best.peakMs, "visual", 10, issEcefAt)
-          ?? horizonWindow(observer, issEcefAt, best.peakMs);
-const peakMs = passPeakMs(win, observer, issEcefAt);
+const win = passWindowAtMsForObserver(observer, best.peakMs, "visual", 10, ecefAt)
+          ?? horizonWindow(observer, ecefAt, best.peakMs);
+const peakMs = passPeakMs(win, observer, ecefAt);
 const sel = { observer, win, peakMs, maxAlt: best.peakAlt };
 console.log(`Pass: peak ${best.peakAlt.toFixed(0)}° alt, sun ${best.sunAlt.toFixed(1)}° ` +
             `at ${new Date(peakMs).toISOString()}`);
@@ -103,7 +103,7 @@ const addNs = (s) => s.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg
 // it used onto the root (data-sky-shade / data-arc-stroke). We reuse those
 // for the favicon so the two icons share one palette by construction,
 // rather than recomputing (which risked a hue mismatch).
-const chart = addNs(renderPassChartSVG({ ...sel, issEcefAt, satName: "ISS", full: false }));
+const chart = addNs(renderPassChartSVG({ ...sel, ecefAt, satName: "ISS", full: false }));
 const pick = (re, fb) => (chart.match(re)?.[1]) ?? fb;
 const shade = pick(/data-sky-shade="([^"]+)"/, skyShadeForSunAlt(sunAltitudeDeg(observer, new Date(peakMs))));
 const arcStroke = pick(/data-arc-stroke="([^"]+)"/, chartPalette(sunAltitudeDeg(observer, new Date(peakMs))).arc);
@@ -130,7 +130,7 @@ label.appendChild(mk("circle", { class: "grid", cx, cy, r: ((90 - 60) / 90) * R 
 label.appendChild(mk("path", { d: "M 50 2 L 57 11 L 43 11 Z", fill: "rgba(126,184,255,0.85)" }));
 const arc = mk("g", { class: "arc" });
 label.appendChild(arc);
-const samples = computeArcSamples(observer, win, cx, cy, R, 30, issEcefAt);
+const samples = computeArcSamples(observer, win, cx, cy, R, 30, ecefAt);
 renderArcSegments(arc, samples, arcStroke, "6 11");
 
 const iconSvg = addNs(serialize(label));

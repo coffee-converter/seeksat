@@ -18,7 +18,7 @@ const OBS = { latDeg: 90, lonDeg: 0 };
 const OBS_ECEF = geodeticToEcef(90, 0, 0);
 
 const satAt = (t) => [A_ORB * Math.sin(N * t), 0, A_ORB * Math.cos(N * t)];
-const issEcefAt = (d) => satAt((d.getTime() - T0) / 1000);
+const ecefAt = (d) => satAt((d.getTime() - T0) / 1000);
 
 // Same orbit with velocity, for the sampler.
 const satStateAt = (d) => {
@@ -40,7 +40,7 @@ const sampleSwing = (win) => {
 // ---- window selection ---------------------------------------------------
 
 test('the full window reaches the horizon, well past a 10 degree cutoff', () => {
-  const { full, workable } = radioChartWindows(OBS, T0, 10, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 10, ecefAt);
   const fullSec = (full.endMs - full.startMs) / 1000;
   const workSec = (workable.endMs - workable.startMs) / 1000;
   // Horizon crossing for this geometry is at cos(Nt) = b/a, about 319 s
@@ -50,13 +50,13 @@ test('the full window reaches the horizon, well past a 10 degree cutoff', () => 
 });
 
 test('the workable window sits strictly inside the full one', () => {
-  const { full, workable } = radioChartWindows(OBS, T0, 10, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 10, ecefAt);
   assert.ok(workable.startMs > full.startMs, 'workable must start later');
   assert.ok(workable.endMs < full.endMs, 'workable must end earlier');
 });
 
 test('no workable window when the threshold is zero - nothing to mark', () => {
-  const { full, workable } = radioChartWindows(OBS, T0, 0, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 0, ecefAt);
   assert.ok(full);
   assert.equal(workable, null);
 });
@@ -64,13 +64,13 @@ test('no workable window when the threshold is zero - nothing to mark', () => {
 test('null when the satellite is not up at the anchor moment', () => {
   // Half an orbit later it is on the far side of the Earth.
   const belowMs = T0 + (Math.PI / N) * 1000;
-  assert.equal(radioChartWindows(OBS, belowMs, 10, issEcefAt), null);
+  assert.equal(radioChartWindows(OBS, belowMs, 10, ecefAt), null);
 });
 
 test('a higher threshold never widens the full window', () => {
   // The full window is the physics; only the band inside it may move.
-  const a = radioChartWindows(OBS, T0, 5, issEcefAt).full;
-  const b = radioChartWindows(OBS, T0, 40, issEcefAt).full;
+  const a = radioChartWindows(OBS, T0, 5, ecefAt).full;
+  const b = radioChartWindows(OBS, T0, 40, ecefAt).full;
   assert.equal(a.startMs, b.startMs);
   assert.equal(a.endMs, b.endMs);
 });
@@ -81,7 +81,7 @@ test('the reported Doppler swing does not move with the search filter', () => {
   // THE regression guard. Before this split, the chart spanned the gated
   // window, so nudging a filter control changed a physical measurement.
   const swings = [0, 5, 10, 25, 40].map(
-    (deg) => sampleSwing(radioChartWindows(OBS, T0, deg, issEcefAt).full),
+    (deg) => sampleSwing(radioChartWindows(OBS, T0, deg, ecefAt).full),
   );
   for (const s of swings) {
     assert.ok(Math.abs(s - swings[0]) < 1e-6,
@@ -99,7 +99,7 @@ test('and the old behaviour understated it by a small but real margin', () => {
   // SPEED, not of the full window. Peak |rdot| here is 93.6% of orbital
   // speed over the full pass and 92.2% over the 10 deg one, so the
   // window-to-window ratio is 92.2/93.6 = 98.5% - a percent and a half.
-  const { full, workable } = radioChartWindows(OBS, T0, 10, issEcefAt);
+  const { full, workable } = radioChartWindows(OBS, T0, 10, ecefAt);
   const ratio = sampleSwing(workable) / sampleSwing(full);
   assert.ok(ratio < 0.99,
     `a 10 deg cutoff should understate the swing, got ${(ratio * 100).toFixed(1)}%`);
@@ -130,7 +130,7 @@ test('a clamped window is reported as clamped, so callers can stop claiming', ()
 
 test('a real pass is not reported as clamped', () => {
   // The negative half: without this, always-true would pass the test above.
-  assert.equal(radioChartWindows(OBS, T0, 10, issEcefAt).clamped, false);
+  assert.equal(radioChartWindows(OBS, T0, 10, ecefAt).clamped, false);
 });
 
 
@@ -143,7 +143,7 @@ test('the walk uses the radio predicate, not whatever mode the app is in', () =>
   // minElevDeg); the equality below is what actually proves "radio", since
   // arity alone would hold if the module hardcoded "visual".
   assert.equal(radioChartWindows.length, 4, 'signature must not take a mode');
-  const { full } = radioChartWindows(OBS, T0, 10, issEcefAt);
-  const radio = passWindowAtMsForObserver(OBS, T0, 'radio', 0, issEcefAt);
+  const { full } = radioChartWindows(OBS, T0, 10, ecefAt);
+  const radio = passWindowAtMsForObserver(OBS, T0, 'radio', 0, ecefAt);
   assert.deepEqual(full, radio);
 });
