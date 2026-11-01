@@ -22,7 +22,7 @@ test('no selection or observer drops footprint and observer', () => {
 });
 test('GEO label only when every listed sat is GEO', () => {
   const only = legendItems({ sats: [goes], observer: null, minElevDeg: 5 });
-  assert.equal(only.find((i) => i.kind === 'track').label, 'Line: ground track over a day');
+  assert.equal(only.find((i) => i.kind === 'track').label, 'Dotted: where it has been. Solid, fading: where it is going, with ticks every hour');
   const mixed = legendItems({ sats: [goes, iss], observer: null, minElevDeg: 5 });
   assert.equal(mixed.find((i) => i.kind === 'track').label, TRACK);
 });
