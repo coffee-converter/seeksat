@@ -15,6 +15,7 @@ import { downloadText } from "@/lib/passes/download.js";
 import { passRows } from "@/lib/sat/pass-rows.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
@@ -342,6 +343,14 @@ export default function PassSection({
                         <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
                           {"📅"}
                         </button>
+                        {track && (
+                          <AlertBell
+                            noradId={track.noradId}
+                            name={track.shortName}
+                            pass={row.pass as NextPass}
+                            url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, null)}
+                          />
+                        )}
                       </div>
                     </li>
                   ))}

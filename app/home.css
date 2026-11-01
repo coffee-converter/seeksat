@@ -1062,3 +1062,6 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .up-now__item { display: flex; align-items: center; gap: 8px; }
 .up-now__swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .up-now__none { flex: 1; min-width: 140px; margin: 0; color: var(--map-muted); font-size: 14px; }
+
+/* Inline note beside a pass reminder bell. */
+.alert-note { font-size: 12px; color: var(--map-muted); align-self: center; }

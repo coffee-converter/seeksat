@@ -9,6 +9,7 @@ export default function AboutSection() {
         Positions come from SGP4, the standard model for these element sets, using elements from CelesTrak that we refresh every few hours. Each satellite&apos;s page shows how old its elements are and how every number is worked out.
       </p>
       <p>Everything runs in your browser. Your location and the satellites you follow stay on this device. No accounts, no ads.</p>
+      <p>Reminders work while SeekSat is open in a tab or installed as an app.</p>
       <p>
         AI agents can ask the same pass engine through <Link href="/mcp">MCP</Link>.
       </p>

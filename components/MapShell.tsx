@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import AlertRunner from "@/components/AlertRunner";
 
 interface Props {
   /** The slim top bar: wordmark, search and clock. */
@@ -23,6 +24,7 @@ export default function MapShell({ top, map, panel, className }: Props) {
       <header className="map-shell__top">{top}</header>
       <div className="map-shell__map">{map}</div>
       <main className="map-shell__panel">{panel}</main>
+      <AlertRunner />
     </div>
   );
 }
