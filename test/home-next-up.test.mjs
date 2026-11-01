@@ -66,4 +66,23 @@ test('countdown', () => {
   assert.equal(countdown((2 * 60 + 5) * 60_000), '2 h 5 min');
   assert.equal(countdown(27 * 3_600_000), '1 day 3 h');
   assert.equal(countdown(51 * 3_600_000), '2 days 3 h');
+  assert.equal(countdown(2 * 3_600_000), '2 h');
+  assert.equal(countdown(24 * 3_600_000), '1 day');
+  assert.equal(countdown(48 * 3_600_000), '2 days');
+  assert.equal(countdown(42.9 * 60_000), '42 min');
+  assert.equal(countdown(-5_000), 'under a minute');
+});
+
+test('one card per id: ids in tracks and missing, or repeated in missing, appear once', () => {
+  const tracks = new Map([[iss.noradId, iss]]);
+  const cards = nextUp({ ...base, tracks, missing: [iss.noradId, 99999, 99999], nowMs: T0 });
+  assert.deepEqual(cards.map((c) => [c.kind, c.noradId]), [['pass', iss.noradId], ['missing', 99999]]);
+});
+
+test('upcoming passes sort by start time regardless of input order', () => {
+  // Same orbit seen 20 minutes ahead, so its pass starts 20 minutes sooner.
+  const earlier = { ...iss, noradId: 1, shortName: 'EARLIER', ecefAt: (d) => iss.ecefAt(new Date(new Date(d).getTime() + 20 * 60_000)) };
+  const cards = nextUp({ ...base, tracks: new Map([[iss.noradId, iss], [1, earlier]]), nowMs: T0 });
+  assert.deepEqual(cards.map((c) => c.name), ['EARLIER', 'ISS']);
+  assert.ok(cards[0].pass.startMs < cards[1].pass.startMs);
 });
