@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
 import { footprintFeature, splitTrack, subpoint, tickStepMin } from "@/lib/map/geometry.mjs";
-import { SAT_PALETTE } from "@/lib/map/draw.mjs";
+import { SAT_PALETTES } from "@/lib/map/draw.mjs";
 
 export interface Layer {
   noradId: number;
@@ -77,7 +77,7 @@ export function useMapSats({
       sats.push({
         noradId,
         name: t.shortName,
-        color: colors.get(noradId) ?? SAT_PALETTE[0],
+        color: colors.get(noradId) ?? SAT_PALETTES.dark[0],
         ...(ground.get(noradId) ?? NO_TRACK),
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
         footprint: focus ? footprintOf(sub, sub.altKm, minElevDeg) : null,

@@ -27,7 +27,8 @@ import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { resolveSatellite } from "@/lib/catalog.mjs";
 import { makeTrack } from "@/lib/sat/track.mjs";
 import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/numbers.mjs";
-import { SAT_PALETTE } from "@/lib/map/draw.mjs";
+import { SAT_PALETTES } from "@/lib/map/draw.mjs";
+import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { nextPassTile } from "@/lib/sat/next-pass-tile.mjs";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
@@ -186,12 +187,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     if (track && usable) out.set(data.noradId, track as HomeTrack);
     return out;
   }, [records, prefs.custom, prefs.following, track, usable, data.noradId]);
+  const theme = useResolvedTheme();
   const colors = useMemo(() => {
-    const out = new Map(prefs.following.map((id, i) => [id, SAT_PALETTE[i % SAT_PALETTE.length]]));
+    const pal: string[] = SAT_PALETTES[theme];
+    const out = new Map(prefs.following.map((id, i) => [id, pal[i % pal.length]]));
     // Not followed: the next colour, as a viewing satellite gets on the home page.
-    if (!out.has(data.noradId)) out.set(data.noradId, SAT_PALETTE[out.size % SAT_PALETTE.length]);
+    if (!out.has(data.noradId)) out.set(data.noradId, pal[out.size % pal.length]);
     return out;
-  }, [prefs.following, data.noradId]);
+  }, [prefs.following, data.noradId, theme]);
   const layers = useMemo(() => pageLayersOf({
     followed: prefs.following, hidden: prefs.hidden, focusId, pageId: data.noradId,
   }), [prefs.following, prefs.hidden, focusId, data.noradId]);

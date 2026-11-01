@@ -18,7 +18,8 @@ import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { shouldRefreshCards } from "@/lib/home/view.mjs";
 import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
-import { SAT_PALETTE } from "@/lib/map/draw.mjs";
+import { SAT_PALETTES } from "@/lib/map/draw.mjs";
+import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AboutSection from "./AboutSection";
@@ -131,11 +132,13 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     () => missing.filter((id) => prefs.following.includes(id)),
     [missing, prefs.following],
   );
+  const theme = useResolvedTheme();
   const colors = useMemo(() => {
-    const out = new Map(prefs.following.map((id, i) => [id, SAT_PALETTE[i % SAT_PALETTE.length]]));
-    if (focusId != null && !out.has(focusId)) out.set(focusId, SAT_PALETTE[out.size % SAT_PALETTE.length]);
+    const pal: string[] = SAT_PALETTES[theme];
+    const out = new Map(prefs.following.map((id, i) => [id, pal[i % pal.length]]));
+    if (focusId != null && !out.has(focusId)) out.set(focusId, pal[out.size % pal.length]);
     return out;
-  }, [prefs.following, focusId]);
+  }, [prefs.following, focusId, theme]);
 
   // Focus lives in ?focus=, changed through the History API (Next keeps
   // useSearchParams in step, with no server round trip). Entering a focus
@@ -187,7 +190,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const chips = useMemo<Chip[]>(() => prefs.following.map((id) => ({
     noradId: id,
     name: nameOf(id),
-    color: colors.get(id) ?? SAT_PALETTE[0],
+    color: colors.get(id) ?? SAT_PALETTES[theme][0],
     hidden: prefs.hidden.includes(id),
   })), [prefs.following, prefs.hidden, nameOf, colors]);
 

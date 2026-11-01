@@ -7,7 +7,7 @@ import {
   subpoint, splitTrack, footprintFeature, nightBands, loadLand,
 } from '../lib/map/geometry.mjs';
 import { makeProjection } from '../lib/map/projections.mjs';
-import { drawMap, hitTest, isVisible, MAP_COLORS, SAT_PALETTE } from '../lib/map/draw.mjs';
+import { drawMap, hitTest, isVisible, MAP_COLORS, SAT_PALETTE, MAP_PALETTES, SAT_PALETTES } from '../lib/map/draw.mjs';
 
 // Recording stand-in for CanvasRenderingContext2D: logs method calls and
 // snapshots fillStyle at each fill so draw order can be asserted.
@@ -313,4 +313,17 @@ test('hitTest skips hidden satellites and finds ghosts', () => {
   const [x, y] = projection([0, 0]);
   assert.equal(hitTest([{ noradId: 1, emphasis: 'hidden', position: { lonDeg: 0, latDeg: 0 } }], projection, x, y), null);
   assert.equal(hitTest([{ noradId: 2, emphasis: 'ghost', position: { lonDeg: 0, latDeg: 0 } }], projection, x, y), 2);
+});
+
+test('the light run fills the ocean light and uses no dark-palette colour', () => {
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, { ...args(scene().map((s, i) => ({ ...s, color: SAT_PALETTES.light[i] }))), palette: MAP_PALETTES.light });
+  const first = calls.find((c) => c.m === 'fill');
+  assert.equal(first.fillStyle, '#dfe8f3');
+  const dark = new Set([...Object.values(MAP_PALETTES.dark), ...SAT_PALETTES.dark]);
+  for (const c of calls) {
+    for (const v of [c.fillStyle, c.strokeStyle]) assert.ok(!dark.has(v), `dark colour ${v} used in the light run`);
+  }
+  assert.equal(SAT_PALETTES.light.length, 8);
+  assert.equal(MAP_PALETTES.dark.ocean, MAP_COLORS.ocean);
 });

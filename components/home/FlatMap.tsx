@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { drawMap, hitTest } from "@/lib/map/draw.mjs";
+import { MAP_PALETTES, drawMap, hitTest } from "@/lib/map/draw.mjs";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
 import { graticuleBox, graticuleLabels, graticuleStep, observerBox, pickPlaceLabels, satBoxes } from "@/lib/map/labels.mjs";
@@ -166,6 +166,8 @@ export default function FlatMap({
   const projection = useRef<Projection | null>(null);
   const night = useRef<{ at: number; bands: NightBands } | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  // Read after mount (the server and first render draw dark).
+  const themeRef = useRef<"dark" | "light">("dark");
   // Place data arrives after mount, in its own chunk.
   const placeData = useRef<PlaceData | null>(null);
   // Lat/lon labels re-pick only when the view or the controls change; place
@@ -291,6 +293,7 @@ export default function FlatMap({
       observer: cur.observer,
       zoom: view.current.zoom,
       labels: placeData.current ? labels : { places: [], graticule: labels.graticule },
+      palette: MAP_PALETTES[themeRef.current],
     });
     ctx.restore();
   }, []);
@@ -556,6 +559,16 @@ export default function FlatMap({
       if (fallback) document.body.style.overflow = "";
     };
   }, [full]);
+  // Redraw when the theme changes (and once on mount, to pick up light).
+  useEffect(() => {
+    const onTheme = () => {
+      themeRef.current = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+      redraw();
+    };
+    onTheme();
+    window.addEventListener("seeksat:theme", onTheme);
+    return () => window.removeEventListener("seeksat:theme", onTheme);
+  }, [redraw]);
   // The wrapper changes size; the ResizeObserver refits, and the touch mode changes.
   useEffect(() => {
     redraw();
