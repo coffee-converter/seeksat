@@ -1,6 +1,24 @@
 "use client";
 
 import { usePassFinderStore } from "@/lib/pass-finder-store";
+import { passIcsFor } from "@/lib/scene-bridge";
+
+// Download one pass as an .ics file. The scene builds the event and
+// names the file; this only hands it to the browser.
+function downloadPassIcs(i: number) {
+  const result = passIcsFor(i);
+  if (!result) return;
+  const url = URL.createObjectURL(new Blob([result.ics], { type: "text/calendar" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = result.filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Deferred revoke, as in RadioModal's CSV download (Safari drops
+  // downloads whose URL is revoked in the same tick as the click).
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
 
 // Renders the pre-computed window display rows from the store. All
 // the rating / formatting / coloring math lives in the scene
@@ -15,7 +33,7 @@ export default function WindowsList() {
   const selectWindow = usePassFinderStore((s) => s.selectWindow);
 
   const gridTemplate = headers.length
-    ? headers.map(() => "auto").join(" ")
+    ? `${headers.map(() => "auto").join(" ")} auto` // + calendar button
     : undefined;
 
   return (
@@ -29,6 +47,7 @@ export default function WindowsList() {
           {headers.map((h) => (
             <span key={h}>{h}</span>
           ))}
+          <span />
         </div>
       )}
       {status === "loading" && (
@@ -68,6 +87,19 @@ export default function WindowsList() {
               {cell.text}
             </span>
           ))}
+          <button
+            type="button"
+            className="ics-btn"
+            aria-label="Add to calendar"
+            title="Add to calendar"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              downloadPassIcs(i);
+            }}
+            onKeyDown={(ev) => ev.stopPropagation()}
+          >
+            📅
+          </button>
         </div>
       ))}
     </div>

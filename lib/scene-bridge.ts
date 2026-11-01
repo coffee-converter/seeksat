@@ -50,6 +50,11 @@ export interface SceneBridge {
   /** Build a shareable URL encoding the current observer set + the
    *  currently-active pass window's start time, if any. */
   buildShareUrl: () => string;
+  /** Build an iCalendar (.ics) event for the pass at `windowIdx` in
+   *  the list, as seen by the first observer, plus a suggested
+   *  filename. Returns null when the pass, observer or track can't be
+   *  resolved. */
+  passIcsFor: (windowIdx: number) => { ics: string; filename: string } | null;
   /** Create a new observer station at (lat, lon). `name` of null
    *  defaults to "Point N" via the scene. Side effects: Cesium
    *  entities, cloud-forecast fetch, timezone lookup, search rerun. */
@@ -118,6 +123,9 @@ export const copyPolarPng: SceneBridge["copyPolarPng"] = (svg) =>
 
 export const buildShareUrl: SceneBridge["buildShareUrl"] = () =>
   bridge().buildShareUrl();
+
+export const passIcsFor: SceneBridge["passIcsFor"] = (windowIdx) =>
+  bridge().passIcsFor(windowIdx);
 
 export const addObserver: SceneBridge["addObserver"] = (name, latDeg, lonDeg) =>
   bridge().addObserver(name, latDeg, lonDeg);

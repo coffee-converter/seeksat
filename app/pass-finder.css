@@ -635,6 +635,25 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .window-row .cloud.partial { color: #facc15; }
 .window-row .cloud.overcast { color: #f87171; }
 .window-row .cloud.na { color: #6a7a9a; }
+/* Per-row "Add to calendar" button. `.window-row .ics-btn` outranks the
+   global `.panel button` reset, so it sits flat in the row like a cell. */
+.window-row .ics-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 0 2px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.window-row .ics-btn:hover { background: rgba(126, 184, 255, 0.12); }
+.window-row .ics-btn:focus-visible {
+  outline: 2px solid rgba(126, 184, 255, 0.7);
+  outline-offset: 0;
+}
 
 /* Per-observer polar-plot icons floating over the 3D scene. The
    container itself is transparent and pass-through; individual icons
