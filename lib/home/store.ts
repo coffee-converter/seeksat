@@ -5,7 +5,7 @@
 // watchVisibility() to document.visibilitychange from the component.
 
 import { create } from "zustand";
-import { ElementsError, parseElements } from "../sat/elements.mjs";
+import { addCustomTo, createLoadGuard, followIn, isStale, unfollowIn } from "./actions.mjs";
 import { defaultPrefs, loadPrefs, savePrefs } from "./prefs.mjs";
 import { fetchRecords } from "./records.mjs";
 
@@ -32,9 +32,7 @@ export interface Prefs {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SatApiRecord = Record<string, any>;
 
-export const STALE_AFTER_MS = 60 * 60 * 1000;
-const MAX_FOLLOWING = 20;
-const MAX_CUSTOM = 10;
+const loadGuard = createLoadGuard();
 
 interface HomeState {
   prefs: Prefs;
@@ -71,12 +69,15 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   },
 
   setPrefs: (patch) => {
+    get().hydrate();
     const prefs = { ...get().prefs, ...patch };
     set({ prefs });
     savePrefs(prefs);
   },
 
   loadRecords: async () => {
+    get().hydrate();
+    const isLatest = loadGuard.begin();
     const { custom, following } = get().prefs;
     const pasted = new Set(custom.map((c) => c.noradId));
     const ids = following.filter((id) => !pasted.has(id));
@@ -85,58 +86,40 @@ export const useHomeStore = create<HomeState>((set, get) => ({
       const { records, missing } = ids.length
         ? await fetchRecords(ids)
         : { records: new Map(), missing: [] };
-      set({ records, missing, status: "ready", lastLoadedMs: Date.now() });
+      if (isLatest()) set({ records, missing, status: "ready", lastLoadedMs: Date.now() });
     } catch (e) {
-      set({ status: "error", error: e instanceof Error ? e.message : String(e) });
+      if (isLatest()) set({ status: "error", error: e instanceof Error ? e.message : String(e) });
     }
   },
 
   reloadIfStale: async (nowMs) => {
     const { status, lastLoadedMs } = get();
-    if (status === "loading" || lastLoadedMs === null) return;
-    if (nowMs - lastLoadedMs > STALE_AFTER_MS) await get().loadRecords();
+    if (status === "loading" || status === "idle") return;
+    if (isStale(lastLoadedMs, nowMs)) await get().loadRecords();
   },
 
   setSelectedId: (id) => set({ selectedId: id }),
 
   follow: (id) => {
-    const { following } = get().prefs;
-    if (following.includes(id) || following.length >= MAX_FOLLOWING) return;
-    get().setPrefs({ following: [...following, id] });
+    get().hydrate();
+    const next = followIn(get().prefs, id);
+    if (next === get().prefs) return;
+    get().setPrefs({ following: next.following });
     void get().loadRecords();
   },
 
   unfollow: (id) => {
-    const { following, custom } = get().prefs;
-    get().setPrefs({
-      following: following.filter((f) => f !== id),
-      custom: custom.filter((c) => c.noradId !== id),
-    });
+    get().hydrate();
+    const next = unfollowIn(get().prefs, id);
+    get().setPrefs({ following: next.following, custom: next.custom });
     if (get().selectedId === id) set({ selectedId: null });
   },
 
   addCustom: (text) => {
-    let rec;
-    try {
-      rec = parseElements(text);
-    } catch (e) {
-      if (e instanceof ElementsError) return { ok: false, message: e.message };
-      throw e;
-    }
-    const { custom, following } = get().prefs;
-    const others = custom.filter((c) => c.noradId !== rec.noradId);
-    if (others.length >= MAX_CUSTOM) {
-      return { ok: false, message: "You can paste up to 10 satellites. Remove one first." };
-    }
-    const nextFollowing = following.includes(rec.noradId) ? following : [...following, rec.noradId];
-    if (nextFollowing.length > MAX_FOLLOWING) {
-      return { ok: false, message: "You can follow up to 20 satellites. Unfollow one first." };
-    }
-    get().setPrefs({
-      custom: [...others, { noradId: rec.noradId, name: rec.name, line1: rec.line1, line2: rec.line2 }],
-      following: nextFollowing,
-    });
-    return { ok: true };
+    get().hydrate();
+    const { prefs, result } = addCustomTo(get().prefs, text);
+    if (result.ok) get().setPrefs({ custom: prefs.custom, following: prefs.following });
+    return result as { ok: true } | { ok: false; message: string };
   },
 }));
 

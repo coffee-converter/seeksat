@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultPrefs, parsePrefs, loadPrefs, savePrefs, PREFS_KEY, POPULAR_IDS } from '../lib/home/prefs.mjs';
+import { defaultPrefs, parsePrefs, loadPrefs, savePrefs, PREFS_KEY, POPULAR_IDS, MAX_CUSTOM } from '../lib/home/prefs.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2 } from './fixtures/orbits.mjs';
+import { tleFor } from './fixtures/tle-variants.mjs';
 
 test('defaults', () => {
   const d = defaultPrefs();
@@ -37,6 +38,10 @@ test('custom entries are validated and capped', () => {
   const good = { noradId: 25485, name: 'MOLNIYA', line1: MOLNIYA_LINE1, line2: MOLNIYA_LINE2 };
   const bad = { noradId: 1, name: 'BAD', line1: 'x', line2: 'y' };
   assert.deepEqual(parsePrefs({ custom: [bad, good] }).custom, [good]);
+  const many = Array.from({ length: 12 }, (_, i) => ({ name: `S${i}`, ...tleFor(10001 + i) }));
+  const kept = parsePrefs({ custom: many }).custom;
+  assert.equal(kept.length, MAX_CUSTOM);
+  assert.equal(kept[0].noradId, 10001);
 });
 
 test('valid object round-trips', () => {
