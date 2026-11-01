@@ -1,0 +1,60 @@
+/* home.css - the light home screen. Dark theme matches pass-finder.css. */
+
+:root {
+  --map-ocean: #0f1830;
+  --map-land: #1b2845;
+  --map-accent: #7eb8ff;
+  --map-text: #cfe0ff;
+  --map-muted: #8899bb;
+  --map-panel: rgba(10, 14, 26, 0.92);
+  --map-border: rgba(255, 255, 255, 0.08);
+}
+
+.flat-map {
+  position: relative;
+  width: 100%;
+  background: var(--map-ocean);
+  border: 1px solid var(--map-border);
+  border-radius: 8px;
+  overflow: hidden;
+  color: var(--map-text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.flat-map__canvas {
+  display: block;
+  width: 100%;
+  cursor: grab;
+  /* Pointer events handle drag and pinch; stop the browser scrolling or zooming the page. */
+  touch-action: none;
+}
+.flat-map__canvas:active { cursor: grabbing; }
+.flat-map__menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  max-width: calc(100% - 16px);
+  padding: 6px 8px;
+  background: var(--map-panel);
+  color: var(--map-text);
+  border: 1px solid rgba(126, 184, 255, 0.4);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.flat-map__menu:focus-visible,
+.flat-map__canvas:focus-visible {
+  outline: 2px solid var(--map-accent);
+  outline-offset: 1px;
+}
+
+/* Visually hidden, still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
