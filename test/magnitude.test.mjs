@@ -22,9 +22,9 @@ test('result shifts one-for-one with the standard magnitude', () => {
   assert.ok(Math.abs((dim - bright) - 3.8) < 1e-9, `delta ${dim - bright}`);
 });
 
-test('every catalog satellite has a numeric standardMag', () => {
+test('every catalog satellite has a numeric standardMag, or null when unknown', () => {
   for (const s of CATALOG) {
-    assert.equal(typeof s.standardMag, 'number', `${s.name} standardMag`);
+    assert.ok(s.standardMag === null || typeof s.standardMag === 'number', `${s.name} standardMag`);
   }
 });
 
@@ -32,5 +32,5 @@ test('relative brightness is sane: ISS brighter than Hubble/NOAA; NOAA dimmest',
   const byId = Object.fromEntries(CATALOG.map((s) => [s.noradId, s.standardMag]));
   assert.ok(byId[25544] < byId[20580], 'ISS brighter than Hubble');
   assert.ok(byId[25544] < byId[33591], 'ISS brighter than NOAA-19');
-  assert.equal(byId[33591], Math.max(...CATALOG.map((s) => s.standardMag)), 'NOAA-19 dimmest');
+  assert.equal(byId[33591], Math.max(...CATALOG.map((s) => s.standardMag).filter((m) => m != null)), 'NOAA-19 dimmest');
 });

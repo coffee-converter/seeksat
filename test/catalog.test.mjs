@@ -2,10 +2,21 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG, resolveSatellite, defaultDownlink, displayName } from '../lib/catalog.mjs';
 
-test('catalog has the 5 starter satellites', () => {
-  assert.equal(CATALOG.length, 5);
+test('catalog has the 5 starter satellites plus Meteor-M2 3, Meteor-M2 4 and SO-50', () => {
+  assert.equal(CATALOG.length, 8);
   const ids = CATALOG.map(s => s.noradId).sort((a, b) => a - b);
-  assert.deepEqual(ids, [20580, 25544, 33591, 48274, 53807]);
+  assert.deepEqual(ids, [20580, 25544, 27607, 33591, 48274, 53807, 57166, 59051]);
+});
+
+test('Meteor-M2 3, Meteor-M2 4 and SO-50 resolve by alias and carry downlinks', () => {
+  assert.equal(resolveSatellite('meteor-m2 3').noradId, 57166);
+  assert.equal(resolveSatellite('meteor m2-4').noradId, 59051);
+  assert.equal(resolveSatellite('so50').noradId, 27607);
+  assert.equal(defaultDownlink(resolveSatellite(57166)).hz, 137_900_000);
+  assert.equal(defaultDownlink(resolveSatellite(59051)).hz, 137_900_000);
+  assert.equal(defaultDownlink(resolveSatellite(27607)).hz, 436_795_000);
+  assert.equal(resolveSatellite(57166).downlinks.length, 2);
+  assert.equal(resolveSatellite(27607).downlinks.length, 1);
 });
 
 test('every entry has the enriched, valid shape', () => {
@@ -55,7 +66,7 @@ test('every catalog entry has a well-formed downlinks array', () => {
       assert.equal(typeof d.label, 'string');
       assert.ok(['fm', 'apt', 'lrpt', 'cw', 'ssb'].includes(d.mode), `${s.name} mode`);
       assert.ok(
-        ['continuous', 'scheduled', 'packet', 'on-demand'].includes(d.duty),
+        ['continuous', 'scheduled', 'packet', 'on-demand', 'occasional'].includes(d.duty),
         `${s.name} duty`,
       );
       if (d.default) defaults++;
