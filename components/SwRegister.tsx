@@ -14,7 +14,9 @@ const CACHE_PREFIX = "seeksat-";
 
 /** Lever 1 of the kill switch (docs/ops/service-worker.md): a build with
  *  NEXT_PUBLIC_SW_OFF=1 registers nothing and removes any worker and saved
- *  responses an earlier build left behind. */
+ *  responses an earlier build left behind. The old worker keeps control of
+ *  this tab until it closes and may save a little more; the next load runs
+ *  this again and deletes that too. */
 async function removeWorker(sw: ServiceWorkerContainer) {
   try {
     const regs = await sw.getRegistrations();

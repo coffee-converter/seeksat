@@ -12,7 +12,10 @@ read at build time, so a redeploy is required.
 On the next page load, SwRegister registers nothing. It unregisters every
 worker for the site and deletes every cache whose name starts with
 `seeksat-`. The worker that is already running keeps control of open tabs
-until they close or reload.
+until they close or reload, and can save a few more responses meanwhile;
+the next page load deletes those too. (Checked locally: after the first load
+the worker was gone and two caches had been written again; after the second,
+no caches were left.)
 
 Use this when the new build still reaches the browser, that is when pages
 load from the network.
