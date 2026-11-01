@@ -9,6 +9,7 @@ import { useMapSats, type Layer } from "./useMapSats";
 import { SearchBar } from "./SearchBar";
 import HomeControls from "./HomeControls";
 import LocationPrompt, { PopularList } from "./LocationPrompt";
+import UpNow from "./UpNow";
 import NextUpList, { type Card, type HomeObserver, type Track } from "./NextUpList";
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
@@ -208,6 +209,16 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     [location],
   );
 
+  // Tracks shown in the sky view: everything the map draws that is not hidden.
+  const skyTracks = useMemo(() => {
+    const m = new Map<number, Track>();
+    for (const l of layers as Array<{ noradId: number; emphasis: string }>) {
+      const t = allTracks.get(l.noradId);
+      if (t && l.emphasis !== "hidden") m.set(l.noradId, t);
+    }
+    return m;
+  }, [layers, allTracks]);
+
   const { sats, focusSub } = useMapSats({
     layers, tracks: allTracks, colors, nowMs, minElevDeg: prefs.minElevDeg,
   });
@@ -401,6 +412,9 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             </>
           ) : observer && (
             <>
+              {nowMs != null && (
+                <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} />
+              )}
               {prefs.following.length === 0 ? (
                 <>
                   <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
