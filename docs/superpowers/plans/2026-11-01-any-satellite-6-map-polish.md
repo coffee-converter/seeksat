@@ -134,14 +134,20 @@ Plans 1 to 5 come first.
   - fill: the satellite's colour at alpha 0.18;
   - outline: the satellite's colour, 1.5 px, dashed `[6, 5]`;
   - `MAP_COLORS.footprint` is removed.
-- **Ground track:** solid, 2 px, the satellite's colour. The part before "now" is drawn at alpha 0.45 and the part from now on at full alpha. `groundTrack`'s MultiLineString is split at the sample nearest `nowMs`, so `MapSat` gains `trackPast` and `trackFuture`. Keep `track` for hit and back-compat or remove it; the report says which.
+- **Ground track: past and future at a glance.** This was added at Aaron's request: "make it clear which parts are future and past ... just with line style/color/fade". The track is split at the sample nearest `nowMs`, so `MapSat` gains `trackPast` and `trackFuture` (both MultiLineStrings, cut at ±180 as before). It also gains `trackTicks: Array<{ lonDeg, latDeg, minutes }>`.
+  - **Past** (−¼ orbit to now): 1.5 px, dotted `[2, 4]`, the satellite's colour at alpha 0.5. It reads as "where it was".
+  - **Future** (now to +1 orbit): solid, 2 px. Its alpha fades from 1.0 at the satellite to 0.25 at the end, drawn as 8 consecutive chunks with stepped alpha. It reads as "where it's going, less certain further out".
+  - **Direction:** a small chevron (6 px) in the satellite's colour, 10 px ahead of the dot along the future track, pointing along it.
+  - **Time ticks** on the future part: every 10 min when `periodMs` < 3 h, else every hour. Each is a 5 px tick across the line. Only the selected satellite's first two ticks get tiny 9 px labels, `"+10m"`, `"+20m"` (or `"+1h"`, `"+2h"`).
+  - `groundTrack` gains a sibling `splitTrack(track, nowMs, opts) -> { past, future, ticks }` in `lib/map/geometry.mjs`. `track` is removed from `MapSat`, and hit-testing uses the dot only, as today.
 - **Legend:**
   - The track swatch shows solid then faded.
   - The footprint swatch is a dashed circle in the accent colour.
-  - The label copy becomes `"Line: ground track, faded behind the satellite, solid ahead"` and `"Dashed circle: where <name> is at least <minElevDeg>° up"`.
+  - The label copy becomes `"Dotted: where it has been. Solid, fading: where it is going, with ticks every 10 min"` and `"Dashed circle: where <name> is at least <minElevDeg>° up"`.
 - Tests, using the existing recording-context pattern:
   - The footprint outline calls `setLineDash([6, 5])` and then resets to `[]`.
-  - The track past part strokes with alpha 0.45.
+  - The past part strokes dotted `[2, 4]` at alpha 0.5, and the future part is 8 chunks with falling alpha.
+  - `splitTrack` on the ISS fixture: `past` ends and `future` starts at the now point, the ticks are 10 min apart, and GOES ticks are hourly.
   - Labels draw before satellites (order of `fillText` calls).
   - The graticule step changes with zoom.
 
