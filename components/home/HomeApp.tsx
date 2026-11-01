@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import FlatMap from "./FlatMap";
 import FocusBar from "./FocusBar";
 import SatChips, { type Chip } from "./SatChips";
@@ -15,7 +15,7 @@ import { tracksFor } from "@/lib/home/records.mjs";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
-import { followedTracks, shouldRefreshCards } from "@/lib/home/view.mjs";
+import { shouldRefreshCards } from "@/lib/home/view.mjs";
 import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
@@ -34,15 +34,21 @@ const layersOf = mapLayers as (o: {
 }) => Layer[];
 const countOf = showAllCount as (layers: Layer[]) => number;
 
-/** Reads ?focus= into the store. Alone inside Suspense, so / stays static. */
+/** Reads ?focus= into the store. Alone inside Suspense, so / stays static.
+ *  It reads the live URL when the param changes, so a stale render left
+ *  behind by two quick focus changes never flips the store back. */
 function FocusParam() {
   const raw = useSearchParams().get("focus");
   const setFocusId = useHomeStore((s) => s.setFocusId);
   useEffect(() => {
-    setFocusId(parseFocus(raw) as number | null);
+    setFocusId(parseFocus(new URLSearchParams(window.location.search).get("focus")) as number | null);
   }, [raw, setFocusId]);
   return null;
 }
+
+/** Marks a history entry our focus pushed, so clearing can step back over it. */
+const PUSHED_KEY = "seeksatFocusPushed";
+const pushedHere = () => (window.history.state as Record<string, unknown> | null)?.[PUSHED_KEY] === true;
 
 interface Props {
   /** Snapshot records for the popular set, shown until the first load lands. */
@@ -65,7 +71,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const toggleHidden = useHomeStore((s) => s.toggleHidden);
-  const router = useRouter();
 
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [changingLocation, setChangingLocation] = useState(false);
@@ -120,10 +125,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     if (viewing && !all.has(viewing.noradId as number)) all.set(viewing.noradId as number, viewing);
     return buildTracks(all, prefs.custom);
   }, [shownRecords, viewing, prefs.custom]);
-  const tracks = useMemo(
-    () => followedTracks(allTracks, prefs.following) as Map<number, Track>,
-    [allTracks, prefs.following],
-  );
   const shownMissing = useMemo(
     () => missing.filter((id) => prefs.following.includes(id)),
     [missing, prefs.following],
@@ -134,14 +135,24 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return out;
   }, [prefs.following, focusId]);
 
-  // Focus lives in ?focus=. The first focus replaces the URL, switching pushes,
-  // clearing replaces.
+  // Focus lives in ?focus=, changed through the History API (Next keeps
+  // useSearchParams in step, with no server round trip). Entering a focus
+  // pushes, switching replaces, and clearing steps back over the entry we
+  // pushed (else replaces), so Back always leaves focus.
   const focusOn = useCallback((id: number | null) => {
-    const method = focusNavMethod(useHomeStore.getState().focusId, id) as "push" | "replace" | null;
+    const pushed = pushedHere();
+    const method = focusNavMethod(useHomeStore.getState().focusId, id, pushed) as "push" | "replace" | "back" | null;
     if (!method) return;
     useHomeStore.getState().setFocusId(id);
-    router[method](focusHref(window.location.pathname, window.location.search, id) as string, { scroll: false });
-  }, [router]);
+    if (method === "back") {
+      window.history.back();
+      return;
+    }
+    const href = focusHref(window.location.pathname, window.location.search, id) as string;
+    // A fresh object (no Next internals): Next copies its own state across.
+    if (method === "push") window.history.pushState({ [PUSHED_KEY]: true }, "", href);
+    else window.history.replaceState({ [PUSHED_KEY]: id != null && pushed }, "", href);
+  }, []);
   // A focus that is not followed (from search, or a shared link) needs its record.
   useEffect(() => {
     if (hydrated && focusId != null && !prefs.following.includes(focusId)) void loadViewing(focusId);
@@ -259,6 +270,42 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     }
   }, [nowMs, cardState, observer]);
 
+  // The satellite being viewed (focused, not followed) gets its own card,
+  // from the same next-up job, kept apart so the followed cards never wait.
+  const viewingId = focusId != null && !prefs.following.includes(focusId) && viewing?.noradId === focusId
+    ? focusId
+    : null;
+  const viewKey = viewingId == null ? null : `${viewingId}|${cardKey}`;
+  const [viewCard, setViewCard] = useState<{ key: string; card: Card } | null>(null);
+  const cardsAt = cardState?.at ?? null;
+  useEffect(() => {
+    if (viewKey == null || !observer || !viewing) return;
+    let alive = true;
+    const id = viewing.noradId as number;
+    getPassRunner()
+      .run({
+        kind: "next-up",
+        records: [viewing],
+        custom: [],
+        following: [id],
+        missing: [],
+        observer,
+        mode: prefs.mode,
+        minElevDeg: prefs.minElevDeg,
+        nowMs: trueNow(),
+      })
+      .then((cards: unknown) => {
+        const card = (cards as Card[])[0];
+        if (alive && card) setViewCard({ key: viewKey, card });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  // cardsAt: refresh alongside the followed cards.
+  }, [viewKey, viewing, observer, prefs.mode, prefs.minElevDeg, cardsAt]);
+  const viewingCard = viewCard && viewCard.key === viewKey ? viewCard.card : null;
+
   const popularNames = useMemo(() => {
     const names = new Map<number, string>();
     for (const id of POPULAR_IDS) {
@@ -281,7 +328,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       <Suspense fallback={null}>
         <FocusParam />
       </Suspense>
-      <SearchBar onView={focusOn} />
+      <SearchBar onView={focusOn} onClearFocus={() => focusOn(null)} />
       <FlatMap
         sats={sats}
         observer={location}
@@ -338,6 +385,23 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           {prefs.following.length === 0 ? (
             <>
               <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
+              {viewingCard && nowMs != null && (
+                <NextUpList
+                  cards={[]}
+                  viewingCard={viewingCard}
+                  tracks={allTracks}
+                  colors={colors}
+                  observer={observer}
+                  mode={prefs.mode}
+                  minElevDeg={prefs.minElevDeg}
+                  nowMs={nowMs}
+                  onUnfollow={unfollow}
+                  onFollow={follow}
+                  followBlocked={null}
+                  focusId={focusId}
+                  onFocus={focusOn}
+                />
+              )}
               <PopularList names={popularNames} />
             </>
           ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
@@ -348,13 +412,16 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             nowMs != null && (
               <NextUpList
                 cards={cardState.cards}
-                tracks={tracks}
+                viewingCard={viewingCard}
+                tracks={allTracks}
                 colors={colors}
                 observer={observer}
                 mode={prefs.mode}
                 minElevDeg={prefs.minElevDeg}
                 nowMs={nowMs}
                 onUnfollow={unfollow}
+                onFollow={follow}
+                followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
                 focusId={focusId}
                 onFocus={focusOn}
               />

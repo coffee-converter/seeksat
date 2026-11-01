@@ -121,10 +121,15 @@ export default function RadioChartModalView({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // Handled here: the page behind (focus on the map) leaves it alone.
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Capture, so the page's own Esc listeners see it as handled.
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [open, onClose]);
 
   // Move focus into the modal once it becomes visible so keyboard

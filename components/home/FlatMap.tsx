@@ -380,9 +380,10 @@ export default function FlatMap({
       }
     };
     if (fallback) document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
+    // Capture, so this runs (and marks Esc handled) before any bubble listener.
+    window.addEventListener("keydown", onKey, { capture: true });
     return () => {
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onKey, { capture: true });
       if (fallback) document.body.style.overflow = "";
     };
   }, [full]);

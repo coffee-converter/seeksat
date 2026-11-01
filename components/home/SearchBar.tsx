@@ -17,9 +17,11 @@ const DEBOUNCE_MS = 250;
 interface Props {
   /** View a result: focus it on the map (search means view, not follow). */
   onView: (noradId: number) => void;
+  /** Esc in an empty search with the list closed: leave focus. */
+  onClearFocus: () => void;
 }
 
-export function SearchBar({ onView }: Props) {
+export function SearchBar({ onView, onClearFocus }: Props) {
   const uid = useId();
   const listId = `${uid}-list`;
   const [text, setText] = useState("");
@@ -114,6 +116,8 @@ export function SearchBar({ onView }: Props) {
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
+      // Nothing left for Esc to close here: it leaves focus instead.
+      if (!open && text === "") onClearFocus();
       setOpen(false);
       setActive(-1);
       setLimitError(null);

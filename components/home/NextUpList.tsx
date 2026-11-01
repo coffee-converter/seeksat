@@ -85,6 +85,37 @@ interface PassCardProps {
   onUnfollow: () => void;
   focus: FocusState;
   onFocus: () => void;
+  /** Set for the viewed (not followed) satellite's card: Follow replaces Unfollow. */
+  viewing: ViewingProps | null;
+}
+
+interface ViewingProps {
+  onFollow: () => void;
+  /** The follow cap message, when following is blocked. */
+  blocked: string | null;
+}
+
+/** The small "viewing" tag on the viewed satellite's card. */
+function ViewingTag({ viewing }: { viewing: ViewingProps | null }) {
+  return viewing ? <span className="pass-card__tag pass-card__tag--viewing">viewing</span> : null;
+}
+
+/** Unfollow, or for the viewed satellite, Follow. */
+function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onUnfollow: () => void }) {
+  if (viewing) {
+    return (
+      <button
+        type="button"
+        className="home-chip"
+        disabled={Boolean(viewing.blocked)}
+        title={viewing.blocked ?? undefined}
+        onClick={viewing.onFollow}
+      >
+        {"\u2606 Follow"}
+      </button>
+    );
+  }
+  return <button type="button" className="home-chip home-chip--quiet" onClick={onUnfollow}>Unfollow</button>;
 }
 
 /** none: nothing is focused; focus: this card's satellite is; dim: another is. */
@@ -101,7 +132,7 @@ function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; o
 }
 
 function PassCard({
-  card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onUnfollow, focus, onFocus,
+  card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onUnfollow, focus, onFocus, viewing,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
@@ -146,6 +177,7 @@ function PassCard({
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
           {pass.visible && <span className="pass-card__tag">visible</span>}
           <ElementTags track={track} />
+          <ViewingTag viewing={viewing} />
         </p>
         <div className="pass-card__actions">
           <button type="button" className="home-chip" onClick={onSkyChart}>Sky chart</button>
@@ -156,7 +188,7 @@ function PassCard({
           {track.record?.source !== "pasted" && (
             <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
           )}
-          <button type="button" className="home-chip home-chip--quiet" onClick={onUnfollow}>Unfollow</button>
+          <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
         </div>
       </div>
     </li>
@@ -172,19 +204,33 @@ interface Props {
   minElevDeg: number;
   nowMs: number;
   onUnfollow: (noradId: number) => void;
+  /** The card of the satellite being viewed (focused, not followed), if any. */
+  viewingCard?: Card | null;
+  onFollow: (noradId: number) => void;
+  /** The follow cap message for the viewed satellite, when blocked. */
+  followBlocked: string | null;
   /** The focused satellite: its card is pinned first and the others dim. */
   focusId: number | null;
-  onFocus: (noradId: number) => void;
+  /** A headline tap: focus that satellite, or null to unfocus the focused one. */
+  onFocus: (noradId: number | null) => void;
 }
 
 // "Next up": one card per followed satellite, with the sky and radio chart
 // modals for a pass card.
 export default function NextUpList({
-  cards: cardsIn, tracks, colors, observer, mode, minElevDeg, nowMs, onUnfollow, focusId, onFocus,
+  cards: followedCards, viewingCard = null, tracks, colors, observer, mode, minElevDeg, nowMs,
+  onUnfollow, onFollow, followBlocked, focusId, onFocus,
 }: Props) {
+  const cardsIn = viewingCard
+    ? [viewingCard, ...followedCards.filter((c) => c.noradId !== viewingCard.noradId)]
+    : followedCards;
   const pinned = cardsIn.find((c) => c.noradId === focusId);
   const cards = pinned ? [pinned, ...cardsIn.filter((c) => c !== pinned)] : cardsIn;
   const focusOf = (id: number): FocusState => (focusId == null ? "none" : id === focusId ? "focus" : "dim");
+  const toggle = (id: number) => onFocus(id === focusId ? null : id);
+  const viewingOf = (id: number): ViewingProps | null => (viewingCard && viewingCard.noradId === id
+    ? { onFollow: () => onFollow(id), blocked: followBlocked }
+    : null);
   // The subject is captured when a chart opens, so a card refresh or the
   // clock never repaints an open chart.
   const [subject, setSubject] = useState<ChartSubject | null>(null);
@@ -225,7 +271,8 @@ export default function NextUpList({
                 onRadioChart={(e) => open("radio", track, card.pass, e)}
                 onUnfollow={() => onUnfollow(card.noradId)}
                 focus={focusOf(card.noradId)}
-                onFocus={() => onFocus(card.noradId)}
+                onFocus={() => toggle(card.noradId)}
+                viewing={viewingOf(card.noradId)}
               />
             );
           }
@@ -236,15 +283,14 @@ export default function NextUpList({
               style={{ "--sat-color": color } as React.CSSProperties}
             >
               <p className="pass-card__headline">
-                <Headline text={headline(card, nowMs)} focus={focusOf(card.noradId)} onFocus={() => onFocus(card.noradId)} />
+                <Headline text={headline(card, nowMs)} focus={focusOf(card.noradId)} onFocus={() => toggle(card.noradId)} />
                 <ElementTags track={track} />
+                <ViewingTag viewing={viewingOf(card.noradId)} />
               </p>
               {card.kind !== "missing" && track?.record?.source !== "pasted" && (
                 <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
               )}
-              <button type="button" className="home-chip home-chip--quiet" onClick={() => onUnfollow(card.noradId)}>
-                Unfollow
-              </button>
+              <FollowChip viewing={viewingOf(card.noradId)} onUnfollow={() => onUnfollow(card.noradId)} />
             </li>
           );
         })}

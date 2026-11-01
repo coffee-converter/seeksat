@@ -107,12 +107,16 @@ test('focusHref sets or drops focus and keeps other params', () => {
   assert.equal(focusHref('/', 'a=b', 3), '/?a=b&focus=3');
 });
 
-test('focusNavMethod: replace for the first focus and for clearing, push when switching', () => {
-  assert.equal(focusNavMethod(null, 5), 'replace');
-  assert.equal(focusNavMethod(5, 6), 'push');
-  assert.equal(focusNavMethod(5, null), 'replace');
-  assert.equal(focusNavMethod(5, 5), null);
-  assert.equal(focusNavMethod(null, null), null);
+test('focusNavMethod: push to enter, replace to switch, back or replace to clear', () => {
+  assert.equal(focusNavMethod(null, 5, false), 'push');
+  assert.equal(focusNavMethod(null, 5, true), 'push');
+  assert.equal(focusNavMethod(5, 6, false), 'replace');
+  assert.equal(focusNavMethod(5, 6, true), 'replace');
+  // Clearing steps back over our own pushed entry, else rewrites this one.
+  assert.equal(focusNavMethod(5, null, true), 'back');
+  assert.equal(focusNavMethod(5, null, false), 'replace');
+  assert.equal(focusNavMethod(5, 5, true), null);
+  assert.equal(focusNavMethod(null, null, false), null);
 });
 
 test('satPageLayers: focused on the page satellite, not followed', () => {

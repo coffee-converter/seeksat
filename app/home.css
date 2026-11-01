@@ -490,6 +490,7 @@
   font-weight: 400;
   white-space: nowrap;
 }
+.pass-card__tag--viewing { color: var(--map-accent); border-color: rgba(126, 184, 255, 0.5); }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 
 /* The card's polar plot (PolarPlotSvg). Scoped to the card. */
