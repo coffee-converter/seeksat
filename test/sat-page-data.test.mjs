@@ -84,3 +84,18 @@ test('satMetadata', () => {
   const none = satMetadata({ ...satPageData(ISS_SERVED_RECORD, null, ISS_T0), elements: null });
   assert.equal(none.description, 'Live position and passes for ISS (ZARYA), NORAD 25544.');
 });
+
+test('lookupSat', async () => {
+  const { lookupSat } = await import('../lib/sat/page-data.mjs');
+  const mk = (snapshot) => createCatalogReader({
+    store: createMemorySnapshotStore(snapshot), onDemand: { get: async () => null }, now: () => ISS_T0, log: quiet,
+  });
+  const good = mk({ version: 1, generatedAtMs: ISS_T0, objects: { 25544: ISS_SERVED_RECORD } });
+  assert.deepEqual(await lookupSat(good, 'abc'), { kind: 'not-found' });
+  assert.deepEqual(await lookupSat(good, '25544-iss'), { kind: 'redirect', path: '/sat/25544' });
+  assert.equal((await lookupSat(good, '99999')).kind, 'not-found');
+  const ok = await lookupSat(good, '25544');
+  assert.equal(ok.kind, 'ok');
+  assert.equal(ok.record.noradId, 25544);
+  await assert.rejects(lookupSat(mk(null), '25544'), /not available/);
+});
