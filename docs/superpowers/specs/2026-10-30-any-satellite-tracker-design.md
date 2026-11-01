@@ -89,6 +89,27 @@ A mix of "next up" and map:
   prompt plus popular satellites (ISS, Tiangong, a Meteor, a NOAA), so the
   page is never empty.
 
+### 6.2a Map projections
+
+Added 2026-11-01 at Aaron's request. The flat map can switch between five
+projections, remembered on the device:
+
+1. **Equirectangular** (default): the familiar latitude/longitude grid,
+   ground tracks as sine waves.
+2. **Azimuthal equidistant, centered on you:** distance and bearing from
+   your location are true, so antenna headings read straight off the map.
+3. **Polar, north or south:** for polar orbits, high-latitude passes and
+   Molniya apogees.
+4. **Winkel tripel:** the low-distortion world view (chosen over Equal
+   Earth, since true area does not matter here).
+5. **View from the satellite** (near-side perspective): Earth as the
+   selected satellite sees it from its altitude; the visible disk's edge is
+   its coverage.
+
+Rejected: Mercator (stretches high latitudes and footprints), Lambert
+conformal conic (regional only), orthographic (reads as 3D), gnomonic
+(under a hemisphere).
+
 ### 6.3 Satellite page
 
 One page per NORAD ID at a clean URL (shape left to the builder, e.g.
@@ -230,11 +251,11 @@ radio optics, radio CSV) are pure modules and stay. Two changes:
 - The Cesium globe is removed outright, not kept as a toggle. Cesium
   loader, camera controls, cubemap and the globe-tied onboarding tour go
   with it. `legacy/` and the unrouted triangulate code are left alone.
-- The flat map is drawn in-house (canvas or SVG, equirectangular, a
-  bundled Natural Earth coastline/land file, terminator and footprint
-  drawn by us, modest pan/zoom), not a tile-based library, to avoid a
-  tile vendor and keep the page light. The builder may revise if zoom
-  needs outgrow it.
+- The flat map is drawn by us on a canvas, not with a tile library, to
+  avoid a tile vendor and keep the page light: a bundled Natural Earth
+  land file, terminator and footprint drawn by us, modest pan/zoom. The
+  projection math comes from `d3-geo` and `d3-geo-projection` (revised
+  2026-11-01 for the projections in 6.2a).
 - "Following" is a list in local storage, seeded with the popular set.
 - Ground speed is shown separately from inertial speed and clearly
   labeled, because that confusion is part of what this fixes.
@@ -242,6 +263,10 @@ radio optics, radio CSV) are pure modules and stay. Two changes:
   accept any NORAD ID rather than only the curated five.
 - The curated `CATALOG` survives as metadata (downlinks, magnitudes,
   aliases, popular set), not as the list of trackable satellites.
+- While the new home screen and the Cesium app coexist (until Cesium
+  removal), the new home takes `/` and the Cesium app moves to `/classic`;
+  `/?s=` links redirect there with their query intact, so they keep
+  working. Cesium loads only on `/classic`. (Added 2026-11-01.)
 - Old `/?s=` share links carry no satellite ID, so they open the ISS
   satellite page with that pass, mode, frequency and observers restored,
   which is what they show today. New share links are satellite-page URLs
