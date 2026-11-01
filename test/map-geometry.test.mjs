@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, recordFrom } from './fixtures/orbits.mjs';
+import { geoArea, geoCircle } from 'd3-geo';
 import {
   footprintRadiusDeg, subsolarPoint, nightBands, groundTrack, subpoint, loadLand,
 } from '../lib/map/geometry.mjs';
@@ -44,4 +45,17 @@ test('subpoint of the ISS is about 400 km up', () => {
 test('loadLand returns land polygons', () => {
   const land = loadLand();
   assert.ok(['Feature', 'FeatureCollection'].includes(land.type));
+});
+test('night bands nest: deeper night is a smaller cap', () => {
+  const areas = nightBands(new Date('2026-06-21T12:00:00Z')).map((b) => geoArea(b.feature));
+  for (let i = 1; i < areas.length; i++) assert.ok(areas[i] < areas[i - 1]);
+  assert.ok(Math.abs(areas[3] - geoArea(geoCircle().radius(72)())) < 1e-6);
+});
+test('a 1.25-orbit ISS track crosses the antimeridian into separate lines', () => {
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const g = groundTrack(iss, Date.parse('2026-03-01T12:00:00Z'));
+  assert.ok(g.coordinates.length >= 2);
+  for (const line of g.coordinates) for (let i = 1; i < line.length; i++) {
+    assert.ok(Math.abs(line[i][0] - line[i - 1][0]) <= 180);
+  }
 });
