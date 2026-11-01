@@ -10,7 +10,7 @@ export const ALERTS_EVENT = "seeksat:alerts";
 
 export function readAlerts(): PassAlert[] {
   try {
-    return parseAlerts(window.localStorage.getItem(ALERTS_KEY)) as PassAlert[];
+    return parseAlerts(window.localStorage.getItem(ALERTS_KEY), window.location.origin) as PassAlert[];
   } catch {
     return [];
   }

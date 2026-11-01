@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ALERTS_KEY, MAX_ALERTS, MAX_TIMER_MS, parseAlerts, addAlert, removeAlert, pruneAlerts, nextDue, alertText, planTimer, makeAlert,
+  ALERTS_KEY, MAX_ALERTS, MAX_TIMER_MS, parseAlerts, safeUrl, canRemind, addAlert, removeAlert, pruneAlerts, nextDue, alertText, planTimer, makeAlert,
 } from '../lib/alerts/alerts.mjs';
 
 const MIN = 60_000;
@@ -53,8 +53,10 @@ test('nextDue orders by notify time across lead times', () => {
   assert.equal(nextDue([a, b, c], now).id, c.id);
   assert.equal(nextDue([a, b], now).id, b.id);
   assert.equal(nextDue([], now), null);
-  // fire time already passed: skipped
-  assert.equal(nextDue([c], now + 3 * MIN), null);
+  // fire time already passed but the pass is ahead: still due
+  assert.equal(nextDue([c], now + 3 * MIN).id, c.id);
+  // pass started: not due
+  assert.equal(nextDue([c], now + 12 * MIN), null);
   // exactly now still counts
   assert.equal(nextDue([c], now + 2 * MIN).id, c.id);
 });
@@ -72,4 +74,32 @@ test('planTimer', () => {
   assert.equal(planTimer([far], now).delayMs, MAX_TIMER_MS);
   assert.equal(MAX_TIMER_MS, 2 ** 31 - 1);
   assert.equal(planTimer([mk(1, now + 10 * MIN)], now).delayMs, 0);
+});
+
+test('overdue with pass ahead fires at 0', () => {
+  const now = 9_000_000;
+  const a = mk(1, now + 4 * MIN); // fire time was 6 min ago
+  assert.deepEqual(planTimer([a], now), { delayMs: 0, alert: a });
+  assert.equal(planTimer([mk(1, now - 1)], now), null);
+});
+
+test('canRemind', () => {
+  assert.equal(canRemind({ startMs: 101 }, 100), true);
+  assert.equal(canRemind({ startMs: 100 }, 100), false);
+  assert.equal(canRemind({ startMs: 50 }, 100), false);
+  assert.equal(canRemind(null, 100), false);
+});
+
+test('safeUrl keeps same-origin only', () => {
+  const o = 'https://seeksat.app';
+  assert.equal(safeUrl('/sat/25544', o), '/sat/25544');
+  assert.equal(safeUrl('https://seeksat.app/sat/1?x=1', o), 'https://seeksat.app/sat/1?x=1');
+  assert.equal(safeUrl('https://evil.example/x', o), '/');
+  assert.equal(safeUrl('//evil.example/x', o), '/');
+  assert.equal(safeUrl('javascript:alert(1)', o), '/');
+});
+
+test('parseAlerts sanitizes urls when given an origin', () => {
+  const bad = mk(1, 5, { url: 'https://evil.example/' });
+  assert.equal(parseAlerts(JSON.stringify([bad]), 'https://seeksat.app')[0].url, '/');
 });

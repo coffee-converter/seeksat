@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { addAlert, makeAlert, removeAlert, DEFAULT_LEAD_MIN } from "@/lib/alerts/alerts.mjs";
+import { canRemind as canRemindFn, addAlert, makeAlert, removeAlert, DEFAULT_LEAD_MIN } from "@/lib/alerts/alerts.mjs";
 import { readAlerts, watchAlerts, writeAlerts, type PassAlert } from "@/lib/alerts/store";
 
 export const OPEN_TAB_NOTE = "Reminders work while SeekSat is open in a tab or installed as an app.";
@@ -18,6 +18,7 @@ interface Props {
 }
 
 const makeIt = makeAlert as unknown as (o: Record<string, unknown>) => PassAlert;
+const canRemind = canRemindFn as (p: { startMs: number }, nowMs: number) => boolean;
 const add = addAlert as (l: PassAlert[], a: PassAlert) => PassAlert[];
 const remove = removeAlert as (l: PassAlert[], id: string) => PassAlert[];
 
@@ -47,16 +48,19 @@ export default function AlertBell({ noradId, name, pass, url }: Props) {
       setNote(null);
       return;
     }
+    if (!canRemind(pass, Date.now())) return show("This pass has already started.");
     if (!("Notification" in window)) return show(UNSUPPORTED_NOTE);
     let permission: NotificationPermission = Notification.permission;
     if (permission === "denied") return show(BLOCKED_NOTE);
     if (permission !== "granted") {
       try {
-        permission = await Notification.requestPermission();
+        // Old callback-style browsers resolve to undefined: treat as "default".
+        permission = (await Notification.requestPermission()) ?? "default";
       } catch {
         return show(UNSUPPORTED_NOTE);
       }
-      if (permission !== "granted") return show(BLOCKED_NOTE);
+      if (permission === "denied") return show(BLOCKED_NOTE);
+      if (permission !== "granted") return; // prompt dismissed: no note
     }
     writeAlerts(add(readAlerts(), makeIt({
       noradId, name, pass: { startMs: pass.startMs, peakMs: pass.peakMs ?? pass.startMs, maxElevDeg: pass.maxElevDeg ?? 0 }, url: url(), leadMin: DEFAULT_LEAD_MIN,
