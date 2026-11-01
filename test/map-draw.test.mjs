@@ -7,7 +7,7 @@ import {
   subpoint, groundTrack, footprintFeature, nightBands, loadLand,
 } from '../lib/map/geometry.mjs';
 import { makeProjection } from '../lib/map/projections.mjs';
-import { drawMap, hitTest, MAP_COLORS, SAT_PALETTE } from '../lib/map/draw.mjs';
+import { drawMap, hitTest, isVisible, MAP_COLORS, SAT_PALETTE } from '../lib/map/draw.mjs';
 
 // Recording stand-in for CanvasRenderingContext2D: logs method calls and
 // snapshots fillStyle at each fill so draw order can be asserted.
@@ -107,8 +107,52 @@ test('hitTest picks the nearest of two overlapping dots', () => {
   assert.equal(hitTest([a, b], projection, x, y), 2);
 });
 
-test('hitTest ignores satellites the projection clips away', () => {
+test('isVisible is false for points the projection clips away', () => {
+  const sat = { lonDeg: 10, latDeg: 20, altKm: 420 };
+  const projection = makeProjection('satellite', { width: W, height: H, sat });
+  assert.equal(isVisible(projection, [10, 20]), true);
+  assert.equal(isVisible(projection, [-170, -20]), false);
+  const polar = makeProjection('polar-north', { width: W, height: H });
+  assert.equal(isVisible(polar, [0, 60]), true);
+  assert.equal(isVisible(polar, [0, -80]), false);
+});
+
+test('hitTest ignores a satellite antipodal to the satellite view subpoint', () => {
+  const sat = { lonDeg: 10, latDeg: 20, altKm: 420 };
+  const projection = makeProjection('satellite', { width: W, height: H, sat });
+  // The antipode projects to the disc centre unless clipping is applied.
+  const hidden = { noradId: 4, position: { lonDeg: -170, latDeg: -20 } };
+  const [x, y] = projection([-170, -20]);
+  assert.equal(hitTest([hidden], projection, x, y), null);
+});
+
+test('hitTest ignores a far-southern satellite on the north polar view', () => {
   const projection = makeProjection('polar-north', { width: W, height: H });
   const far = { noradId: 3, position: { lonDeg: 0, latDeg: -80 } };
-  assert.equal(hitTest([far], projection, W / 2, H / 2), null);
+  const [x, y] = projection([0, -80]);
+  assert.equal(hitTest([far], projection, x, y), null);
+});
+
+test('drawMap skips the dot, label and observer the satellite view hides', () => {
+  const sat = { lonDeg: 10, latDeg: 20, altKm: 420 };
+  const projection = makeProjection('satellite', { width: W, height: H, sat });
+  const sats = [
+    { noradId: 1, name: 'NEAR', color: '#ff9b54', position: { lonDeg: 10, latDeg: 20 } },
+    { noradId: 2, name: 'FAR', color: '#7fe5d1', position: { lonDeg: -170, latDeg: -20 } },
+  ];
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, { projection, width: W, height: H, land: null, sats,
+    observer: { latDeg: -20, lonDeg: -170 } });
+  const labels = calls.filter((c) => c.m === 'fillText').map((c) => c.args[0]);
+  assert.deepEqual(labels, ['NEAR']);
+  // Only the NEAR dot is drawn as an arc; the hidden observer adds none.
+  assert.equal(calls.filter((c) => c.m === 'arc').length, 1);
+});
+
+test('hitTest uses a 22 px touch radius by default', () => {
+  const projection = makeProjection('equirectangular', { width: W, height: H });
+  const a = { noradId: 1, position: { lonDeg: 0, latDeg: 0 } };
+  const [x, y] = projection([0, 0]);
+  assert.equal(hitTest([a], projection, x + 20, y), 1);
+  assert.equal(hitTest([a], projection, x + 23, y), null);
 });
