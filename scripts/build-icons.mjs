@@ -109,8 +109,7 @@ const shade = pick(/data-sky-shade="([^"]+)"/, skyShadeForSunAlt(sunAltitudeDeg(
 const arcStroke = pick(/data-arc-stroke="([^"]+)"/, chartPalette(sunAltitudeDeg(observer, new Date(peakMs))).arc);
 
 // ---- Favicon: the chunky globe-label plot icon -------------------------
-// Geometry + styling copied 1:1 from lib/pass-finder-scene.js
-// buildObserverLabel + the .observer-label-icon rules in pass-finder.css.
+// Geometry + styling from the old globe observer label.
 const R = 42, cx = 50, cy = 50;
 
 const label = newSvgRoot("0 0 100 100");

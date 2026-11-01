@@ -18,8 +18,8 @@ one-line `app/triangulate/page.tsx` that imports `TriangulateApp`,
 and supply your own observation sample data under `_data/`
 (gitignored).
 
-Built on Next.js (App Router) + React + Zustand, with CesiumJS
-loaded from CDN. SGP4 propagation via `satellite.js`.
+Built on Next.js (App Router) + React. SGP4 propagation via
+`satellite.js`.
 
 - [SeekSat MCP server](docs/seeksat-mcp.md)
 
@@ -31,7 +31,11 @@ npm run dev      # http://localhost:3000
 ```
 
 Routes:
-- `/` - pass finder (the only public route)
+- `/` - home screen
+- `/sat/<id>` - satellite pages
+- `/sat/<id>/share/<blob>` - shared views
+- `/mcp` - MCP docs
+- `/api/*` - MCP, search, OG images and the catalog refresh
 
 Production build:
 
@@ -73,52 +77,23 @@ Both run on every push + PR via `.github/workflows/ci.yml`.
 - Per-ray residuals (meters) reported per observation.
 - Optional SGP4-propagated TLE truth comparison with miss-distance.
 
-## Adding observers
+## Setting your location
 
-The home page accepts:
-- **Lat/lon pair** - DMS (`40°30'30.0"N, 75°15'45.0"W`) or decimal
-  (`40.5083, -88.1999`)
-- **Place name** - any free text; geocoded via the OSM/Nominatim API
-- **Use my location** - browser geolocation
-- **Click on globe** - toggle the place-by-click mode, then click
-  anywhere on the Cesium canvas
-
-Observer set is persisted to localStorage; a Share button copies a
-URL that encodes the current set + the selected pass window.
+The home screen takes your location from GPS, a place name, or a
+Maidenhead grid square. Satellite pages let you check other places too.
+Share buttons copy a link to the current view. Your places are saved in
+localStorage.
 
 ## Architecture
 
-The two routes share the same Cesium viewer setup pattern:
-
-- **Page (`app/[route]/page.tsx`)** - server component, just renders
-  the app's client root.
-- **App composition root (`components/{Triangulate,PassFinder}App.tsx`)**
-  - `"use client"`, owns the container `ref`, calls `useCesiumViewer`,
-  dynamically imports the scene module once the viewer is ready, and
-  wraps children in `<CesiumViewerProvider>` so descendants can read
-  the viewer via `useViewer()` without prop-drilling.
-- **Scene module (`lib/{triangulate,pass-finder}-scene.js`)** -
-  imperative Cesium island. Builds entities, subscribes to the
-  relevant Zustand store, registers a typed `SceneBridge` (see
-  `lib/scene-bridge.ts`) so React components can call back into the
-  scene for one-shot commands like `addObserver` or
-  `renderPolarModal`. Returns a teardown function.
-- **Store** - Zustand. Triangulate uses `lib/store.ts`; the pass
-  finder uses `lib/pass-finder-store.ts`. Each owns its own slice
-  shape; nothing is shared across pages.
-- **Pure modules (`lib/pass-finder/*.js`)** - about a dozen files of
-  pure math + SVG painters extracted out of what used to be a single
-  ~4k-line scene file. All have explicit deps (no scene-state
-  reach-throughs); test coverage is in `test/`.
-
-### Cesium loading
-
-The CDN script is loaded by `<CesiumLoader>` (a client-only wrapper
-around `next/script`). It fires `onReady` once and resolves a shared
-promise in `lib/cesium-loaded.ts`, which `useCesiumViewer` awaits. No
-polling. A `<link rel="preload">` in the layout starts the network
-fetch in parallel with React hydration so the script lands as fast
-as possible.
+- `lib/mirror` - the catalog snapshot (mirrored orbital data) the site reads.
+- `lib/sat` + `lib/passes` - the pass engine and its worker, plus the
+  numbers behind satellite pages.
+- `lib/map` - the flat map drawing.
+- `components/home` + `components/sat` - the home screen and satellite pages.
+- `middleware.ts` - redirects legacy share links to satellite pages.
+- Triangulate tool (local only) - `components/TriangulateApp.tsx` loads
+  CesiumJS from the CDN through `components/CesiumLoader.tsx`.
 
 ## MCP server env vars
 
