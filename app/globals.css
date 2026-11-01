@@ -1,10 +1,127 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* theme-tokens:begin */
+/* Page colours for both themes. <html data-theme> is set before first paint
+   (lib/ui/theme.mjs); :root alone means dark. The chart modals and polar
+   plots keep literal dark colours (the chart-block sections in the
+   stylesheets). The *-rgb tokens are channels for rgba(var(--x-rgb), alpha). */
+:root, :root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0a0e1a;
+  --bg-rgb: 10, 14, 26;
+  --panel: #0b1121;
+  --panel-2: #0d1322;
+  --popover: #0d1322;
+  --code-bg: #0c1322;
+  --border: rgba(255, 255, 255, 0.08);
+  --ink-rgb: 255, 255, 255;
+  --edge-rgb: 100, 140, 255;
+  --text: #cfe0ff;
+  --text-strong: #eef4ff;
+  --text-plain: #e0e0e0;
+  --text-heading: #eaf1ff;
+  --text-code: #d6e6ff;
+  --muted: #8899bb;
+  --faint: #6a7a9a;
+  --wordmark-dim: #8aa0c8;
+  --accent: #7eb8ff;
+  --accent-rgb: 126, 184, 255;
+  --accent-strong: #ffffff;
+  --ok: #4ade80;
+  --ok-rgb: 74, 222, 128;
+  --warn: #facc15;
+  --warn-rgb: 250, 204, 21;
+  --warn-text: #f5d36a;
+  --danger: #f87171;
+  --danger-rgb: 248, 113, 113;
+  --danger-text: #ff9a9a;
+  --danger-soft-text: #ffc4c4;
+  --teal: #7fe5d1;
+  --teal-rgb: 127, 229, 209;
+  --badge-old-text: #fde68a;
+  --badge-stale-text: #ffc4c4;
+  --focus-ring: #7eb8ff;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --shadow-soft: rgba(0, 0, 0, 0.35);
+  --chip-bg: rgba(10, 14, 26, 0.92);
+  --chip-border: rgba(126, 184, 255, 0.25);
+  --input-bg: #0f1830;
+  --input-border: rgba(126, 184, 255, 0.4);
+  --tile-bg: #0f1830;
+  --tile-hover: #13203d;
+  --flash-bg: rgba(126, 184, 255, 0.24);
+  --flash-text: #ffffff;
+  /* Map chrome and legend. The swatches keep in step with lib/map/draw.mjs. */
+  --map-ocean: #0f1830;
+  --map-land: #1b2845;
+  --map-night: rgba(3, 5, 12, 0.24);
+  --map-footprint: rgba(126, 184, 255, 0.16);
+  --map-accent: var(--accent);
+  --map-text: var(--text);
+  --map-muted: var(--muted);
+  --map-border: var(--border);
+  --map-panel: var(--chip-bg);
+}
+/* Light: cool, slightly blue-grey paper. Tokens not listed here fall back
+   to the block above (the aliases follow the overridden values). */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --bg-rgb: 245, 247, 251;
+  --panel: #ffffff;
+  --panel-2: #eef2f8;
+  --popover: #ffffff;
+  --code-bg: #eef2f8;
+  --border: rgba(15, 30, 60, 0.12);
+  --ink-rgb: 15, 30, 60;
+  --edge-rgb: 31, 95, 191;
+  --text: #1b2333;
+  --text-strong: #0b1220;
+  --text-plain: #1b2333;
+  --text-heading: #0b1220;
+  --text-code: #1b2333;
+  --muted: #5b6780;
+  --faint: #6b7690;
+  --wordmark-dim: #5b6780;
+  --accent: #1f5fbf;
+  --accent-rgb: 31, 95, 191;
+  --accent-strong: #123f85;
+  --ok: #137a3a;
+  --ok-rgb: 19, 122, 58;
+  --warn: #94580a;
+  --warn-rgb: 202, 138, 4;
+  --warn-text: #7a4806;
+  --danger: #c42b2b;
+  --danger-rgb: 220, 38, 38;
+  --danger-text: #b42318;
+  --danger-soft-text: #8f1d1d;
+  --teal: #0f766e;
+  --teal-rgb: 15, 118, 110;
+  --badge-old-text: #7a4806;
+  --badge-stale-text: #8f1d1d;
+  --focus-ring: #1f5fbf;
+  --shadow: rgba(15, 30, 60, 0.16);
+  --shadow-soft: rgba(15, 30, 60, 0.12);
+  --chip-bg: rgba(255, 255, 255, 0.92);
+  --chip-border: rgba(31, 95, 191, 0.3);
+  --input-bg: #ffffff;
+  --input-border: rgba(31, 95, 191, 0.45);
+  --tile-bg: #ffffff;
+  --tile-hover: #eef2f8;
+  --flash-bg: rgba(31, 95, 191, 0.16);
+  --flash-text: #0b1220;
+  --map-ocean: #dfe8f3;
+  --map-land: #f7f4ec;
+  --map-night: rgba(20, 30, 60, 0.1);
+  --map-footprint: rgba(31, 95, 191, 0.14);
+}
+/* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than
    the actual visible area, leaving bare background below the globe.
    dvh tracks the dynamic visible area so the canvas fills the
    viewport reliably. vh fallback preserves desktop behavior on older
    browsers without dvh support. */
-html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; color: #e0e0e0;
+html, body { width: 100%; height: 100%; height: 100dvh; background: var(--bg); color: var(--text-plain);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 13px; line-height: 1.5; }
 #cesium-container { width: 100vw; height: 100vh; height: 100dvh; }
@@ -15,8 +132,8 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; col
 
 .panel {
   position: absolute; top: 16px;
-  background: rgba(10, 14, 26, 0.92);
-  border: 1px solid rgba(100, 140, 255, 0.3);
+  background: var(--map-panel);
+  border: 1px solid rgba(var(--edge-rgb), 0.3);
   border-radius: 12px;
   padding: 14px 16px;
   backdrop-filter: blur(12px);
@@ -46,11 +163,11 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; col
   width: 22px;
   height: 56px;
   z-index: 1100;
-  background: rgba(10, 14, 26, 0.92);
-  border: 1px solid rgba(100, 140, 255, 0.3);
+  background: var(--map-panel);
+  border: 1px solid rgba(var(--edge-rgb), 0.3);
   border-left: none;
   border-radius: 0 8px 8px 0;
-  color: #cfe0ff;
+  color: var(--text);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -59,18 +176,18 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; col
   transition: left 0.25s ease;
 }
 #panel-toggle::before { content: "◂"; }
-#panel-toggle:hover { background: rgba(126, 184, 255, 0.18); }
+#panel-toggle:hover { background: rgba(var(--accent-rgb), 0.18); }
 body.panel-collapsed #panel-observations {
   transform: translateX(calc(-100% - 32px));
   pointer-events: none;
 }
 body.panel-collapsed #panel-toggle {
   left: 16px;
-  border-left: 1px solid rgba(100, 140, 255, 0.3);
+  border-left: 1px solid rgba(var(--edge-rgb), 0.3);
   border-radius: 8px;
 }
 body.panel-collapsed #panel-toggle::before { content: "▸"; }
-.panel h2 { font-size: 14px; color: #7eb8ff; margin-bottom: 10px;
+.panel h2 { font-size: 14px; color: var(--accent); margin-bottom: 10px;
   text-transform: uppercase; letter-spacing: 0.08em; }
 #attempt-picker {
   display: flex; align-items: center; gap: 6px;
@@ -78,7 +195,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 #attempt-picker label {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #7eb8ff; font-weight: 700;
+  color: var(--accent); font-weight: 700;
 }
 #attempt-picker select {
   flex: 1;
@@ -86,9 +203,9 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   cursor: pointer;
 }
 #attempt-picker button {
-  background: rgba(126, 184, 255, 0.12);
-  border: 1px solid rgba(126, 184, 255, 0.35);
-  color: #cfe0ff;
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  color: var(--text);
   width: 24px; height: 24px;
   padding: 0;
   border-radius: 4px;
@@ -98,13 +215,13 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   display: inline-flex; align-items: center; justify-content: center;
   margin: 0;
 }
-#attempt-picker button:hover { background: rgba(126, 184, 255, 0.22); }
+#attempt-picker button:hover { background: rgba(var(--accent-rgb), 0.22); }
 #attempt-picker button[hidden] { display: none; }
 
 #attempt-new-form {
   display: flex; flex-direction: column; gap: 6px;
-  background: rgba(126, 184, 255, 0.05);
-  border: 1px solid rgba(126, 184, 255, 0.18);
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
   border-radius: 4px;
   padding: 8px 10px;
   margin-bottom: 10px;
@@ -116,14 +233,14 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 #attempt-new-form .af-row > span {
   flex: 0 0 44px;
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #7eb8ff; font-weight: 700;
+  color: var(--accent); font-weight: 700;
 }
 #attempt-new-form .af-row > input[type="text"] {
   flex: 1;
 }
-#attempt-new-form .af-check { font-size: 11px; color: #cfe0ff; }
+#attempt-new-form .af-check { font-size: 11px; color: var(--text); }
 #attempt-new-form .af-check span { flex: 1; font-weight: 400;
-  text-transform: none; letter-spacing: 0; color: #cfe0ff; }
+  text-transform: none; letter-spacing: 0; color: var(--text); }
 #attempt-new-form .af-actions {
   display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px;
 }
@@ -148,7 +265,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 #panel-observations > details > summary::before {
   content: "";
   width: 16px; height: 16px;
-  background-color: #7eb8ff;
+  background-color: var(--accent);
   clip-path: polygon(10% 35%, 90% 35%, 50% 80%);
   transition: transform 0.15s;
   flex: 0 0 auto;
@@ -166,7 +283,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   margin-left: 4px;
   height: 7px;
   border-radius: 3px;
-  background: rgba(126, 184, 255, 0.35);
+  background: rgba(var(--accent-rgb), 0.35);
 }
 
 #tle-section .tle-actions {
@@ -183,7 +300,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   cursor: not-allowed;
 }
 #tle-section .tle-actions #tle-warn {
-  font-size: 10px; color: #facc15;
+  font-size: 10px; color: var(--warn);
   margin-left: auto;
 }
 #tle-section textarea {
@@ -193,24 +310,24 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   margin-top: 4px;
 }
 .panel input[type=text], .panel textarea, .panel select {
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-  color: #e0e0e0; padding: 4px 6px; border-radius: 4px;
+  background: rgba(var(--ink-rgb), 0.04); border: 1px solid rgba(var(--ink-rgb), 0.08);
+  color: var(--text-plain); padding: 4px 6px; border-radius: 4px;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
 }
 .panel textarea { width: 100%; min-height: 26px; resize: vertical; margin-top: 4px; }
 .panel button {
-  background: rgba(126, 184, 255, 0.12); border: 1px solid rgba(126, 184, 255, 0.4);
-  color: #cfe0ff; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  background: rgba(var(--accent-rgb), 0.12); border: 1px solid rgba(var(--accent-rgb), 0.4);
+  color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer;
   font-size: 12px; margin-top: 8px;
 }
-.panel button:hover { background: rgba(126, 184, 255, 0.22); }
+.panel button:hover { background: rgba(var(--accent-rgb), 0.22); }
 
 .timestamp-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .timestamp-row input { width: 250px; }
-.hint { color: #8899bb; font-size: 11px; }
+.hint { color: var(--muted); font-size: 11px; }
 
 .opt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
-  font-size: 11px; color: #cfe0ff; cursor: pointer; user-select: none; }
+  font-size: 11px; color: var(--text); cursor: pointer; user-select: none; }
 .opt-row input { margin: 0; }
 
 
@@ -228,19 +345,19 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 
 .obs-card {
-  background: rgba(255,255,255,0.025);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(var(--ink-rgb), 0.025);
+  border: 1px solid rgba(var(--ink-rgb), 0.06);
   border-radius: 8px;
   padding: 7px 10px;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 .obs-card:hover {
-  background: rgba(126,184,255,0.07);
-  border-color: rgba(126,184,255,0.28);
+  background: rgba(var(--accent-rgb), 0.07);
+  border-color: rgba(var(--accent-rgb), 0.28);
 }
 .obs-card:focus-visible {
-  outline: 2px solid rgba(126, 184, 255, 0.7);
+  outline: 2px solid rgba(var(--accent-rgb), 0.7);
   outline-offset: 2px;
 }
 .obs-card-header {
@@ -248,25 +365,28 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 }
 .color-swatch {
   width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.18); display: inline-block;
+  border: 1px solid rgba(var(--ink-rgb), 0.18); display: inline-block;
 }
 .obs-card-header input[data-field=name] {
   flex: 1; background: transparent; border: 1px solid transparent;
   font-weight: 600; font-size: 13px; font-family: inherit;
-  padding: 3px 6px; color: #e0e0e0;
+  padding: 3px 6px; color: var(--text-plain);
 }
 .obs-card-header input[data-field=name]:hover,
 .obs-card-header input[data-field=name]:focus {
-  background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
+  background: rgba(var(--ink-rgb), 0.04); border-color: rgba(var(--ink-rgb), 0.08);
   outline: none;
 }
 .obs-card-header .remove {
-  background: transparent; border: none; color: #8899bb; cursor: pointer;
+  background: transparent; border: none; color: var(--muted); cursor: pointer;
   font-size: 14px; padding: 3px 7px; margin: 0; border-radius: 4px;
 }
 .obs-card-header .remove:hover {
-  background: rgba(248,113,113,0.12); color: #f87171;
+  background: rgba(var(--danger-rgb), 0.12); color: var(--danger);
 }
+/* chart-block:begin */
+/* The triangulate observer cards' polar plots keep their
+   literal dark colours in both themes (test/theme-css.test.mjs skips this block). */
 .polar-plot {
   display: block;
   margin: 4px auto 2px;
@@ -306,6 +426,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   stroke: #7eb8ff;
   stroke-width: 0.7;
 }
+/* chart-block:end */
 
 .obs-row {
   display: grid; grid-template-columns: 1fr 1fr 1fr;
@@ -314,14 +435,14 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
 .obs-row.mode-row { grid-template-columns: 90px 1fr 1fr; }
 .field {
   display: flex; align-items: center; gap: 4px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(var(--ink-rgb), 0.04);
+  border: 1px solid rgba(var(--ink-rgb), 0.06);
   border-radius: 5px; padding: 2px 6px;
   min-width: 0;
 }
-.field:focus-within { border-color: rgba(126,184,255,0.5); }
+.field:focus-within { border-color: rgba(var(--accent-rgb), 0.5); }
 .field-label {
-  font-size: 9px; color: #8899bb;
+  font-size: 9px; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
   min-width: 22px; flex-shrink: 0;
 }
@@ -329,62 +450,62 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   flex: 1; min-width: 0; background: transparent !important;
   border: none !important; padding: 3px 0 !important;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
-  color: #e0e0e0;
+  color: var(--text-plain);
 }
 .field input:focus, .field select:focus { outline: none; }
 .field select { padding-right: 16px !important; }
 
-.footnote { color: #6a7a9a; font-size: 10px; margin-top: 6px; line-height: 1.4; }
+.footnote { color: var(--faint); font-size: 10px; margin-top: 6px; line-height: 1.4; }
 .footnote code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px;
-  background: rgba(255,255,255,0.04); padding: 1px 4px; border-radius: 3px; }
+  background: rgba(var(--ink-rgb), 0.04); padding: 1px 4px; border-radius: 3px; }
 
 .result-block { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10.5px;
   line-height: 1.4;
-  background: rgba(255,255,255,0.04); padding: 5px 8px; border-radius: 5px;
+  background: rgba(var(--ink-rgb), 0.04); padding: 5px 8px; border-radius: 5px;
   margin-bottom: 4px; white-space: pre-wrap; }
 .result-block:last-child { margin-bottom: 0; }
-.result-block .label { color: #7eb8ff; font-weight: 600; }
+.result-block .label { color: var(--accent); font-weight: 600; }
 
 #camera-controls { position: absolute; bottom: 16px; right: 16px;
   display: flex; gap: 6px; z-index: 1000; }
 #camera-controls button {
-  background: rgba(10, 14, 26, 0.92); border: 1px solid rgba(100, 140, 255, 0.3);
-  color: #cfe0ff; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  background: var(--map-panel); border: 1px solid rgba(var(--edge-rgb), 0.3);
+  color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer;
   backdrop-filter: blur(12px); font-size: 12px;
 }
-#camera-controls button:hover { background: rgba(126, 184, 255, 0.18); }
+#camera-controls button:hover { background: rgba(var(--accent-rgb), 0.18); }
 #camera-controls button.active {
-  background: rgba(126, 184, 255, 0.35);
-  border-color: rgba(126, 184, 255, 0.7);
+  background: rgba(var(--accent-rgb), 0.35);
+  border-color: rgba(var(--accent-rgb), 0.7);
 }
 
 #sim-time {
   position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
   z-index: 1000;
   font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
-  color: #cfe0ff; letter-spacing: 0.04em;
-  background: rgba(10,14,26,0.7); padding: 6px 12px; border-radius: 6px;
+  color: var(--text); letter-spacing: 0.04em;
+  background: rgba(var(--bg-rgb), 0.7); padding: 6px 12px; border-radius: 6px;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(100, 140, 255, 0.25);
+  border: 1px solid rgba(var(--edge-rgb), 0.25);
   white-space: nowrap; pointer-events: none;
 }
 /* Imagery picker sits inline in the camera-controls bar so it can't
    overlap the left panel when the panel is tall. */
 #imagery-picker {
   display: flex; align-items: center; gap: 6px;
-  background: rgba(10, 14, 26, 0.92);
-  border: 1px solid rgba(100, 140, 255, 0.3);
+  background: var(--map-panel);
+  border: 1px solid rgba(var(--edge-rgb), 0.3);
   border-radius: 6px; padding: 4px 8px;
   backdrop-filter: blur(12px);
-  color: #cfe0ff;
+  color: var(--text);
 }
 .picker-label {
-  font-size: 9px; color: #8899bb;
+  font-size: 9px; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
 }
 #imagery-select {
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-  color: #e0e0e0; padding: 2px 4px; border-radius: 4px;
+  background: rgba(var(--ink-rgb), 0.04); border: 1px solid rgba(var(--ink-rgb), 0.08);
+  color: var(--text-plain); padding: 2px 4px; border-radius: 4px;
   font-size: 11px; font-family: inherit;
   min-width: 140px;
 }

@@ -1,10 +1,10 @@
 .sat { overflow-wrap: anywhere; }
-.sat-title { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.15; color: #eef4ff; }
+.sat-title { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.15; color: var(--text-strong); }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; margin-top: 6px; }
 .sat-age { line-height: 1.6; }
 .sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
-.sat-badge--old { background: rgba(250, 204, 21, 0.14); color: #fde68a; border: 1px solid rgba(250, 204, 21, 0.4); }
-.sat-badge--stale { background: rgba(248, 113, 113, 0.14); color: #ffc4c4; border: 1px solid rgba(248, 113, 113, 0.45); }
+.sat-badge--old { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
+.sat-badge--stale { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
 .sat-how { display: block; margin-top: 2px; color: var(--map-muted); font-size: 12px; line-height: 1.4; }
 p.sat-how { margin: 0 0 8px; }
 .sat-diagram { margin: 0; }
@@ -16,7 +16,7 @@ p.sat-how { margin: 0 0 8px; }
 .sat-raw-head h3 { margin: 0; font-size: 14px; color: var(--map-text); }
 .sat-raw pre {
   margin: 6px 0 0; padding: 8px; max-width: 100%; overflow-x: auto;
-  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--map-border); border-radius: 6px;
+  background: rgba(var(--ink-rgb), 0.04); border: 1px solid var(--map-border); border-radius: 6px;
   font-size: 12px; user-select: text;
 }
 .sat-passes { margin-bottom: 14px; }
@@ -65,16 +65,16 @@ p.sat-how { margin: 0 0 8px; }
 
 .stat-tile {
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
-  padding: 12px 14px 13px; background: var(--map-ocean); color: inherit; text-decoration: none;
+  padding: 12px 14px 13px; background: var(--tile-bg); color: inherit; text-decoration: none;
   container-type: inline-size; overflow-wrap: normal;
 }
-a.stat-tile:hover { background: #13203d; }
-a.stat-tile:focus-visible { outline: 2px solid var(--map-accent); outline-offset: -2px; }
+a.stat-tile:hover { background: var(--tile-hover); }
+a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .stat-tile__label {
   color: var(--map-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
 }
 .stat-tile__value {
-  color: #eef4ff; font-size: min(30px, 16.5cqi); font-weight: 600; line-height: 1.15;
+  color: var(--text-strong); font-size: min(30px, 16.5cqi); font-weight: 600; line-height: 1.15;
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
 }
 .stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: 4px; }
