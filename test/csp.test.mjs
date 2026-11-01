@@ -16,6 +16,8 @@ const NOT_FETCHED = new Set([
   'https://aaronhanson.dev', // footer credit link
   'https://seeksat.com', // canonical site URL in copy and links
   'https://claude.ai', // MCP docs: link to connect the server
+  'https://api.open-meteo.com', // server-only, via the MCP route
+  'https://api.met.no', // server-only, via the MCP route
 ]);
 
 test('production CSP drops the globe-era origins and eval', () => {

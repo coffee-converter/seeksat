@@ -17,8 +17,9 @@ import { buildCsp } from "./lib/site/csp.mjs";
 // If you add a new external fetch origin, extend CONNECT_ORIGINS there;
 // test/csp.test.mjs scans the client code and fails on an unlisted origin.
 //
-//   connect-src      - 'self' plus the browser-side APIs: Nominatim geocoder
-//                      and Open-Meteo / MET Norway cloud-cover forecasts.
+//   connect-src      - 'self' plus the browser-side API: the Nominatim
+//                      geocoder. (Open-Meteo / MET Norway are fetched
+//                      server-side only, by the MCP route.)
 //                      Vercel Analytics and Speed Insights post to the
 //                      same-origin /_vercel/* paths, so they need nothing.
 //   script-src       - 'unsafe-inline' for the Next.js hydration bootstrap
