@@ -219,6 +219,19 @@ test('labels draw before satellites', () => {
   assert.deepEqual(order.slice(3).sort(), ['GOES 16', 'ISS']);
 });
 
+test('place labels with a point draw where the current projection puts it', () => {
+  const { ctx, calls } = recordingCtx();
+  const a = args([]);
+  const paris = [2.35, 48.86];
+  const labels = { graticule: [], places: [{ text: 'Paris', x: 1, y: 1, kind: 'city', align: 'left', lonLat: paris }] };
+  drawMap(ctx, { ...a, land: null, nightBands: [], observer: null, labels });
+  const [x, y] = a.projection(paris);
+  const dot = calls.find((c) => c.m === 'arc' && c.args[2] === 2.5);
+  assert.ok(Math.abs(dot.args[0] - x) < 1e-9 && Math.abs(dot.args[1] - y) < 1e-9);
+  const text = calls.find((c) => c.m === 'fillText' && c.args[0] === 'Paris');
+  assert.ok(Math.abs(text.args[1] - (x + 5)) < 1e-9);
+});
+
 test('the graticule step changes with zoom', () => {
   const count = (zoom) => {
     const { ctx, calls } = recordingCtx();

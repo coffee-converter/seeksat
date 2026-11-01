@@ -6,7 +6,7 @@ import { makeProjection, PROJECTIONS } from '../lib/map/projections.mjs';
 import { EN52VE } from './fixtures/orbits.mjs';
 import {
   graticuleStep, formatLat, formatLon, graticuleLabels, pickPlaceLabels, placeBox, graticuleBox,
-  satBoxes, seasAllowed, maxRegionLabels, CHAR_PX, observerBox, REGION_SPACING_PX, REGION_CHAR_PX,
+  satBoxes, seasAllowed, maxRegionLabels, CHAR_PX, observerBox, REGION_SPACING_PX, REGION_CHAR_PX, placeLabelsAt,
 } from '../lib/map/labels.mjs';
 
 const SAT = { latDeg: 30, lonDeg: -80, altKm: 420 };
@@ -258,4 +258,39 @@ test('graticule labels keep clear of boxes passed in avoid', () => {
   const some = graticuleLabels(p, { width, height, step: 30, projectionId: 'equirectangular', avoid: [corner] });
   assert.ok(some.length < all.length);
   for (const l of some) assert.ok(!overlaps(graticuleBox(l), corner), l.text);
+});
+
+test('place labels carry their [lon, lat] and re-project onto a moved view', () => {
+  const [width, height] = [900, 450];
+  const p1 = proj('satellite', width, height);
+  const picked = pickPlaceLabels(p1, { width, height, places, regions: REGIONS });
+  assert.ok(picked.length > 3);
+  for (const l of picked) {
+    const [x, y] = p1(l.lonLat);
+    assert.ok(Math.abs(x - l.x) < 1e-9 && Math.abs(y - l.y) < 1e-9, `${l.text} at its point`);
+  }
+  // A second later the satellite has moved a fraction of a degree; the labels
+  // were picked for the old view but must sit on their points in the new one.
+  const p2 = proj('satellite', width, height, { sat: { ...SAT, latDeg: SAT.latDeg + 0.2, lonDeg: SAT.lonDeg + 0.4 } });
+  const moved = placeLabelsAt(p2, picked);
+  assert.equal(moved.length, picked.length);
+  let maxShift = 0;
+  moved.forEach((l, i) => {
+    const [x, y] = p2(l.lonLat);
+    assert.ok(Math.abs(x - l.x) < 1e-9 && Math.abs(y - l.y) < 1e-9, `${l.text} re-projected`);
+    assert.equal(l.align, picked[i].align);
+    assert.equal(l.kind, picked[i].kind);
+    maxShift = Math.max(maxShift, Math.hypot(l.x - picked[i].x, l.y - picked[i].y));
+  });
+  assert.ok(maxShift > 2, `labels moved ${maxShift} px`);
+});
+
+test('re-projection drops labels that went out of view and keeps ones with no point', () => {
+  const [width, height] = [900, 450];
+  const p1 = proj('satellite', width, height);
+  const picked = pickPlaceLabels(p1, { width, height, places, regions: REGIONS });
+  const far = proj('satellite', width, height, { sat: { ...SAT, lonDeg: SAT.lonDeg + 180, latDeg: -SAT.latDeg } });
+  assert.deepEqual(placeLabelsAt(far, picked), []);
+  const fixed = { text: 'PACIFIC OCEAN', x: 450, y: 249, kind: 'region', align: 'center' };
+  assert.deepEqual(placeLabelsAt(far, [fixed]), [fixed]);
 });
