@@ -6,7 +6,7 @@ import { forwardRef } from "react";
 // rings, cardinal labels, empty groups for bodies/arc/events and the
 // satellite-dot placeholder. Painters fill the dynamic groups through
 // the ref: the scene bridge for observer cards (PolarPlot), or
-// paintPassCard in lib/passes/charts.js where there is no scene.
+// paintPassCard in lib/passes/card-chart.js where there is no scene.
 //
 // React's reconciler doesn't touch DOM children it didn't create, so
 // painters appending into `g.bodies` / `g.arc` / `g.events` don't race

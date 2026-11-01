@@ -2,18 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
-import SkyChartModalView from "@/components/passes/SkyChartModalView";
-import RadioChartModalView from "@/components/passes/RadioChartModalView";
+import dynamic from "next/dynamic";
+import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import { elementTags, passMetaLabel } from "@/lib/home/view.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
-import {
-  paintPassCard, paintSkyChart, passFileName, radioChartOptions, radioCsvText, radioSeries,
-} from "@/lib/passes/charts.js";
-import { paintRadioChart } from "@/lib/pass-finder/radio-chart.js";
-import { svgToPngBlob } from "@/lib/pass-finder/polar-png.js";
-import { getClockSkewMs, hasClockSyncSample, trueNow } from "@/lib/pass-finder/clock-sync.js";
-import { defaultDownlink } from "@/lib/catalog.mjs";
+import { paintPassCard } from "@/lib/passes/card-chart.js";
+import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
 export type Track = ReturnType<typeof makeTrack>;
@@ -45,12 +40,8 @@ export type Card =
   | { kind: "stationary"; noradId: number; name: string; visible: boolean; pointing: { azDeg: number; elDeg: number } }
   | { kind: "none" | "unavailable" | "missing"; noradId: number; name: string };
 
-interface Subject {
-  track: Track;
-  obs: HomeObserver;
-  pass: Pass;
-  minElevDeg: number;
-}
+// The chart painters load on the first chart open, not with the page.
+const PassChartModals = dynamic(() => import("@/components/passes/PassChartModals"), { ssr: false });
 
 // A pass this close (or under way) repaints its plot every second so the
 // satellite dot moves; others repaint every 30 s.
@@ -165,75 +156,21 @@ export default function NextUpList({
 }: Props) {
   // The subject is captured when a chart opens, so a card refresh or the
   // clock never repaints an open chart.
-  const [subject, setSubject] = useState<Subject | null>(null);
+  const [subject, setSubject] = useState<ChartSubject | null>(null);
   const [chart, setChart] = useState<"sky" | "radio" | null>(null);
-  const [freqHz, setFreqHz] = useState<number | null>(null);
+  const [chartsLoaded, setChartsLoaded] = useState(false);
   const trigger = useRef<HTMLElement | null>(null);
 
   const open = (kind: "sky" | "radio", track: Track, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
     trigger.current = e.currentTarget;
-    // A chosen frequency sticks while the same satellite is reopened.
-    if (subject?.track.noradId !== track.noradId) setFreqHz(defaultDownlink(track)?.hz ?? null);
-    setSubject({ track, obs: observer, pass, minElevDeg });
+    setChartsLoaded(true);
+    setSubject({ track, obs: observer, pass, minElevDeg, jointWindow: null });
     setChart(kind);
   };
   const onClose = useCallback(() => {
     setChart(null);
     trigger.current?.focus();
   }, []);
-
-  const renderSky = useCallback(async (svg: SVGSVGElement) => {
-    if (!subject) return null;
-    const { track, obs, pass } = subject;
-    // tzRefMs undefined: the chart labels the UTC offset at the pass peak.
-    paintSkyChart(svg, { track, obs, win: pass, tzRefMs: undefined });
-    const blob = await svgToPngBlob(svg);
-    return {
-      blobUrl: URL.createObjectURL(blob as Blob),
-      filename: passFileName(track, obs, pass.peakMs, "sky"),
-    };
-  }, [subject]);
-
-  const buildRadio = useCallback((purpose: "chart" | "csv") => {
-    if (!subject) return null;
-    const { track, obs, pass, minElevDeg: minElev } = subject;
-    const built = radioSeries({
-      track, obs, anchorMs: pass.peakMs, minElevDeg: minElev, freqHz, jointWindow: null, purpose,
-    });
-    return built ? { built, track, obs } : null;
-  }, [subject, freqHz]);
-
-  const renderRadio = useCallback(async (svg: SVGSVGElement) => {
-    const r = buildRadio("chart");
-    if (!r) return null;
-    const { built, track, obs } = r;
-    paintRadioChart(svg, built.series, radioChartOptions(built, { track, obs }));
-    const blob = await svgToPngBlob(svg);
-    return {
-      blobUrl: URL.createObjectURL(blob as Blob),
-      // tcaMs is interpolated, so fractional; round before it names a file.
-      filename: passFileName(track, obs, Math.round(built.series.summary.tcaMs), "radio"),
-    };
-  }, [buildRadio]);
-
-  const radioCsv = () => {
-    const r = buildRadio("csv");
-    if (!r) return null;
-    const { built, track, obs } = r;
-    return {
-      csv: radioCsvText(built, {
-        track,
-        obs,
-        generatedAtMs: trueNow(),
-        // null until a response has measured the skew; the CSV then leaves the line out.
-        clockSkewMs: hasClockSyncSample() ? getClockSkewMs() : null,
-      }),
-      filename: passFileName(track, obs, Math.round(built.series.summary.tcaMs), "radio", "csv"),
-    };
-  };
-
-  const subjectKey = subject ? `${subject.track.noradId}:${subject.pass.startMs}` : "";
-  const subjectName = subject?.track.shortName ?? "";
 
   return (
     <section className="next-up" aria-labelledby="next-up-title">
@@ -276,26 +213,9 @@ export default function NextUpList({
         })}
       </ul>
 
-      <SkyChartModalView
-        open={chart === "sky" && !!subject}
-        title={`Sky chart: ${subjectName} pass`}
-        subjectKey={subjectKey}
-        render={renderSky}
-        onClose={onClose}
-        onRadioChart={() => setChart("radio")}
-      />
-      <RadioChartModalView
-        open={chart === "radio" && !!subject}
-        title={`Radio chart: ${subjectName} pass`}
-        subjectKey={subjectKey}
-        render={renderRadio}
-        csv={radioCsv}
-        freqHz={freqHz}
-        downlinks={subject?.track.downlinks ?? []}
-        onFreqChange={setFreqHz}
-        onClose={onClose}
-        onSkyChart={() => setChart("sky")}
-      />
+      {chartsLoaded && (
+        <PassChartModals subject={subject} chart={chart} onChartChange={setChart} onClose={onClose} />
+      )}
     </section>
   );
 }
