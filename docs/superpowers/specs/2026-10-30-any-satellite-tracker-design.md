@@ -266,7 +266,9 @@ radio optics, radio CSV) are pure modules and stay. Two changes:
 - While the new home screen and the Cesium app coexist (until Cesium
   removal), the new home takes `/` and the Cesium app moves to `/classic`;
   `/?s=` links redirect there with their query intact, so they keep
-  working. Cesium loads only on `/classic`. (Added 2026-11-01.)
+  working. Cesium loads only on `/classic`. (Added 2026-11-01.) Share
+  links made inside the classic app are `/classic?s=...`; Cesium removal
+  must redirect those as well as `/?s=...`.
 - Old `/?s=` share links carry no satellite ID, so they open the ISS
   satellite page with that pass, mode, frequency and observers restored,
   which is what they show today. New share links are satellite-page URLs
