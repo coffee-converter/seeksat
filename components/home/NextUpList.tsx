@@ -7,6 +7,7 @@ import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import { elementTags, passMetaLabel } from "@/lib/home/view.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
+import { downloadText } from "@/lib/passes/download.js";
 import { paintPassCard } from "@/lib/passes/card-chart.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import type { makeTrack } from "@/lib/sat/track.mjs";
@@ -49,18 +50,6 @@ const LIVE_LEAD_MS = 10 * 60_000;
 const IDLE_PAINT_MS = 30_000;
 
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
-
-function downloadText(text: string, filename: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Revoke after this tick; a synchronous revoke can drop the download in Safari.
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
 
 function ElementTags({ track }: { track: Track | undefined }) {
   if (!track) return null;

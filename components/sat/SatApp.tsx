@@ -6,6 +6,7 @@ import FlatMap, { type MapSat } from "@/components/home/FlatMap";
 import LiveNumbers from "./LiveNumbers";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
+import PassSection from "./PassSection";
 import RawElements from "./RawElements";
 import { useHomeStore, watchVisibility } from "@/lib/home/store";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -168,7 +169,7 @@ export default function SatApp({ data }: { data: SatPageData }) {
         <p className="home-note">These elements can&apos;t be used to compute a position.</p>
       )}
 
-      <section id="passes" />
+      <PassSection track={usable ? track : null} record={data.record} epochMs={data.epochMs} nowMs={nowMs} />
 
       <Downlinks downlinks={data.downlinks} />
       <RawElements raw={data.raw} />

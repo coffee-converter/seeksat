@@ -27,3 +27,9 @@ p.sat-how { margin: 0 0 8px; }
 @media (max-width: 480px) {
   .sat-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
+.sat-passes { margin-bottom: 14px; }
+.sat-passlist { list-style: none; margin: 0; padding: 0; }
+.sat-pass { padding: 8px 0; border-bottom: 1px solid var(--map-border); }
+.sat-pass__main { margin: 0 0 4px; color: var(--map-text); font-variant-numeric: tabular-nums; line-height: 1.5; }
+.sat-pass__day { font-weight: 600; }
+.sat-pass .pass-card__tag { margin-left: 8px; }
