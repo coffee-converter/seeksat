@@ -45,3 +45,9 @@ test('messages', () => {
 test('compass', () => {
   assert.deepEqual([0, 22, 23, 180, 337, 338].map(compass), ['N', 'N', 'NE', 'S', 'NW', 'N']);
 });
+test('up now follows nowMs', () => {
+  const r = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_T0 });
+  const p = r.passes[0];
+  assert.equal(passRows(r, { ...opts, nowMs: p.startMs + 60_000 }).rows[0].inProgress, true);
+  assert.equal(passRows(r, { ...opts, nowMs: p.startMs - 60_000 }).rows[0].inProgress, false);
+});

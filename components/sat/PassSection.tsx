@@ -106,17 +106,20 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
       });
   }, [track, record, observer, prefs.mode, prefs.minElevDeg, tick]);
 
+  // The clock in 15 s steps, so rows re-derive without a per-second pass.
+  const bucketMs = Math.floor(nowMs / 15_000) * 15_000;
   const view = useMemo<View | null>(() => {
     if (failed) return { kind: "message", text: UNAVAILABLE };
     if (!result || !observer) return null;
     return rowsOf(result, {
       epochMs,
+      nowMs: bucketMs,
       minElevDeg: prefs.minElevDeg,
       mode: prefs.mode,
       timeZone: observer.tz,
       locale: undefined,
     });
-  }, [result, failed, observer, epochMs, prefs.minElevDeg, prefs.mode]);
+  }, [result, failed, observer, epochMs, bucketMs, prefs.minElevDeg, prefs.mode]);
 
   // Search again once the first pass has ended (never while a job runs, and
   // never after a failure).
@@ -143,7 +146,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
     trigger.current?.focus();
   }, []);
 
-  const addToCalendar = (pass: Pass) => {
+  const addToCalendar = (pass: Pass, inProgress: boolean) => {
     if (!observer || !track) return;
     const ics = toIcs({
       satName: track.name,
@@ -154,7 +157,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
       nowMs: trueNow(),
       url: null,
       observerCount: 1,
-      inProgress: Boolean(pass.inProgress),
+      inProgress,
     });
     downloadText(ics, icsName(track.shortName, observer.name, pass.startMs), "text/calendar");
   };
@@ -204,7 +207,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
                       <div className="pass-card__actions">
                         <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
                         <button type="button" className="home-chip" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</button>
-                        <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={() => addToCalendar(row.pass)}>
+                        <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
                           {"📅"}
                         </button>
                       </div>
