@@ -1,13 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { subpoint } from '../lib/map/geometry.mjs';
+import { satAltitudeDeg } from '../lib/pass-finder/visibility.js';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses, accuracyNote } from '../lib/passes/engine.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
-import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
+import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, INCLINED_GEO_LINE1, INCLINED_GEO_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
 const ISS = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
 const T0 = Date.parse('2026-03-01T12:00:00Z');
 const DAY = 86_400_000;
+const iss = ISS, ISS_T0 = T0;
+const goes = makeTrack(recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'));
+const GOES_T0 = Date.parse('2026-10-31T15:00:00Z');
 
 test('ISS from EN52ve: 17 radio passes in 3 days, the first at 13:16Z for about 5 minutes', () => {
   const r = findPasses({ track: ISS, observers: [EN52VE], mode: 'radio', startMs: T0, endMs: T0 + 3 * DAY });
@@ -73,4 +78,43 @@ test('accuracyNote', () => {
 
 test('no observers means no passes, not a crash', () => {
   assert.deepEqual(findPasses({ track: ISS, observers: [], startMs: T0 }), { kind: 'passes', passes: [] });
+});
+
+const round1 = (x) => Math.round(x * 10) / 10;
+test('GEO pointing values are rounded to 0.1°', () => {
+  const r = findPasses({ track: goes, observers: [EN52VE], startMs: GOES_T0 });
+  for (const k of ['azDeg', 'elDeg', 'elMinDeg', 'elMaxDeg']) assert.equal(r.pointing[0][k], round1(r.pointing[0][k]));
+});
+test('GEO pointing skips samples that do not propagate', () => {
+  const holey = { ...goes, ecefAt: (d) => ((d.getTime() - GOES_T0) % 1_200_000 === 600_000 ? null : goes.ecefAt(d)) };
+  const p = findPasses({ track: holey, observers: [EN52VE], startMs: GOES_T0 }).pointing[0];
+  for (const k of ['azDeg', 'elDeg', 'elMinDeg', 'elMaxDeg']) assert.ok(Number.isFinite(p[k]));
+});
+test('GEO pointing is null, and findPasses unavailable, when nothing propagates', () => {
+  const dead = { ...goes, ecefAt: (d) => (d.getTime() === GOES_T0 ? goes.ecefAt(d) : null) };
+  const r = findPasses({ track: dead, observers: [EN52VE], startMs: GOES_T0 });
+  assert.ok(r.kind === 'stationary' || (r.kind === 'unavailable' && r.reason === 'propagation'));
+});
+test('the last pass runs past a search end that cuts it', () => {
+  const first = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_T0 }).passes[0];
+  const cut = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_T0, endMs: first.peakMs }).passes;
+  assert.equal(cut.at(-1).runsPastEnd, true);
+  assert.equal(cut.at(-1).endMs, first.peakMs);
+  assert.ok(cut.slice(0, -1).every((p) => !p.runsPastEnd));
+});
+test('an inclined geosynchronous orbit near the visibility edge has daily passes', () => {
+  const t = makeTrack(recordFrom(INCLINED_GEO_LINE1, INCLINED_GEO_LINE2, 'INCLINED GEO'));
+  assert.equal(t.orbitClass, 'geo');
+  const lonDeg = subpoint(t.ecefAt(new Date(GOES_T0))).lonDeg;
+  const r = findPasses({ track: t, observers: [{ id: 'far-north', latDeg: 70, lonDeg }], startMs: GOES_T0 });
+  assert.equal(r.kind, 'passes');
+  assert.ok(r.passes.length >= 5);
+  assert.ok(r.passes.every((p) => p.durationMs < 24 * 3_600_000));
+});
+test('a joint pass reports the lower of the observers\' elevations at its peak', () => {
+  const other = { id: 'b', latDeg: 41.0, lonDeg: -84.0 };
+  for (const p of findPasses({ track: iss, observers: [EN52VE, other], startMs: ISS_T0 }).passes) {
+    const e = iss.ecefAt(new Date(p.peakMs));
+    assert.equal(p.maxElevDeg, round1(Math.min(satAltitudeDeg(EN52VE, e), satAltitudeDeg(other, e))));
+  }
 });
