@@ -405,6 +405,11 @@ export default function FlatMap({
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       measureControls();
+      // The home zoom follows the frame even when the view is not at home, so
+      // touch, wheel and vertical pan switch over at the right zoom after a
+      // rotation or leaving full screen.
+      const id = latest.current.projectionId;
+      homeZoom.current = isWorld(id) ? fillOf(id, { width, height }, view.current.rotLon)?.zoom ?? 1 : 1;
       // A new size refits the home view (on load, on resize, and entering full
       // screen); a view zoomed or panned by hand is kept.
       if (fitOnResize.current || atHome.current) {
@@ -501,7 +506,7 @@ export default function FlatMap({
     const shell = shellRef.current;
     if (!shell) return;
     if (fullRef.current) {
-      if (nativeFull.current && document.fullscreenElement) void document.exitFullscreen();
+      if (nativeFull.current && document.fullscreenElement) document.exitFullscreen().catch(() => setFull(false));
       else setFull(false);
       return;
     }
@@ -795,7 +800,6 @@ export default function FlatMap({
         <button
           type="button"
           aria-label={full ? "Exit full screen" : "Full screen"}
-          aria-pressed={full}
           onClick={toggleFull}
         >
           {"\u26F6"}

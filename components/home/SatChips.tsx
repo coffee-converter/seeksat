@@ -42,7 +42,6 @@ export default function SatChips({ chips, focusId, onFocus, onToggleHidden }: Pr
               type="button"
               className="sat-chip__eye"
               aria-label={c.hidden ? `Show ${c.name} on the map` : `Hide ${c.name} on the map`}
-              aria-pressed={c.hidden}
               title={c.hidden ? "Show on the map" : "Hide on the map"}
               onClick={() => onToggleHidden(c.noradId)}
             >

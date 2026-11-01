@@ -225,7 +225,6 @@ export function SearchBar({ onView, onClearFocus }: Props) {
                 tabIndex={-1}
                 className={`search-bar__star${followed ? " search-bar__star--on" : ""}`}
                 aria-label={followLabel(r.name, followed)}
-                aria-pressed={followed}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFollow(r);
