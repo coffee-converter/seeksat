@@ -39,3 +39,11 @@ the network.
 Keep the kill-switch file deployed until traffic from old workers has died
 down, a few weeks. Then restore the real worker. Lever 1 can be used with it
 so a fresh page does not register the worker again in the meantime.
+
+## Build id
+
+The worker's caches are named after the build id. On Vercel it is the first
+12 characters of `VERCEL_GIT_COMMIT_SHA`; elsewhere it is a stamp taken at
+`next build`. A host that builds on every boot, or runs several separately
+built copies behind one address, should set `SEEKSAT_BUILD_ID` to one value
+per release so visitors do not lose their caches on each restart.
