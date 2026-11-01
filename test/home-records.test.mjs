@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fetchRecords, tracksFor } from '../lib/home/records.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, recordFrom } from './fixtures/orbits.mjs';
+import { getClockSkewMs, hasClockSyncSample } from '../lib/pass-finder/clock-sync.js';
 
 const json = (status, body) => ({ status, ok: status === 200, json: async () => body });
 
@@ -27,6 +28,20 @@ test('fetchRecords surfaces the error copy', async () => {
   const msg = 'The satellite catalog is not available right now.';
   await assert.rejects(fetchRecords([1], { fetchImpl: async () => json(503, { error: 'x' }) }), { message: msg });
   await assert.rejects(fetchRecords([1], { fetchImpl: async () => { throw new TypeError('offline'); } }), { message: msg });
+});
+
+test('fetchRecords samples the clock skew from the response Date header', async () => {
+  assert.equal(hasClockSyncSample(), false);
+  // A server clock 10 minutes ahead of this machine.
+  const serverDate = new Date(Date.now() + 600_000).toUTCString();
+  const fetchImpl = async () => ({
+    ...json(200, { objects: [], missing: [] }),
+    headers: new Headers({ date: serverDate }),
+  });
+  await fetchRecords([25544], { fetchImpl });
+  assert.equal(hasClockSyncSample(), true);
+  // toUTCString drops milliseconds, so allow a couple of seconds.
+  assert.ok(Math.abs(getClockSkewMs() - 600_000) < 2000, `skew ${getClockSkewMs()}`);
 });
 
 test('tracksFor lets a pasted record override the mirror record', () => {

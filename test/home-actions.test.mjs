@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addCustomTo, followIn, unfollowIn, isStale, createLoadGuard } from '../lib/home/actions.mjs';
+import {
+  addCustomTo, followIn, unfollowIn, isStale, createLoadGuard, followBlockedMessage,
+} from '../lib/home/actions.mjs';
 import { defaultPrefs, MAX_CUSTOM, MAX_FOLLOWING } from '../lib/home/prefs.mjs';
 import { tleFor } from './fixtures/tle-variants.mjs';
 
@@ -86,4 +88,11 @@ test('load guard discards an older load that finishes after a newer one', async 
   };
   await Promise.all([run('old', 20), run('new', 1)]);
   assert.deepEqual(committed, ['new']);
+});
+
+test('followBlockedMessage explains the cap only for a new id at the cap', () => {
+  const full = Array.from({ length: MAX_FOLLOWING }, (_, i) => i + 1);
+  assert.equal(followBlockedMessage(full, 999), 'You can follow up to 20 satellites. Unfollow one first.');
+  assert.equal(followBlockedMessage(full, 1), null, 'already following');
+  assert.equal(followBlockedMessage(full.slice(1), 999), null, 'room left');
 });

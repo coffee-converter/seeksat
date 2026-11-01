@@ -86,3 +86,13 @@ test('upcoming passes sort by start time regardless of input order', () => {
   assert.deepEqual(cards.map((c) => c.name), ['EARLIER', 'ISS']);
   assert.ok(cards[0].pass.startMs < cards[1].pass.startMs);
 });
+
+test('a none card names the mode it was searched in', () => {
+  const tracks = new Map([[iss.noradId, iss]]);
+  const radio = nextUp({ ...base, tracks, minElevDeg: 89.9, nowMs: T0 });
+  assert.deepEqual([radio[0].kind, radio[0].mode], ['none', 'radio']);
+  assert.equal(cardHeadline(radio[0], T0), 'ISS: no passes in the next 2 days');
+  const visual = nextUp({ ...base, tracks, mode: 'visual', minElevDeg: 89.9, nowMs: T0 });
+  assert.deepEqual([visual[0].kind, visual[0].mode], ['none', 'visual']);
+  assert.equal(cardHeadline(visual[0], T0), 'ISS: no visible passes in the next 2 days');
+});

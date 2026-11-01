@@ -48,6 +48,15 @@ test('CSV omits TLE lines for an OMM-only track', () => {
   assert.ok(!csv.includes('undefined'));
 });
 
+test('CSV claims a clock skew only when one was measured', () => {
+  const omm = makeTrack({ noradId: 25544, name: 'ISS', omm: ISS_OMM });
+  const b = radioSeries({ track: omm, obs: EN52VE, anchorMs: firstIssPeakMs, minElevDeg: 10, freqHz: 437_800_000, purpose: 'csv' });
+  const unmeasured = radioCsvText(b, { track: omm, obs: EN52VE, generatedAtMs: T0, clockSkewMs: null });
+  assert.ok(!unmeasured.includes('clock_skew_ms'));
+  const measured = radioCsvText(b, { track: omm, obs: EN52VE, generatedAtMs: T0, clockSkewMs: -420 });
+  assert.match(measured, /# clock_skew_ms:\s+-420 \(browser clock vs server/);
+});
+
 // The pass card's skeleton, with the same classes PolarPlotSvg renders.
 function cardSkeleton() {
   const svg = newSvgRoot('0 0 100 100');
@@ -90,6 +99,17 @@ test('paintPassCard fills the arc, markers and horizon, and hides the dot outsid
   assert.ok(svg.querySelector('.horizon').style.fill);
   assert.ok(svg.querySelector('.bodies').children.length > 0);
   assert.equal(svg.querySelector('.iss-dot').style.display, 'none');
+});
+test('paintPassCard uses the pass peakMs it is given instead of recomputing it', () => {
+  // A peak 12 h away puts the sun on the other side of the planet, so the
+  // arc stroke shows which peak the painter used.
+  const givenPeakMs = firstIssPeakMs + 12 * 3_600_000;
+  const strokeAt = (ms) => chartPalette(apparentAltDeg(sunAltitudeDeg(EN52VE, new Date(ms)))).arc;
+  assert.notEqual(strokeAt(givenPeakMs), strokeAt(firstIssPeakMs));
+  const svg = cardSkeleton();
+  paintPassCard(svg, { track: ISS, obs: EN52VE, win: { ...firstIssPass, peakMs: givenPeakMs }, nowMs: firstIssPass.startMs });
+  const seg = svg.querySelector('.arc').querySelector('line, polyline');
+  assert.equal(seg.getAttribute('stroke'), strokeAt(givenPeakMs));
 });
 test('paintPassCard shows the dot while the satellite is up', () => {
   const svg = cardSkeleton();
