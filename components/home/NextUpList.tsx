@@ -10,6 +10,7 @@ import { elementTags, passMetaLabel } from "@/lib/home/view.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
 import { paintPassCard } from "@/lib/passes/card-chart.js";
+import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
@@ -50,6 +51,7 @@ const PassChartModals = dynamic(() => import("@/components/passes/PassChartModal
 const LIVE_LEAD_MS = 10 * 60_000;
 const IDLE_PAINT_MS = 30_000;
 
+const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
 
 function ElementTags({ track }: { track: Track | undefined }) {
@@ -69,6 +71,7 @@ interface PassCardProps {
   observer: HomeObserver;
   color: string;
   mode: "radio" | "visual";
+  minElevDeg: number;
   nowMs: number;
   onSkyChart: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onRadioChart: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -76,7 +79,7 @@ interface PassCardProps {
 }
 
 function PassCard({
-  card, track, observer, color, mode, nowMs, onSkyChart, onRadioChart, onUnfollow,
+  card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onUnfollow,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
@@ -89,14 +92,21 @@ function PassCard({
   }, [track, observer, pass, paintKey]);
 
   const addToCalendar = () => {
-    const ics = passToIcs({
+    const ics = toIcs({
       satName: track.name,
       noradId: track.noradId,
       observer: { name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg },
       pass,
       mode,
       nowMs: trueNow(),
-      url: null,
+      url: track.record?.source === "pasted" ? null : (shareUrl(window.location.origin, {
+        noradId: card.noradId,
+        observers: [{ name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg }],
+        passMs: pass.peakMs,
+        mode,
+        freqHz: null,
+        minElevDeg,
+      }) as string),
       observerCount: 1,
       inProgress: pass.inProgress,
     });
@@ -181,6 +191,7 @@ export default function NextUpList({
                 observer={observer}
                 color={color}
                 mode={mode}
+                minElevDeg={minElevDeg}
                 nowMs={nowMs}
                 onSkyChart={(e) => open("sky", track, card.pass, e)}
                 onRadioChart={(e) => open("radio", track, card.pass, e)}

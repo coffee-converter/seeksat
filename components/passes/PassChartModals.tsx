@@ -27,11 +27,13 @@ interface Props {
   onClose: () => void;
   /** Used instead of the default downlink when the satellite changes (a shared view's frequency). */
   preferredFreqHz?: number | null;
+  /** Fired when the user picks a frequency in the radio chart. */
+  onFreqChange?: (hz: number | null) => void;
 }
 
 // The sky chart and radio chart modals for one pass. Loaded on first use, so
 // the painters stay out of the page's first bundle.
-export default function PassChartModals({ subject, chart, onChartChange, onClose, preferredFreqHz = null }: Props) {
+export default function PassChartModals({ subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange }: Props) {
   const noradId = subject?.track.noradId ?? null;
   const initialFreq = (s: ChartSubject | null) =>
     s ? preferredFreqHz ?? defaultDownlink(s.track)?.hz ?? null : null;
@@ -116,7 +118,7 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
         csv={radioCsv}
         freqHz={freqHz}
         downlinks={subject?.track.downlinks ?? []}
-        onFreqChange={setFreqHz}
+        onFreqChange={(hz: number | null) => { setFreqHz(hz); onFreqChange?.(hz); }}
         onClose={onClose}
         onSkyChart={() => onChartChange("sky")}
       />

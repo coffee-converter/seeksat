@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import FlatMap, { type MapSat } from "@/components/home/FlatMap";
 import LiveNumbers from "./LiveNumbers";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
+import ShareButton from "./ShareButton";
+import { shareUrl } from "@/lib/share/share-link.mjs";
 import PassSection, { type PassSettings } from "./PassSection";
 import RawElements from "./RawElements";
 import { useHomeStore } from "@/lib/home/store";
@@ -57,6 +59,16 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   // It comes from the server-decoded prop, so the first render matches.
   const [shared, setShared] = useState<Shared | null>(() => sharedOf(sharedIn));
   const settings = useMemo(() => effectiveOf(prefs, shared), [prefs, shared]);
+  // The radio chart's picked frequency (a shared view's, until one is picked).
+  const pickedFreq = useRef<number | null>(sharedIn ? shared?.freqHz ?? null : null);
+  const headerLink = () => shareUrl(window.location.origin, {
+    noradId: data.noradId,
+    observers: [settings.observer, ...settings.observers].map((o) => ({ name: o!.name, latDeg: o!.latDeg, lonDeg: o!.lonDeg })),
+    passMs: null,
+    mode: settings.mode,
+    freqHz: pickedFreq.current,
+    minElevDeg: settings.minElevDeg,
+  }) as string;
   const onModeChange = useCallback((mode: PassSettings["mode"]) => {
     if (shared) setShared((s) => (s ? { ...s, mode } : s));
     else setPrefs({ mode });
@@ -168,6 +180,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           >
             {following ? "Following" : "Follow"}
           </button>
+          {settings.observer && (
+            <ShareButton url={headerLink} title={data.name} size="button" />
+          )}
           {!following && blocked ? <p className="home-note">{blocked}</p> : null}
         </div>
       </header>
@@ -219,6 +234,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         onMinElevChange={onMinElevChange}
         sharedPassMs={shared?.passTimeMs ?? null}
         preferredFreqHz={shared?.freqHz ?? null}
+        onFreqPicked={(hz) => { pickedFreq.current = hz; }}
       />
 
       <Downlinks downlinks={data.downlinks} />

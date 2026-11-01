@@ -15,6 +15,8 @@ import { downloadText } from "@/lib/passes/download.js";
 import { passRows } from "@/lib/sat/pass-rows.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import ShareButton from "@/components/sat/ShareButton";
+import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 
 // The chart painters load on the first chart open, not with the page.
@@ -63,11 +65,13 @@ interface Props {
   sharedPassMs?: number | null;
   /** A shared view's radio frequency, used by the radio chart. */
   preferredFreqHz?: number | null;
+  /** Reports the radio chart's picked frequency (for the page's Share button). */
+  onFreqPicked?: (hz: number | null) => void;
 }
 
 export default function PassSection({
   track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange,
-  sharedPassMs = null, preferredFreqHz = null,
+  sharedPassMs = null, preferredFreqHz = null, onFreqPicked,
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
@@ -216,6 +220,22 @@ export default function PassSection({
     trigger.current?.focus();
   }, []);
 
+  const pickedFreq = useRef<number | null>(preferredFreqHz);
+  const onFreqChange = useCallback((hz: number | null) => {
+    pickedFreq.current = hz;
+    onFreqPicked?.(hz);
+  }, [onFreqPicked]);
+
+  // Called from event handlers only (reads window.location.origin).
+  const linkFor = (passMs: number | null, freqHz: number | null) => shareUrl(window.location.origin, {
+    noradId: track?.noradId,
+    observers: observers.map((o) => ({ name: o.name, latDeg: o.latDeg, lonDeg: o.lonDeg })),
+    passMs,
+    mode,
+    freqHz,
+    minElevDeg,
+  }) as string;
+
   const addToCalendar = (pass: Pass, inProgress: boolean) => {
     if (!observer || !track) return;
     const ics = toIcs({
@@ -225,7 +245,7 @@ export default function PassSection({
       pass,
       mode,
       nowMs: trueNow(),
-      url: null,
+      url: linkFor((pass as { peakMs?: number }).peakMs ?? null, null),
       observerCount: observers.length,
       inProgress,
     });
@@ -283,6 +303,12 @@ export default function PassSection({
                       <div className="pass-card__actions">
                         <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
                         <button type="button" className="home-chip" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</button>
+                        {track && (
+                          <ShareButton
+                            url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, pickedFreq.current)}
+                            title={`${track.name} pass`}
+                          />
+                        )}
                         <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
                           {"📅"}
                         </button>
@@ -302,6 +328,7 @@ export default function PassSection({
               onChartChange={setChart}
               onClose={onClose}
               preferredFreqHz={preferredFreqHz}
+              onFreqChange={onFreqChange}
             />
           )}
         </>
