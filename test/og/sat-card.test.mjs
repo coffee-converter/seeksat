@@ -21,6 +21,9 @@ test('card escapes & and < in names', () => {
   const svg = buildSatCardSvg({ name: 'A&B <x>', noradId: 1, intlDesignator: '98067A', elements, ageText: '2 hours old' });
   assert.ok(svg.includes('A&amp;B &lt;x&gt;'));
   assert.ok(!svg.includes('A&B'));
+  const s2 = buildSatCardSvg({ name: 'X', noradId: 1, intlDesignator: '9<8', elements: null, ageText: 'a<b & c' });
+  assert.ok(s2.includes('9&lt;8') && s2.includes('a&lt;b &amp; c'));
+  assert.ok(!s2.includes('9<8') && !s2.includes('a<b'));
 });
 
 test('card has no em dash, has orbit line and age', () => {
