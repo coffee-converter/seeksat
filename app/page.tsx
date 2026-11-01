@@ -1,43 +1,38 @@
-import type { Metadata } from "next";
-import PassFinderApp from "@/components/PassFinderApp";
-import { ogImageMetadata } from "@/lib/og/og-metadata.mjs";
+import HomeApp from "@/components/home/HomeApp";
 import { getCatalogReader } from "@/lib/mirror/server.mjs";
-import { readInitialSatelliteTles } from "@/lib/mirror/seed.mjs";
-import { CATALOG } from "@/lib/catalog.mjs";
-import type { Tle } from "@/lib/types";
-import "./pass-finder.css";
+import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
+import type { SatApiRecord } from "@/lib/home/store";
 
-// Per-share OG image: when the URL carries a ?s= state blob, point the
-// social preview at the dynamic /api/og renderer so a shared pass link
-// previews that pass's actual sky chart. Without ?s=, inherit the
-// static og.png from the root layout's metadata.
-export async function generateMetadata(
-  { searchParams }: { searchParams: Promise<{ s?: string }> },
-): Promise<Metadata> {
-  const { s } = await searchParams;
-  return ogImageMetadata(s);
-}
+// Rebuilt at most every 15 minutes rather than frozen at build time.
+export const revalidate = 900;
 
-// Read the cron-cached TLEs for the whole catalog from the catalog mirror so
-// the globe can paint the default satellite immediately and switch to
-// any other without waiting on a client fetch. Snapshot only (no CelesTrak
-// lookup) and capped at 1.5 s. Any failure or timeout falls back to {} - the
-// page then behaves as before and the client fetch fills each satellite on
-// selection.
-async function loadInitialSatelliteTles(): Promise<Record<number, Tle>> {
-  try {
+const SEED_TIMEOUT_MS = 1500;
+
+// Snapshot records for the popular satellites so the map paints on first
+// load. Snapshot only (never CelesTrak) and raced against 1.5 s; any
+// failure or timeout falls back to [] and the client fetch fills in.
+async function loadInitialRecords(): Promise<SatApiRecord[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), SEED_TIMEOUT_MS);
+  });
+  const read = (async () => {
     const reader = getCatalogReader();
-    return (await readInitialSatelliteTles({ reader, catalog: CATALOG })) as Record<number, Tle>;
+    const records = await Promise.all(
+      POPULAR_IDS.map((id: number) => reader.getSnapshotRecord(id)),
+    );
+    return records.filter((r): r is SatApiRecord => r != null);
+  })();
+  read.catch(() => {}); // a late rejection after the timeout won is not unhandled
+  try {
+    return (await Promise.race([read, timeout])) ?? [];
   } catch {
-    return {} as Record<number, Tle>;
+    return [];
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-// Home page: multi-observer satellite pass finder. The component is
-// "use client" and waits for window.Cesium inside useEffect, so SSR
-// only emits the DOM skeleton; the bootstrap runs entirely on the
-// client.
-export default async function HomePage() {
-  const initialSatelliteTles = await loadInitialSatelliteTles();
-  return <PassFinderApp initialSatelliteTles={initialSatelliteTles} />;
+export default async function Page() {
+  return <HomeApp initialRecords={await loadInitialRecords()} />;
 }

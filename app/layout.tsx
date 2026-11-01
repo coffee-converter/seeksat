@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import CesiumLoader from "@/components/CesiumLoader";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
 import "./globals.css";
@@ -82,14 +81,6 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-// Cesium 1.141 - same version the legacy static pages used. Loaded
-// as a side-effect global from CDN; CSS first so widget styles are
-// present before any component mounts a Viewer. CesiumLoader is a
-// tiny client component wrapping next/script's <Script onReady> so
-// useCesiumViewer can await a Promise rather than poll for window.Cesium.
-const CESIUM_VERSION = "1.141";
-const CESIUM_CDN = `https://cesium.com/downloads/cesiumjs/releases/${CESIUM_VERSION}`;
-
 // Structured data: what SeekSat is, that it's free, and who built it. The
 // Person's url + sameAs consolidate the "Aaron Hanson" entity across sites.
 const JSON_LD = {
@@ -138,15 +129,8 @@ export default function RootLayout({
             is available document-wide (e.g. the on-scene corner mark)
             with no extra network fetch or flash of fallback text. */}
         <style dangerouslySetInnerHTML={{ __html: EXO2_FONT_FACE }} />
-        <link rel="stylesheet" href={`${CESIUM_CDN}/Build/Cesium/Widgets/widgets.css`} />
-        {/* Preload kicks off the ~3MB Cesium.js fetch in parallel with
-            React hydration / route chunks, instead of waiting for the
-            afterInteractive Script tag to be parsed. Same URL the
-            CesiumLoader Script tag uses, so the browser dedupes. */}
-        <link rel="preload" as="script" href={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />
       </head>
       <body>
-        <CesiumLoader src={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />
         {children}
         {/* Vercel Web Analytics (page views, top pages, referrers)
             and Speed Insights (Core Web Vitals from real visitors).
