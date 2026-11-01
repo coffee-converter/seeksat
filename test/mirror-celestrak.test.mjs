@@ -18,7 +18,7 @@ function guarded(fetchImpl) {
 }
 
 test('urls and groups', () => {
-  assert.deepEqual([...MIRROR_GROUPS], ['active', 'last-30-days']);
+  assert.deepEqual([...MIRROR_GROUPS], ['active', 'last-30-days', 'visual', 'weather', 'molniya', 'raduga', 'gorizont']);
   assert.equal(groupUrl('active'), 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json');
   assert.equal(catnrUrl(25544), 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=json');
 });
