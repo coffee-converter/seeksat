@@ -17,6 +17,7 @@ import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AboutSection from "./AboutSection";
+import LiveClock from "@/components/LiveClock";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import "@/app/home.css";
 
@@ -232,7 +233,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   return (
     <main className="home">
-      <h1 className="home-wordmark">SeekSat</h1>
+      <header className="home-top">
+        <h1 className="home-wordmark">SeekSat</h1>
+        <LiveClock nowMs={nowMs} compact />
+      </header>
       <ClockSkewBanner />
       <SearchBar />
       <FlatMap

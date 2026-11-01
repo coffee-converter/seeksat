@@ -4,12 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import FlatMap, { type MapSat } from "@/components/home/FlatMap";
-import LiveNumbers from "./LiveNumbers";
+import DashboardTiles, { type NextPassTile } from "./LiveNumbers";
+import ElementsTable, { AgeLine } from "./ElementsTable";
+import HowWeCompute from "./HowWeCompute";
+import LiveClock from "@/components/LiveClock";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
 import ShareButton from "./ShareButton";
 import { shareUrl } from "@/lib/share/share-link.mjs";
-import PassSection, { type PassSettings } from "./PassSection";
+import PassSection, { type NextPass, type PassSettings } from "./PassSection";
 import RawElements from "./RawElements";
 import { useHomeStore } from "@/lib/home/store";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -19,6 +22,8 @@ import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/
 import { footprintFeature, splitTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { countdown } from "@/lib/home/next-up.mjs";
+import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
@@ -51,11 +56,24 @@ const trackOf = (t: unknown, nowMs: number): Split => {
 };
 
 const TRACK_REFRESH_MS = 60_000;
+const FINDING = "Finding passes...";
+
+/** The "Next pass" tile, from PassSection's first row and the clock. */
+function nextPassTile(pass: NextPass | null | undefined, nowMs: number, located: boolean, hydrated: boolean): NextPassTile {
+  if (!located) return hydrated ? { value: "Set your location", note: "to list passes below" } : { value: FINDING };
+  if (pass === undefined) return { value: FINDING };
+  if (pass === null) return { value: `none in the next ${DEFAULT_SEARCH_DAYS} days` };
+  const note = typeof pass.maxElevDeg === "number" ? `max ${Math.round(pass.maxElevDeg)}° up` : undefined;
+  if (nowMs < pass.startMs) return { value: `in ${countdown(pass.startMs - nowMs)}`, note };
+  if (nowMs < pass.endMs) return { value: `up now, ${countdown(pass.endMs - nowMs)} left`, note };
+  return { value: FINDING };
+}
 
 export default function SatApp({ data, shared: sharedIn = null }: { data: SatPageData; shared?: SharedBlob | null }) {
   const router = useRouter();
   const prefs = useHomeStore((s) => s.prefs);
   const hydrate = useHomeStore((s) => s.hydrate);
+  const hydrated = useHomeStore((s) => s.hydrated);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const setPrefs = useHomeStore((s) => s.setPrefs);
@@ -160,36 +178,41 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     return { sats: [sat], selectedSub: sub };
   }, [track, ground, nowMs, data.noradId, data.shortName, settings.minElevDeg]);
 
+  const [nextPass, setNextPass] = useState<NextPass | null | undefined>(undefined);
+  const nextTile = nextPassTile(nextPass, nowMs, Boolean(settings.observer), hydrated || Boolean(shared));
+  const fetchedText = data.fetchedAtMs != null ? `fetched ${relativeTime(data.fetchedAtMs, nowMs)}` : null;
+
   const following = prefs.following.includes(data.noradId);
   const blocked = followBlockedMessage(prefs.following, data.noradId) as string | null;
 
   return (
     <main className="home sat">
-      <Link className="home-wordmark" href="/">SeekSat</Link>
-      <header className="sat-header">
-        <div>
+      <header className="sat-top">
+        <div className="sat-top__id">
+          <Link className="home-wordmark" href="/">SeekSat</Link>
           <h1 className="sat-title">{data.name}</h1>
           <p className="home-note">
             {`NORAD ${data.noradId}`}
             {data.intlDesignator ? ` · ${data.intlDesignator}` : ""}
           </p>
           {data.note ? <p className="home-note">{data.note}</p> : null}
-        </div>
-        <div className="sat-follow">
-          <button
-            type="button"
-            className="home-button home-button--primary"
-            aria-pressed={following}
-            disabled={!following && Boolean(blocked)}
-            onClick={() => (following ? unfollow(data.noradId) : follow(data.noradId))}
-          >
-            {following ? "Following" : "Follow"}
-          </button>
-          {settings.observer && (
-            <ShareButton url={headerLink} title={data.name} size="button" />
-          )}
+          <div className="sat-follow">
+            <button
+              type="button"
+              className="home-button home-button--primary"
+              aria-pressed={following}
+              disabled={!following && Boolean(blocked)}
+              onClick={() => (following ? unfollow(data.noradId) : follow(data.noradId))}
+            >
+              {following ? "Following" : "Follow"}
+            </button>
+            {settings.observer && (
+              <ShareButton url={headerLink} title={data.name} size="button" />
+            )}
+          </div>
           {!following && blocked ? <p className="home-note">{blocked}</p> : null}
         </div>
+        <LiveClock nowMs={nowMs} />
       </header>
 
       {shared ? (
@@ -201,32 +224,37 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         </div>
       ) : null}
 
-      <p className="home-note sat-age">
-        {`${age.text}, from ${data.source}`}
-        {data.fetchedAtMs != null ? `, fetched ${relativeTime(data.fetchedAtMs, nowMs)}.` : "."}
-        {age.level === "old" ? <span className="sat-badge sat-badge--old">old elements</span> : null}
-        {age.level === "stale" ? (
-          <span className="sat-badge sat-badge--stale">stale elements: positions may be far off</span>
-        ) : null}
-      </p>
-
       {usable && liveNow && elementsNow ? (
         <>
-          <LiveNumbers live={liveNow} elements={elementsNow} epochMs={epochMs} />
-          <FlatMap
-            sats={sats}
-            observer={settings.observer}
-            selectedSub={selectedSub}
-            projectionId={prefs.projection}
-            onProjectionChange={(id) => setPrefs({ projection: id })}
-            selectedId={data.noradId}
-            minElevDeg={settings.minElevDeg}
-            onSelect={() => {}}
+          <DashboardTiles live={liveNow} elements={elementsNow} nextPass={nextTile} />
+          <ElementsTable
+            elements={elementsNow}
+            age={age}
+            source={data.source}
+            fetchedText={fetchedText}
+            epochMs={epochMs}
           />
-          <OrbitDiagram track={track} nowMs={nowMs} />
+          <div className="sat-views">
+            <div className="sat-views__map">
+              <FlatMap
+                sats={sats}
+                observer={settings.observer}
+                selectedSub={selectedSub}
+                projectionId={prefs.projection}
+                onProjectionChange={(id) => setPrefs({ projection: id })}
+                selectedId={data.noradId}
+                minElevDeg={settings.minElevDeg}
+                onSelect={() => {}}
+              />
+            </div>
+            <OrbitDiagram track={track} nowMs={nowMs} />
+          </div>
         </>
       ) : (
-        <p className="home-note">These elements can&apos;t be used to compute a position.</p>
+        <>
+          <AgeLine age={age} source={data.source} fetchedText={fetchedText} />
+          <p className="home-note">These elements can&apos;t be used to compute a position.</p>
+        </>
       )}
 
       <PassSection
@@ -240,10 +268,12 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         sharedPassMs={shared?.passTimeMs ?? null}
         preferredFreqHz={shared?.freqHz ?? null}
         onFreqPicked={(hz) => { pickedFreq.current = hz; }}
+        onNextPass={setNextPass}
       />
 
       <Downlinks downlinks={data.downlinks} />
       <RawElements raw={data.raw} />
+      {usable ? <HowWeCompute /> : null}
 
       <footer className="home-footer">
         <span>

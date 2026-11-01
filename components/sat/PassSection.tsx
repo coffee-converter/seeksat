@@ -23,6 +23,8 @@ import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 const PassChartModals = dynamic(() => import("@/components/passes/PassChartModals"), { ssr: false });
 
 type Pass = { startMs: number; endMs: number; [k: string]: unknown };
+/** The first listed pass, as the page's "Next pass" tile reads it. */
+export type NextPass = Pass & { peakMs?: number; maxElevDeg?: number };
 type Row = {
   key: string; dayLabel: string; startLabel: string; peakLabel: string; endLabel: string; timesLabel: string;
   durationLabel: string; maxElevLabel: string; azLabel: string;
@@ -67,11 +69,17 @@ interface Props {
   preferredFreqHz?: number | null;
   /** Reports the radio chart's picked frequency (for the page's Share button). */
   onFreqPicked?: (hz: number | null) => void;
+  /**
+   * The first listed pass whenever the rows change; null for no rows, a
+   * stationary satellite, unusable elements, no location or a failed
+   * search; undefined while a search for the current settings runs.
+   */
+  onNextPass?: (pass: NextPass | null | undefined) => void;
 }
 
 export default function PassSection({
   track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange,
-  sharedPassMs = null, preferredFreqHz = null, onFreqPicked,
+  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass,
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
@@ -174,6 +182,12 @@ export default function PassSection({
       names,
     });
   }, [result, failed, observer, epochMs, bucketMs, minElevDeg, mode, names]);
+
+  // Report the first row to the page's "Next pass" tile.
+  const nextPass: NextPass | null | undefined = !track || !observer
+    ? null
+    : !view ? undefined : view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
+  useEffect(() => { onNextPass?.(nextPass); }, [nextPass, onNextPass]);
 
   // The shared pass: highlighted in the list, or a note that it is over.
   const sharedHit = useMemo<SharedHit>(() => {

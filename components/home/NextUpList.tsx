@@ -12,6 +12,7 @@ import { downloadText } from "@/lib/passes/download.js";
 import { paintPassCard } from "@/lib/passes/card-chart.js";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { useFlash } from "@/lib/ui/use-flash";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
 export type Track = ReturnType<typeof makeTrack>;
@@ -53,6 +54,12 @@ const IDLE_PAINT_MS = 30_000;
 
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
+
+/** Text that flashes when it changes, such as a countdown ticking down. */
+function FlashText({ value }: { value: string }) {
+  const flash = useFlash(value);
+  return <span className={flash ? `flash-text ${flash}` : "flash-text"}>{value}</span>;
+}
 
 function ElementTags({ track }: { track: Track | undefined }) {
   if (!track) return null;
@@ -119,7 +126,7 @@ function PassCard({
         <PolarPlotSvg ref={svgRef} />
       </div>
       <div className="pass-card__body">
-        <p className="pass-card__headline">{headline(card, nowMs)}</p>
+        <p className="pass-card__headline"><FlashText value={headline(card, nowMs)} /></p>
         <p className="pass-card__meta">
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
           {pass.visible && <span className="pass-card__tag">visible</span>}
@@ -206,7 +213,7 @@ export default function NextUpList({
               style={{ "--sat-color": color } as React.CSSProperties}
             >
               <p className="pass-card__headline">
-                {headline(card, nowMs)}
+                <FlashText value={headline(card, nowMs)} />
                 <ElementTags track={track} />
               </p>
               {card.kind !== "missing" && track?.record?.source !== "pasted" && (

@@ -1,15 +1,11 @@
 .sat { overflow-wrap: anywhere; }
-.sat-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
-.sat-title { margin: 0 0 4px; font-size: 24px; font-weight: 600; color: var(--map-text); }
-.sat-follow { display: flex; flex-direction: column; gap: 4px; max-width: 100%; }
+.home.sat { max-width: 1120px; gap: 16px; }
+.sat-title { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.15; color: #eef4ff; }
+.sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; margin-top: 6px; }
 .sat-age { line-height: 1.6; }
 .sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
 .sat-badge--old { background: rgba(250, 204, 21, 0.14); color: #fde68a; border: 1px solid rgba(250, 204, 21, 0.4); }
 .sat-badge--stale { background: rgba(248, 113, 113, 0.14); color: #ffc4c4; border: 1px solid rgba(248, 113, 113, 0.45); }
-.sat-dl { margin: 0 0 8px; }
-.sat-row { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--map-border); }
-.sat-row dt { color: var(--map-muted); }
-.sat-row dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; }
 .sat-how { display: block; margin-top: 2px; color: var(--map-muted); font-size: 12px; line-height: 1.4; }
 p.sat-how { margin: 0 0 8px; }
 .sat-diagram { margin: 0; }
@@ -23,9 +19,6 @@ p.sat-how { margin: 0 0 8px; }
   margin: 6px 0 0; padding: 8px; max-width: 100%; overflow-x: auto;
   background: rgba(255, 255, 255, 0.04); border: 1px solid var(--map-border); border-radius: 6px;
   font-size: 12px; user-select: text;
-}
-@media (max-width: 480px) {
-  .sat-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 .sat-passes { margin-bottom: 14px; }
 .sat-passlist { list-style: none; margin: 0; padding: 0; }
@@ -47,4 +40,99 @@ p.sat-how { margin: 0 0 8px; }
 .sat-pass.pass-row--shared {
   padding: 8px; border-radius: 6px;
   background: var(--map-footprint); box-shadow: inset 3px 0 0 var(--map-accent);
+}
+
+/* Header: who it is on the left, the clock on the right (below on phones). */
+.sat-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 24px; }
+.sat-top__id { display: flex; flex-direction: column; gap: 4px; flex: 1 1 300px; min-width: 0; }
+.sat-top .home-wordmark { align-self: flex-start; margin: 0 0 6px; text-decoration: none; }
+.sat-top .live-clock { padding-top: 4px; }
+@media (max-width: 600px) {
+  .sat-top .live-clock {
+    flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: 2px 12px; padding: 10px 14px; text-align: left;
+    background: var(--map-ocean); border: 1px solid var(--map-border); border-radius: 10px;
+  }
+  .sat-top .live-clock__utc { justify-content: flex-start; }
+}
+
+/* The live tile grid: one instrument panel split by hairlines, not loose cards.
+   2 columns under 480 px, 3 from 480, 4 from 720. */
+.sat-dash {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
+  background: var(--map-border); border: 1px solid var(--map-border); border-radius: 10px; overflow: hidden;
+}
+.sat-dash__next { grid-column: span 2; }
+.sat-dash .stat-tile--wide { grid-column: 1 / -1; }
+@media (max-width: 479.98px) {
+  .sat-dash__sun { grid-column: span 2; }
+}
+@media (min-width: 480px) {
+  .sat-dash { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 720px) {
+  .sat-dash { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sat-dash .stat-tile--wide { grid-column: span 3; }
+}
+
+.stat-tile {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 12px 14px 13px; background: var(--map-ocean); color: inherit; text-decoration: none;
+  container-type: inline-size; overflow-wrap: normal;
+}
+a.stat-tile:hover { background: #13203d; }
+a.stat-tile:focus-visible { outline: 2px solid var(--map-accent); outline-offset: -2px; }
+.stat-tile__label {
+  color: var(--map-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.stat-tile__value {
+  color: #eef4ff; font-size: min(30px, 16.5cqi); font-weight: 600; line-height: 1.15;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
+}
+.stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: 4px; }
+.stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: 500; letter-spacing: 0; }
+.stat-tile__note { color: var(--map-muted); font-size: 11px; line-height: 1.35; }
+.stat-tile--lg .stat-tile__value { color: var(--map-accent); font-size: min(40px, 9cqi); white-space: normal; text-wrap: balance; }
+.stat-tile--wide .stat-tile__value { font-size: min(24px, 6cqi); white-space: normal; }
+.vis-viva__keep { white-space: nowrap; }
+.vis-viva__term { color: var(--map-muted); font-size: 0.6em; font-weight: 500; letter-spacing: 0; }
+@media (max-width: 479.98px) {
+  .stat-tile { padding: 10px 12px 11px; }
+  .stat-tile__value { font-size: min(24px, 16.5cqi); }
+  .stat-tile--lg .stat-tile__value { font-size: min(30px, 9.5cqi); }
+  .stat-tile--wide .stat-tile__value { font-size: min(20px, 7cqi); }
+}
+
+/* Mean elements: label and value pairs, one column on phones. */
+.sat-elements .sat-age { margin-bottom: 6px; }
+.sat-etable { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; margin: 0; }
+.sat-etable__row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 6px 0; border-bottom: 1px solid var(--map-border);
+}
+.sat-etable dt { color: var(--map-muted); }
+.sat-etable dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; text-align: right; }
+@media (min-width: 480px) {
+  .sat-etable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sat-etable__row--wide { grid-column: 1 / -1; }
+}
+@media (min-width: 900px) {
+  .sat-etable { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Map and orbit diagram side by side from 900 px. */
+.sat-views { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.sat-views__map { min-width: 0; }
+@media (min-width: 900px) {
+  .sat-views { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+}
+
+/* How we compute these: visible text, never tooltips. */
+.sat-how-section { padding-top: 4px; }
+.sat-how-list { display: grid; gap: 10px; margin: 0; }
+.sat-how-list__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.sat-how-list dt { color: var(--map-text); font-size: 13px; font-weight: 600; }
+.sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: 13px; line-height: 1.5; }
+@media (min-width: 600px) {
+  .sat-how-list__row { grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: 16px; }
 }

@@ -228,6 +228,45 @@
   letter-spacing: 0.01em;
   line-height: 1.2;
 }
+/* The wordmark row, with a compact clock on the right. */
+.home-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
+.home-top .home-wordmark { margin: 2px 2px 0; }
+
+/* LiveClock: UTC large with a pulsing live dot, local time below. */
+.live-clock { text-align: right; }
+.live-clock p { margin: 0; }
+.live-clock__utc { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
+.live-clock__dot {
+  align-self: center; flex: none; width: 8px; height: 8px; border-radius: 50%;
+  background: #4ade80; animation: live-pulse 2s ease-out infinite;
+}
+.live-clock__live { color: #4ade80; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.live-clock__time {
+  color: #eef4ff; font-size: 28px; font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+.live-clock__zone { color: var(--map-muted); font-size: 12px; font-weight: 600; }
+.live-clock__local { min-height: 1.45em; color: var(--map-muted); font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.live-clock--compact .live-clock__utc { gap: 6px; }
+.live-clock--compact .live-clock__time { font-size: 18px; }
+.live-clock--compact .live-clock__live { font-size: 10px; }
+.live-clock--compact .live-clock__zone { font-size: 11px; }
+.live-clock--compact .live-clock__local { font-size: 11px; }
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+/* A value that just changed (useFlash). */
+@keyframes tick { from { background: rgba(126,184,255,0.24); color: #fff; } to { background: transparent; } }
+.is-ticking { animation: tick 700ms ease-out; }
+.flash-text { border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .is-ticking { animation: none; }
+  .live-clock__dot { animation: none; }
+}
+
 .home-footer {
   display: flex;
   flex-wrap: wrap;
