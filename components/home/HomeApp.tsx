@@ -174,6 +174,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         onSelect={setSelectedId}
       />
       <HomeControls
+        ready={hydrated}
         mode={prefs.mode}
         minElevDeg={prefs.minElevDeg}
         locationName={location && !changingLocation ? location.name : null}

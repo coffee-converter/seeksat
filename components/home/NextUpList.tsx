@@ -104,7 +104,7 @@ function PassCard({
       observer: { name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg },
       pass,
       mode,
-      nowMs: Date.now(),
+      nowMs: trueNow(),
       url: null,
       observerCount: 1,
       inProgress: pass.inProgress,

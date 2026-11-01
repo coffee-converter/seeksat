@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { parseLocationInput } from "@/lib/location/maidenhead.mjs";
 import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 import { MAX_FOLLOWING, POPULAR_IDS } from "@/lib/home/prefs.mjs";
@@ -9,6 +9,9 @@ import { useHomeStore, type HomeLocation } from "@/lib/home/store";
 const DENIED = "Location access was denied. Type a place or grid square instead.";
 const UNAVAILABLE = "Your location isn't available right now. Type a place or grid square instead.";
 const UNSUPPORTED = "This browser can't share its location. Type a place or grid square instead.";
+// A permission prompt dismissed without an answer calls neither callback, so
+// give up waiting after this long.
+const GPS_GIVE_UP_MS = 20_000;
 
 interface Props {
   /** Called once a location is saved. */
@@ -23,10 +26,25 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
   const uid = useId();
   const setPrefs = useHomeStore((s) => s.setPrefs);
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState<"gps" | "text" | null>(null);
+  const [gpsBusy, setGpsBusy] = useState(false);
+  const [textBusy, setTextBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Bumped by every save, so a GPS answer arriving after a typed location is ignored.
+  const attempt = useRef(0);
+  const giveUp = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopWaiting = () => {
+    if (giveUp.current) clearTimeout(giveUp.current);
+    giveUp.current = null;
+    setGpsBusy(false);
+  };
+  useEffect(() => () => {
+    if (giveUp.current) clearTimeout(giveUp.current);
+  }, []);
 
   const save = (location: HomeLocation) => {
+    attempt.current += 1;
+    stopWaiting();
     setPrefs({ location });
     setMessage(null);
     onDone?.();
@@ -37,11 +55,18 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
       setMessage(UNSUPPORTED);
       return;
     }
-    setBusy("gps");
+    const mine = ++attempt.current;
+    setGpsBusy(true);
     setMessage(null);
+    if (giveUp.current) clearTimeout(giveUp.current);
+    giveUp.current = setTimeout(() => {
+      giveUp.current = null;
+      setGpsBusy(false);
+      setMessage(UNAVAILABLE);
+    }, GPS_GIVE_UP_MS);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setBusy(null);
+        if (attempt.current !== mine) return;
         save({
           name: "My location",
           latDeg: pos.coords.latitude,
@@ -50,7 +75,8 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
         });
       },
       (err) => {
-        setBusy(null);
+        if (attempt.current !== mine) return;
+        stopWaiting();
         setMessage(err.code === err.PERMISSION_DENIED ? DENIED : UNAVAILABLE);
       },
       { enableHighAccuracy: false, timeout: 15_000, maximumAge: 600_000 },
@@ -76,9 +102,9 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
       });
       return;
     }
-    setBusy("text");
+    setTextBusy(true);
     const found = await geocodeOne(parsed.query);
-    setBusy(null);
+    setTextBusy(false);
     if (!found || !Number.isFinite(found.latDeg) || !Number.isFinite(found.lonDeg)) {
       setMessage(`No place found for "${typed}".`);
       return;
@@ -93,10 +119,10 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
       <button
         type="button"
         className="home-button home-button--primary"
-        disabled={busy !== null}
+        disabled={gpsBusy}
         onClick={useDevice}
       >
-        {busy === "gps" ? "Finding you..." : "Use my location"}
+        {gpsBusy ? "Finding you..." : "Use my location"}
       </button>
       <form className="location-prompt__form" onSubmit={onSubmit}>
         <label htmlFor={`${uid}-place`} className="sr-only">Place, coordinates or grid square</label>
@@ -112,8 +138,8 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
             setMessage(null);
           }}
         />
-        <button type="submit" className="home-button" disabled={busy !== null || !text.trim()}>
-          {busy === "text" ? "Looking..." : "Set"}
+        <button type="submit" className="home-button" disabled={textBusy || !text.trim()}>
+          {textBusy ? "Looking..." : "Set"}
         </button>
       </form>
       {message && <p className="home-error" role="alert">{message}</p>}

@@ -3,6 +3,8 @@
 import { MIN_ELEV_MAX, stepMinElev } from "@/lib/home/view.mjs";
 
 interface Props {
+  /** False until saved prefs are loaded: the controls show no values and are disabled. */
+  ready: boolean;
   mode: "radio" | "visual";
   minElevDeg: number;
   /** The saved location's name, or null when none is set. */
@@ -15,7 +17,7 @@ interface Props {
 // The settings row under the map: pass mode, minimum elevation and the
 // location the cards are computed from.
 export default function HomeControls({
-  mode, minElevDeg, locationName, onModeChange, onMinElevChange, onChangeLocation,
+  ready, mode, minElevDeg, locationName, onModeChange, onMinElevChange, onChangeLocation,
 }: Props) {
   return (
     <div className="home-controls">
@@ -25,7 +27,8 @@ export default function HomeControls({
             key={m}
             type="button"
             className="home-chip"
-            aria-pressed={mode === m}
+            aria-pressed={ready && mode === m}
+            disabled={!ready}
             onClick={() => onModeChange(m)}
           >
             {m === "radio" ? "Radio" : "Visual"}
@@ -38,19 +41,19 @@ export default function HomeControls({
           type="button"
           className="home-chip"
           aria-label="Lower minimum elevation"
-          disabled={minElevDeg <= 0}
+          disabled={!ready || minElevDeg <= 0}
           onClick={() => onMinElevChange(stepMinElev(minElevDeg, -1))}
         >
           {"−"}
         </button>
         <span className="home-controls__value" aria-live="polite" title="Minimum elevation">
-          Min {minElevDeg}°
+          Min <span className={ready ? undefined : "home-controls__pending"}>{minElevDeg}°</span>
         </span>
         <button
           type="button"
           className="home-chip"
           aria-label="Raise minimum elevation"
-          disabled={minElevDeg >= MIN_ELEV_MAX}
+          disabled={!ready || minElevDeg >= MIN_ELEV_MAX}
           onClick={() => onMinElevChange(stepMinElev(minElevDeg, 1))}
         >
           +

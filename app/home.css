@@ -174,7 +174,6 @@
 .home-heading {
   margin: 0 0 6px;
   color: var(--map-accent);
-  font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -245,6 +244,7 @@
 .home-controls__mode,
 .home-controls__elev { display: flex; align-items: center; gap: 4px; }
 .home-controls__value { min-width: 4.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.home-controls__pending { visibility: hidden; }
 .home-controls__place {
   display: flex;
   align-items: baseline;
@@ -340,45 +340,49 @@
 }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 
-/* The card's polar plot (PolarPlotSvg). Copied from pass-finder.css, which
-   the home screen does not load. */
-.polar-plot {
+/* The card's polar plot (PolarPlotSvg). Values copied from pass-finder.css,
+   which the home screen does not load; scoped to the card so they never
+   reach the classic observer cards if this file stays loaded there. */
+.pass-card__plot .polar-plot {
   display: block;
   width: 100%;
   height: auto;
+  margin: 0;
   overflow: visible;
+  cursor: default;
 }
-.polar-plot .horizon {
+.pass-card__plot .polar-plot .horizon {
   fill: rgba(8, 12, 24, 0.9);
   stroke: rgba(126, 184, 255, 0.55);
   stroke-width: 1.6;
 }
-.polar-plot .grid {
+.pass-card__plot .polar-plot .grid {
   fill: none;
   stroke: rgba(126, 184, 255, 0.3);
   stroke-width: 0.8;
 }
-.polar-plot .cardinal {
+.pass-card__plot .polar-plot .cardinal {
   fill: #cfe0ff;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
-.polar-plot .arc line,
-.polar-plot .arc polyline {
+.pass-card__plot .polar-plot .arc line,
+.pass-card__plot .polar-plot .arc polyline {
   fill: none;
   stroke-width: 4.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.polar-plot .iss-dot {
+.pass-card__plot .polar-plot .iss-dot {
   fill: #ffffff;
   stroke: #000;
   stroke-width: 0.6;
 }
 
 /* Sky chart and radio chart modals (SkyChartModalView, RadioChartModalView).
-   Copied from pass-finder.css so the charts look exactly as in the classic app. */
+   Copied from pass-finder.css so the charts look exactly as in the classic app.
+   Every declaration matches the classic rule, so loading both files is harmless. */
 #polar-modal,
 #radio-modal {
   position: fixed; inset: 0; z-index: 5000;
