@@ -306,3 +306,60 @@ test('existing home prefs win over classic state', () => {});
   4. An `.ics` from a satellite page and from a home card contains a working link.
   5. The browser console shows no CSP errors on `/`, `/sat/25544` and `/mcp`, and the geocoder still works.
   6. Text on satellite pages can be selected.
+
+---
+
+### Task 8: Typo-tolerant search with smart ordering
+
+Added 2026-11-01 at Aaron's request: "make it even smarter, allowing for misspellings ... word distance", "keep results smartly ordered".
+
+**Files:**
+- Create: `lib/mirror/fuzzy.mjs`, `test/mirror-fuzzy.test.mjs`
+- Modify: `lib/mirror/reader.mjs` (`search` uses it), `test/mirror-reader.test.mjs`
+
+**Interfaces:**
+- Produces:
+  - `normalizeName(s) -> { tokens: string[], compact: string }`. It lowercases, strips diacritics (NFKD), turns every non-alphanumeric into a space and splits. `compact` is the tokens joined with no separator, so `"NOAA 19"`, `"noaa-19"` and `"noaa19"` all give `noaa19`.
+  - `editDistance(a, b, max) -> number`: optimal string alignment, where a transposition costs 1. It returns `max + 1` as soon as the distance must exceed `max`.
+  - `matchTier(query, entry) -> null | { tier, dist }`, where `entry = { noradId, name, aliases }`. Precompute the normalized forms once per snapshot. Lower tiers rank higher:
+
+    | tier | rule |
+    |---|---|
+    | 0 | the query is all digits and equals the NORAD ID |
+    | 1 | the compact query equals the compact name or a compact alias |
+    | 2 | the compact name or a compact alias starts with the compact query |
+    | 3 | every query token is a prefix of some name or alias token, in any order (`"zarya iss"`, `"meteor 3"`) |
+    | 4 | the query is all digits and the NORAD ID starts with it |
+    | 5 | the compact query is a substring of the compact name or an alias |
+    | 6 | typo match: every query token of 3+ characters matches the same-length prefix of some name or alias token within an edit distance of 1 (2 for tokens of 8+ characters), and every token under 3 characters matches as a plain prefix. `dist` is the summed distance. |
+
+  - `rankEntries(query, entries, limit) -> entries`. It sorts by:
+    1. tier;
+    2. `dist`;
+    3. curated before not curated;
+    4. objects in the `active`, `visual` or `weather` groups before the rest;
+    5. names without ` DEB` or ` R/B` before those with them;
+    6. shorter name;
+    7. name A to Z.
+  - `reader.search(query, limit = 20)`: same signature and result shape (`{ noradId, name }`). It builds the index lazily per snapshot, cached in a `WeakMap` keyed by the snapshot object.
+
+- [ ] **Step 1: Write the failing tests:**
+  - **Typos:**
+    - `"zayra"` → `ISS (ZARYA)` first;
+    - `"hubbel"` → 20580 first, via the curated alias `hubble`;
+    - `"metor m2 3"` → `METEOR-M2 3` first;
+    - `"tiangnog"` → 48274 first.
+  - **Spacing and digits:**
+    - `"noaa19"` and `"noaa-19"` → `NOAA 19` first;
+    - `"25544"` → 25544 alone at tier 0;
+    - `"2554"` → ids starting with 2554, after any name hits.
+  - **Ordering:**
+    - `"iss"` → `ISS (ZARYA)` first, the other `ISS (...)` modules before `ISS OBJECT ...`, and `AISSAT 4` after them;
+    - `"goes 16"` → `GOES 16` before `GOES 15`.
+  - **No match:** `"xqzv"` → `[]`.
+  - **Speed:** over 17,000 synthetic entries, a 5-character typo query finishes in under 100 ms.
+  - Build the fixtures as a small snapshot with these names and group memberships.
+- [ ] **Step 2: Run** `node --test test/mirror-fuzzy.test.mjs test/mirror-reader.test.mjs`. Expected: FAIL.
+- [ ] **Step 3: Implement** `lib/mirror/fuzzy.mjs` and switch `reader.search` to it. Keep the existing reader tests green, adjusting only ones that pinned the old order where the new order is better.
+- [ ] **Step 4: Run** `npm test`. Expected: PASS.
+- [ ] **Step 5: Commit** with `git commit -m "feat: Make satellite search tolerate typos and rank results smartly"`.
