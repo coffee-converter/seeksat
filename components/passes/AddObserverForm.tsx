@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { usePassFinderStore } from "@/lib/pass-finder-store";
 import { addObserver } from "@/lib/scene-bridge";
-import { parseDmsToDecimal } from "@/lib/coords.js";
+import { parseLocationInput } from "@/lib/location/maidenhead.mjs";
 import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 
-// Single smart-input add-observer form. The text field accepts either
-// a lat/lon pair (DMS or decimal, comma-separated) or a free-text
-// place name. tryParseLatLon decides: a comma-split into two
-// successfully-parsed DMS/decimal numbers wins, otherwise we
-// geocode. Two helper buttons:
+// Single smart-input add-observer form. The text field accepts a
+// Maidenhead grid square (EN52ve), a lat/lon pair (DMS or decimal,
+// comma-separated) or a free-text place name. parseLocationInput
+// decides: a grid square or a successfully-parsed coordinate pair
+// wins, otherwise we geocode. Two helper buttons:
 //   - "Use my location" - browser Geolocation API
 //   - "Click on globe to place" - toggle the scene's click-to-place
 //     mode (canvas-click handler in pass-finder-scene.js)
@@ -18,24 +18,6 @@ import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 // Each path calls the typed scene-bridge addObserver, which handles
 // Cesium entity creation + cloud-forecast fetch + timezone lookup +
 // search rerun on the imperative side.
-
-interface LatLon { latDeg: number; lonDeg: number; }
-
-function tryParseLatLon(raw: string): LatLon | null {
-  // Need a comma with two non-empty pieces. Without that, fall
-  // through to geocode (place names rarely include a stray comma
-  // followed by something that parses as a coord).
-  const parts = raw.split(",").map((p) => p.trim()).filter(Boolean);
-  if (parts.length !== 2) return null;
-  try {
-    const latDeg = parseDmsToDecimal(parts[0]);
-    const lonDeg = parseDmsToDecimal(parts[1]);
-    if (!Number.isFinite(latDeg) || !Number.isFinite(lonDeg)) return null;
-    return { latDeg, lonDeg };
-  } catch {
-    return null;
-  }
-}
 
 export default function AddObserverForm() {
   const clickToPlace = usePassFinderStore((s) => s.clickToPlace);
@@ -45,14 +27,19 @@ export default function AddObserverForm() {
   const [locating, setLocating] = useState(false);
 
   const submit = async () => {
-    const raw = input.trim();
-    if (!raw || busy) return;
-    const coords = tryParseLatLon(raw);
-    if (coords) {
-      addObserver(null, coords.latDeg, coords.lonDeg);
+    const parsed = parseLocationInput(input);
+    if (!parsed || busy) return;
+    if (parsed.kind === "grid") {
+      addObserver(parsed.grid, parsed.latDeg, parsed.lonDeg);
       setInput("");
       return;
     }
+    if (parsed.kind === "coords") {
+      addObserver(null, parsed.latDeg, parsed.lonDeg);
+      setInput("");
+      return;
+    }
+    const raw = parsed.query;
     // Geocode the free-text query.
     setBusy(true);
     try {
@@ -97,7 +84,7 @@ export default function AddObserverForm() {
         <input
           id="add-observer-input"
           type="text"
-          placeholder="lat, lon  or  place name"
+          placeholder='place, "lat, lon" or grid square (EN52ve)'
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
