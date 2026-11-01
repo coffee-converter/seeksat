@@ -376,3 +376,35 @@ test('tickLabelBoxes is empty for an unselected satellite', () => {
   const sats = scene();
   assert.deepEqual(tickLabelBoxes(sats[1], makeProjection('equirectangular', { width: W, height: H })), []);
 });
+
+test('no two satellite colours are close, in either theme', () => {
+  // OKLab distance x100, the same measure the palette was picked with.
+  const lin = (h) => [1, 3, 5].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  const lab = (h) => {
+    const [r, g, b] = lin(h);
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+  };
+  for (const [theme, pal] of Object.entries(SAT_PALETTES)) {
+    assert.equal(pal.length, 8);
+    for (let i = 0; i < pal.length; i++) for (let j = i + 1; j < pal.length; j++) {
+      const [a, b] = [lab(pal[i]), lab(pal[j])];
+      const d = 100 * Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      assert.ok(d >= 12.5, `${theme} ${pal[i]} vs ${pal[j]}: ${d.toFixed(1)}`);
+    }
+  }
+});
+
+test('a geostationary satellite gets no direction chevron or ticks', () => {
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, args(scene()));
+  const thin = (color) => calls.filter((c) => c.m === 'stroke' && c.strokeStyle === color && c.lineWidth === 1).length;
+  const chevrons = (color) => calls.filter((c, i) => c.m === 'stroke' && c.strokeStyle === color && c.lineWidth === 1.5
+    && calls.slice(Math.max(0, i - 4), i).map((x) => x.m).join() === 'beginPath,moveTo,lineTo,lineTo').length;
+  assert.ok(thin('#ff9b54') > 0, 'ISS keeps its ticks');
+  assert.equal(chevrons('#ff9b54'), 1, 'ISS keeps its chevron');
+  assert.equal(thin('#7fe5d1'), 0);
+  assert.equal(chevrons('#7fe5d1'), 0);
+});
