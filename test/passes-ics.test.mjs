@@ -49,3 +49,9 @@ test('visual description says appears and disappears', () => {
 test('joint takes precedence over in-progress and visual', () => {
   assert.match(descOf({ observerCount: 2, inProgress: true, mode: 'visual' }), /^Joint visual pass for 2 observers\./);
 });
+
+test('the link is also the last DESCRIPTION line', () => {
+  const d = descOf({ url: 'https://seeksat.app/?s=x,y' });
+  assert.ok(d.endsWith('\\nDetails: https://seeksat.app/?s=x\\,y'));
+  assert.ok(!descOf({}).includes('Details:'));
+});

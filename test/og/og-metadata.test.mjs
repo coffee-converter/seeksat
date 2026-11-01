@@ -14,6 +14,7 @@ test("shareMetadata swaps both images, sets robots, keeps the rest", () => {
   assert.equal(md.openGraph.images[0].url, url);
   assert.equal(md.openGraph.images[0].width, 1200);
   assert.equal(md.openGraph.title, "OT");
+  assert.equal(md.openGraph.url, "/sat/57166/share/a b+c");
   assert.deepEqual(md.twitter.images, [url]);
   assert.equal(md.twitter.title, "TT");
   assert.deepEqual(md.robots, { index: false, follow: true });

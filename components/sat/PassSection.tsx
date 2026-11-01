@@ -256,7 +256,7 @@ export default function PassSection({
 
   return (
     <section id="passes" className="sat-passes" aria-labelledby="sat-passes-title">
-      <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : "Passes from your location"}</h2>
+      <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
       {!track ? (
         <p className="home-note">{UNAVAILABLE}</p>
       ) : (

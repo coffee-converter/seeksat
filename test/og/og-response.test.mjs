@@ -31,3 +31,11 @@ test("a bad id is ignored (falls back to the ISS)", async () => {
     { getRecord: async (id) => { seen.push(id); return null; } });
   assert.deepEqual(seen, [25544, 25544]);
 });
+
+test("the page's id param wins over the blob's satellite", async () => {
+  const s = encodeStateBlob({ noradId: 33333, observers: [{ name: "Chicago", latDeg: 41.8781, lonDeg: -87.6298 }], mode: "visual", minElevDeg: 10 });
+  const seen = [];
+  await ogResponse(new Request(`https://seeksat.com/api/og?s=${encodeURIComponent(s)}&id=25544`),
+    { getRecord: async (id) => { seen.push(id); return null; } });
+  assert.deepEqual(seen, [25544]);
+});
