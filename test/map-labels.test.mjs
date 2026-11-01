@@ -30,6 +30,13 @@ function assertFits(boxes, width, height, what) {
   }
 }
 
+test('graticuleStep is at least 60 below 500 px wide', () => {
+  assert.equal(graticuleStep(1, 499), 60);
+  assert.equal(graticuleStep(8, 390), 60);
+  assert.equal(graticuleStep(1, 500), 30);
+  assert.equal(graticuleStep(8, 900), 5);
+});
+
 test('graticuleStep tightens with zoom', () => {
   assert.equal(graticuleStep(1), 30);
   assert.equal(graticuleStep(1.9), 30);

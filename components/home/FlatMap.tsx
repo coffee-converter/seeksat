@@ -85,7 +85,7 @@ const gratLabels = graticuleLabels as unknown as (
   o: { width: number; height: number; step: number; projectionId: string },
 ) => GratLabel[];
 const gratBox = graticuleBox as unknown as (l: GratLabel) => Box;
-const gratStep = graticuleStep as unknown as (zoom: number) => number;
+const gratStep = graticuleStep as unknown as (zoom: number, width: number) => number;
 const pickPlaces = (
   createLabelCache as unknown as (pick: (p: Projection, o: LabelOpts) => LabelSet) => {
     get: (key: string, args: [Projection, LabelOpts]) => LabelSet;
@@ -122,7 +122,7 @@ export default function FlatMap({
   const labelCache = useRef(
     pickPlaces((proj, o) => {
       const graticule = gratLabels(proj, {
-        width: o.width, height: o.height, step: gratStep(o.zoom), projectionId: o.projectionId,
+        width: o.width, height: o.height, step: gratStep(o.zoom, o.width), projectionId: o.projectionId,
       });
       const places = (pickPlaceLabels as unknown as (p: Projection, o: Record<string, unknown>) => unknown)(proj, {
         width: o.width, height: o.height, zoom: o.zoom, places: o.places, regions: o.regions,
@@ -139,6 +139,10 @@ export default function FlatMap({
   const fullRef = useRef(false);
   fullRef.current = full;
   const nativeFull = useRef(false);
+  // View to restore on exit, and a flag to fit the map to the shell once it has resized.
+  const prevView = useRef<{ zoom: number; pan: [number, number] } | null>(null);
+  const fitOnResize = useRef(false);
+  const wheelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // A projection that is unavailable right now (no observer, no selected satellite)
   // is shown and drawn as the default. The saved choice is left alone so it
@@ -245,6 +249,20 @@ export default function FlatMap({
       size.current = { width, height, dpr };
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
+      if (fitOnResize.current) {
+        fitOnResize.current = false;
+        const id = latest.current.projectionId;
+        if ((id === "equirectangular" || id === "winkel3") && height > width / 2) {
+          // A tall frame: zoom so the 2:1 map fills its height, centred on the satellite.
+          const z = clampZoom(height / (width / 2));
+          const c = latest.current.selectedSub ?? latest.current.observer ?? { lonDeg: 0, latDeg: 0 };
+          const flat = project(id, { width, height, observer: null, sat: null, zoom: z, pan: [0, 0] });
+          const pt = flat([c.lonDeg, 0]);
+          const maxPan = ((z - 1) * width) / 2;
+          const px = pt ? Math.max(-maxPan, Math.min(maxPan, width / 2 - pt[0])) : 0;
+          view.current = { zoom: z, pan: [px, 0] };
+        }
+      }
       redraw();
     };
     fit();
@@ -276,6 +294,24 @@ export default function FlatMap({
       alive = false;
     };
   }, [redraw]);
+
+  // Entering full screen remembers the view; leaving restores it.
+  useEffect(() => {
+    if (full) {
+      prevView.current = { zoom: view.current.zoom, pan: [...view.current.pan] as [number, number] };
+      fitOnResize.current = true;
+    } else {
+      fitOnResize.current = false;
+      if (prevView.current) {
+        view.current = prevView.current;
+        prevView.current = null;
+        redraw();
+      }
+    }
+  }, [full, redraw]);
+  useEffect(() => () => {
+    if (wheelTimer.current) clearTimeout(wheelTimer.current);
+  }, []);
 
   const toggleFull = useCallback(() => {
     const shell = shellRef.current;
@@ -429,6 +465,14 @@ export default function FlatMap({
       const pinch = e.ctrlKey || e.metaKey;
       if (!pinch && view.current.zoom <= 1 && !fullRef.current) return;
       e.preventDefault();
+      // Labels hold still while wheel events stream in, then catch up once.
+      gesturing.current = true;
+      if (wheelTimer.current) clearTimeout(wheelTimer.current);
+      wheelTimer.current = setTimeout(() => {
+        wheelTimer.current = null;
+        gesturing.current = false;
+        redraw();
+      }, 150);
       const p = local(e);
       zoomAt(Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002)), p.x, p.y);
     };
