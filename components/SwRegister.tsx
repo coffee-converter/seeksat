@@ -5,14 +5,40 @@ import { useEffect } from "react";
 // How long after the worker takes over to keep handing it late fetches.
 const WARM_MS = 30_000;
 
+/** The seeksat-* caches public/sw.js keeps. */
+const CACHE_PREFIX = "seeksat-";
+
+/** Lever 1 of the kill switch (docs/ops/service-worker.md): a build with
+ *  NEXT_PUBLIC_SW_OFF=1 registers nothing and removes any worker and saved
+ *  responses an earlier build left behind. */
+async function removeWorker(sw: ServiceWorkerContainer) {
+  try {
+    const regs = await sw.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
+  } catch {
+    /* nothing registered, or the browser refused */
+  }
+  try {
+    const names = await caches.keys();
+    await Promise.all(names.filter((n) => n.startsWith(CACHE_PREFIX)).map((n) => caches.delete(n)));
+  } catch {
+    /* no Cache Storage here */
+  }
+}
+
 /** Registers /sw.js after load, in production only (public/sw.js). The first
  *  load runs before the worker controls the page, so once it takes control
  *  this hands it the page and every fetch that went around it (workerStart 0),
  *  including ones still in flight, to save for offline use. Renders nothing. */
 export default function SwRegister() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
+    if (!("serviceWorker" in navigator)) return;
     const sw = navigator.serviceWorker;
+    if (process.env.NEXT_PUBLIC_SW_OFF === "1") {
+      void removeWorker(sw);
+      return;
+    }
+    if (process.env.NODE_ENV !== "production") return;
     let observer: PerformanceObserver | null = null;
     let stopTimer: ReturnType<typeof setTimeout> | null = null;
 

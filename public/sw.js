@@ -13,6 +13,27 @@
 //                   (Nominatim, Vercel analytics): the worker stays out of it.
 //
 // Bump SW_VERSION to drop every saved response on the next visit.
+//
+// Kill switch (docs/ops/service-worker.md). Lever 1: build with
+// NEXT_PUBLIC_SW_OFF=1 and SwRegister unregisters the worker and deletes the
+// seeksat-* caches on the next page load. Lever 2, for when a broken worker
+// keeps serving a broken page so the new build never loads: deploy this file
+// with only the body below. The browser checks /sw.js on navigation, installs
+// it, and it clears the caches, unregisters itself and reloads every window
+// from the network.
+//
+// kill-switch:begin
+// self.addEventListener('install', () => self.skipWaiting());
+// self.addEventListener('activate', (event) => {
+//   event.waitUntil((async () => {
+//     const names = await caches.keys();
+//     await Promise.all(names.filter((n) => n.startsWith('seeksat-')).map((n) => caches.delete(n)));
+//     await self.registration.unregister();
+//     const windows = await self.clients.matchAll({ type: 'window' });
+//     await Promise.all(windows.map((c) => c.navigate(c.url).catch(() => {})));
+//   })());
+// });
+// kill-switch:end
 const SW_VERSION = 1;
 const CACHE = `seeksat-v${SW_VERSION}`;
 // Each followed set is its own /api/sats URL; keep the newest few.
