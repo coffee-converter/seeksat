@@ -8,6 +8,9 @@
   --map-muted: #8899bb;
   --map-panel: rgba(10, 14, 26, 0.92);
   --map-border: rgba(255, 255, 255, 0.08);
+  /* Legend swatches; keep in step with MAP_COLORS in lib/map/draw.mjs. */
+  --map-night: rgba(3, 5, 12, 0.24);
+  --map-footprint: rgba(126, 184, 255, 0.16);
 }
 
 .flat-map {
@@ -15,6 +18,7 @@
   width: 100%;
   /* Sized here, not from JS, so the server render has its height and the
      phone URL bar showing or hiding (svh ignores it) never resizes the map. */
+  height: max(220px, 50vh);
   height: max(220px, 50svh);
   background: var(--map-ocean);
   border: 1px solid var(--map-border);
@@ -564,6 +568,9 @@
   font-family: inherit;
 }
 .radio-freq-input { width: 74px; }
+@media (pointer: coarse) {
+  .radio-freq-select, .radio-freq-input { font-size: 16px; }
+}
 .radio-modal-svg {
   position: absolute;
   left: -10000px; top: -10000px;
@@ -602,3 +609,43 @@
   .radio-modal-actions button { font-size: 11px; padding: 3px 8px; }
   .radio-field { font-size: 10px; }
 }
+
+/* Map legend. */
+.map-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--map-muted);
+  font-size: 12px;
+}
+.map-legend li { display: flex; align-items: center; gap: 6px; }
+.map-legend__swatch {
+  flex: none;
+  width: 18px;
+  height: 12px;
+  box-sizing: border-box;
+}
+.map-legend__swatch--sat { width: 10px; height: 10px; margin: 0 4px; border-radius: 50%; background: var(--swatch, var(--map-accent)); }
+.map-legend__swatch--track { height: 0; border-top: 2px solid var(--map-text); }
+.map-legend__swatch--footprint { border-radius: 50%; border: 1px solid var(--map-text); background: var(--map-footprint); }
+.map-legend__swatch--night { background: var(--map-night); border: 1px solid var(--map-border); }
+.map-legend__swatch--observer {
+  width: 12px; height: 12px; margin: 0 3px;
+  border: 2px solid var(--map-accent); border-radius: 50%;
+}
+
+/* About section. */
+.home-about {
+  margin-top: 16px;
+  color: var(--map-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.home-about summary { cursor: pointer; color: var(--map-text); }
+.home-about summary:focus-visible { outline: 2px solid var(--map-accent); outline-offset: 2px; }
+.home-about p { margin: 8px 0 0; }
+.home-about a { color: var(--map-accent); }
+a.home-chip { display: inline-block; text-decoration: none; }

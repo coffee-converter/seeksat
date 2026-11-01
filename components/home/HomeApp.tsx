@@ -16,6 +16,7 @@ import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs"
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import AboutSection from "./AboutSection";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import "@/app/home.css";
 
@@ -143,6 +144,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
         footprint: selected ? footprintOf(sub, sub.altKm, prefs.minElevDeg) : null,
         selected,
+        orbitClass: t.orbitClass,
       });
     }
     return { sats: list, selectedSub: sel };
@@ -227,6 +229,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         projectionId={prefs.projection}
         onProjectionChange={(id) => setPrefs({ projection: id })}
         selectedId={selectedId}
+        minElevDeg={prefs.minElevDeg}
         onSelect={setSelectedId}
       />
       <HomeControls
@@ -281,6 +284,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           )}
         </>
       )}
+
+      <AboutSection />
 
       <footer className="home-footer">
         <span>

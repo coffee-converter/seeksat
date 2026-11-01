@@ -109,6 +109,7 @@ export default function SatApp({ data }: { data: SatPageData }) {
       position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
       footprint: footprintOf(sub, sub.altKm, prefs.minElevDeg),
       selected: true,
+      orbitClass: (track as { orbitClass: string }).orbitClass,
     };
     return { sats: [sat], selectedSub: sub };
   }, [track, ground, nowMs, data.noradId, data.shortName, prefs.minElevDeg]);
@@ -161,6 +162,7 @@ export default function SatApp({ data }: { data: SatPageData }) {
             projectionId={prefs.projection}
             onProjectionChange={(id) => setPrefs({ projection: id })}
             selectedId={data.noradId}
+            minElevDeg={prefs.minElevDeg}
             onSelect={() => {}}
           />
           <OrbitDiagram track={track} nowMs={nowMs} />

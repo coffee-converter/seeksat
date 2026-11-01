@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import { elementTags, passMetaLabel } from "@/lib/home/view.mjs";
@@ -120,6 +121,9 @@ function PassCard({
           <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={addToCalendar}>
             📅
           </button>
+          {track.record?.source !== "pasted" && (
+            <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
+          )}
           <button type="button" className="home-chip home-chip--quiet" onClick={onUnfollow}>Unfollow</button>
         </div>
       </div>
@@ -194,6 +198,9 @@ export default function NextUpList({
                 {headline(card, nowMs)}
                 <ElementTags track={track} />
               </p>
+              {card.kind !== "missing" && track?.record?.source !== "pasted" && (
+                <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
+              )}
               <button type="button" className="home-chip home-chip--quiet" onClick={() => onUnfollow(card.noradId)}>
                 Unfollow
               </button>

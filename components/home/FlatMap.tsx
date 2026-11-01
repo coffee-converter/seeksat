@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { drawMap, hitTest } from "@/lib/map/draw.mjs";
+import { legendItems } from "@/lib/map/legend.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
 import {
   PROJECTIONS,
@@ -22,6 +23,7 @@ export interface MapSat {
   position: { lonDeg: number; latDeg: number };
   footprint: GeoShape | null;
   selected: boolean;
+  orbitClass: string;
 }
 
 export interface MapObserver {
@@ -42,6 +44,7 @@ interface Props {
   projectionId: string;
   onProjectionChange: (id: string) => void;
   selectedId: number | null;
+  minElevDeg: number;
   onSelect: (noradId: number) => void;
   /** Subpoint and altitude of the selected satellite, for the "From the satellite" view. */
   selectedSub?: SelectedSub | null;
@@ -65,6 +68,8 @@ type Projection = ((p: [number, number]) => [number, number] | null) & object;
 type NightBands = { sunBelowDeg: number; feature: unknown }[];
 const draw = drawMap as unknown as (ctx: CanvasRenderingContext2D, o: Record<string, unknown>) => void;
 const hit = hitTest as (sats: MapSat[], p: Projection, x: number, y: number) => number | null;
+type LegendItem = { key: string; kind: string; label: string; color?: string };
+const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
 type Pt = { x: number; y: number };
 
 const TAP_SLOP_PX = 6;
@@ -77,6 +82,7 @@ export default function FlatMap({
   projectionId,
   onProjectionChange,
   selectedId,
+  minElevDeg,
   onSelect,
   selectedSub = null,
 }: Props) {
@@ -298,6 +304,7 @@ export default function FlatMap({
   }, [redraw, zoomAt, reset]);
 
   return (
+    <>
     <div className="flat-map" ref={wrapRef}>
       <canvas
         ref={canvasRef}
@@ -346,5 +353,18 @@ export default function FlatMap({
         </tbody>
       </table>
     </div>
+    <ul className="map-legend" aria-label="Map legend">
+      {legend({ sats, observer, minElevDeg }).map((item) => (
+        <li key={item.key}>
+          <span
+            className={`map-legend__swatch map-legend__swatch--${item.kind}`}
+            style={item.color ? ({ "--swatch": item.color } as React.CSSProperties) : undefined}
+            aria-hidden="true"
+          />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+    </>
   );
 }
