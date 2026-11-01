@@ -157,3 +157,395 @@
 }
 .search-bar__paste .search-bar__button { align-self: flex-start; }
 .search-bar__error { margin: 0; color: #ff9a9a; }
+
+/* Home screen layout. */
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 760px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 8px 8px 24px;
+  color: var(--map-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+}
+.home-heading {
+  margin: 0 0 6px;
+  color: var(--map-accent);
+  font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.home-note { margin: 0; color: var(--map-muted); }
+.home-error { margin: 0; color: #ff9a9a; }
+
+/* Buttons, chips, inputs and links shared by the home components. */
+.home-button,
+.home-chip {
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--map-text);
+  border: 1px solid rgba(126, 184, 255, 0.4);
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.home-chip { padding: 4px 10px; font-size: 13px; }
+.home-button:hover:not(:disabled),
+.home-chip:hover:not(:disabled) { background: rgba(126, 184, 255, 0.22); }
+.home-button:disabled,
+.home-chip:disabled { opacity: 0.45; cursor: default; }
+.home-button--primary { background: rgba(126, 184, 255, 0.18); border-color: rgba(126, 184, 255, 0.6); }
+.home-chip[aria-pressed="true"] {
+  background: rgba(126, 184, 255, 0.22);
+  border-color: var(--map-accent);
+  color: #fff;
+}
+.home-chip--quiet { color: var(--map-muted); border-color: var(--map-border); }
+.home-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--map-ocean);
+  color: var(--map-text);
+  border: 1px solid rgba(126, 184, 255, 0.4);
+  border-radius: 6px;
+  font: inherit;
+}
+.home-input::placeholder { color: var(--map-muted); }
+.home-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--map-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.home-button:focus-visible,
+.home-chip:focus-visible,
+.home-input:focus-visible,
+.home-link:focus-visible {
+  outline: 2px solid var(--map-accent);
+  outline-offset: 1px;
+}
+
+/* Settings row under the map. */
+.home-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.home-controls__mode,
+.home-controls__elev { display: flex; align-items: center; gap: 4px; }
+.home-controls__value { min-width: 4.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.home-controls__place {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.home-controls__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(248, 113, 113, 0.1);
+  color: #ffc4c4;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 8px;
+}
+
+/* Location prompt and the popular list. */
+.location-prompt,
+.popular {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  background: var(--map-panel);
+  border: 1px solid var(--map-border);
+  border-radius: 8px;
+}
+.location-prompt__hint { margin: 0; color: var(--map-muted); }
+.location-prompt__form { display: flex; gap: 8px; width: 100%; }
+.popular__list { list-style: none; margin: 0; padding: 0; width: 100%; }
+.popular__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--map-border);
+}
+.popular__item:first-child { border-top: 0; }
+
+/* Next up cards. */
+.next-up__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pass-card {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--map-border);
+  border-left: 3px solid var(--sat-color, var(--map-muted));
+  border-radius: 8px;
+}
+.pass-card--short {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+.pass-card__plot { flex: 0 0 76px; width: 76px; padding: 6px; }
+.pass-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pass-card__headline { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.pass-card__meta { margin: 0; color: var(--map-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pass-card__tag {
+  margin-left: 6px;
+  padding: 0 6px;
+  color: #7fe5d1;
+  border: 1px solid rgba(127, 229, 209, 0.5);
+  border-radius: 999px;
+  font-size: 11px;
+}
+.pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+
+/* The card's polar plot (PolarPlotSvg). Copied from pass-finder.css, which
+   the home screen does not load. */
+.polar-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.polar-plot .horizon {
+  fill: rgba(8, 12, 24, 0.9);
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 1.6;
+}
+.polar-plot .grid {
+  fill: none;
+  stroke: rgba(126, 184, 255, 0.3);
+  stroke-width: 0.8;
+}
+.polar-plot .cardinal {
+  fill: #cfe0ff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.polar-plot .arc line,
+.polar-plot .arc polyline {
+  fill: none;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.polar-plot .iss-dot {
+  fill: #ffffff;
+  stroke: #000;
+  stroke-width: 0.6;
+}
+
+/* Sky chart and radio chart modals (SkyChartModalView, RadioChartModalView).
+   Copied from pass-finder.css so the charts look exactly as in the classic app. */
+#polar-modal,
+#radio-modal {
+  position: fixed; inset: 0; z-index: 5000;
+  display: flex; align-items: center; justify-content: center;
+}
+#polar-modal[hidden],
+#radio-modal[hidden] { display: none; }
+.polar-modal-backdrop,
+.radio-modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(4, 6, 14, 0.78);
+  backdrop-filter: blur(6px);
+}
+.polar-modal-content {
+  position: relative;
+  background: rgba(10, 14, 26, 0.95);
+  border: 1px solid rgba(100, 140, 255, 0.35);
+  border-radius: 12px;
+  padding: 2px 3px 2px;
+  max-width: min(98vw, 98vh);
+  max-height: 98vh;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+.polar-modal-actions {
+  position: absolute;
+  top: 10px; right: 10px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  z-index: 1;
+}
+.polar-modal-actions button,
+.radio-modal-actions button {
+  background: transparent; border: 1px solid rgba(255,255,255,0.12);
+  color: #cfe0ff; cursor: pointer; font-size: 12px;
+  padding: 4px 10px; border-radius: 6px;
+  font-family: inherit;
+}
+.polar-modal-actions button:hover,
+.radio-modal-actions button:hover {
+  background: rgba(126,184,255,0.14); border-color: rgba(126,184,255,0.4);
+}
+.polar-modal-actions .polar-modal-close,
+.radio-modal-actions .radio-modal-close { color: #8899bb; }
+.polar-modal-actions .polar-modal-close:hover,
+.radio-modal-actions .radio-modal-close:hover {
+  background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.4);
+}
+.polar-modal-copy.copied,
+.radio-modal-copy.copied {
+  background: rgba(127,229,209,0.18); color: #7fe5d1;
+  border-color: rgba(127,229,209,0.5);
+}
+.polar-modal-actions .polar-modal-radio,
+.radio-modal-actions .radio-modal-polar {
+  color: #7eb8ff;
+  border-color: rgba(126, 184, 255, 0.35);
+  background: rgba(126, 184, 255, 0.08);
+}
+/* The SVGs are painted offscreen and rasterized into the PNG <img>. */
+.polar-modal-svg {
+  position: absolute;
+  left: -10000px; top: -10000px;
+  width: 800px; height: 800px;
+  pointer-events: none;
+}
+.polar-modal-png {
+  display: block;
+  width: auto; height: auto;
+  max-width: min(96vw, 1400px);
+  max-height: 94vh;
+  border-radius: 6px;
+  user-select: none;
+}
+.polar-modal-svg .horizon {
+  fill: rgba(4, 8, 20, 0.85);
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 0.8;
+}
+.polar-modal-svg .grid {
+  fill: none; stroke: rgba(126, 184, 255, 0.18); stroke-width: 0.4;
+}
+.polar-modal-svg .spoke {
+  stroke: rgba(126, 184, 255, 0.12); stroke-width: 0.3;
+}
+.polar-modal-svg .cardinal {
+  fill: #cfe0ff; font-size: 11px; letter-spacing: 0.08em; font-weight: 700;
+}
+.polar-modal-svg .arc {
+  fill: none; stroke-width: 1.6; stroke-linecap: round;
+  stroke-linejoin: round; opacity: 0.9;
+}
+.polar-modal-svg .iss-dot {
+  fill: #ffffff; stroke: #7eb8ff; stroke-width: 0.7;
+}
+.polar-modal-svg .star-name {
+  fill: #8aa0c8; font-size: 3.2px; opacity: 0.85;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.polar-modal-hint {
+  font-size: 10px; color: #6a7a9a; letter-spacing: 0.06em;
+}
+.radio-modal-content {
+  position: relative;
+  background: rgba(10, 14, 26, 0.95);
+  border: 1px solid rgba(100, 140, 255, 0.35);
+  border-radius: 12px;
+  padding: 2px 3px 2px;
+  max-width: 98vw;
+  max-height: 98vh;
+  overflow: auto;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+.radio-modal-actions {
+  align-self: stretch;
+  display: flex; flex-direction: row; align-items: center;
+  flex-wrap: wrap; gap: 6px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(126, 184, 255, 0.16);
+  margin-bottom: 6px;
+}
+.radio-modal-actions .radio-modal-close { margin-left: auto; order: 99; }
+.radio-field {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #8aa0c8;
+}
+.radio-freq-select, .radio-freq-input {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+  color: #cfe0ff; font-size: 11px; padding: 4px 6px; border-radius: 6px;
+  font-family: inherit;
+}
+.radio-freq-input { width: 74px; }
+.radio-modal-svg {
+  position: absolute;
+  left: -10000px; top: -10000px;
+  width: 900px; height: 703px;
+  pointer-events: none;
+}
+.radio-modal-png {
+  display: block;
+  width: 100%; height: auto;
+  max-width: min(96vw, 1400px);
+  max-height: 82vh;
+  object-fit: contain;
+  align-self: center;
+  border-radius: 6px;
+  user-select: none;
+}
+.radio-modal-hint {
+  font-size: 10px; color: #6a7a9a; letter-spacing: 0.06em;
+  text-align: center; padding-top: 6px;
+}
+@media (max-width: 600px) {
+  .polar-modal-content,
+  .radio-modal-content {
+    padding: 10px 12px 8px;
+    max-width: 96vw;
+    max-width: 96dvw;
+  }
+  .polar-modal-png,
+  .radio-modal-png {
+    max-width: 92vw;
+    max-width: 92dvw;
+  }
+  .polar-modal-actions { top: 6px; right: 6px; gap: 4px; }
+  .radio-modal-actions { gap: 4px; padding: 4px 2px; }
+  .polar-modal-actions button,
+  .radio-modal-actions button { font-size: 11px; padding: 3px 8px; }
+  .radio-field { font-size: 10px; }
+}
