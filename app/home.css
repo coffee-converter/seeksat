@@ -97,7 +97,8 @@
   top: 0;
   z-index: 20;
   padding: 8px;
-  background: var(--map-panel);
+  /* Opaque: once the bar sticks, the map scrolls underneath it. */
+  background: #0a0e1a;
   color: var(--map-text);
   border: 1px solid var(--map-border);
   border-radius: 8px;
@@ -135,13 +136,21 @@
   outline-offset: 1px;
 }
 .search-bar__list {
+  /* Floats over the page, so opening it never pushes the map down and
+     nothing shows through it. */
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
   list-style: none;
-  margin: 6px 0 0;
+  margin: 0;
   padding: 0;
   max-height: 40vh;
   overflow-y: auto;
-  border: 1px solid var(--map-border);
-  border-radius: 6px;
+  background: #0d1322;
+  border: 1px solid rgba(126, 184, 255, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 .search-bar__list[hidden] { display: none; }
 .search-bar__option {
