@@ -2,6 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool } from '../lib/mcp/tools.mjs';
+import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
+import { makeTrack } from '../lib/sat/track.mjs';
+import { ISS_OMM } from './fixtures/omm-iss.mjs';
 
 const LINE1 = '1 25544U 98067A   24001.50000000  .00000000  00000+0  00000+0 0  9990';
 const LINE2 = '2 25544  51.6400 100.0000 0003500 100.0000 260.0000 15.50000000000010';
@@ -132,7 +135,6 @@ test('best_pass skips a synthesized satellite with no record under its NORAD nam
   assert.deepEqual(out.skipped, [{ satellite: 'NORAD 25485', reason: 'no orbit data yet' }]);
 });
 
-import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
 test('best_pass skips a geostationary satellite with a reason', async () => {
   const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), epochMs: Date.parse('2026-10-31T14:00:00Z') };
@@ -145,4 +147,18 @@ test('best_pass skips a geostationary satellite with a reason', async () => {
   const nv = await nextVisiblePassTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
   assert.equal(nv.pass, null);
   assert.ok(nv.stationary);
+});
+
+// Decayed-orbit elements: years old and high drag, so SGP4 gives up.
+const DEAD = { noradId: 25544, name: 'ISS (ZARYA)', omm: { ...ISS_OMM, MEAN_MOTION: 17.5, EPOCH: '2018-01-01T00:00:00.000000', BSTAR: 0.01 }, epochMs: Date.parse('2018-01-01T00:00:00Z'), source: 'fixture', fetchedAtMs: 0 };
+const deadDeps = { ...deps, now: () => Date.parse('2026-03-01T12:00:00Z'), getRecord: async (id) => (id === 25544 ? DEAD : null) };
+const DEAD_LOC = { lat: 42, lon: -88, mode: 'radio' };
+
+test('unavailable elements: tools throw or skip with a clear reason', async () => {
+  assert.equal(makeTrack(DEAD).ecefAt(new Date(deadDeps.now())), null, 'fixture really does not propagate');
+  const msg = "elements for ISS (ZARYA) can't be propagated";
+  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), { message: msg });
+  await assert.rejects(() => nextVisiblePassTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), { message: msg });
+  const out = await bestPassTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps);
+  assert.deepEqual(out.skipped, [{ satellite: 'ISS (ZARYA)', reason: "elements can't be propagated" }]);
 });

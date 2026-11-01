@@ -132,3 +132,9 @@ test('MCP pass rows keep their shape', () => {
   assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'durationSec', 'inProgress', 'peak', 'peakElevationDeg',
     'peakMagnitude', 'quality', 'rise', 'set', 'sunlit']);
 });
+
+test('findPasses flags elements that cannot be propagated', () => {
+  const dead = { noradId: 25544, name: 'ISS', omm: { ...ISS_OMM, MEAN_MOTION: 17.5, EPOCH: '2018-01-01T00:00:00.000000', BSTAR: 0.01 }, epochMs: Date.parse('2018-01-01T00:00:00Z') };
+  const r = findPasses({ record: dead, observer: EN52VE, startMs: Date.parse('2026-03-01T12:00:00Z') });
+  assert.deepEqual(r, { passes: [], stationary: null, unavailable: true });
+});
