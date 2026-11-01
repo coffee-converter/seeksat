@@ -61,6 +61,11 @@ export interface PassSettings {
   isShared: boolean;
 }
 
+/** "1 Nov 2026", the local date in the place's time zone. */
+function printDate(ms: number, timeZone: string): string {
+  return new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone });
+}
+
 const UNAVAILABLE = "These elements can't be used to compute passes.";
 const SEARCH_FAILED = "Pass search failed. Reload the page to try again.";
 
@@ -287,7 +292,12 @@ export default function PassSection({
 
   return (
     <section id="passes" className="sat-passes" aria-labelledby="sat-passes-title">
-      <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
+      <div className="sat-passes__head">
+        <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
+        {view?.kind === "rows" && (
+          <button type="button" className="home-chip sat-print-chip" onClick={() => window.print()}>Print</button>
+        )}
+      </div>
       {!track ? (
         <p className="home-note">{UNAVAILABLE}</p>
       ) : (
@@ -315,6 +325,11 @@ export default function PassSection({
             <>
               {busy && <p className="home-note" role="status">Finding passes...</p>}
               {sharedHit?.kind === "past" && <p className="home-note sat-shared-past">{sharedHit.text}</p>}
+              {view.kind === "rows" && (
+                <p className="print-only sat-print-meta">
+                  {`Location: ${observers.map((o) => o.name).join(", ")}. Mode: ${mode}. Minimum elevation: ${minElevDeg}°.`}
+                </p>
+              )}
               {view.kind === "rows" ? (
                 <ul className="sat-passlist">
                   {view.rows.map((row) => (
@@ -357,6 +372,11 @@ export default function PassSection({
                 </ul>
               ) : (
                 <p className="home-note">{view.text}</p>
+              )}
+              {view.kind === "rows" && (
+                <p className="print-only sat-print-foot" suppressHydrationWarning>
+                  {`Printed from seeksat.com on ${printDate(bucketMs, observer.tz ?? "UTC")}. Times are for ${observers.map((o) => o.name).join(", ")}.`}
+                </p>
               )}
             </>
           ))}

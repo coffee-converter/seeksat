@@ -132,3 +132,48 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   .map-shell__panel .sat-how-list__row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .map-shell__panel .sat-diagram svg { max-width: 300px; }
 }
+
+.sat-passes__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sat-passes__head .home-heading { margin: 0; }
+.print-only { display: none; }
+
+/* print: a clean black-on-white pass sheet. Colours are the keywords black
+   and white (not tokens), so the sheet is the same whatever the theme. */
+@media print {
+  @page { margin: 14mm; }
+  html, body { height: auto !important; overflow: visible !important; background: white !important; }
+  .map-shell, .map-shell.sat {
+    display: block; height: auto; min-height: 0; overflow: visible;
+    background: white; font-size: 10.5pt;
+  }
+  .map-shell *, .map-shell *::before, .map-shell *::after {
+    color: black !important; background: transparent !important;
+    box-shadow: none !important; text-shadow: none !important;
+  }
+  .map-shell__top, .map-shell__map { display: none !important; }
+  .map-shell__panel {
+    display: block; height: auto; overflow: visible; padding: 0;
+    border: 0; background: white;
+  }
+  /* Keep only: title block, element age line, the pass list. */
+  .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
+  .sat-top .sat-follow, .sat-top .home-button { display: none !important; }
+  .sat-top { margin-bottom: 6pt; }
+  .sat-title { font-size: 16pt; margin: 0 0 2pt; }
+  .sat-elements > *:not(.sat-age) { display: none !important; }
+  .sat-elements .sat-age, .sat-age { display: block; margin: 0 0 8pt; font-size: 10pt; }
+  .sat-badge { border: 1px solid black !important; border-radius: 0; padding: 0 4pt; font-size: 9pt; }
+
+  #passes > *:not(.sat-passes__head):not(.sat-passlist):not(.print-only) { display: none !important; }
+  .sat-print-chip { display: none !important; }
+  .print-only { display: block; }
+  .sat-passes__head .home-heading { font-size: 12pt; margin: 6pt 0 2pt; }
+  .sat-print-meta { margin: 0 0 6pt; font-size: 10pt; }
+  .sat-print-foot { margin: 10pt 0 0; font-size: 9pt; }
+  .sat-pass { padding: 3pt 0; border-bottom: 0.5pt solid black; break-inside: avoid; page-break-inside: avoid; }
+  .sat-pass__main { margin: 0; line-height: 1.3; font-size: 10pt; }
+  .sat-pass .pass-card__tag { margin-left: 6pt; padding: 0 4pt; border: 0.5pt solid black; font-size: 8.5pt; }
+  .sat-pass .pass-card__tag.pass-card__tag { background: none; }
+  .sat-pass .sat-how { margin: 1pt 0 0; font-size: 8.5pt; }
+  .sat-pass .pass-card__actions { display: none !important; }
+}
