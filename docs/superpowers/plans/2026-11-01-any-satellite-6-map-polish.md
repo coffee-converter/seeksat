@@ -245,3 +245,92 @@ Added 2026-11-01 at Aaron's request:
   - Capture `/sat/25544` at 390×844 and 1280×800 with Playwright through the system Chrome channel (`/Users/aaron/work/qrz-swapmeet-watch/node_modules/playwright`), plus a second capture 1 s later.
   - View both and fix anything cramped or misaligned. Report the image paths.
 - [ ] **Step 6: Commit** with `git commit -m "feat: Turn the satellite page into a live dashboard with ticking values"`.
+
+---
+
+### Task 6: Focus model, search actions and satellite chips
+
+Added 2026-11-01 at Aaron's request. He said the multiple-versus-one satellite UX is unintuitive: after searching and clicking one satellite he expects to see it alone. He picked ideas 1, 2, 3 and 4:
+- **1:** search means view, not follow.
+- **2:** one focus model everywhere.
+- **3:** a chip strip of followed satellites.
+- **4:** each search row has a view action and a follow star.
+
+**Files:**
+- Create: `lib/home/focus.mjs`, `test/home-focus.test.mjs`, `components/home/SatChips.tsx`
+- Modify: `components/home/SearchBar.tsx`, `components/home/HomeApp.tsx`, `components/home/FlatMap.tsx`, `lib/map/draw.mjs`, `components/home/NextUpList.tsx`, `lib/home/prefs.mjs` (`hidden` ids), `lib/home/store.ts`, `components/sat/SatApp.tsx`, `app/home.css`
+
+**Interfaces:**
+- **Focus state:**
+  - It lives in the URL: `?focus=<noradId>` on `/`, read with `useSearchParams` inside a Suspense boundary, so `/` stays static.
+  - Changing it uses `router.replace` for the first focus and `router.push` when switching focus, so Back leaves focus.
+  - On `/sat/<id>` the map starts focused on that satellite. `Show all` there shows the followed satellites plus this one, and does not navigate.
+- `lib/home/focus.mjs`:
+  - `mapLayers({ followed, hidden, focusId, viewing }) -> Array<{ noradId, emphasis: 'focus' | 'normal' | 'ghost' | 'hidden' }>`.
+    - `viewing` is a non-followed satellite opened from search; it is shown only while focused.
+    - Unfocused: followed and not hidden is `normal`; hidden is `hidden`.
+    - Focused: the focus is `focus`; the other followed satellites are `ghost`.
+  - `focusBarText(name, isFollowed, total) -> { title: 'Viewing <name>', showAll: 'Show all (<n>)' }`.
+  - Test: every combination, including focusing a non-followed satellite and focusing a hidden one (it shows while focused).
+- **Map drawing by emphasis:**
+  - `focus`: track, footprint, ticks, label and a dot 1 px larger. The map pans to centre it (only for `equirectangular`, `winkel3` and `azimuthal`).
+  - `normal`: as today.
+  - `ghost`: a 3 px dot at alpha 0.35, with no track, label or footprint.
+  - `hidden`: not drawn.
+- **Search rows:**
+  - Tapping the name focuses the satellite. On `/` it sets `?focus=`; if the satellite isn't followed, its record is fetched and shown as `viewing`.
+  - A ☆/★ button (`aria-label` `"Follow <name>"` / `"Unfollow <name>"`) toggles following without closing the list.
+  - The old click-to-follow behaviour is removed. The follow cap message stays.
+- **Focus bar** (above the map, shown while focused):
+  - `Viewing <name>`, a ☆ Follow / ★ Following toggle, `Open page` (a link to `/sat/<id>`), and `Show all (<n>)`.
+  - Esc also clears focus.
+- **`SatChips`:**
+  - One chip per followed satellite, in its map colour, in a horizontally scrolling strip over the top of the map.
+  - Tap focuses it, and tapping the focused chip unfocuses.
+  - An eye button on each chip toggles `hidden` (saved in prefs as `hidden: number[]`, cleaned like `following`) without unfollowing.
+  - Hidden chips are drawn struck through at reduced opacity.
+- **Cards** (home): tapping a card's headline focuses that satellite. While focused, the focused card is pinned first and the others dim.
+
+- [ ] **Step 1: Write the failing tests** for `mapLayers`, `focusBarText`, and the prefs `hidden` cleaning. **Step 2: Run.** Expected: FAIL. **Step 3: Implement**, then the components.
+- [ ] **Step 4: Run** `npm test` and `npx tsc --noEmit`. Expected: PASS, clean.
+- [ ] **Step 5: Commit** with `git commit -m "feat: Focus one satellite from search, chips or cards, and follow with a star"`.
+
+---
+
+### Task 7: Map-first layout on desktop, a taller map on phones
+
+Added 2026-11-01 at Aaron's request: "maybe a larger map view ... more fullsize map, especially on desktop ... the earth is large".
+
+**Files:**
+- Create: `components/MapShell.tsx`
+- Modify: `components/home/HomeApp.tsx`, `components/sat/SatApp.tsx`, `components/home/FlatMap.tsx` (a `fill` prop), `app/home.css`, `app/sat.css`
+
+**Interfaces:**
+- `<MapShell top={ReactNode} map={ReactNode} panel={ReactNode} />` is shared by `/` and `/sat/<id>`.
+  - **≥ 1100 px:**
+    - A CSS grid: a 56 px top bar (wordmark, search, `LiveClock`), then a row with the map (`1fr`) and the panel (`380px`).
+    - The grid fills `100dvh`. The map fills its cell (`FlatMap fill`, height 100%).
+    - The panel scrolls on its own (`overflow-y: auto`), and the page itself doesn't scroll.
+    - The chips and focus bar overlay the top of the map, and the legend becomes a collapsible overlay at the bottom left (`Legend` toggle).
+  - **< 1100 px:** a single column. The top bar is sticky, the map is `max(260px, 60svh)` (`60vh` fallback first), and the panel content flows below.
+  - Full screen (Task 4) still works in both.
+- **Panel content:**
+  - **Home:** controls, location prompt, "Next up", About, footer.
+  - **Satellite page:** in order,
+    1. the header (name, ids, Follow, Share);
+    2. the dashboard tiles (Task 5);
+    3. the vis-viva tile;
+    4. element age and mean elements;
+    5. the orbit diagram;
+    6. passes;
+    7. downlinks;
+    8. raw elements;
+    9. "How we compute these";
+    10. the footer.
+
+    This supersedes Task 5's layout items 1 and 5 on desktop. The map is the shell's map, not a second small one.
+- **Check:** Playwright screenshots (system Chrome) of `/` and `/sat/25544` at 1440×900, 1100×800, 820×1180 and 390×844. No horizontal scroll at any size, and the map is at least 60% of the viewport area at 1440×900. Report the image paths.
+
+- [ ] **Step 1: Build** the shell and move both pages into it. **Step 2: Run** `npm test`, `npx tsc --noEmit` and `npm run build`. Expected: PASS, clean, and the build succeeds.
+- [ ] **Step 3: Screenshot check** as above, fix what looks wrong, and repeat.
+- [ ] **Step 4: Commit** with `git commit -m "feat: Give both pages a map-first layout with a side panel on desktop"`.
