@@ -1,0 +1,29 @@
+.sat { overflow-wrap: anywhere; }
+.sat-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+.sat-title { margin: 0 0 4px; font-size: 24px; font-weight: 600; color: var(--map-text); }
+.sat-follow { display: flex; flex-direction: column; gap: 4px; max-width: 100%; }
+.sat-age { line-height: 1.6; }
+.sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
+.sat-badge--old { background: rgba(250, 204, 21, 0.14); color: #fde68a; border: 1px solid rgba(250, 204, 21, 0.4); }
+.sat-badge--stale { background: rgba(248, 113, 113, 0.14); color: #ffc4c4; border: 1px solid rgba(248, 113, 113, 0.45); }
+.sat-dl { margin: 0 0 8px; }
+.sat-row { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--map-border); }
+.sat-row dt { color: var(--map-muted); }
+.sat-row dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; }
+.sat-how { display: block; margin-top: 2px; color: var(--map-muted); font-size: 12px; line-height: 1.4; }
+p.sat-how { margin: 0 0 8px; }
+.sat-diagram { margin: 0; }
+.sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto 6px; }
+.sat-diagram-label { fill: var(--map-muted); font-size: 10px; }
+.sat-list { margin: 0; padding-left: 18px; }
+.sat-raw { margin-bottom: 10px; }
+.sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sat-raw-head h3 { margin: 0; font-size: 14px; color: var(--map-text); }
+.sat-raw pre {
+  margin: 6px 0 0; padding: 8px; max-width: 100%; overflow-x: auto;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--map-border); border-radius: 6px;
+  font-size: 12px; user-select: text;
+}
+@media (max-width: 480px) {
+  .sat-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
