@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { passRows, compass } from '../lib/sat/pass-rows.mjs';
+import { passRows, compass, printAccuracyNote } from '../lib/sat/pass-rows.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -83,4 +83,18 @@ test('a pass already up shows when it sets and how long is left', () => {
   const later = passRows(r, { ...opts, nowMs: p.startMs - 60_000 }).rows[0];
   assert.equal(later.timesLabel, `${later.startLabel} to ${later.endLabel}`);
   assert.doesNotMatch(later.durationLabel, /left/);
+});
+
+test('printAccuracyNote names the day and start of the first noted pass', () => {
+  const rows = [
+    { dayLabel: 'Sat Nov 1', startLabel: '18:02', accuracy: null },
+    { dayLabel: 'Tue Nov 4', startLabel: '05:41', accuracy: 'Elements are 3.1 days old at this pass, so times may be off by a minute or more.' },
+    { dayLabel: 'Tue Nov 4', startLabel: '07:15', accuracy: 'Elements are 3.2 days old at this pass, so times may be off by a minute or more.' },
+  ];
+  assert.equal(
+    printAccuracyNote(rows),
+    'Passes from Tue Nov 4 05:41 on may be off by a minute or more: the elements will be over 3 days old by then.',
+  );
+  assert.equal(printAccuracyNote(rows.slice(0, 1)), null);
+  assert.equal(printAccuracyNote([]), null);
 });

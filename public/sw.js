@@ -7,10 +7,19 @@
 //                   x-seeksat-cache: 1 so the page can say how old it is.
 //                   An unsaved / falls back to the saved home; any other
 //                   unsaved page gets a small "not saved" offline page.
+//                   Offline, a page with a query (/sat/N?focus=, a share
+//                   link) falls back to the same page saved without it.
 //   cache-first   - /_next/static (content-hashed) and /assets.
-//   network-only  - search, OG images, MCP and the refresh cron: never saved.
+//   network-only  - search, OG images, MCP and the refresh cron: never saved,
+//                   and left to the browser like passthrough.
 //   passthrough   - everything else, every non-GET and every other origin
 //                   (Nominatim, Vercel analytics): the worker stays out of it.
+//
+// Caches. SwRegister registers /sw.js?v=<build id>, so each deploy installs a
+// new worker. Chunks, pages (which name their build's chunks) and the other
+// /assets live in caches named for that build; activating a new build's
+// worker deletes the old build's. The star images and /api/sats do not
+// change with a build and live in one stable cache.
 //
 // Bump SW_VERSION to drop every saved response on the next visit.
 //
@@ -35,9 +44,21 @@
 // });
 // kill-switch:end
 const SW_VERSION = 1;
-const CACHE = `seeksat-v${SW_VERSION}`;
+const BUILD = (() => {
+  try {
+    return (new URL(self.location.href).searchParams.get('v') || '').replace(/[^\w.-]/g, '').slice(0, 40) || 'dev';
+  } catch {
+    return 'dev';
+  }
+})();
+const STATIC_CACHE = `seeksat-static-v${SW_VERSION}-${BUILD}`;
+const PAGES_CACHE = `seeksat-pages-v${SW_VERSION}-${BUILD}`;
+const DATA_CACHE = `seeksat-data-v${SW_VERSION}`;
+const CACHES = [STATIC_CACHE, PAGES_CACHE, DATA_CACHE];
 // Each followed set is its own /api/sats URL; keep the newest few.
 const MAX_SATS = 30;
+// Saved pages besides the home, which is kept as the offline fallback.
+const MAX_PAGES = 30;
 
 // strategy:begin
 const ROUTES = [
@@ -112,6 +133,7 @@ main{max-width:28rem;padding:24px}
 h1{margin:0 0 8px;font-size:24px}
 p{margin:0 0 16px;color:#8899bb}
 a{color:#7eb8ff}
+@media (prefers-color-scheme: light){body{background:#f5f7fb;color:#1b2333}p{color:#5b6780}a{color:#1f5fbf}}
 </style></head>
 <body><main class="offline-page"><h1>Offline</h1><p>This page wasn&#39;t saved for offline use.</p><a href="/">Go to SeekSat home</a></main></body></html>`;
 
@@ -120,15 +142,28 @@ const offlinePage = () => new Response(OFFLINE_HTML, {
   headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
 });
 
-async function trim(cache, prefix, max) {
-  const keys = (await cache.keys()).filter((k) => new URL(k.url).pathname.startsWith(prefix));
+/** Which cache a response belongs in (see Caches above). */
+function cacheFor(url, isPage) {
+  if (isPage) return PAGES_CACHE;
+  const path = new URL(url).pathname;
+  return path === '/api/sats' || path.startsWith('/assets/stars/') ? DATA_CACHE : STATIC_CACHE;
+}
+
+// Deletes the oldest entries that pick(url) selects beyond max. Cache keys
+// come back oldest first, and put() moves an entry to the end.
+async function trim(cache, pick, max) {
+  const keys = (await cache.keys()).filter((k) => pick(new URL(k.url)));
   for (const k of keys.slice(0, Math.max(0, keys.length - max))) await cache.delete(k);
 }
 
-async function put(request, res) {
-  const cache = await caches.open(CACHE);
+const isHome = (u) => u.pathname === '/' && !u.search;
+
+async function put(request, res, isPage) {
+  const name = cacheFor(request.url, isPage);
+  const cache = await caches.open(name);
   await cache.put(request, res);
-  if (new URL(request.url).pathname === '/api/sats') await trim(cache, '/api/sats', MAX_SATS);
+  if (name === PAGES_CACHE) await trim(cache, (u) => !isHome(u), MAX_PAGES);
+  else if (new URL(request.url).pathname === '/api/sats') await trim(cache, (u) => u.pathname === '/api/sats', MAX_SATS);
 }
 
 async function networkFirst(event, isPage) {
@@ -138,11 +173,12 @@ async function networkFirst(event, isPage) {
     // would answer offline for an hour, unmarked. Ask the network for data;
     // pages keep their own navigation request.
     const res = await (isPage ? fetch(request) : fetch(request, { cache: 'no-cache' }));
-    if (saveable(res)) event.waitUntil(put(request, res.clone()).catch(() => {}));
+    if (saveable(res)) event.waitUntil(put(request, res.clone(), isPage).catch(() => {}));
     return res;
   } catch (err) {
-    const cache = await caches.open(CACHE);
-    const hit = await cache.match(request, { ignoreVary: true });
+    const cache = await caches.open(cacheFor(request.url, isPage));
+    const hit = await cache.match(request, { ignoreVary: true })
+      || (isPage ? await cache.match(request, { ignoreVary: true, ignoreSearch: true }) : undefined);
     if (hit) return isPage ? hit : markSaved(hit);
     if (!isPage) throw err;
     if (navigationFallback(request.url) === 'home') {
@@ -155,11 +191,11 @@ async function networkFirst(event, isPage) {
 
 async function cacheFirst(event) {
   const { request } = event;
-  const cache = await caches.open(CACHE);
+  const cache = await caches.open(cacheFor(request.url, false));
   const hit = await cache.match(request, { ignoreVary: true });
   if (hit) return hit;
   const res = await fetch(request);
-  if (saveable(res)) event.waitUntil(put(request, res.clone()).catch(() => {}));
+  if (saveable(res)) event.waitUntil(put(request, res.clone(), false).catch(() => {}));
   return res;
 }
 
@@ -169,16 +205,17 @@ async function warm(url, mode) {
   if (!sameOrigin(url)) return;
   const strategy = strategyFor({ url, method: 'GET', mode, sameOrigin: true });
   if (strategy !== 'network-first' && strategy !== 'cache-first') return;
-  const cache = await caches.open(CACHE);
+  const isPage = mode === 'navigate';
+  const cache = await caches.open(cacheFor(url, isPage));
   if (strategy === 'cache-first' && (await cache.match(url, { ignoreVary: true }))) return;
   const res = await fetch(url, { credentials: 'same-origin' });
-  if (saveable(res)) await put(new Request(url), res);
+  if (saveable(res)) await put(new Request(url), res, isPage);
 }
 
 self.addEventListener('install', (event) => {
   // The app shell: the home page, so any page has an offline fallback.
   event.waitUntil(
-    caches.open(CACHE)
+    caches.open(PAGES_CACHE)
       .then((cache) => cache.add(new Request('/', { cache: 'reload' })))
       .catch(() => {})
       .then(() => self.skipWaiting()),
@@ -188,7 +225,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const names = await caches.keys();
-    await Promise.all(names.filter((n) => n.startsWith('seeksat-') && n !== CACHE).map((n) => caches.delete(n)));
+    await Promise.all(names.filter((n) => n.startsWith('seeksat-') && !CACHES.includes(n)).map((n) => caches.delete(n)));
     await self.clients.claim();
   })());
 });
@@ -203,8 +240,8 @@ self.addEventListener('fetch', (event) => {
   });
   if (strategy === 'network-first') event.respondWith(networkFirst(event, request.mode === 'navigate'));
   else if (strategy === 'cache-first') event.respondWith(cacheFirst(event));
-  else if (strategy === 'network-only') event.respondWith(fetch(request));
-  // passthrough: no respondWith, so the browser handles it as if we were not here.
+  // network-only and passthrough: no respondWith, so the browser handles it
+  // as if we were not here, and nothing is saved.
 });
 
 // SwRegister posts what the first, uncontrolled load fetched.

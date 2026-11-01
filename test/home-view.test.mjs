@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  followedTracks, nextCardChangeMs, shouldRefreshCards, passTimesLabel, passMetaLabel, elementTags, savedAgeText, stepMinElev,
+  followedTracks, nextCardChangeMs, shouldRefreshCards, passTimesLabel, passMetaLabel, elementTags, savedAgeText, savedAgeNotice, stepMinElev,
   MIN_ELEV_STEP, MIN_ELEV_MAX,
 } from '../lib/home/view.mjs';
 
@@ -122,4 +122,13 @@ test('savedAgeText says how long ago satellites were saved, in plain units', () 
   assert.equal(savedAgeText(now + 5 * min, now), 'less than a minute');
   assert.equal(savedAgeText(null, now), null);
   assert.equal(savedAgeText(Number.NaN, now), null);
+});
+
+test('savedAgeNotice says how old the saved satellite data is', () => {
+  const now = Date.parse('2026-11-01T12:00:00Z');
+  const min = 60_000;
+  assert.equal(savedAgeNotice(now - 12 * min, now), 'Satellite data is 12 min old.');
+  assert.equal(savedAgeNotice(now - 20_000, now), 'Satellite data is less than a minute old.');
+  assert.equal(savedAgeNotice(now - 2 * 24 * 60 * min, now), 'Satellite data is 2 days old.');
+  assert.equal(savedAgeNotice(null, now), null);
 });

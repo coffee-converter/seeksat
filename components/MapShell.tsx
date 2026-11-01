@@ -11,6 +11,9 @@ interface Props {
   panel: ReactNode;
   /** A line under the top bar (and the offline banner), such as how old saved data is. */
   notice?: ReactNode;
+  /** True when the page shows satellites from the service worker's cache;
+   *  the offline banner then says so. */
+  offlineFromCache?: boolean;
   /** Extra class on the root, for page-specific styles. */
   className?: string;
 }
@@ -21,12 +24,12 @@ interface Props {
  * scrolling on its own at the right and the page itself still. Narrower, one
  * column: the top bar sticks, a tall map, then the panel flows below.
  */
-export default function MapShell({ top, map, panel, notice, className }: Props) {
+export default function MapShell({ top, map, panel, notice, offlineFromCache = false, className }: Props) {
   return (
     <div className={className ? `map-shell ${className}` : "map-shell"}>
       <header className="map-shell__top">
         {top}
-        <OfflineBanner />
+        <OfflineBanner fromCache={offlineFromCache} />
         {notice}
       </header>
       <div className="map-shell__map">{map}</div>

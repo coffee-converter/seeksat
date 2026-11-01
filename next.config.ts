@@ -52,8 +52,20 @@ const SECURITY_HEADERS = [
   { key: "Content-Security-Policy", value: CSP },
 ];
 
+// The service worker's version: components/SwRegister.tsx registers
+// /sw.js?v=<id>, so each deploy installs a new worker that drops the last
+// build's chunk caches. On Vercel it is the deploy's git commit
+// (VERCEL_GIT_COMMIT_SHA, set at build time); elsewhere a stamp taken when the
+// build starts. Stored in process.env so Next's build workers, which load this
+// file again, inherit the same value.
+process.env.SEEKSAT_BUILD_ID ||= (process.env.VERCEL_GIT_COMMIT_SHA ?? "").slice(0, 12)
+  || `local-${Date.now().toString(36)}`;
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_BUILD_ID: process.env.SEEKSAT_BUILD_ID,
+  },
   // The OG renderer (lib/og) is intentionally all-bundleable: linkedom
   // (DOM) + @resvg/resvg-wasm (rasterizer) are ESM/JS, and the wasm bytes
   // and fonts are base64-embedded modules - so nothing needs externalizing

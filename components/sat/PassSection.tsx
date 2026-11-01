@@ -12,7 +12,7 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows } from "@/lib/sat/pass-rows.mjs";
+import { passRows, printAccuracyNote } from "@/lib/sat/pass-rows.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
@@ -331,12 +331,8 @@ export default function PassSection({
                 </p>
               )}
               {view.kind === "rows" && (() => {
-                const noted = view.rows.find((r) => r.accuracy);
-                return noted ? (
-                  <p className="print-only sat-print-meta">
-                    {`Passes from ${noted.dayLabel} on may be off by a minute or more: the elements will be over 3 days old by then.`}
-                  </p>
-                ) : null;
+                const note = (printAccuracyNote as (rows: Row[]) => string | null)(view.rows);
+                return note ? <p className="print-only sat-print-meta">{note}</p> : null;
               })()}
               {view.kind === "rows" && (
                 <table className="print-only sat-print-table">

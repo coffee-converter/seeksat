@@ -26,30 +26,32 @@ export default function UpNow({ tracks, observer, colors, nowMs, focusId }: Prop
     <section className="up-now" aria-labelledby="up-now-h">
       <h2 id="up-now-h" className="up-now__title">Up now</h2>
       <div className="up-now__body">
-        <svg className="up-now__sky" viewBox="0 0 180 180" role="img" aria-label="Sky view, north up, east left">
-          <circle cx={C} cy={C} r={R} className="up-now__horizon" />
-          <circle cx={C} cy={C} r={(R * 60) / 90} className="up-now__ring" />
-          <circle cx={C} cy={C} r={(R * 30) / 90} className="up-now__ring" />
-          <text x={C} y={12} className="up-now__dir" textAnchor="middle">N</text>
-          <text x={C} y={176} className="up-now__dir" textAnchor="middle">S</text>
-          <text x={6} y={C + 4} className="up-now__dir" textAnchor="middle">E</text>
-          <text x={174} y={C + 4} className="up-now__dir" textAnchor="middle">W</text>
-          {up.map((s) => {
-            const p = upNowPoint(s.azDeg, s.elDeg, 180);
-            return (
-              <circle
-                key={s.noradId}
-                cx={p.x}
-                cy={p.y}
-                r={s.noradId === focusId ? 6 : 4.5}
-                fill={s.color ?? "var(--accent)"}
-                className="up-now__dot"
-              >
-                <title>{s.name}</title>
-              </circle>
-            );
-          })}
-        </svg>
+        {up.length > 0 && (
+          <svg className="up-now__sky" viewBox="0 0 180 180" role="img" aria-label="Sky view, north up, east left">
+            <circle cx={C} cy={C} r={R} className="up-now__horizon" />
+            <circle cx={C} cy={C} r={(R * 60) / 90} className="up-now__ring" />
+            <circle cx={C} cy={C} r={(R * 30) / 90} className="up-now__ring" />
+            <text x={C} y={12} className="up-now__dir" textAnchor="middle">N</text>
+            <text x={C} y={176} className="up-now__dir" textAnchor="middle">S</text>
+            <text x={6} y={C + 4} className="up-now__dir" textAnchor="middle">E</text>
+            <text x={174} y={C + 4} className="up-now__dir" textAnchor="middle">W</text>
+            {up.map((s) => {
+              const p = upNowPoint(s.azDeg, s.elDeg, 180);
+              return (
+                <circle
+                  key={s.noradId}
+                  cx={p.x}
+                  cy={p.y}
+                  r={s.noradId === focusId ? 6 : 4.5}
+                  fill={s.color ?? "var(--accent)"}
+                  className="up-now__dot"
+                >
+                  <title>{s.name}</title>
+                </circle>
+              );
+            })}
+          </svg>
+        )}
         {up.length === 0 ? (
           <p className="up-now__none">Nothing you follow is above the horizon right now.</p>
         ) : (

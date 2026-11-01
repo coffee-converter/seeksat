@@ -16,7 +16,7 @@ import { tracksFor } from "@/lib/home/records.mjs";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
-import { savedAgeText, shouldRefreshCards } from "@/lib/home/view.mjs";
+import { savedAgeNotice, shouldRefreshCards } from "@/lib/home/view.mjs";
 import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { SAT_PALETTES } from "@/lib/map/draw.mjs";
@@ -338,7 +338,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   // Saved satellites say how old they are, even when the browser thinks it is
   // online (a captive portal); back online, they reload.
-  const savedAge = fromCache && nowMs != null ? (savedAgeText as (a: number | null, b: number) => string | null)(generatedAtMs, nowMs) : null;
+  const savedAge = fromCache && nowMs != null ? (savedAgeNotice as (a: number | null, b: number) => string | null)(generatedAtMs, nowMs) : null;
   useEffect(() => {
     if (!fromCache) return;
     const reload = () => void loadRecords();
@@ -348,7 +348,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   return (
     <MapShell
-      notice={savedAge && <p className="saved-age">Satellites saved {savedAge} ago.</p>}
+      offlineFromCache={fromCache}
+      notice={savedAge && <p className="saved-age">{savedAge}</p>}
       top={(
         <>
           <h1 className="home-wordmark">SeekSat</h1>
@@ -425,7 +426,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             </>
           ) : observer && (
             <>
-              {nowMs != null && (
+              {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
                 <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} />
               )}
               {prefs.following.length === 0 ? (

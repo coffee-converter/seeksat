@@ -126,7 +126,9 @@ test('sw.js strategyFor gives the same answer for every case', () => {
 test('sw.js versions its cache, cleans up old ones and claims clients', () => {
   const sw = read('public/sw.js');
   assert.match(sw, /const SW_VERSION = \d+;/);
-  assert.match(sw, /`seeksat-v\$\{SW_VERSION\}`/);
+  assert.match(sw, /`seeksat-static-v\$\{SW_VERSION\}-\$\{BUILD\}`/);
+  assert.match(sw, /`seeksat-pages-v\$\{SW_VERSION\}-\$\{BUILD\}`/);
+  assert.match(sw, /`seeksat-data-v\$\{SW_VERSION\}`/);
   assert.match(sw, /skipWaiting\(\)/);
   assert.match(sw, /clients\.claim\(\)/);
   assert.match(sw, /caches\.delete\(/);

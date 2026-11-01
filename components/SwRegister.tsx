@@ -5,6 +5,10 @@ import { useEffect } from "react";
 // How long after the worker takes over to keep handing it late fetches.
 const WARM_MS = 30_000;
 
+// Set in next.config.ts. Registering /sw.js?v=<build> installs a new worker
+// on each deploy, which drops the previous build's chunk and page caches.
+const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID || "dev";
+
 /** The seeksat-* caches public/sw.js keeps. */
 const CACHE_PREFIX = "seeksat-";
 
@@ -29,7 +33,9 @@ async function removeWorker(sw: ServiceWorkerContainer) {
 /** Registers /sw.js after load, in production only (public/sw.js). The first
  *  load runs before the worker controls the page, so once it takes control
  *  this hands it the page and every fetch that went around it (workerStart 0),
- *  including ones still in flight, to save for offline use. Renders nothing. */
+ *  including ones still in flight, to save for offline use. When a new
+ *  build's worker takes over from an old one, it hands over every fetch, since
+ *  the new worker's caches start empty. Renders nothing. */
 export default function SwRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -41,13 +47,14 @@ export default function SwRegister() {
     if (process.env.NODE_ENV !== "production") return;
     let observer: PerformanceObserver | null = null;
     let stopTimer: ReturnType<typeof setTimeout> | null = null;
+    const updating = Boolean(sw.controller);
 
     const warm = () => {
       const seen = new Set<string>();
       const send = (entries: PerformanceEntryList) => {
         const urls: string[] = [];
         for (const e of entries as PerformanceResourceTiming[]) {
-          if (e.workerStart === 0 && !seen.has(e.name)) {
+          if ((updating || e.workerStart === 0) && !seen.has(e.name)) {
             seen.add(e.name);
             urls.push(e.name);
           }
@@ -60,10 +67,10 @@ export default function SwRegister() {
       observer.observe({ type: "resource" });
       stopTimer = setTimeout(() => observer?.disconnect(), WARM_MS);
     };
-    if (!sw.controller) sw.addEventListener("controllerchange", warm, { once: true });
+    sw.addEventListener("controllerchange", warm, { once: true });
 
     const register = () => {
-      sw.register("/sw.js").catch(() => {
+      sw.register(`/sw.js?v=${encodeURIComponent(BUILD_ID)}`).catch(() => {
         /* no worker: SeekSat still works online */
       });
     };
