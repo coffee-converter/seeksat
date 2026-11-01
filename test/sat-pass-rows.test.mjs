@@ -55,3 +55,19 @@ test('no finite epoch means no accuracy note, not a huge age', () => {
   const r = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_EPOCH + 5 * DAY });
   assert.equal(passRows(r, { ...opts, epochMs: null, nowMs: ISS_EPOCH + 5 * DAY }).rows[0].accuracy, null);
 });
+test('joint GEO: the text names the place that cannot see it', () => {
+  const names = { home: 'Home', 'obs-1': 'Sydney' };
+  const r = {
+    kind: 'stationary', visible: false,
+    pointing: [
+      { obsId: 'home', azDeg: 180, elDeg: 30, elMinDeg: 29, elMaxDeg: 31 },
+      { obsId: 'obs-1', azDeg: 1, elDeg: -40, elMinDeg: -41, elMaxDeg: -39 },
+    ],
+  };
+  assert.equal(passRows(r, { ...opts, names }).text, 'It never rises above 10° at Sydney.');
+  // Home is the first place that cannot see it: the home texts stay.
+  r.pointing[0].elMaxDeg = 4;
+  assert.equal(passRows(r, { ...opts, names }).text, 'It never rises above 10° here.');
+  r.pointing[0].elMaxDeg = -2;
+  assert.equal(passRows(r, { ...opts, names }).text, 'It never rises here.');
+});

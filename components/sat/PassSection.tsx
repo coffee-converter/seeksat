@@ -71,6 +71,10 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
     [observer, extra],
   );
   const joint = extra.length > 0;
+  const names = useMemo(
+    () => Object.fromEntries(observers.map((o) => [o.id, o.name])) as Record<string, string>,
+    [observers],
+  );
 
   const [result, setResult] = useState<unknown>(null);
   const [failed, setFailed] = useState(false);
@@ -128,8 +132,9 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
       mode: prefs.mode,
       timeZone: observer.tz,
       locale: undefined,
+      names,
     });
-  }, [result, failed, observer, epochMs, bucketMs, prefs.minElevDeg, prefs.mode]);
+  }, [result, failed, observer, epochMs, bucketMs, prefs.minElevDeg, prefs.mode, names]);
 
   // Search again once the first pass has ended (never while a job runs, and
   // never after a failure).
