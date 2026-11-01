@@ -21,6 +21,8 @@ p.sat-how { margin: 0 0 8px; }
 }
 .sat-passes { margin-bottom: 14px; }
 .sat-passlist { list-style: none; margin: 0; padding: 0; }
+.sat-show-all { margin-top: 10px; }
+.sat-zone { margin: 4px 0 8px; }
 .sat-pass { padding: 8px 0; border-bottom: 1px solid var(--map-border); }
 .sat-pass__main { margin: 0 0 4px; color: var(--map-text); font-variant-numeric: tabular-nums; line-height: 1.5; }
 .sat-pass__day { font-weight: 600; }

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { passRows, compass, printAccuracyNote } from '../lib/sat/pass-rows.mjs';
+import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount } from '../lib/sat/pass-rows.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -97,4 +97,25 @@ test('printAccuracyNote names the day and start of the first noted pass', () => 
   );
   assert.equal(printAccuracyNote(rows.slice(0, 1)), null);
   assert.equal(printAccuracyNote([]), null);
+});
+
+test('zoneLabel names the zone with its short name at that moment', () => {
+  const nov = Date.parse('2026-11-02T04:00:00Z');
+  const jul = Date.parse('2026-07-02T04:00:00Z');
+  assert.equal(zoneLabel('America/Chicago', nov, 'en-US'), 'CST (America/Chicago)');
+  assert.equal(zoneLabel('America/Chicago', jul, 'en-US'), 'CDT (America/Chicago)');
+  assert.equal(zoneLabel('UTC', nov, 'en-US'), 'UTC');
+  assert.equal(zoneLabel(undefined, nov, 'en-US'), 'UTC');
+  assert.equal(zoneLabel('Not/AZone', nov, 'en-US'), 'UTC');
+});
+
+test('initialRowCount keeps the next 48 hours, at least 3 rows, and the shared row', () => {
+  const H = 3_600_000;
+  const rows = [1, 5, 20, 47, 49, 60, 100].map((h) => ({ key: String(h), pass: { startMs: h * H } }));
+  assert.equal(initialRowCount(rows, 0), 4);
+  assert.equal(initialRowCount(rows, 0, { sharedKey: '60' }), 6);
+  assert.equal(initialRowCount(rows, 0, { sharedKey: 'gone' }), 4);
+  assert.equal(initialRowCount(rows.slice(4), 0), 3);
+  assert.equal(initialRowCount(rows.slice(0, 2), 0), 2);
+  assert.equal(initialRowCount([], 0), 0);
 });

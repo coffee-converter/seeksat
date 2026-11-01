@@ -12,7 +12,7 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows, printAccuracyNote } from "@/lib/sat/pass-rows.mjs";
+import { passRows, printAccuracyNote, zoneLabel, initialRowCount } from "@/lib/sat/pass-rows.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
@@ -220,6 +220,12 @@ export default function PassSection({
     });
   }, [shared, failed, view, observer, sharedPassMs, bucketMs]);
   const sharedKey = sharedHit?.kind === "row" ? sharedHit.key : null;
+  // Ten days of passes is a long page on a phone: show two days, then a button.
+  const [showAll, setShowAll] = useState(false);
+  const rowCount = view?.kind === "rows"
+    ? (showAll ? view.rows.length : (initialRowCount as (r: Row[], n: number, o: { sharedKey: string | null }) => number)(view.rows, bucketMs, { sharedKey }))
+    : 0;
+  const zone = observer ? (zoneLabel as (tz: string | undefined, ms: number, locale?: string) => string)(observer.tz, bucketMs) : "UTC";
 
   // Scroll to the shared pass once, when the first rows arrive.
   const sharedRow = useRef<HTMLLIElement | null>(null);
@@ -327,7 +333,7 @@ export default function PassSection({
               {sharedHit?.kind === "past" && <p className="home-note sat-shared-past">{sharedHit.text}</p>}
               {view.kind === "rows" && (
                 <p className="print-only sat-print-meta">
-                  {`Location: ${observers.map((o) => o.name).join(", ")}. Mode: ${mode}. Minimum elevation: ${minElevDeg}°.`}
+                  {`Location: ${observers.map((o) => o.name).join(", ")}. Mode: ${mode}. Minimum elevation: ${minElevDeg}°. Times are ${zone}.`}
                 </p>
               )}
               {view.kind === "rows" && (() => {
@@ -360,9 +366,11 @@ export default function PassSection({
                   </tbody>
                 </table>
               )}
+              {view.kind === "rows" && <p className="home-note sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>}
               {view.kind === "rows" ? (
+                <>
                 <ul className="sat-passlist">
-                  {view.rows.map((row) => (
+                  {view.rows.slice(0, rowCount).map((row) => (
                     <li
                       key={row.key}
                       ref={row.key === sharedKey ? sharedRow : undefined}
@@ -400,6 +408,12 @@ export default function PassSection({
                     </li>
                   ))}
                 </ul>
+                {view.rows.length > rowCount && (
+                  <button type="button" className="home-chip sat-show-all" onClick={() => setShowAll(true)}>
+                    {`Show all ${view.rows.length} passes`}
+                  </button>
+                )}
+                </>
               ) : (
                 <p className="home-note">{view.text}</p>
               )}
