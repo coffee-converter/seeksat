@@ -330,6 +330,40 @@ export default function PassSection({
                   {`Location: ${observers.map((o) => o.name).join(", ")}. Mode: ${mode}. Minimum elevation: ${minElevDeg}°.`}
                 </p>
               )}
+              {view.kind === "rows" && (() => {
+                const noted = view.rows.find((r) => r.accuracy);
+                return noted ? (
+                  <p className="print-only sat-print-meta">
+                    {`Passes from ${noted.dayLabel} on may be off by a minute or more: the elements will be over 3 days old by then.`}
+                  </p>
+                ) : null;
+              })()}
+              {view.kind === "rows" && (
+                <table className="print-only sat-print-table">
+                  <thead>
+                    <tr>
+                      {["Day", "Start", "End", "Duration", "Max", "From", "To", "Visible"].map((h) => <th key={h} scope="col">{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {view.rows.map((row) => {
+                      const [from, to] = row.azLabel.split(" to ");
+                      return (
+                        <tr key={row.key}>
+                          <td>{row.dayLabel}</td>
+                          <td>{row.startLabel}</td>
+                          <td>{row.endLabel}</td>
+                          <td>{row.durationLabel}</td>
+                          <td>{row.maxElevLabel}</td>
+                          <td>{from}</td>
+                          <td>{to}</td>
+                          <td>{row.visible ? "yes" : ""}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
               {view.kind === "rows" ? (
                 <ul className="sat-passlist">
                   {view.rows.map((row) => (

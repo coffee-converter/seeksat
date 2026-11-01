@@ -231,3 +231,28 @@ for (const theme of ['dark', 'light']) {
     check('--text-strong', '--tile-hover', 4.5);
   });
 }
+
+// Colour keywords (black, white) are allowed only inside `@media print`,
+// where the pass sheet forces black on white whatever the theme.
+test('colour keywords appear only inside @media print', () => {
+  const found = [];
+  for (const file of FILES) {
+    let css = stripComments(blankRegions(blankRegions(read(file), TOKENS_BEGIN, TOKENS_END), CHART_BEGIN, CHART_END));
+    // Blank each `@media print { ... }` block (brace matched).
+    for (let at = css.indexOf('@media print'); at >= 0; at = css.indexOf('@media print')) {
+      let depth = 0;
+      let i = css.indexOf('{', at);
+      const start = i;
+      for (; i < css.length; i++) {
+        if (css[i] === '{') depth++;
+        else if (css[i] === '}' && --depth === 0) break;
+      }
+      css = css.slice(0, at) + blank(css.slice(at, i + 1)) + css.slice(i + 1);
+      assert.ok(start > at);
+    }
+    for (const m of css.matchAll(/[{;]\s*([-\w]+)\s*:\s*([^;{}]*)/g)) {
+      if (/(?<![-\w])(?:black|white|gray|grey|red|blue|green)(?![-\w])/.test(m[2])) found.push(`${file}: ${m[1]}: ${m[2].trim()}`);
+    }
+  }
+  assert.deepEqual(found, [], `colour keywords outside @media print:\n${found.join('\n')}`);
+});

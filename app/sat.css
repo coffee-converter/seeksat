@@ -136,6 +136,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .sat-passes__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sat-passes__head .home-heading { margin: 0; }
 .print-only { display: none; }
+.sat-print-table { border-collapse: collapse; }
 
 /* print: a clean black-on-white pass sheet. Colours are the keywords black
    and white (not tokens), so the sheet is the same whatever the theme. */
@@ -164,9 +165,15 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   .sat-elements .sat-age, .sat-age { display: block; margin: 0 0 8pt; font-size: 10pt; }
   .sat-badge { border: 1px solid black !important; border-radius: 0; padding: 0 4pt; font-size: 9pt; }
 
-  #passes > *:not(.sat-passes__head):not(.sat-passlist):not(.print-only) { display: none !important; }
+  #passes > *:not(.sat-passes__head):not(.print-only) { display: none !important; }
+  .sat-passlist { display: none !important; }
   .sat-print-chip { display: none !important; }
   .print-only { display: block; }
+  table.print-only { display: table; width: 100%; font-size: 9.5pt; font-variant-numeric: tabular-nums; }
+  .sat-print-table thead { display: table-header-group; }
+  .sat-print-table th { text-align: left; font-weight: 700; padding: 2pt 4pt; border-bottom: 1pt solid black; }
+  .sat-print-table td { padding: 2pt 4pt; border-bottom: 0.5pt solid black; }
+  .sat-print-table tr { break-inside: avoid; page-break-inside: avoid; }
   .sat-passes__head .home-heading { font-size: 12pt; margin: 6pt 0 2pt; }
   .sat-print-meta { margin: 0 0 6pt; font-size: 10pt; }
   .sat-print-foot { margin: 10pt 0 0; font-size: 9pt; }
