@@ -16,7 +16,7 @@ test('full output for one pass', () => {
 });
 test('commas and semicolons in names are escaped', () => {
   const ics = passToIcs({ ...BASE, observer: { ...BASE.observer, name: 'Elgin, IL; home' } });
-  assert.ok(ics.includes('LOCATION:Elgin\\, IL\; home'));
+  assert.ok(ics.includes('LOCATION:Elgin\\, IL\\; home'));
 });
 test('long lines fold at 75 octets without splitting characters', () => {
   const ics = passToIcs({ ...BASE, satName: 'Ä'.repeat(200) });
