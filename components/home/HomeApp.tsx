@@ -16,7 +16,7 @@ import { tracksFor } from "@/lib/home/records.mjs";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
-import { shouldRefreshCards } from "@/lib/home/view.mjs";
+import { savedAgeText, shouldRefreshCards } from "@/lib/home/view.mjs";
 import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { SAT_PALETTES } from "@/lib/map/draw.mjs";
@@ -68,6 +68,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const error = useHomeStore((s) => s.error);
   const focusId = useHomeStore((s) => s.focusId);
   const viewing = useHomeStore((s) => s.viewing);
+  const fromCache = useHomeStore((s) => s.fromCache);
+  const generatedAtMs = useHomeStore((s) => s.generatedAtMs);
   const hydrate = useHomeStore((s) => s.hydrate);
   const loadRecords = useHomeStore((s) => s.loadRecords);
   const loadViewing = useHomeStore((s) => s.loadViewing);
@@ -334,8 +336,19 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   const showPrompt = hydrated && (!location || changingLocation);
 
+  // Saved satellites say how old they are, even when the browser thinks it is
+  // online (a captive portal); back online, they reload.
+  const savedAge = fromCache && nowMs != null ? (savedAgeText as (a: number | null, b: number) => string | null)(generatedAtMs, nowMs) : null;
+  useEffect(() => {
+    if (!fromCache) return;
+    const reload = () => void loadRecords();
+    window.addEventListener("online", reload);
+    return () => window.removeEventListener("online", reload);
+  }, [fromCache, loadRecords]);
+
   return (
     <MapShell
+      notice={savedAge && <p className="saved-age">Satellites saved {savedAge} ago.</p>}
       top={(
         <>
           <h1 className="home-wordmark">SeekSat</h1>

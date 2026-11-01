@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { ROUTES, strategyFor } from '../lib/pwa/strategy.mjs';
+import { ROUTES, navigationFallback, strategyFor } from '../lib/pwa/strategy.mjs';
 import manifest from '../app/manifest.ts';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
@@ -59,6 +59,42 @@ test('every row of the table is exercised by a case', () => {
   }
 });
 
+// An offline navigation with no saved copy: / gets the saved home, any other
+// page an honest "not saved" page rather than the home under the wrong URL.
+const FALLBACKS = [
+  [`${ORIGIN}/`, 'home'],
+  [`${ORIGIN}/?focus=25544`, 'home'],
+  [`${ORIGIN}/sat/20580`, 'offline-page'],
+  [`${ORIGIN}/sat/25544/share/abc`, 'offline-page'],
+  [`${ORIGIN}/mcp`, 'offline-page'],
+  ['not a url', 'offline-page'],
+];
+
+for (const [url, expected] of FALLBACKS) {
+  test(`navigationFallback: ${url} -> ${expected}`, () => {
+    assert.equal(navigationFallback(url), expected);
+  });
+}
+
+test('the offline page says the page was not saved and links home', () => {
+  const sw = read('public/sw.js');
+  assert.match(sw, /<h1>Offline<\/h1>/);
+  assert.match(sw, /This page wasn&#39;t saved for offline use\./);
+  assert.match(sw, /<a href="\/">Go to SeekSat home<\/a>/);
+  assert.match(sw, /offline-page/);
+});
+
+test('sw.js keeps every hashed chunk, and never saves a redirected answer', () => {
+  const sw = read('public/sw.js');
+  assert.doesNotMatch(sw, /MAX_STATIC/);
+  assert.doesNotMatch(sw, /trim\(cache, '\/_next\/static\/'/);
+  assert.match(sw, /!res\.redirected/);
+});
+
+test('sw.js marks /api/sats answers served from the cache', () => {
+  assert.match(read('public/sw.js'), /x-seeksat-cache/);
+});
+
 // sw.js is a classic script, so it carries its own copy of the table and of
 // strategyFor between the strategy:begin/end markers. The copies must match.
 const BEGIN = '// strategy:begin';
@@ -79,11 +115,12 @@ test('sw.js carries the same table and strategyFor as lib/pwa/strategy.mjs', () 
 test('sw.js strategyFor gives the same answer for every case', () => {
   const sw = block(read('public/sw.js'), 'sw.js');
   const ctx = vm.createContext({ URL });
-  vm.runInContext(`${sw}\nglobalThis.__out = { ROUTES, strategyFor };`, ctx);
+  vm.runInContext(`${sw}\nglobalThis.__out = { ROUTES, strategyFor, navigationFallback };`, ctx);
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.__out.ROUTES)), JSON.parse(JSON.stringify(ROUTES)));
   for (const [label, request, expected] of CASES) {
     assert.equal(ctx.__out.strategyFor(request), expected, label);
   }
+  for (const [url, expected] of FALLBACKS) assert.equal(ctx.__out.navigationFallback(url), expected, url);
 });
 
 test('sw.js versions its cache, cleans up old ones and claims clients', () => {

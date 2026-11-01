@@ -44,6 +44,32 @@ test('fetchRecords samples the clock skew from the response Date header', async 
   assert.ok(Math.abs(getClockSkewMs() - 600_000) < 2000, `skew ${getClockSkewMs()}`);
 });
 
+test('fetchRecords reports a service-worker copy and the oldest generatedAtMs', async () => {
+  const fetchImpl = async (url) => {
+    const ids = new URL(url, 'http://x').searchParams.get('ids').split(',').map(Number);
+    const cached = ids[0] > 50;
+    return {
+      ...json(200, { generatedAtMs: cached ? 1000 : 5000, objects: [], missing: [] }),
+      headers: new Headers(cached ? { 'x-seeksat-cache': '1' } : {}),
+    };
+  };
+  const ids = Array.from({ length: 60 }, (_, i) => i + 1);
+  const out = await fetchRecords(ids, { fetchImpl });
+  assert.equal(out.fromCache, true);
+  assert.equal(out.generatedAtMs, 1000);
+});
+
+test('fetchRecords from the network is not fromCache', async () => {
+  const fetchImpl = async () => ({ ...json(200, { generatedAtMs: 5000, objects: [], missing: [] }), headers: new Headers() });
+  const out = await fetchRecords([25544], { fetchImpl });
+  assert.equal(out.fromCache, false);
+  assert.equal(out.generatedAtMs, 5000);
+  // No headers at all, and no generatedAtMs, still work.
+  const bare = await fetchRecords([25544], { fetchImpl: async () => json(200, { objects: [], missing: [] }) });
+  assert.equal(bare.fromCache, false);
+  assert.equal(bare.generatedAtMs, null);
+});
+
 test('tracksFor lets a pasted record override the mirror record', () => {
   const mirror = recordFrom(MOLNIYA_LINE1, MOLNIYA_LINE2, 'MIRROR');
   const tracks = tracksFor(new Map([[25485, mirror]]), [

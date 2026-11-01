@@ -54,6 +54,10 @@ interface HomeState {
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
   lastLoadedMs: number | null;
+  /** True when the last load was a copy the service worker saved (offline). */
+  fromCache: boolean;
+  /** When the server built the snapshot the last load came from. */
+  generatedAtMs: number | null;
   /** The focused satellite (selected means focused). On / it mirrors ?focus=. */
   focusId: number | null;
   /** The record of a focused satellite that is not followed, opened from search. */
@@ -81,6 +85,8 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   status: "idle",
   error: null,
   lastLoadedMs: null,
+  fromCache: false,
+  generatedAtMs: null,
   focusId: null,
   viewing: null,
 
@@ -104,10 +110,10 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     const ids = following.filter((id) => !pasted.has(id));
     set({ status: "loading", error: null });
     try {
-      const { records, missing } = ids.length
+      const { records, missing, fromCache, generatedAtMs } = ids.length
         ? await fetchRecords(ids)
-        : { records: new Map(), missing: [] };
-      if (isLatest()) set({ records, missing, status: "ready", lastLoadedMs: Date.now() });
+        : { records: new Map(), missing: [], fromCache: false, generatedAtMs: null };
+      if (isLatest()) set({ records, missing, fromCache, generatedAtMs, status: "ready", lastLoadedMs: Date.now() });
     } catch (e) {
       if (isLatest()) set({ status: "error", error: e instanceof Error ? e.message : String(e) });
     }

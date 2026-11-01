@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  followedTracks, nextCardChangeMs, shouldRefreshCards, passTimesLabel, passMetaLabel, elementTags, stepMinElev,
+  followedTracks, nextCardChangeMs, shouldRefreshCards, passTimesLabel, passMetaLabel, elementTags, savedAgeText, stepMinElev,
   MIN_ELEV_STEP, MIN_ELEV_MAX,
 } from '../lib/home/view.mjs';
 
@@ -105,4 +105,21 @@ test('shouldRefreshCards: in flight never, stale yes, backoff holds', () => {
   assert.equal(shouldRefreshCards({ ...base, cardState: null, nowMs: 2000 }), false);
   assert.equal(shouldRefreshCards({ ...base, cardState: null, nowMs: 1999, retryAtMs: 2000 }), false);
   assert.equal(shouldRefreshCards({ ...base, cardState: null, nowMs: 2000, retryAtMs: 2000 }), true);
+});
+
+test('savedAgeText says how long ago satellites were saved, in plain units', () => {
+  const now = Date.UTC(2026, 10, 1, 12);
+  const min = 60_000;
+  assert.equal(savedAgeText(now - 20_000, now), 'less than a minute');
+  assert.equal(savedAgeText(now - min, now), '1 min');
+  assert.equal(savedAgeText(now - 12 * min, now), '12 min');
+  assert.equal(savedAgeText(now - 59 * min, now), '59 min');
+  assert.equal(savedAgeText(now - 60 * min, now), '1 h');
+  assert.equal(savedAgeText(now - 3 * 60 * min - 5 * min, now), '3 h');
+  assert.equal(savedAgeText(now - 24 * 60 * min, now), '1 day');
+  assert.equal(savedAgeText(now - 2 * 24 * 60 * min - 7 * 60 * min, now), '2 days');
+  // A clock behind the save time never reads as a negative age.
+  assert.equal(savedAgeText(now + 5 * min, now), 'less than a minute');
+  assert.equal(savedAgeText(null, now), null);
+  assert.equal(savedAgeText(Number.NaN, now), null);
 });

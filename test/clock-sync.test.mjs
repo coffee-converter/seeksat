@@ -19,3 +19,12 @@ test('a missing or junk Age header is ignored', () => {
   syncFromResponse(res({ date: new Date().toUTCString(), age: 'soon' }));
   assert.ok(Math.abs(getClockSkewMs()) < 2_000);
 });
+
+test('a service-worker saved copy never sets the skew', () => {
+  const now = Date.now();
+  syncFromResponse({ headers: new Headers({ date: new Date(now).toUTCString() }) });
+  const before = getClockSkewMs();
+  // Saved three days ago: its Date says nothing about this clock.
+  syncFromResponse({ headers: new Headers({ date: new Date(now - 3 * 86_400_000).toUTCString(), 'x-seeksat-cache': '1' }) });
+  assert.equal(getClockSkewMs(), before);
+});
