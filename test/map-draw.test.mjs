@@ -4,7 +4,7 @@ import { makeTrack } from '../lib/sat/track.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 import {
-  subpoint, groundTrack, footprintFeature, nightBands, loadLand,
+  subpoint, splitTrack, footprintFeature, nightBands, loadLand,
 } from '../lib/map/geometry.mjs';
 import { makeProjection } from '../lib/map/projections.mjs';
 import { drawMap, hitTest, isVisible, MAP_COLORS, SAT_PALETTE } from '../lib/map/draw.mjs';
@@ -16,8 +16,15 @@ function recordingCtx() {
   const ctx = {};
   for (const m of ['beginPath', 'moveTo', 'lineTo', 'closePath', 'arc', 'rect', 'fill', 'stroke',
     'fillText', 'strokeText', 'save', 'restore', 'setLineDash', 'clip']) {
-    ctx[m] = (...args) => { calls.push({ m, args, fillStyle: ctx.fillStyle, lineWidth: ctx.lineWidth }); };
+    ctx[m] = (...args) => {
+      if (m === 'setLineDash') ctx.dash = args[0];
+      calls.push({
+        m, args, fillStyle: ctx.fillStyle, strokeStyle: ctx.strokeStyle, lineWidth: ctx.lineWidth,
+        globalAlpha: ctx.globalAlpha, dash: ctx.dash ?? [], font: ctx.font,
+      });
+    };
   }
+  ctx.globalAlpha = 1;
   return { ctx, calls };
 }
 
@@ -33,10 +40,11 @@ function scene() {
   return specs.map(([l1, l2, name, color], i) => {
     const rec = recordFrom(l1, l2, name);
     const track = makeTrack(rec);
+    const split = splitTrack(track, NOW);
     const sub = subpoint(track.ecefAt(new Date(NOW)));
     return {
       noradId: rec.noradId, name, color,
-      track: groundTrack(track, NOW),
+      trackPast: split.past, trackFuture: split.future, trackTicks: split.ticks,
       position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
       footprint: i === 0 ? footprintFeature(sub, sub.altKm, 0) : null,
       selected: i === 0,
@@ -80,7 +88,7 @@ test('night bands fill once each with the night colour', () => {
 test('fillText is called once per satellite label', () => {
   const { ctx, calls } = recordingCtx();
   drawMap(ctx, args(scene()));
-  const labels = calls.filter((c) => c.m === 'fillText').map((c) => c.args[0]);
+  const labels = calls.filter((c) => c.m === 'fillText').map((c) => c.args[0]).filter((t) => !t.startsWith('+'));
   assert.deepEqual(labels.sort(), ['GOES 16', 'ISS']);
 });
 
@@ -155,4 +163,76 @@ test('hitTest uses a 22 px touch radius by default', () => {
   const [x, y] = projection([0, 0]);
   assert.equal(hitTest([a], projection, x + 20, y), 1);
   assert.equal(hitTest([a], projection, x + 23, y), null);
+});
+
+const strokes = (calls) => calls.filter((c) => c.m === 'stroke');
+
+test('the footprint outline is dashed [6, 5] and the dash is reset to []', () => {
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, args(scene()));
+  const i = calls.findIndex((c) => c.m === 'setLineDash' && c.args[0].join() === '6,5');
+  assert.ok(i >= 0);
+  const outline = calls.slice(i).find((c) => c.m === 'stroke');
+  assert.equal(outline.strokeStyle, '#ff9b54');
+  assert.equal(outline.lineWidth, 1.5);
+  assert.deepEqual(outline.dash, [6, 5]);
+  assert.deepEqual(calls.slice(i + 1).find((c) => c.m === 'setLineDash').args[0], []);
+  const fill = calls.find((c) => c.m === 'fill' && c.globalAlpha === 0.18);
+  assert.equal(fill.fillStyle, '#ff9b54');
+  assert.equal(MAP_COLORS.footprint, undefined);
+});
+
+test('the past strokes dotted [2, 4] at alpha 0.5', () => {
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, args(scene()));
+  const past = strokes(calls).filter((c) => c.dash.join() === '2,4' && c.strokeStyle === '#ff9b54');
+  assert.ok(past.length >= 1);
+  for (const c of past) { assert.equal(c.globalAlpha, 0.5); assert.equal(c.lineWidth, 1.5); }
+});
+
+test('the future is 8 solid chunks with alpha falling from 1 to 0.25', () => {
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, args(scene().slice(0, 1)));
+  const fut = strokes(calls).filter((c) => c.lineWidth === 2 && c.dash.length === 0
+    && c.strokeStyle === '#ff9b54' && c.globalAlpha < 1.0001 && c.globalAlpha >= 0.25 && c.args.length === 0);
+  const alphas = [];
+  for (const c of fut) if (!alphas.length || alphas.at(-1) !== c.globalAlpha) alphas.push(c.globalAlpha);
+  const chunk = alphas.slice(-8);
+  assert.equal(chunk.length, 8);
+  assert.equal(chunk[0], 1);
+  assert.ok(Math.abs(chunk[7] - 0.25) < 1e-9);
+  for (let i = 1; i < 8; i++) assert.ok(chunk[i] < chunk[i - 1]);
+});
+
+test('labels draw before satellites', () => {
+  const { ctx, calls } = recordingCtx();
+  const labels = {
+    graticule: [{ text: '30°N', x: 10, y: 10, align: 'left', baseline: 'top', line: 'parallel' }],
+    places: [
+      { text: 'ATLANTIC', x: 100, y: 100, kind: 'region', align: 'center' },
+      { text: 'Paris', x: 200, y: 100, kind: 'city', align: 'left' },
+    ],
+  };
+  drawMap(ctx, { ...args(scene()), zoom: 1, labels });
+  const order = calls.filter((c) => c.m === 'fillText').map((c) => c.args[0]).filter((t) => !t.startsWith('+'));
+  assert.deepEqual(order.slice(0, 3), ['30°N', 'ATLANTIC', 'Paris']);
+  assert.deepEqual(order.slice(3).sort(), ['GOES 16', 'ISS']);
+});
+
+test('the graticule step changes with zoom', () => {
+  const count = (zoom) => {
+    const { ctx, calls } = recordingCtx();
+    drawMap(ctx, { ...args([]), land: null, nightBands: [], observer: null, zoom });
+    return calls.filter((c) => c.m === 'lineTo' || c.m === 'moveTo').length;
+  };
+  assert.ok(count(8) > count(1));
+});
+
+test('ticks are labelled +10m and +20m for the selected satellite only', () => {
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, args(scene()));
+  const texts = calls.filter((c) => c.m === 'fillText').map((c) => c.args[0]);
+  assert.ok(texts.includes('+10m') && texts.includes('+20m'));
+  assert.ok(!texts.includes('+30m'));
+  assert.ok(!texts.includes('+1h'));
 });

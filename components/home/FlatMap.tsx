@@ -19,7 +19,9 @@ export interface MapSat {
   noradId: number;
   name: string;
   color: string;
-  track: GeoShape;
+  trackPast: GeoShape;
+  trackFuture: GeoShape;
+  trackTicks: { lonDeg: number; latDeg: number; minutes: number }[];
   position: { lonDeg: number; latDeg: number };
   footprint: GeoShape | null;
   selected: boolean;
@@ -140,6 +142,8 @@ export default function FlatMap({
       nightBands: night.current.bands,
       sats: cur.sats,
       observer: cur.observer,
+      zoom: view.current.zoom,
+      labels: null,
     });
     ctx.restore();
   }, []);

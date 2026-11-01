@@ -59,3 +59,23 @@ test('a 1.25-orbit ISS track crosses the antimeridian into separate lines', () =
     assert.ok(Math.abs(line[i][0] - line[i - 1][0]) <= 180);
   }
 });
+
+import { splitTrack } from '../lib/map/geometry.mjs';
+test('splitTrack: past ends and future starts at the now point; ticks 10 min for ISS, hourly for GOES', () => {
+  const NOW = Date.parse('2026-03-01T12:00:00Z');
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const s = splitTrack(iss, NOW);
+  const now = subpoint(iss.ecefAt(new Date(NOW)));
+  const lastPast = s.past.coordinates.at(-1).at(-1);
+  const firstFuture = s.future.coordinates[0][0];
+  assert.deepEqual(lastPast, [now.lonDeg, now.latDeg]);
+  assert.deepEqual(firstFuture, [now.lonDeg, now.latDeg]);
+  assert.deepEqual(s.ticks.slice(0, 3).map((t) => t.minutes), [10, 20, 30]);
+  assert.ok(s.ticks.at(-1).minutes <= iss.periodMs / 60000);
+  for (const part of [s.past, s.future]) for (const line of part.coordinates) {
+    for (let i = 1; i < line.length; i++) assert.ok(Math.abs(line[i][0] - line[i - 1][0]) <= 180);
+  }
+  const goes = makeTrack(recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'));
+  const g = splitTrack(goes, NOW);
+  assert.deepEqual(g.ticks.slice(0, 3).map((t) => t.minutes), [60, 120, 180]);
+});

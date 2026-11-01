@@ -634,8 +634,8 @@
   box-sizing: border-box;
 }
 .map-legend__swatch--sat { width: 10px; height: 10px; margin: 0 4px; border-radius: 50%; background: var(--swatch, var(--map-accent)); }
-.map-legend__swatch--track { height: 0; border-top: 2px solid var(--map-text); }
-.map-legend__swatch--footprint { border-radius: 50%; border: 1px solid var(--map-text); background: var(--map-footprint); }
+.map-legend__swatch--track { height: 2px; background: linear-gradient(90deg, var(--map-text) 0%, var(--map-text) 40%, transparent 100%); }
+.map-legend__swatch--footprint { border-radius: 50%; border: 1.5px dashed var(--map-accent); background: var(--map-footprint); }
 .map-legend__swatch--night { background: var(--map-night); border: 1px solid var(--map-border); }
 .map-legend__swatch--observer {
   width: 12px; height: 12px; margin: 0 3px;

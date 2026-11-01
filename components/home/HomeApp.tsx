@@ -12,7 +12,7 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { followedTracks, shouldRefreshCards } from "@/lib/home/view.mjs";
-import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
+import { footprintFeature, splitTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -23,12 +23,17 @@ import "@/app/home.css";
 const TRACK_REFRESH_MS = 60_000;
 const CARD_REFRESH_MS = 10 * 60_000;
 
-type Shape = MapSat["track"];
+type Shape = MapSat["trackPast"];
+type Split = Pick<MapSat, "trackPast" | "trackFuture" | "trackTicks">;
 type Sub = { latDeg: number; lonDeg: number; altKm: number };
 const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, Track>;
 const subOf = subpoint as (ecef: number[]) => Sub;
 const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
-const trackOf = groundTrack as (track: Track, nowMs: number) => Shape;
+const splitOf = splitTrack as (track: Track, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
+const trackOf = (t: Track, nowMs: number): Split => {
+  const s = splitOf(t, nowMs);
+  return { trackPast: s.past, trackFuture: s.future, trackTicks: s.ticks };
+};
 
 interface Props {
   /** Snapshot records for the popular set, shown until the first load lands. */
@@ -117,7 +122,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // Ground tracks are the costly part of the map: once a minute.
   const trackMinute = nowMs == null ? null : Math.floor(nowMs / TRACK_REFRESH_MS);
   const groundTracks = useMemo(() => {
-    const out = new Map<number, Shape>();
+    const out = new Map<number, Split>();
     if (trackMinute == null) return out;
     for (const [id, t] of tracks) out.set(id, trackOf(t, trackMinute * TRACK_REFRESH_MS));
     return out;
@@ -140,7 +145,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         noradId: id,
         name: t.shortName,
         color: colors.get(id) ?? SAT_PALETTE[0],
-        track,
+        ...track,
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
         footprint: selected ? footprintOf(sub, sub.altKm, prefs.minElevDeg) : null,
         selected,

@@ -16,7 +16,7 @@ import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { resolveSatellite } from "@/lib/catalog.mjs";
 import { makeTrack } from "@/lib/sat/track.mjs";
 import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/numbers.mjs";
-import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
+import { footprintFeature, splitTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
@@ -39,11 +39,16 @@ const sharedOf = sharedSettings as (d: SharedBlob | null | undefined) => Shared 
 const effectiveOf = effectiveSettings as (prefs: unknown, shared: Shared | null) => PassSettings;
 const bannerOf = sharedBannerText as (s: Shared) => string;
 
-type Shape = MapSat["track"];
+type Shape = MapSat["trackPast"];
+type Split = Pick<MapSat, "trackPast" | "trackFuture" | "trackTicks">;
 type Sub = { latDeg: number; lonDeg: number; altKm: number };
 const subOf = subpoint as (ecef: number[]) => Sub;
 const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
-const trackOf = groundTrack as (track: unknown, nowMs: number) => Shape;
+const splitOf = splitTrack as (track: unknown, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
+const trackOf = (t: unknown, nowMs: number): Split => {
+  const s = splitOf(t, nowMs);
+  return { trackPast: s.past, trackFuture: s.future, trackTicks: s.ticks };
+};
 
 const TRACK_REFRESH_MS = 60_000;
 
@@ -146,7 +151,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       noradId: data.noradId,
       name: data.shortName,
       color: SAT_PALETTE[0],
-      track: ground,
+      ...ground,
       position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
       footprint: footprintOf(sub, sub.altKm, settings.minElevDeg),
       selected: true,

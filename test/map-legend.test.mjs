@@ -5,14 +5,14 @@ import { legendItems } from '../lib/map/legend.mjs';
 const iss = { noradId: 25544, name: 'ISS', color: '#ff9b54', selected: true, orbitClass: 'leo' };
 const goes = { noradId: 41866, name: 'GOES 16', color: '#7fe5d1', selected: false, orbitClass: 'geo' };
 const obs = { name: 'Home', latDeg: 1, lonDeg: 2 };
-const TRACK = 'Line: ground track, from a quarter orbit ago to one orbit ahead';
+const TRACK = 'Dotted: where it has been. Solid, fading: where it is going, with ticks every 10 min';
 
 test('full legend, in order', () => {
   const items = legendItems({ sats: [iss, goes], observer: obs, minElevDeg: 10 });
   assert.deepEqual(items.map((i) => i.kind), ['sat', 'sat', 'track', 'footprint', 'night', 'observer']);
   assert.deepEqual(items[0], { key: 'sat-25544', kind: 'sat', label: 'ISS', color: '#ff9b54' });
   assert.equal(items[2].label, TRACK);
-  assert.equal(items[3].label, 'Circle: where ISS is at least 10° up');
+  assert.equal(items[3].label, 'Dashed circle: where ISS is at least 10° up');
   assert.equal(items[4].label, 'Shading: night, darker through twilight');
   assert.equal(items[5].label, 'You');
 });
