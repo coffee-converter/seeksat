@@ -25,6 +25,14 @@ const PassChartModals = dynamic(() => import("@/components/passes/PassChartModal
 type Pass = { startMs: number; endMs: number; [k: string]: unknown };
 /** The first listed pass, as the page's "Next pass" tile reads it. */
 export type NextPass = Pass & { peakMs?: number; maxElevDeg?: number };
+/** What the search found, for the "Next pass" tile. undefined while searching. */
+export type NextPassReport =
+  | undefined
+  | { kind: "pass"; pass: NextPass }
+  | { kind: "none" }
+  | { kind: "stationary"; visible: boolean }
+  | { kind: "failed" }
+  | { kind: "unavailable" };
 type Row = {
   key: string; dayLabel: string; startLabel: string; peakLabel: string; endLabel: string; timesLabel: string;
   durationLabel: string; maxElevLabel: string; azLabel: string;
@@ -70,11 +78,10 @@ interface Props {
   /** Reports the radio chart's picked frequency (for the page's Share button). */
   onFreqPicked?: (hz: number | null) => void;
   /**
-   * The first listed pass whenever the rows change; null for no rows, a
-   * stationary satellite, unusable elements, no location or a failed
-   * search; undefined while a search for the current settings runs.
+   * What the search found whenever it changes: the first listed pass, or
+   * why there is none. undefined while searching or with no location.
    */
-  onNextPass?: (pass: NextPass | null | undefined) => void;
+  onNextPass?: (report: NextPassReport) => void;
 }
 
 export default function PassSection({
@@ -183,11 +190,20 @@ export default function PassSection({
     });
   }, [result, failed, observer, epochMs, bucketMs, minElevDeg, mode, names]);
 
-  // Report the first row to the page's "Next pass" tile.
-  const nextPass: NextPass | null | undefined = !track || !observer
-    ? null
-    : !view ? undefined : view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
-  useEffect(() => { onNextPass?.(nextPass); }, [nextPass, onNextPass]);
+  // Report the first row, or why there is none, to the "Next pass" tile.
+  // Read from the raw result so a stationary or failed search says so.
+  const firstPass = view && view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
+  const nextReport = useMemo<NextPassReport>(() => {
+    if (!track) return { kind: "unavailable" };
+    if (!observer) return undefined;
+    if (failed) return { kind: "failed" };
+    if (!result) return undefined;
+    const r = result as { kind?: string; visible?: boolean; pointing?: unknown[] };
+    if (r.kind === "unavailable") return { kind: "unavailable" };
+    if (r.kind === "stationary") return r.pointing?.[0] ? { kind: "stationary", visible: Boolean(r.visible) } : { kind: "unavailable" };
+    return firstPass ? { kind: "pass", pass: firstPass } : { kind: "none" };
+  }, [track, observer, failed, result, firstPass]);
+  useEffect(() => { onNextPass?.(nextReport); }, [nextReport, onNextPass]);
 
   // The shared pass: highlighted in the list, or a note that it is over.
   const sharedHit = useMemo<SharedHit>(() => {

@@ -12,7 +12,7 @@ import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
 import ShareButton from "./ShareButton";
 import { shareUrl } from "@/lib/share/share-link.mjs";
-import PassSection, { type NextPass, type PassSettings } from "./PassSection";
+import PassSection, { type NextPassReport, type PassSettings } from "./PassSection";
 import RawElements from "./RawElements";
 import { useHomeStore } from "@/lib/home/store";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -22,8 +22,7 @@ import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/
 import { footprintFeature, splitTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
-import { countdown } from "@/lib/home/next-up.mjs";
-import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
+import { nextPassTile } from "@/lib/sat/next-pass-tile.mjs";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
@@ -56,18 +55,9 @@ const trackOf = (t: unknown, nowMs: number): Split => {
 };
 
 const TRACK_REFRESH_MS = 60_000;
-const FINDING = "Finding passes...";
-
-/** The "Next pass" tile, from PassSection's first row and the clock. */
-function nextPassTile(pass: NextPass | null | undefined, nowMs: number, located: boolean, hydrated: boolean): NextPassTile {
-  if (!located) return hydrated ? { value: "Set your location", note: "to list passes below" } : { value: FINDING };
-  if (pass === undefined) return { value: FINDING };
-  if (pass === null) return { value: `none in the next ${DEFAULT_SEARCH_DAYS} days` };
-  const note = typeof pass.maxElevDeg === "number" ? `max ${Math.round(pass.maxElevDeg)}° up` : undefined;
-  if (nowMs < pass.startMs) return { value: `in ${countdown(pass.startMs - nowMs)}`, note };
-  if (nowMs < pass.endMs) return { value: `up now, ${countdown(pass.endMs - nowMs)} left`, note };
-  return { value: FINDING };
-}
+const tileOf = nextPassTile as (next: NextPassReport, o: {
+  nowMs: number; located: boolean; hydrated: boolean; mode: string; minElevDeg: number;
+}) => NextPassTile;
 
 export default function SatApp({ data, shared: sharedIn = null }: { data: SatPageData; shared?: SharedBlob | null }) {
   const router = useRouter();
@@ -110,15 +100,24 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => {
+    // Ticks land on whole seconds of the displayed (skew-corrected) clock:
+    // one timeout to the next boundary, then a 1 s interval.
+    let first: number | undefined;
     let id: number | undefined;
     const stop = () => {
+      if (first !== undefined) window.clearTimeout(first);
       if (id !== undefined) window.clearInterval(id);
+      first = undefined;
       id = undefined;
     };
     const start = () => {
       stop();
       setNowMs(trueNow());
-      id = window.setInterval(() => setNowMs(trueNow()), 1000);
+      first = window.setTimeout(() => {
+        first = undefined;
+        setNowMs(trueNow());
+        id = window.setInterval(() => setNowMs(trueNow()), 1000);
+      }, 1000 - (trueNow() % 1000));
     };
     const onVisibility = () => (document.hidden ? stop() : start());
     if (document.hidden) setNowMs(trueNow());
@@ -178,8 +177,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     return { sats: [sat], selectedSub: sub };
   }, [track, ground, nowMs, data.noradId, data.shortName, settings.minElevDeg]);
 
-  const [nextPass, setNextPass] = useState<NextPass | null | undefined>(undefined);
-  const nextTile = nextPassTile(nextPass, nowMs, Boolean(settings.observer), hydrated || Boolean(shared));
+  const [nextPass, setNextPass] = useState<NextPassReport>(undefined);
+  const nextTile = tileOf(nextPass, {
+    nowMs,
+    located: Boolean(settings.observer),
+    hydrated: hydrated || Boolean(shared),
+    mode: settings.mode,
+    minElevDeg: settings.minElevDeg,
+  });
   const fetchedText = data.fetchedAtMs != null ? `fetched ${relativeTime(data.fetchedAtMs, nowMs)}` : null;
 
   const following = prefs.following.includes(data.noradId);

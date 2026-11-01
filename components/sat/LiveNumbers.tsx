@@ -25,17 +25,24 @@ export function VisVivaTile({ live }: { live: Live }) {
   const b = formatNumber(live.visViva, 4);
   const diff = (Math.abs(live.v2rOverGM - live.visViva) / Math.abs(live.visViva)) * 100;
   // Enough digits that a close match never reads "0.00%".
-  const pct = formatNumber(diff, diff >= 1 ? 1 : diff >= 0.1 ? 2 : 3);
+  const pct = diff < 0.001 ? "under 0.001" : formatNumber(diff, diff >= 1 ? 1 : diff >= 0.1 ? 2 : 3);
   return (
     <div className="stat-tile stat-tile--wide">
       <span className="stat-tile__label">Vis-viva check</span>
       <span className="stat-tile__value vis-viva">
-        <span className="vis-viva__term">v²r/GM </span>
-        <Flashing className="stat-tile__num" value={a} />
-        <span className="vis-viva__term"> vs 2 − r/a </span>
-        <Flashing className="stat-tile__num" value={b} />
         <span className="vis-viva__keep">
-          <span className="vis-viva__term">, within </span>
+          <span className="vis-viva__term">v²r/GM </span>
+          <Flashing className="stat-tile__num" value={a} />
+        </span>
+        {" "}
+        <span className="vis-viva__keep">
+          <span className="vis-viva__term">vs 2 − r/a </span>
+          <Flashing className="stat-tile__num" value={b} />
+          <span className="vis-viva__term">,</span>
+        </span>
+        {" "}
+        <span className="vis-viva__keep">
+          <span className="vis-viva__term">within </span>
           <Flashing className="stat-tile__num vis-viva__pct" value={`${pct}%`} />
         </span>
       </span>

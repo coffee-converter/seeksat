@@ -67,15 +67,24 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // response has measured the skew (as the banner promises). Starts after mount so
   // the server render and hydration agree, and stops while the tab is hidden.
   useEffect(() => {
+    // Ticks land on whole seconds of the displayed (skew-corrected) clock:
+    // one timeout to the next boundary, then a 1 s interval.
+    let first: number | undefined;
     let id: number | undefined;
     const stop = () => {
+      if (first !== undefined) window.clearTimeout(first);
       if (id !== undefined) window.clearInterval(id);
+      first = undefined;
       id = undefined;
     };
     const start = () => {
       stop();
       setNowMs(trueNow());
-      id = window.setInterval(() => setNowMs(trueNow()), 1000);
+      first = window.setTimeout(() => {
+        first = undefined;
+        setNowMs(trueNow());
+        id = window.setInterval(() => setNowMs(trueNow()), 1000);
+      }, 1000 - (trueNow() % 1000));
     };
     const onVisibility = () => (document.hidden ? stop() : start());
     if (document.hidden) setNowMs(trueNow());
