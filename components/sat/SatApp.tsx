@@ -276,8 +276,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             <div className="sat-follow">
               <button
                 type="button"
-                className="home-button home-button--primary"
-                aria-pressed={following}
+                className={`home-button home-button--primary${following ? " home-chip--on" : ""}`}
                 disabled={!following && Boolean(blocked)}
                 onClick={() => (following ? unfollow(data.noradId) : follow(data.noradId))}
               >

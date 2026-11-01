@@ -333,7 +333,8 @@
 .home-button:disabled,
 .home-chip:disabled { opacity: 0.45; cursor: default; }
 .home-button--primary { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.6); }
-.home-chip[aria-pressed="true"] {
+.home-chip[aria-pressed="true"],
+.home-chip--on {
   background: rgba(var(--accent-rgb), 0.22);
   border-color: var(--map-accent);
   color: var(--accent-strong);

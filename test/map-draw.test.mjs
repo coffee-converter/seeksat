@@ -7,7 +7,7 @@ import {
   subpoint, splitTrack, footprintFeature, nightBands, loadLand,
 } from '../lib/map/geometry.mjs';
 import { makeProjection } from '../lib/map/projections.mjs';
-import { drawMap, hitTest, isVisible, MAP_COLORS, SAT_PALETTE, MAP_PALETTES, SAT_PALETTES } from '../lib/map/draw.mjs';
+import { drawMap, hitTest, isVisible, MAP_COLORS, SAT_PALETTE, MAP_PALETTES, SAT_PALETTES, tickLabelBoxes } from '../lib/map/draw.mjs';
 
 // Recording stand-in for CanvasRenderingContext2D: logs method calls and
 // snapshots fillStyle at each fill so draw order can be asserted.
@@ -355,4 +355,24 @@ test('light night shading is gentle and region text stays readable in the deepes
   const text = mix([27, 35, 51], 0.5, bg);
   const hex = (a) => '#' + a.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
   assert.ok(ratio(hex(text), hex(bg)) >= 2.5, `ratio ${ratio(hex(text), hex(bg)).toFixed(2)}`);
+});
+
+test('tickLabelBoxes match where draw puts the first two tick labels', () => {
+  const sats = scene();
+  const a = args(sats);
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, a);
+  const drawn = calls.filter((c) => c.m === 'fillText' && c.args[0].startsWith('+'));
+  const boxes = tickLabelBoxes(sats[0], a.projection);
+  assert.equal(boxes.length, 2);
+  assert.equal(drawn.length, 2);
+  drawn.forEach((c, i) => {
+    const [, x, y] = c.args;
+    assert.ok(boxes[i].x0 < x && x < boxes[i].x1 && boxes[i].y0 < y && y < boxes[i].y1, `tick ${i} centre inside its box`);
+  });
+});
+
+test('tickLabelBoxes is empty for an unselected satellite', () => {
+  const sats = scene();
+  assert.deepEqual(tickLabelBoxes(sats[1], makeProjection('equirectangular', { width: W, height: H })), []);
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { MAP_PALETTES, drawMap, hitTest } from "@/lib/map/draw.mjs";
+import { MAP_PALETTES, drawMap, hitTest, tickLabelBoxes } from "@/lib/map/draw.mjs";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
 import { graticuleBox, graticuleLabels, graticuleStep, observerBox, pickPlaceLabels, satBoxes } from "@/lib/map/labels.mjs";
@@ -115,6 +115,7 @@ const gratLabels = graticuleLabels as unknown as (
 const observerBoxOf = observerBox as unknown as (p: Projection, o: MapObserver | null) => Box | null;
 const gratBox = graticuleBox as unknown as (l: GratLabel) => Box;
 const gratStep = graticuleStep as unknown as (zoom: number, width: number) => number;
+const tickBoxesOf = tickLabelBoxes as unknown as (s: MapSat, p: Projection) => Box[];
 const satBoxesOf = satBoxes as unknown as (p: Projection, sats: MapSat[], width: number) => Box[];
 type View = { zoom: number; pan: [number, number]; rotLon: number };
 const fillOf = fillView as (id: string, o: { width: number; height: number }, lonDeg: number) => View | null;
@@ -186,6 +187,7 @@ export default function FlatMap({
           // the satellites' dots and names.
           avoid: [
             ...o.controls, ...graticule.map(gratBox), ...(obs ? [obs] : []), ...satBoxesOf(proj, o.sats, o.width),
+            ...o.sats.flatMap((s) => tickBoxesOf(s, proj)),
           ],
         });
       },

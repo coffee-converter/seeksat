@@ -28,8 +28,7 @@ export default function FocusBar({ name, followed, blocked, total, pageHref, onT
       <div className="focus-bar__actions">
         <button
           type="button"
-          className="home-chip focus-bar__follow"
-          aria-pressed={followed}
+          className={`home-chip focus-bar__follow${followed ? " home-chip--on" : ""}`}
           disabled={!followed && Boolean(blocked)}
           onClick={onToggleFollow}
         >

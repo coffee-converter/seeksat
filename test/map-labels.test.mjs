@@ -256,7 +256,8 @@ test('graticule labels keep clear of boxes passed in avoid', () => {
   const all = graticuleLabels(p, { width, height, step: 30, projectionId: 'equirectangular' });
   const corner = { x0: 0, y0: height - 42, x1: 80, y1: height };
   const some = graticuleLabels(p, { width, height, step: 30, projectionId: 'equirectangular', avoid: [corner] });
-  assert.ok(some.length < all.length);
+  // The blocked bottom-left labels move to the top edge instead of vanishing.
+  assert.ok(some.some((l) => !all.find((a) => a.text === l.text && a.y === l.y)));
   for (const l of some) assert.ok(!overlaps(graticuleBox(l), corner), l.text);
 });
 
@@ -293,4 +294,17 @@ test('re-projection drops labels that went out of view and keeps ones with no po
   assert.deepEqual(placeLabelsAt(far, picked), []);
   const fixed = { text: 'PACIFIC OCEAN', x: 450, y: 249, kind: 'region', align: 'center' };
   assert.deepEqual(placeLabelsAt(far, [fixed]), [fixed]);
+});
+
+test('phone: meridians blocked by a bottom control fall back to the top edge', () => {
+  const width = 374;
+  const height = 480;
+  // Zoomed so the map fills the tall phone frame and its bottom edge is under the controls.
+  const p = makeProjection('equirectangular', { width, height, zoom: 2.6 });
+  const bottom = { x0: 0, y0: height - 44, x1: width, y1: height };
+  const labels = graticuleLabels(p, { width, height, step: 60, projectionId: 'equirectangular', avoid: [bottom] });
+  const meridians = labels.filter((l) => l.line === 'meridian');
+  assert.ok(meridians.length >= 3, `only ${meridians.length} meridians labelled`);
+  for (const l of meridians) assert.ok(!overlaps(graticuleBox(l), bottom), `${l.text} overlaps the control`);
+  assertFits(labels.map((l) => ({ ...graticuleBox(l), text: l.text })), width, height, 'phone');
 });
