@@ -25,22 +25,24 @@ interface Props {
   chart: "sky" | "radio" | null;
   onChartChange: (chart: "sky" | "radio") => void;
   onClose: () => void;
+  /** Used instead of the default downlink when the satellite changes (a shared view's frequency). */
+  preferredFreqHz?: number | null;
 }
 
 // The sky chart and radio chart modals for one pass. Loaded on first use, so
 // the painters stay out of the page's first bundle.
-export default function PassChartModals({ subject, chart, onChartChange, onClose }: Props) {
+export default function PassChartModals({ subject, chart, onChartChange, onClose, preferredFreqHz = null }: Props) {
   const noradId = subject?.track.noradId ?? null;
-  const [freqHz, setFreqHz] = useState<number | null>(
-    () => (subject ? defaultDownlink(subject.track)?.hz ?? null : null),
-  );
+  const initialFreq = (s: ChartSubject | null) =>
+    s ? preferredFreqHz ?? defaultDownlink(s.track)?.hz ?? null : null;
+  const [freqHz, setFreqHz] = useState<number | null>(() => initialFreq(subject));
   // A chosen frequency sticks while the same satellite is reopened; a new
-  // satellite resets it to its default downlink.
+  // satellite resets it to the preferred frequency, else its default downlink.
   const [freqFor, setFreqFor] = useState<number | null>(noradId);
   if (noradId !== freqFor) {
     // Adjusting state during render avoids one paint at the old frequency.
     setFreqFor(noradId);
-    setFreqHz(subject ? defaultDownlink(subject.track)?.hz ?? null : null);
+    setFreqHz(initialFreq(subject));
   }
 
   const renderSky = useCallback(async (svg: SVGSVGElement) => {

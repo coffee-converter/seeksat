@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import FlatMap, { type MapSat } from "@/components/home/FlatMap";
 import LiveNumbers from "./LiveNumbers";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
-import PassSection from "./PassSection";
+import PassSection, { type PassSettings } from "./PassSection";
 import RawElements from "./RawElements";
 import { useHomeStore } from "@/lib/home/store";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -16,11 +17,25 @@ import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/
 import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
-import type { satPageData } from "@/lib/sat/page-data.mjs";
+import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
+import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
+import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import "@/app/home.css";
 import "@/app/sat.css";
 
 export type SatPageData = ReturnType<typeof satPageData>;
+export type SharedBlob = NonNullable<ReturnType<typeof decodeStateBlob>>;
+type Shared = {
+  observer: NonNullable<PassSettings["observer"]>;
+  observers: PassSettings["observers"];
+  mode: PassSettings["mode"];
+  minElevDeg: number;
+  passTimeMs: number | null;
+  freqHz: number | null;
+};
+const sharedOf = sharedSettings as (d: SharedBlob | null | undefined) => Shared | null;
+const effectiveOf = effectiveSettings as (prefs: unknown, shared: Shared | null) => PassSettings;
+const bannerOf = sharedBannerText as (s: Shared) => string;
 
 type Shape = MapSat["track"];
 type Sub = { latDeg: number; lonDeg: number; altKm: number };
@@ -30,12 +45,30 @@ const trackOf = groundTrack as (track: unknown, nowMs: number) => Shape;
 
 const TRACK_REFRESH_MS = 60_000;
 
-export default function SatApp({ data }: { data: SatPageData }) {
+export default function SatApp({ data, shared: sharedIn = null }: { data: SatPageData; shared?: SharedBlob | null }) {
+  const router = useRouter();
   const prefs = useHomeStore((s) => s.prefs);
   const hydrate = useHomeStore((s) => s.hydrate);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const setPrefs = useHomeStore((s) => s.setPrefs);
+
+  // A shared view lives here only, laid over the prefs and never saved.
+  // It comes from the server-decoded prop, so the first render matches.
+  const [shared, setShared] = useState<Shared | null>(() => sharedOf(sharedIn));
+  const settings = useMemo(() => effectiveOf(prefs, shared), [prefs, shared]);
+  const onModeChange = useCallback((mode: PassSettings["mode"]) => {
+    if (shared) setShared((s) => (s ? { ...s, mode } : s));
+    else setPrefs({ mode });
+  }, [shared, setPrefs]);
+  const onMinElevChange = useCallback((minElevDeg: number) => {
+    if (shared) setShared((s) => (s ? { ...s, minElevDeg } : s));
+    else setPrefs({ minElevDeg });
+  }, [shared, setPrefs]);
+  const leaveShared = () => {
+    setShared(null);
+    router.replace(satPath(data.noradId));
+  };
 
   // First render matches the server HTML; the clock starts after mount.
   const [nowMs, setNowMs] = useState(data.renderedAtMs);
@@ -103,12 +136,12 @@ export default function SatApp({ data }: { data: SatPageData }) {
       color: SAT_PALETTE[0],
       track: ground,
       position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
-      footprint: footprintOf(sub, sub.altKm, prefs.minElevDeg),
+      footprint: footprintOf(sub, sub.altKm, settings.minElevDeg),
       selected: true,
       orbitClass: (track as { orbitClass: string }).orbitClass,
     };
     return { sats: [sat], selectedSub: sub };
-  }, [track, ground, nowMs, data.noradId, data.shortName, prefs.minElevDeg]);
+  }, [track, ground, nowMs, data.noradId, data.shortName, settings.minElevDeg]);
 
   const following = prefs.following.includes(data.noradId);
   const blocked = followBlockedMessage(prefs.following, data.noradId) as string | null;
@@ -139,6 +172,15 @@ export default function SatApp({ data }: { data: SatPageData }) {
         </div>
       </header>
 
+      {shared ? (
+        <div className="sat-shared" role="status">
+          <p className="sat-shared__text">{bannerOf(shared)}</p>
+          <button type="button" className="home-button" onClick={leaveShared}>
+            Use my location and settings
+          </button>
+        </div>
+      ) : null}
+
       <p className="home-note sat-age">
         {`${age.text}, from ${data.source}`}
         {data.fetchedAtMs != null ? `, fetched ${relativeTime(data.fetchedAtMs, nowMs)}.` : "."}
@@ -153,12 +195,12 @@ export default function SatApp({ data }: { data: SatPageData }) {
           <LiveNumbers live={liveNow} elements={elementsNow} epochMs={epochMs} />
           <FlatMap
             sats={sats}
-            observer={prefs.location}
+            observer={settings.observer}
             selectedSub={selectedSub}
             projectionId={prefs.projection}
             onProjectionChange={(id) => setPrefs({ projection: id })}
             selectedId={data.noradId}
-            minElevDeg={prefs.minElevDeg}
+            minElevDeg={settings.minElevDeg}
             onSelect={() => {}}
           />
           <OrbitDiagram track={track} nowMs={nowMs} />
@@ -167,7 +209,17 @@ export default function SatApp({ data }: { data: SatPageData }) {
         <p className="home-note">These elements can&apos;t be used to compute a position.</p>
       )}
 
-      <PassSection track={usable ? track : null} record={data.record} epochMs={epochMs} nowMs={nowMs} />
+      <PassSection
+        track={usable ? track : null}
+        record={data.record}
+        epochMs={epochMs}
+        nowMs={nowMs}
+        settings={settings}
+        onModeChange={onModeChange}
+        onMinElevChange={onMinElevChange}
+        sharedPassMs={shared?.passTimeMs ?? null}
+        preferredFreqHz={shared?.freqHz ?? null}
+      />
 
       <Downlinks downlinks={data.downlinks} />
       <RawElements raw={data.raw} />

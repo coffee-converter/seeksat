@@ -37,3 +37,14 @@ p.sat-how { margin: 0 0 8px; }
 .sat-observers__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
 .sat-observers__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .sat-observers__item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--map-border); border-radius: 999px; }
+.sat-shared {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+  margin: 10px 0; padding: 10px 12px; border-radius: 8px;
+  background: var(--map-footprint); border: 1px solid var(--map-accent);
+}
+.sat-shared__text { margin: 0; color: var(--map-text); line-height: 1.5; }
+.sat-shared-past { margin: 0 0 8px; }
+.sat-pass.pass-row--shared {
+  padding: 8px; border-radius: 6px;
+  background: var(--map-footprint); box-shadow: inset 3px 0 0 var(--map-accent);
+}

@@ -3,13 +3,21 @@
 import { useId, useState } from "react";
 import { parseLocationInput } from "@/lib/location/maidenhead.mjs";
 import { geocodeOne } from "@/lib/pass-finder/geocode.js";
-import { useHomeStore } from "@/lib/home/store";
+import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
+
+interface Props {
+  /** A shared view: show these places, with no way to add or remove one. */
+  readOnly?: boolean;
+  /** The places to show; defaults to the saved ones. */
+  observers?: ExtraObserver[];
+}
 
 // Up to 3 other places, saved on this device. The pass list then shows only
 // the times when every place can see the satellite.
-export default function ExtraObservers() {
+export default function ExtraObservers({ readOnly = false, observers: given }: Props = {}) {
   const uid = useId();
-  const observers = useHomeStore((s) => s.prefs.observers);
+  const saved = useHomeStore((s) => s.prefs.observers);
+  const observers = given ?? saved;
   const addObserver = useHomeStore((s) => s.addObserver);
   const removeObserver = useHomeStore((s) => s.removeObserver);
   const [text, setText] = useState("");
@@ -55,28 +63,30 @@ export default function ExtraObservers() {
     save({ name, latDeg: found.latDeg, lonDeg: found.lonDeg });
   };
 
+  if (readOnly && observers.length === 0) return null;
+
   return (
     <div className="sat-observers" role="group" aria-labelledby={`${uid}-title`}>
       <h3 id={`${uid}-title`} className="sat-observers__title">Also seen from</h3>
-      <p className="home-note">Add other places to see only the times when every place can see it.</p>
+      {!readOnly && <p className="home-note">Add other places to see only the times when every place can see it.</p>}
       {observers.length > 0 && (
         <ul className="sat-observers__list">
           {observers.map((o) => (
             <li key={o.id} className="sat-observers__item">
               <span>{o.name || `${o.latDeg.toFixed(2)}, ${o.lonDeg.toFixed(2)}`}</span>
-              <button
+              {!readOnly && <button
                 type="button"
                 className="home-chip"
                 aria-label={`Remove ${o.name}`}
                 onClick={() => removeObserver(o.id)}
               >
                 {"×"}
-              </button>
+              </button>}
             </li>
           ))}
         </ul>
       )}
-      <form className="location-prompt__form" onSubmit={onSubmit}>
+      {!readOnly && <form className="location-prompt__form" onSubmit={onSubmit}>
         <label htmlFor={`${uid}-place`} className="sr-only">Place, coordinates or grid square</label>
         <input
           id={`${uid}-place`}
@@ -93,7 +103,7 @@ export default function ExtraObservers() {
         <button type="submit" className="home-button" disabled={busy || !text.trim()}>
           {busy ? "Looking..." : "Add"}
         </button>
-      </form>
+      </form>}
       {message && <p className="home-error" role="alert">{message}</p>}
     </div>
   );
