@@ -116,6 +116,10 @@ After that the cron runs every 4 hours on its own.
 
 `EDGE_CONFIG`, `EDGE_CONFIG_ID` and `VERCEL_API_TOKEN` are no longer used by this code. Leave them in place until production is verified on the Blob snapshot, since `main` still reads them and a rollback would need them; then remove them.
 
+## Map data credits
+
+City labels come from [Natural Earth](https://www.naturalearthdata.com/) populated places (public domain). `scripts/build-places.mjs` reduces the download to `lib/map/places.json`.
+
 ## License
 
 Copyright (c) 2026 [Aaron Hanson](https://aaronhanson.dev). All rights reserved.
