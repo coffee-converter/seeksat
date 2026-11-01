@@ -11,7 +11,7 @@ import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/sto
 import { tracksFor } from "@/lib/home/records.mjs";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
-import { followedTracks, nextCardChangeMs } from "@/lib/home/view.mjs";
+import { followedTracks, shouldRefreshCards } from "@/lib/home/view.mjs";
 import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { CATALOG } from "@/lib/catalog.mjs";
@@ -153,12 +153,17 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const [cardTick, setCardTick] = useState(0);
   const cardRequest = useRef(0);
   const warned = useRef(false);
+  const inFlight = useRef(false);
+  const retryAt = useRef<number | null>(null);
   useEffect(() => {
     const request = ++cardRequest.current;
+    retryAt.current = null;
     if (!observer) {
+      inFlight.current = false;
       setCardState(null);
       return;
     }
+    inFlight.current = true;
     const at = trueNow();
     // Only the followed records cross to the worker; custom elements ride along.
     const followed = prefs.following;
@@ -176,20 +181,27 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       })
       .then((cards: unknown) => {
         if (request !== cardRequest.current) return;
+        inFlight.current = false;
         setCardState({ cards: cards as unknown as Card[], at });
       })
       .catch((e: unknown) => {
+        if (request === cardRequest.current) {
+          inFlight.current = false;
+          retryAt.current = trueNow() + CARD_REFRESH_MS;
+        }
         if (warned.current) return;
         warned.current = true;
         console.warn("Pass search failed; keeping the previous cards.", e);
       });
   }, [shownRecords, prefs.custom, prefs.following, shownMissing, observer, prefs.mode, prefs.minElevDeg, cardTick]);
   useEffect(() => {
-    if (!cardState || nowMs == null) return;
-    if (nowMs - cardState.at >= CARD_REFRESH_MS || nowMs >= nextCardChangeMs(cardState.cards)) {
+    if (!observer) return;
+    if (shouldRefreshCards({
+      cardState, nowMs, inFlight: inFlight.current, retryAtMs: retryAt.current, refreshMs: CARD_REFRESH_MS,
+    })) {
       setCardTick((t) => t + 1);
     }
-  }, [nowMs, cardState]);
+  }, [nowMs, cardState, observer]);
 
   const popularNames = useMemo(() => {
     const names = new Map<number, string>();

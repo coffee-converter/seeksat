@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  followedTracks, nextCardChangeMs, passTimesLabel, passMetaLabel, elementTags, stepMinElev,
+  followedTracks, nextCardChangeMs, shouldRefreshCards, passTimesLabel, passMetaLabel, elementTags, stepMinElev,
   MIN_ELEV_STEP, MIN_ELEV_MAX,
 } from '../lib/home/view.mjs';
 
@@ -79,4 +79,19 @@ test('elementTags flags pasted elements and elements older than a week', () => {
   assert.deepEqual(elementTags({ record: { tleAgeHours: 24 * 30 + 5 } }), ['elements 30 days old']);
   assert.deepEqual(elementTags({ record: { tleAgeHours: null } }), []);
   assert.deepEqual(elementTags({ record: {} }), []);
+});
+
+test('shouldRefreshCards: in flight never, stale yes, backoff holds', () => {
+  const cards = [{ kind: 'pass', pass: { startMs: 5000, endMs: 9000, inProgress: false } }];
+  const cardState = { cards, at: 1000 };
+  const base = { cardState, inFlight: false, retryAtMs: null, refreshMs: 600 };
+  assert.equal(shouldRefreshCards({ ...base, nowMs: 1100 }), false);
+  assert.equal(shouldRefreshCards({ ...base, nowMs: 1600 }), true);
+  assert.equal(shouldRefreshCards({ ...base, nowMs: 5000, refreshMs: 1e9 }), true);
+  assert.equal(shouldRefreshCards({ ...base, nowMs: 1600, inFlight: true }), false);
+  assert.equal(shouldRefreshCards({ ...base, nowMs: 1600, retryAtMs: 2000 }), false);
+  assert.equal(shouldRefreshCards({ ...base, nowMs: 2000, retryAtMs: 2000 }), true);
+  assert.equal(shouldRefreshCards({ ...base, cardState: null, nowMs: 2000 }), false);
+  assert.equal(shouldRefreshCards({ ...base, cardState: null, nowMs: 1999, retryAtMs: 2000 }), false);
+  assert.equal(shouldRefreshCards({ ...base, cardState: null, nowMs: 2000, retryAtMs: 2000 }), true);
 });
