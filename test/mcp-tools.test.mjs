@@ -131,3 +131,18 @@ test('best_pass skips a synthesized satellite with no record under its NORAD nam
   const out = await bestPassTool({ satellite: '25485', lat: 0, lon: 0 }, d);
   assert.deepEqual(out.skipped, [{ satellite: 'NORAD 25485', reason: 'no orbit data yet' }]);
 });
+
+import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
+
+test('best_pass skips a geostationary satellite with a reason', async () => {
+  const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), epochMs: Date.parse('2026-10-31T14:00:00Z') };
+  const d = { ...deps, now: () => Date.parse('2026-10-31T15:00:00Z'), getRecord: async (id) => (id === 41866 ? goes : null) };
+  const out = await bestPassTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
+  assert.deepEqual(out.skipped, [{ satellite: 'GOES 16', reason: 'geostationary: fixed in the sky, no passes' }]);
+  const fp = await findPassesTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
+  assert.equal(fp.passes.length, 0);
+  assert.equal(fp.stationary.visible, true);
+  const nv = await nextVisiblePassTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
+  assert.equal(nv.pass, null);
+  assert.ok(nv.stationary);
+});
