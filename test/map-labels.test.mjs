@@ -67,7 +67,7 @@ test('every projection: place labels fit the canvas without overlapping', () => 
 test('every projection: graticule labels fit the canvas without overlapping', () => {
   for (const { id } of PROJECTIONS) {
     for (const [width, height] of SIZES) {
-      const labels = graticuleLabels(proj(id, width, height), { width, height, step: 30 });
+      const labels = graticuleLabels(proj(id, width, height), { width, height, step: 30, projectionId: id });
       assert.ok(labels.length >= 1, `${id} ${width}x${height}: no graticule labels`);
       assertFits(labels.map((l) => ({ ...graticuleBox(l), text: l.text })), width, height, `${id} ${width}x${height}`);
     }
@@ -82,6 +82,8 @@ test('satellite view over open ocean still gets a reference label', () => {
   assert.ok(a.length >= 1);
   assert.equal(a[0].text, 'Pacific Ocean');
   assert.equal(a[0].kind, 'region');
+  assert.equal(a[0].x, width / 2);
+  assert.equal(a[0].y, height / 2 + 24);
 
   const south = makeProjection('satellite', { width, height, sat: { lonDeg: 0, latDeg: -80, altKm: 800 } });
   const b = pickPlaceLabels(south, { width, height, zoom: 1, places, regions: REGIONS });
@@ -99,13 +101,58 @@ test('zooming in shows at least as many cities', () => {
 
 test('equirectangular graticule labels show 180° exactly once', () => {
   for (const [width, height] of SIZES) {
-    const labels = graticuleLabels(proj('equirectangular', width, height), { width, height, step: 30 });
+    const labels = graticuleLabels(proj('equirectangular', width, height), { width, height, step: 30, projectionId: 'equirectangular' });
     assert.equal(labels.filter((l) => l.text === '180°').length, 1, `${width}x${height}`);
   }
 });
 
-test('polar-north graticule labels include parallels and never label the pole', () => {
-  const labels = graticuleLabels(proj('polar-north', 900, 450), { width: 900, height: 450, step: 30 });
-  assert.ok(labels.some((l) => /°N$/.test(l.text)), 'no parallel labels');
-  assert.ok(!labels.some((l) => l.text === '90°N' || l.text === '90°S'));
+for (const [id, rimLat] of [['polar-north', -20], ['polar-south', 20]]) {
+  test(`${id} meridian labels sit on the rim`, () => {
+    const width = 900;
+    const height = 450;
+    const p = proj(id, width, height);
+    const [rl, rp] = p.rotate();
+    const c = p([-rl, -rp]);
+    const rim = p([0, rimLat]);
+    const R = Math.hypot(rim[0] - c[0], rim[1] - c[1]);
+    const labels = graticuleLabels(p, { width, height, step: 30, projectionId: id });
+    const meridians = labels.filter((l) => l.line === 'meridian');
+    assert.ok(meridians.length >= 10, `only ${meridians.length} of 12 meridians: ${meridians.map((l) => l.text)}`);
+    for (const l of meridians) {
+      const r = Math.hypot(l.x - c[0], l.y - c[1]);
+      assert.ok(r >= 0.9 * R, `${l.text} at r/R ${(r / R).toFixed(2)}`);
+    }
+    assert.ok(labels.some((l) => l.line === 'parallel'), 'no parallel labels');
+  });
+}
+
+test('azimuthal meridian labels are at distinct points', () => {
+  for (const [width, height] of SIZES) {
+    const labels = graticuleLabels(proj('azimuthal', width, height), { width, height, step: 30, projectionId: 'azimuthal' });
+    const meridians = labels.filter((l) => l.line === 'meridian');
+    assert.ok(meridians.length >= 2, `${width}x${height}: ${meridians.length} meridian labels`);
+    for (let i = 0; i < meridians.length; i++) {
+      for (let j = i + 1; j < meridians.length; j++) {
+        const d = Math.hypot(meridians[i].x - meridians[j].x, meridians[i].y - meridians[j].y);
+        assert.ok(d >= 20, `${width}x${height}: ${meridians[i].text} and ${meridians[j].text} are ${d.toFixed(1)} px apart`);
+      }
+    }
+  }
+});
+
+test('place labels avoid the lat/lon labels', () => {
+  for (const { id } of PROJECTIONS) {
+    for (const [width, height] of SIZES) {
+      for (const zoom of [1, 4]) {
+        const p = proj(id, width, height, { zoom });
+        const avoid = graticuleLabels(p, { width, height, step: 30, projectionId: id }).map(graticuleBox);
+        const labels = pickPlaceLabels(p, { width, height, zoom, places, regions: REGIONS, avoid });
+        assert.ok(labels.length >= 1, `${id} ${width}x${height} z${zoom}: no labels`);
+        for (const l of labels) {
+          const box = placeBox(l);
+          assert.ok(!avoid.some((a) => overlaps(a, box)), `${id} ${width}x${height} z${zoom}: ${l.text} hits a lat/lon label`);
+        }
+      }
+    }
+  }
 });
