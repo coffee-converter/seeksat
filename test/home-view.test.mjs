@@ -81,6 +81,17 @@ test('elementTags flags pasted elements and elements older than a week', () => {
   assert.deepEqual(elementTags({ record: {} }), []);
 });
 
+test('elementTags ages elements from their epoch on the live clock, so a cached record cannot look fresh', () => {
+  const now = Date.UTC(2026, 10, 1);
+  const day = 86_400_000;
+  // The server said 1 day old when it answered, but that answer is 9 days old now.
+  assert.deepEqual(elementTags({ epochMs: now - 10 * day, record: { tleAgeHours: 24 } }, now), ['elements 10 days old']);
+  assert.deepEqual(elementTags({ epochMs: now - 6 * day, record: { tleAgeHours: 24 * 30 } }, now), []);
+  // Without an epoch or a clock it falls back to the server's figure.
+  assert.deepEqual(elementTags({ record: { tleAgeHours: 24 * 8 } }, now), ['elements 8 days old']);
+  assert.deepEqual(elementTags({ epochMs: now - 10 * day, record: { tleAgeHours: 24 } }), []);
+});
+
 test('shouldRefreshCards: in flight never, stale yes, backoff holds', () => {
   const cards = [{ kind: 'pass', pass: { startMs: 5000, endMs: 9000, inProgress: false } }];
   const cardState = { cards, at: 1000 };

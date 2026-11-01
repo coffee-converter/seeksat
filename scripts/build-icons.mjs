@@ -8,6 +8,9 @@
 //   app/apple-icon.png - the full polar sky chart (renderPassChartSVG, the
 //                        same output the OG card + get_pass_chart MCP tool
 //                        produce), rasterized 180×180.
+//   public/icon-192.png,
+//   public/icon-512.png - the favicon above on the page background, for the
+//                        web app manifest (app/manifest.ts).
 //
 // Pass selection (pickPass, below) scans real passes and prefers a HIGH,
 // CURVED overhead pass whose peak falls in medium twilight (sun ≈ -6°), so
@@ -16,7 +19,9 @@
 // straight, deep-night graze. Rendering is still 100% the app's code.
 //
 // Rerun to refresh against the current TLE. OBS_* env overrides observer.
-import { writeFileSync } from "node:fs";
+// `--png-only` skips the pass and only rasterizes the existing app/icon.svg
+// into the two manifest PNGs (no orbit record, no network).
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { getIssTle, ecefAtFactory } from "../lib/og/tle.mjs";
 import { firstObserver } from "../lib/og/pass-select.mjs";
@@ -78,6 +83,22 @@ function pickPass(obs, ecefAt, nowMs, scanDays) {
   return pool.sort((a, b) => b.peakAlt - a.peakAlt)[0];
 }
 
+// The manifest PNGs: the favicon glyph on the page background, so the
+// installed icon is never a transparent disc on a launcher's own colour.
+async function writeManifestPngs(iconSvg) {
+  const onBg = iconSvg.replace(/(<svg\b[^>]*>)/, '$1<rect width="100" height="100" fill="#0a0e1a"/>');
+  for (const size of [192, 512]) {
+    const png = await rasterizeSvg(onBg, { width: size });
+    writeFileSync(fileURLToPath(new URL(`../public/icon-${size}.png`, import.meta.url)), png);
+    console.log(`Wrote public/icon-${size}.png (${png.length} bytes)`);
+  }
+}
+
+if (process.argv.includes("--png-only")) {
+  await writeManifestPngs(readFileSync(fileURLToPath(new URL("../app/icon.svg", import.meta.url)), "utf8"));
+  process.exit(0);
+}
+
 const decoded = {
   observers: [{
     name: process.env.OBS_NAME || "Chicago",
@@ -135,6 +156,7 @@ renderArcSegments(arc, samples, arcStroke, "6 11");
 const iconSvg = addNs(serialize(label));
 writeFileSync(fileURLToPath(new URL("../app/icon.svg", import.meta.url)), iconSvg + "\n");
 console.log(`Wrote app/icon.svg (${iconSvg.length} bytes)`);
+await writeManifestPngs(iconSvg);
 
 // ---- Apple touch icon: the full real chart (rendered above) ------------
 const pngSvg = chart.replace(/(<svg\b[^>]*>)/,

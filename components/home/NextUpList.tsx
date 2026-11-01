@@ -62,11 +62,11 @@ function FlashText({ value }: { value: string }) {
   return <span className={flash ? `flash-text ${flash}` : "flash-text"}>{value}</span>;
 }
 
-function ElementTags({ track }: { track: Track | undefined }) {
+function ElementTags({ track, nowMs }: { track: Track | undefined; nowMs: number }) {
   if (!track) return null;
   return (
     <>
-      {(elementTags(track) as string[]).map((tag) => (
+      {(elementTags(track, nowMs) as string[]).map((tag) => (
         <span key={tag} className="pass-card__tag pass-card__tag--elements">{tag}</span>
       ))}
     </>
@@ -177,7 +177,7 @@ function PassCard({
         <p className="pass-card__meta">
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
           {pass.visible && <span className="pass-card__tag">visible</span>}
-          <ElementTags track={track} />
+          <ElementTags track={track} nowMs={nowMs} />
           <ViewingTag viewing={viewing} />
         </p>
         <div className="pass-card__actions">
@@ -286,7 +286,7 @@ export default function NextUpList({
             >
               <p className="pass-card__headline">
                 <Headline text={headline(card, nowMs)} focus={focusOf(card.noradId)} onFocus={() => toggle(card.noradId)} />
-                <ElementTags track={track} />
+                <ElementTags track={track} nowMs={nowMs} />
                 <ViewingTag viewing={viewingOf(card.noradId)} />
               </p>
               {card.kind !== "missing" && track?.record?.source !== "pasted" && (

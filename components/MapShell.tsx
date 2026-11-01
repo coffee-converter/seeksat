@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import AlertRunner from "@/components/AlertRunner";
+import OfflineBanner from "@/components/OfflineBanner";
 
 interface Props {
   /** The slim top bar: wordmark, search and clock. */
@@ -21,7 +22,10 @@ interface Props {
 export default function MapShell({ top, map, panel, className }: Props) {
   return (
     <div className={className ? `map-shell ${className}` : "map-shell"}>
-      <header className="map-shell__top">{top}</header>
+      <header className="map-shell__top">
+        {top}
+        <OfflineBanner />
+      </header>
       <div className="map-shell__map">{map}</div>
       <main className="map-shell__panel">{panel}</main>
       <AlertRunner />

@@ -858,6 +858,18 @@ a.home-chip { display: inline-block; text-decoration: none; }
   background: var(--bg);
   border-bottom: 1px solid var(--map-border);
 }
+/* OfflineBanner (components/OfflineBanner.tsx): a full-width row under the top bar's contents. */
+.map-shell__top .offline-banner {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 6px 10px;
+  background: rgba(var(--warn-rgb), 0.08);
+  border: 1px solid rgba(var(--warn-rgb), 0.32);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--warn-text);
+}
 .map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
 .map-shell__end { grid-area: clock; justify-self: end; display: flex; align-items: center; gap: 12px; }
 /* ThemeToggle (components/ThemeToggle.tsx): segmented from 480 px, one cycling button below. */
@@ -964,10 +976,12 @@ a.home-chip { display: inline-block; text-decoration: none; }
     min-height: 0;
     overflow: hidden;
     grid-template-columns: minmax(0, 1fr) 380px;
-    grid-template-rows: 56px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas: "top top" "map panel";
   }
-  .map-shell__top { position: relative; height: 56px; padding: 0 16px; }
+  /* 56 px tall; the offline banner adds a row under it while it shows. */
+  .map-shell__top { position: relative; grid-template-rows: 56px; row-gap: 0; padding: 0 16px; }
+  .map-shell__top .offline-banner { margin-bottom: 8px; }
   .map-shell__map { display: grid; min-height: 0; padding: 0; }
   .map-shell__panel {
     min-height: 0;

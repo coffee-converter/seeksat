@@ -5,6 +5,7 @@ import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
 import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
 import ThemeSync from "@/components/ThemeSync";
+import SwRegister from "@/components/SwRegister";
 import "./globals.css";
 const SITE_NAME = "SeekSat";
 // SEO title: ~52 chars (target 50-60) so search results don't truncate
@@ -67,8 +68,7 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  // Hints to browsers/PWA installers. `manifest` is omitted - drop a
-  // public/manifest.webmanifest in later if a PWA install matters.
+  // The web app manifest comes from app/manifest.ts; Next links it.
   formatDetection: { telephone: false, email: false, address: false },
 };
 
@@ -138,6 +138,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeSync />
+        <SwRegister />
         {children}
         {/* Vercel Web Analytics (page views, top pages, referrers)
             and Speed Insights (Core Web Vitals from real visitors).

@@ -33,8 +33,8 @@ export default function AlertRunner() {
     };
 
     // Android throws "Illegal constructor" for new Notification(), so try the
-    // service worker first. TODO(Task 4): add a notificationclick handler to
-    // the service worker that opens data.url.
+    // service worker first. Its notificationclick handler (public/sw.js)
+    // focuses a SeekSat window and opens data.url.
     const show = async (alert: PassAlert, body: string) => {
       try {
         const reg = await navigator.serviceWorker?.getRegistration();
