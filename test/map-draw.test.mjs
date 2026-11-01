@@ -327,3 +327,32 @@ test('the light run fills the ocean light and uses no dark-palette colour', () =
   assert.equal(SAT_PALETTES.light.length, 8);
   assert.equal(MAP_PALETTES.dark.ocean, MAP_COLORS.ocean);
 });
+
+function lum(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function ratio(a, b) {
+  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+  return (x + 0.05) / (y + 0.05);
+}
+
+test('every light satellite colour has 3:1 contrast on the light ocean', () => {
+  for (const c of SAT_PALETTES.light) {
+    assert.ok(ratio(c, MAP_PALETTES.light.ocean) >= 3, `${c} is ${ratio(c, MAP_PALETTES.light.ocean).toFixed(2)}`);
+  }
+});
+
+test('light night shading is gentle and region text stays readable in the deepest band', () => {
+  const p = MAP_PALETTES.light;
+  assert.equal(p.night, 'rgba(20, 30, 60, 0.07)');
+  assert.equal(p.regionText, 'rgba(27, 35, 51, 0.5)');
+  // Composite 4 night bands, then text, over the ocean.
+  const mix = (fg, a, bg) => fg.map((v, i) => v * a + bg[i] * (1 - a));
+  let bg = [0xdf, 0xe8, 0xf3];
+  for (let i = 0; i < 4; i++) bg = mix([20, 30, 60], 0.07, bg);
+  const text = mix([27, 35, 51], 0.5, bg);
+  const hex = (a) => '#' + a.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+  assert.ok(ratio(hex(text), hex(bg)) >= 2.5, `ratio ${ratio(hex(text), hex(bg)).toFixed(2)}`);
+});

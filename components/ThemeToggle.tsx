@@ -28,24 +28,9 @@ export default function ThemeToggle() {
   useEffect(() => {
     const m = readMode() as Mode;
     setMode(m);
-    // Tell listeners (charts) the starting theme once.
-    window.dispatchEvent(new CustomEvent("seeksat:theme", {
-      detail: resolveTheme(m, window.matchMedia(DARK_QUERY).matches),
-    }));
+    // Re-apply the saved mode (idempotent) and tell listeners the starting theme.
+    apply(m);
   }, []);
-
-  // In auto, follow the system as it changes.
-  useEffect(() => {
-    if (mode !== "auto") return;
-    const mq = window.matchMedia(DARK_QUERY);
-    const onChange = () => apply("auto");
-    if (mq.addEventListener) {
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    }
-    mq.addListener(onChange);
-    return () => mq.removeListener(onChange);
-  }, [mode]);
 
   const choose = useCallback((next: Mode) => {
     setMode(next);

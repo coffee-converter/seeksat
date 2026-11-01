@@ -4,6 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
 import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
+import ThemeSync from "@/components/ThemeSync";
 import "./globals.css";
 const SITE_NAME = "SeekSat";
 // SEO title: ~52 chars (target 50-60) so search results don't truncate
@@ -136,6 +137,7 @@ export default function RootLayout({
         <style dangerouslySetInnerHTML={{ __html: EXO2_FONT_FACE }} />
       </head>
       <body>
+        <ThemeSync />
         {children}
         {/* Vercel Web Analytics (page views, top pages, referrers)
             and Speed Insights (Core Web Vitals from real visitors).

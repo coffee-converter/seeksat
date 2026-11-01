@@ -192,7 +192,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     name: nameOf(id),
     color: colors.get(id) ?? SAT_PALETTES[theme][0],
     hidden: prefs.hidden.includes(id),
-  })), [prefs.following, prefs.hidden, nameOf, colors]);
+  })), [prefs.following, prefs.hidden, nameOf, colors, theme]);
 
   const location = prefs.location;
   const observer = useMemo<HomeObserver | null>(
