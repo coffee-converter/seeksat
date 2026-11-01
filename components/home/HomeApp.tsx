@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import FlatMap, { type MapSat } from "./FlatMap";
 import { SearchBar } from "./SearchBar";
@@ -9,7 +9,7 @@ import LocationPrompt, { PopularList } from "./LocationPrompt";
 import NextUpList, { type Card, type HomeObserver, type Track } from "./NextUpList";
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
-import { nextUp } from "@/lib/home/next-up.mjs";
+import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { followedTracks, nextCardChangeMs } from "@/lib/home/view.mjs";
 import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
@@ -151,17 +151,39 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // Cards: on any input change, every 10 min, and when a pass starts or ends.
   const [cardState, setCardState] = useState<{ cards: Card[]; at: number } | null>(null);
   const [cardTick, setCardTick] = useState(0);
+  const cardRequest = useRef(0);
+  const warned = useRef(false);
   useEffect(() => {
+    const request = ++cardRequest.current;
     if (!observer) {
       setCardState(null);
       return;
     }
     const at = trueNow();
-    const cards = nextUp({
-      tracks, missing: shownMissing, observer, mode: prefs.mode, minElevDeg: prefs.minElevDeg, nowMs: at,
-    }) as unknown as Card[];
-    setCardState({ cards, at });
-  }, [tracks, shownMissing, observer, prefs.mode, prefs.minElevDeg, cardTick]);
+    // Only the followed records cross to the worker; custom elements ride along.
+    const followed = prefs.following;
+    getPassRunner()
+      .run({
+        kind: "next-up",
+        records: [...shownRecords.values()].filter((r) => followed.includes(r.noradId as number)),
+        custom: prefs.custom,
+        following: followed,
+        missing: shownMissing,
+        observer,
+        mode: prefs.mode,
+        minElevDeg: prefs.minElevDeg,
+        nowMs: at,
+      })
+      .then((cards: unknown) => {
+        if (request !== cardRequest.current) return;
+        setCardState({ cards: cards as unknown as Card[], at });
+      })
+      .catch((e: unknown) => {
+        if (warned.current) return;
+        warned.current = true;
+        console.warn("Pass search failed; keeping the previous cards.", e);
+      });
+  }, [shownRecords, prefs.custom, prefs.following, shownMissing, observer, prefs.mode, prefs.minElevDeg, cardTick]);
   useEffect(() => {
     if (!cardState || nowMs == null) return;
     if (nowMs - cardState.at >= CARD_REFRESH_MS || nowMs >= nextCardChangeMs(cardState.cards)) {
