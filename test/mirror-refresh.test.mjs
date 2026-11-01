@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { refreshMirror, refreshResponse, MIN_REFETCH_MS } from '../lib/mirror/refresh.mjs';
+import { refreshMirror, refreshResponse, MIN_REFETCH_MS, catnrKey } from '../lib/mirror/refresh.mjs';
 import { buildSnapshot } from '../lib/mirror/snapshot.mjs';
 import { createMemorySnapshotStore } from '../lib/mirror/snapshot-store.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
@@ -129,4 +129,64 @@ test('a failed group keeps its previous fetch time', async () => {
   const fetchGroup = async (g) => { if (g === 'stations') throw new Error('down'); return [other]; };
   await refreshMirror({ store, groups: GROUPS, fetchGroup, now: () => NOW, log: quiet });
   assert.equal((await store.read()).groupFetchedAtMs.stations, NOW - 3 * HOUR);
+});
+
+const noaa19 = { ...ISS_OMM, OBJECT_NAME: 'NOAA 19', NORAD_CAT_ID: 33591 };
+
+function pinned(byId) {
+  const asked = [];
+  const fetchByCatnr = async (id) => { asked.push(id); return byId(id); };
+  return { asked, fetchByCatnr };
+}
+
+test('a pinned id no group holds is fetched by CATNR and tagged as such', async () => {
+  const store = createMemorySnapshotStore(null);
+  const p = pinned(async () => noaa19);
+  const r = await refreshMirror({ store, groups: ['active'], fetchGroup: async () => [ISS_OMM],
+    pinnedIds: [25544, 33591], fetchByCatnr: p.fetchByCatnr, now: () => NOW, log: quiet });
+  assert.deepEqual(p.asked, [33591], 'ids a group supplied are not requested');
+  assert.equal(r.objectCount, 2);
+  const s = await store.read();
+  assert.equal(s.objects['33591'].source, 'celestrak-catnr');
+  assert.deepEqual(s.objects['33591'].groups, [catnrKey(33591)]);
+  assert.equal(s.objects['25544'].source, 'celestrak-gp');
+  assert.equal(s.groupFetchedAtMs[catnrKey(33591)], NOW);
+});
+
+test('a pinned id fetched under 2 hours ago is skipped and carried forward', async () => {
+  const store = createMemorySnapshotStore(null);
+  const first = pinned(async () => noaa19);
+  await refreshMirror({ store, groups: ['active'], fetchGroup: async () => [ISS_OMM],
+    pinnedIds: [33591], fetchByCatnr: first.fetchByCatnr, now: () => NOW, log: quiet });
+  const second = pinned(async () => noaa19);
+  const r = await refreshMirror({ store, groups: ['active'], fetchGroup: async () => [ISS_OMM],
+    pinnedIds: [33591], fetchByCatnr: second.fetchByCatnr, now: () => NOW + HOUR, log: quiet });
+  assert.deepEqual(second.asked, []);
+  assert.deepEqual(r.skippedGroups, ['active', catnrKey(33591)]);
+  assert.ok((await store.read()).objects['33591'], 'kept from the previous snapshot');
+});
+
+test('a pinned id that fails or is absent keeps its previous record', async () => {
+  const store = createMemorySnapshotStore(null);
+  await refreshMirror({ store, groups: ['active'], fetchGroup: async () => [ISS_OMM],
+    pinnedIds: [33591], fetchByCatnr: async () => noaa19, now: () => NOW, log: quiet });
+  for (const impl of [async () => { throw new Error('celestrak: paused'); }, async () => null]) {
+    const later = NOW + 3 * HOUR;
+    const r = await refreshMirror({ store, groups: ['active'], fetchGroup: async () => [ISS_OMM],
+      pinnedIds: [33591], fetchByCatnr: impl, now: () => later, log: quiet });
+    assert.deepEqual(r.failedGroups, [catnrKey(33591)]);
+    assert.ok((await store.read()).objects['33591']);
+  }
+});
+
+test('a pinned id now back in a group is not requested', async () => {
+  const store = createMemorySnapshotStore(null);
+  await refreshMirror({ store, groups: ['active'], fetchGroup: async () => [ISS_OMM],
+    pinnedIds: [33591], fetchByCatnr: async () => noaa19, now: () => NOW, log: quiet });
+  const p = pinned(async () => noaa19);
+  await refreshMirror({ store, groups: ['active'], fetchGroup: async () => [ISS_OMM, noaa19],
+    pinnedIds: [33591], fetchByCatnr: p.fetchByCatnr, now: () => NOW + 3 * HOUR, log: quiet });
+  assert.deepEqual(p.asked, []);
+  const rec = (await store.read()).objects['33591'];
+  assert.deepEqual(rec.groups, ['active']);
 });
