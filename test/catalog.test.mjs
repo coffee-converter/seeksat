@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG, resolveSatellite, defaultDownlink, displayName } from '../lib/catalog.mjs';
 
-test('catalog has the 5 starter satellites plus Meteor-M2 3, Meteor-M2 4, SO-50, RS-44, AO-123 and AO-91', () => {
-  assert.equal(CATALOG.length, 11);
+test('catalog has the 5 starter satellites plus Meteor-M2 3, Meteor-M2 4, SO-50, RS-44 and AO-123', () => {
+  assert.equal(CATALOG.length, 10);
   const ids = CATALOG.map(s => s.noradId).sort((a, b) => a - b);
-  assert.deepEqual(ids, [20580, 25544, 27607, 33591, 43017, 44909, 48274, 53807, 57166, 59051, 61781]);
+  assert.deepEqual(ids, [20580, 25544, 27607, 33591, 44909, 48274, 53807, 57166, 59051, 61781]);
 });
 
 test('Meteor-M2 3, Meteor-M2 4 and SO-50 resolve by alias and carry downlinks', () => {
@@ -19,17 +19,18 @@ test('Meteor-M2 3, Meteor-M2 4 and SO-50 resolve by alias and carry downlinks', 
   assert.equal(resolveSatellite(27607).downlinks.length, 1);
 });
 
-test('RS-44, AO-123 and AO-91 resolve by alias with their verified downlinks', () => {
+test('RS-44 and AO-123 resolve by alias with their verified downlinks', () => {
   assert.equal(resolveSatellite('rs-44').noradId, 44909);
   assert.equal(resolveSatellite('dosaaf-85').noradId, 44909);
   assert.equal(resolveSatellite('ao-123').noradId, 61781);
   assert.equal(resolveSatellite('asrtu-1').noradId, 61781);
-  assert.equal(resolveSatellite('ao91').noradId, 43017);
-  assert.equal(resolveSatellite('fox-1b').noradId, 43017);
-  assert.equal(defaultDownlink(resolveSatellite(44909)).hz, 435_640_000);
-  assert.equal(defaultDownlink(resolveSatellite(44909)).mode, 'ssb');
+  assert.equal(resolveSatellite('rs44').noradId, 44909);
+  assert.equal(resolveSatellite('ao123').noradId, 61781);
+  assert.equal(resolveSatellite('asrtu 1').noradId, 61781);
+  assert.equal(defaultDownlink(resolveSatellite(44909)).hz, 435_605_000);
+  assert.equal(defaultDownlink(resolveSatellite(44909)).mode, 'cw');
+  assert.equal(resolveSatellite(44909).downlinks[1].hz, 435_640_000);
   assert.equal(defaultDownlink(resolveSatellite(61781)).hz, 435_400_000);
-  assert.equal(defaultDownlink(resolveSatellite(43017)).hz, 145_960_000);
 });
 
 test('every entry has the enriched, valid shape', () => {
