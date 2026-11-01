@@ -45,24 +45,46 @@ test('readMode / writeMode survive a throwing storage', () => {
   assert.equal(readMode(null), 'auto');
 });
 
-function fakeDoc() {
-  const meta = { content: '' };
+function fakeMeta(media) {
+  const attrs = { name: 'theme-color', content: '', media };
   return {
-    documentElement: { dataset: {} },
-    querySelector: () => meta,
-    meta,
+    attrs,
+    setAttribute(k, v) { attrs[k] = v; },
+    removeAttribute(k) { delete attrs[k]; },
   };
 }
 
-test('applyTheme sets data-theme and theme-color', () => {
+function fakeDoc(withMetas = true) {
+  const metas = withMetas
+    ? [fakeMeta('(prefers-color-scheme: dark)'), fakeMeta('(prefers-color-scheme: light)')]
+    : [];
+  return {
+    documentElement: { dataset: {} },
+    querySelectorAll: () => metas,
+    createElement: () => fakeMeta(undefined),
+    head: { appendChild: (m) => metas.push(m) },
+    metas,
+  };
+}
+
+test('applyTheme sets data-theme and every theme-color tag', () => {
   const d = fakeDoc();
   applyTheme(d, 'light');
   assert.equal(d.documentElement.dataset.theme, 'light');
-  assert.equal(d.meta.content, '#f5f7fb');
+  for (const m of d.metas) {
+    assert.equal(m.attrs.content, '#f5f7fb');
+    assert.equal('media' in m.attrs, false);
+  }
   applyTheme(d, 'dark');
   assert.equal(d.documentElement.dataset.theme, 'dark');
-  assert.equal(d.meta.content, '#0a0e1a');
-  assert.doesNotThrow(() => applyTheme({ documentElement: { dataset: {} }, querySelector: () => null }, 'dark'));
+  for (const m of d.metas) assert.equal(m.attrs.content, '#0a0e1a');
+});
+
+test('applyTheme creates a theme-color tag when none exists', () => {
+  const d = fakeDoc(false);
+  applyTheme(d, 'light');
+  assert.equal(d.metas.length, 1);
+  assert.equal(d.metas[0].attrs.content, '#f5f7fb');
 });
 
 function runScript({ saved, systemDark, storageThrows = false }) {
@@ -70,16 +92,26 @@ function runScript({ saved, systemDark, storageThrows = false }) {
   const localStorage = storageThrows ? throwing : { getItem: () => saved ?? null };
   const matchMedia = () => ({ matches: systemDark });
   new Function('document', 'localStorage', 'matchMedia', THEME_SCRIPT)(doc, localStorage, matchMedia);
-  return doc.documentElement.dataset.theme;
+  return doc;
 }
 
 test('THEME_SCRIPT', () => {
-  assert.equal(runScript({ saved: 'light', systemDark: true }), 'light');
-  assert.equal(runScript({ saved: 'dark', systemDark: false }), 'dark');
-  assert.equal(runScript({ saved: null, systemDark: false }), 'light');
-  assert.equal(runScript({ saved: null, systemDark: true }), 'dark');
-  assert.equal(runScript({ saved: 'junk', systemDark: false }), 'light');
-  assert.equal(runScript({ systemDark: false, storageThrows: true }), 'dark');
+  const theme = (o) => runScript(o).documentElement.dataset.theme;
+  assert.equal(theme({ saved: 'light', systemDark: true }), 'light');
+  assert.equal(theme({ saved: 'dark', systemDark: false }), 'dark');
+  assert.equal(theme({ saved: null, systemDark: false }), 'light');
+  assert.equal(theme({ saved: null, systemDark: true }), 'dark');
+  assert.equal(theme({ saved: 'junk', systemDark: false }), 'light');
+  assert.equal(theme({ systemDark: false, storageThrows: true }), 'dark');
+});
+
+test('THEME_SCRIPT updates every theme-color tag and drops media', () => {
+  const d = runScript({ saved: 'light', systemDark: true });
+  assert.equal(d.metas.length, 2);
+  for (const m of d.metas) {
+    assert.equal(m.attrs.content, '#f5f7fb');
+    assert.equal('media' in m.attrs, false);
+  }
 });
 
 test('THEME_SCRIPT defaults to dark when matchMedia throws', () => {

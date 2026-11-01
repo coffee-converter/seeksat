@@ -866,7 +866,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .theme-toggle__group { display: inline-flex; border: 1px solid var(--map-border); border-radius: 8px; overflow: hidden; }
 .theme-toggle__opt, .theme-toggle__cycle {
   font: inherit; font-size: 12px; line-height: 1; color: inherit; background: none; border: 0; cursor: pointer;
-  padding: 7px 9px; min-height: 30px;
+  padding: 7px 9px; min-height: 36px;
 }
 .theme-toggle__opt[aria-checked="true"] { background: rgba(126, 184, 255, 0.2); font-weight: 600; }
 .theme-toggle__cycle { display: none; border: 1px solid var(--map-border); border-radius: 8px; min-width: 56px; }

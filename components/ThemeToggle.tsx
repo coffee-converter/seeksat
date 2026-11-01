@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MODES, applyTheme, readMode, resolveTheme, writeMode } from "@/lib/ui/theme.mjs";
 
 type Mode = "auto" | "light" | "dark";
@@ -23,8 +23,15 @@ function apply(mode: Mode) {
 export default function ThemeToggle() {
   const [mode, setMode] = useState<Mode | null>(null);
 
+  const groupRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    setMode(readMode() as Mode);
+    const m = readMode() as Mode;
+    setMode(m);
+    // Tell listeners (charts) the starting theme once.
+    window.dispatchEvent(new CustomEvent("seeksat:theme", {
+      detail: resolveTheme(m, window.matchMedia(DARK_QUERY).matches),
+    }));
   }, []);
 
   // In auto, follow the system as it changes.
@@ -32,8 +39,12 @@ export default function ThemeToggle() {
     if (mode !== "auto") return;
     const mq = window.matchMedia(DARK_QUERY);
     const onChange = () => apply("auto");
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    if (mq.addEventListener) {
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    }
+    mq.addListener(onChange);
+    return () => mq.removeListener(onChange);
   }, [mode]);
 
   const choose = useCallback((next: Mode) => {
@@ -42,12 +53,23 @@ export default function ThemeToggle() {
     apply(next);
   }, []);
 
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const step = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1
+      : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const at = MODES.indexOf(mode ?? "auto");
+    const to = MODES[(at + step + MODES.length) % MODES.length] as Mode;
+    choose(to);
+    groupRef.current?.querySelectorAll<HTMLElement>("[role=radio]")[MODES.indexOf(to)]?.focus();
+  };
+
   const current: Mode = mode ?? "auto";
   const next = MODES[(MODES.indexOf(current) + 1) % MODES.length] as Mode;
 
   return (
     <div className="theme-toggle" data-ready={mode ? "true" : "false"}>
-      <div className="theme-toggle__group" role="radiogroup" aria-label="Theme">
+      <div className="theme-toggle__group" role="radiogroup" aria-label="Theme" ref={groupRef} onKeyDown={onKeyDown}>
         {(MODES as Mode[]).map((m) => (
           <button
             key={m}
