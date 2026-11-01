@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
-  ALERTS_KEY, MAX_ALERTS, MAX_TIMER_MS, parseAlerts, safeUrl, canRemind, addAlert, removeAlert, pruneAlerts, nextDue, alertText, planTimer, makeAlert,
+  ALERTS_KEY, MAX_ALERTS, MAX_TIMER_MS, parseAlerts, safeUrl, canRemind, addAlert, removeAlert, pruneAlerts, nextDue, alertText, planTimer, makeAlert, shouldNotify,
 } from '../lib/alerts/alerts.mjs';
 
 const MIN = 60_000;
@@ -103,3 +104,25 @@ test('parseAlerts sanitizes urls when given an origin', () => {
   const bad = mk(1, 5, { url: 'https://evil.example/' });
   assert.equal(parseAlerts(JSON.stringify([bad]), 'https://seeksat.app')[0].url, '/');
 });
+
+test('shouldNotify only while the pass is still ahead', () => {
+  const now = 1_000_000_000;
+  assert.equal(shouldNotify(mk(25544, now + 10 * MIN), now), true);
+  assert.equal(shouldNotify(mk(25544, now + 1), now), true);
+  // A timer that fired late (sleep, throttling) for a pass that has started.
+  assert.equal(shouldNotify(mk(25544, now), now), false);
+  assert.equal(shouldNotify(mk(25544, now - 45 * MIN), now), false);
+  assert.equal(shouldNotify(null, now), false);
+  assert.equal(shouldNotify(mk(25544, Number.NaN), now), false);
+});
+
+const src = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+
+test('the runner drops a started pass and never shows an id twice', () => {
+  const runner = src('components/AlertRunner.tsx');
+  assert.match(runner, /shouldNotify/);
+  assert.match(runner, /new Set<string>\(\)/);
+  assert.match(runner, /fired\.has\(/);
+  assert.match(runner, /fired\.add\(/);
+});
+

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { safeUrl as safeUrlFn, alertText, fireAt, planTimer, pruneAlerts, removeAlert } from "@/lib/alerts/alerts.mjs";
+import { safeUrl as safeUrlFn, alertText, fireAt, planTimer, pruneAlerts, removeAlert, shouldNotify as shouldNotifyFn } from "@/lib/alerts/alerts.mjs";
 import { readAlerts, watchAlerts, writeAlerts, type PassAlert } from "@/lib/alerts/store";
 
 type Plan = { delayMs: number; alert: PassAlert } | null;
@@ -11,23 +11,34 @@ const remove = removeAlert as (l: PassAlert[], id: string) => PassAlert[];
 const when = fireAt as (a: PassAlert) => number;
 const safeUrl = safeUrlFn as (u: string, origin: string) => string;
 const text = alertText as (a: PassAlert, nowMs: number) => string;
+const shouldNotify = shouldNotifyFn as (a: PassAlert, nowMs: number) => boolean;
 
 /** Arms one timer for the next reminder and shows it. Renders nothing. */
 export default function AlertRunner() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Ids already shown or dropped this session. If storage refuses the
+    // removal, the alert is still in the list; this keeps it from firing again.
+    const fired = new Set<string>();
+    let pruning = false;
 
     const arm = () => {
       if (timer) clearTimeout(timer);
       timer = null;
-      let list = readAlerts();
+      const list = readAlerts();
       const pruned = prune(list, Date.now());
-      if (pruned.length !== list.length) {
-        list = pruned;
-        writeAlerts(list); // re-enters arm() through the change event
+      if (pruned.length !== list.length && !pruning) {
+        // Re-enters arm() through the change event; if the write failed, that
+        // pass goes on with the pruned list in memory.
+        pruning = true;
+        try {
+          writeAlerts(pruned);
+        } finally {
+          pruning = false;
+        }
         return;
       }
-      const p = plan(list, Date.now());
+      const p = plan(pruned.filter((a) => !fired.has(a.id)), Date.now());
       if (!p) return;
       timer = setTimeout(() => fire(p.alert), p.delayMs);
     };
@@ -62,9 +73,13 @@ export default function AlertRunner() {
       const now = Date.now();
       // setTimeout capped or fired early: wait again.
       if (now < when(alert)) return arm();
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      // Late (sleep, throttling) for a pass that has started, or already shown:
+      // drop it without a notification.
+      if (!fired.has(alert.id) && shouldNotify(alert, now)
+        && typeof Notification !== "undefined" && Notification.permission === "granted") {
         void show(alert, text(alert, now));
       }
+      fired.add(alert.id);
       writeAlerts(remove(readAlerts(), alert.id)); // change event re-arms
     };
 
