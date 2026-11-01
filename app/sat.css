@@ -33,3 +33,7 @@ p.sat-how { margin: 0 0 8px; }
 .sat-pass__main { margin: 0 0 4px; color: var(--map-text); font-variant-numeric: tabular-nums; line-height: 1.5; }
 .sat-pass__day { font-weight: 600; }
 .sat-pass .pass-card__tag { margin-left: 8px; }
+.sat-observers { margin: 12px 0; }
+.sat-observers__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.sat-observers__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.sat-observers__item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--map-border); border-radius: 999px; }

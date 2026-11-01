@@ -52,6 +52,7 @@ test('valid object round-trips', () => {
     mode: 'visual',
     minElevDeg: 20,
     projection: defaultPrefs().projection,
+    observers: [{ id: 'obs-2', name: 'FN31', latDeg: 41.5, lonDeg: -72.7 }],
   };
   assert.deepEqual(parsePrefs(JSON.parse(JSON.stringify(p))), p);
 });
@@ -69,4 +70,22 @@ test('savePrefs then loadPrefs round-trips through storage', () => {
   assert.equal(savePrefs(p, storage), true);
   assert.ok(m.has(PREFS_KEY));
   assert.deepEqual(loadPrefs(storage), p);
+});
+
+test('observers default to [] and old prefs parse to []', () => {
+  assert.deepEqual(defaultPrefs().observers, []);
+  assert.deepEqual(parsePrefs({ mode: 'visual' }).observers, []);
+});
+
+test('observers are cleaned, deduped and capped at 3', () => {
+  const o = (id, extra = {}) => ({ id, name: 'X', latDeg: 1, lonDeg: 2, ...extra });
+  const out = parsePrefs({
+    observers: [
+      o('obs-1'), o('obs-1'), o('bad'), o('obs-2', { latDeg: 99 }), o('obs-3', { lonDeg: 'x' }),
+      'junk', null, o('obs-4', { name: 'n'.repeat(100) }), o('obs-5'), o('obs-6'),
+    ],
+  }).observers;
+  assert.deepEqual(out.map((x) => x.id), ['obs-1', 'obs-4', 'obs-5']);
+  assert.equal(out[1].name.length, 60);
+  assert.deepEqual(parsePrefs({ observers: 'x' }).observers, []);
 });

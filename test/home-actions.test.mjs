@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  addCustomTo, followIn, unfollowIn, isStale, createLoadGuard, followBlockedMessage,
+  addCustomTo, followIn, unfollowIn, isStale, createLoadGuard, followBlockedMessage, addObserverTo, removeObserverFrom,
 } from '../lib/home/actions.mjs';
 import { defaultPrefs, MAX_CUSTOM, MAX_FOLLOWING } from '../lib/home/prefs.mjs';
 import { tleFor } from './fixtures/tle-variants.mjs';
@@ -95,4 +95,31 @@ test('followBlockedMessage explains the cap only for a new id at the cap', () =>
   assert.equal(followBlockedMessage(full, 999), 'You can follow up to 20 satellites. Unfollow one first.');
   assert.equal(followBlockedMessage(full, 1), null, 'already following');
   assert.equal(followBlockedMessage(full.slice(1), 999), null, 'room left');
+});
+
+test('addObserverTo assigns obs-1, obs-2 and caps at 3', () => {
+  let p = defaultPrefs();
+  const add = (name) => {
+    const r = addObserverTo(p, { name, latDeg: 10, lonDeg: 20 });
+    if (r.prefs) p = r.prefs;
+    return r;
+  };
+  assert.equal(add('A').prefs.observers[0].id, 'obs-1');
+  assert.equal(add('B').prefs.observers[1].id, 'obs-2');
+  add('C');
+  assert.equal(add('D').error, 'You can add up to 3 other places.');
+  assert.equal(p.observers.length, 3);
+});
+
+test('addObserverTo takes the lowest unused id after a removal', () => {
+  let p = defaultPrefs();
+  for (const n of ['A', 'B']) p = addObserverTo(p, { name: n, latDeg: 1, lonDeg: 2 }).prefs;
+  p = removeObserverFrom(p, 'obs-1');
+  assert.equal(addObserverTo(p, { name: 'C', latDeg: 1, lonDeg: 2 }).prefs.observers.at(-1).id, 'obs-1');
+});
+
+test('removeObserverFrom drops by id', () => {
+  const p = addObserverTo(defaultPrefs(), { name: 'A', latDeg: 1, lonDeg: 2 }).prefs;
+  assert.deepEqual(removeObserverFrom(p, 'obs-1').observers, []);
+  assert.equal(removeObserverFrom(p, 'nope').observers.length, 1);
 });

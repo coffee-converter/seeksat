@@ -5,7 +5,7 @@
 // watchVisibility() to document.visibilitychange from the component.
 
 import { create } from "zustand";
-import { addCustomTo, createLoadGuard, followIn, isStale, unfollowIn } from "./actions.mjs";
+import { addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, unfollowIn } from "./actions.mjs";
 import { defaultPrefs, loadPrefs, savePrefs } from "./prefs.mjs";
 import { fetchRecords } from "./records.mjs";
 
@@ -21,6 +21,12 @@ export interface CustomElements {
   line1: string;
   line2: string;
 }
+export interface ExtraObserver {
+  id: string;
+  name: string;
+  latDeg: number;
+  lonDeg: number;
+}
 export interface Prefs {
   location: HomeLocation | null;
   following: number[];
@@ -28,6 +34,7 @@ export interface Prefs {
   mode: "radio" | "visual";
   minElevDeg: number;
   projection: string;
+  observers: ExtraObserver[];
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SatApiRecord = Record<string, any>;
@@ -51,6 +58,8 @@ interface HomeState {
   follow: (id: number) => void;
   unfollow: (id: number) => void;
   addCustom: (text: string) => { ok: true } | { ok: false; message: string };
+  addObserver: (loc: { name: string; latDeg: number; lonDeg: number }) => { ok: true } | { ok: false; message: string };
+  removeObserver: (id: string) => void;
 }
 
 export const useHomeStore = create<HomeState>((set, get) => ({
@@ -120,6 +129,19 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     const { prefs, result } = addCustomTo(get().prefs, text);
     if (result.ok) get().setPrefs({ custom: prefs.custom, following: prefs.following });
     return result as { ok: true } | { ok: false; message: string };
+  },
+
+  addObserver: (loc) => {
+    get().hydrate();
+    const r = addObserverTo(get().prefs, loc);
+    if (r.error !== undefined) return { ok: false, message: r.error };
+    get().setPrefs({ observers: r.prefs.observers });
+    return { ok: true };
+  },
+
+  removeObserver: (id) => {
+    get().hydrate();
+    get().setPrefs({ observers: removeObserverFrom(get().prefs, id).observers });
   },
 }));
 

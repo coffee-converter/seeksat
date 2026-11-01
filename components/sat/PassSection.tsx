@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import HomeControls from "@/components/home/HomeControls";
+import ExtraObservers from "@/components/sat/ExtraObservers";
 import LocationPrompt from "@/components/home/LocationPrompt";
 import type { HomeObserver } from "@/components/home/NextUpList";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
@@ -62,6 +63,15 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
     [location],
   );
 
+  const extra = prefs.observers;
+  const observers = useMemo<HomeObserver[]>(
+    () => observer
+      ? [observer, ...extra.map((o) => ({ ...o, tz: observer.tz, elevM: 0, elevSource: "default" }))]
+      : [],
+    [observer, extra],
+  );
+  const joint = extra.length > 0;
+
   const [result, setResult] = useState<unknown>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,7 +95,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
       .run({
         kind: "passes",
         record,
-        observers: [observer],
+        observers,
         mode: prefs.mode,
         minElevDeg: prefs.minElevDeg,
         startMs,
@@ -104,7 +114,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
         setFailed(true);
         console.warn("Pass search failed.", e);
       });
-  }, [track, record, observer, prefs.mode, prefs.minElevDeg, tick]);
+  }, [track, record, observer, observers, prefs.mode, prefs.minElevDeg, tick]);
 
   // The clock in 15 s steps, so rows re-derive without a per-second pass.
   const bucketMs = Math.floor(nowMs / 15_000) * 15_000;
@@ -138,7 +148,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
     if (!observer) return;
     trigger.current = e.currentTarget;
     setChartsLoaded(true);
-    setSubject({ track, obs: observer, pass, minElevDeg: prefs.minElevDeg, jointWindow: null } as unknown as ChartSubject);
+    setSubject({ track, obs: observer, pass, minElevDeg: prefs.minElevDeg, jointWindow: joint ? { startMs: pass.startMs, endMs: pass.endMs } : null } as unknown as ChartSubject);
     setChart(kind);
   };
   const onClose = useCallback(() => {
@@ -156,7 +166,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
       mode: prefs.mode,
       nowMs: trueNow(),
       url: null,
-      observerCount: 1,
+      observerCount: observers.length,
       inProgress,
     });
     downloadText(ics, icsName(track.shortName, observer.name, pass.startMs), "text/calendar");
@@ -166,7 +176,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
 
   return (
     <section id="passes" className="sat-passes" aria-labelledby="sat-passes-title">
-      <h2 id="sat-passes-title" className="home-heading">Passes from your location</h2>
+      <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : "Passes from your location"}</h2>
       {!track ? (
         <p className="home-note">{UNAVAILABLE}</p>
       ) : (
@@ -187,6 +197,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
               onChangeLocation={() => setChangingLocation(true)}
             />
           )}
+          {observer && !showPrompt && <ExtraObservers />}
           {observer && !showPrompt && (busy && !view ? (
             <p className="home-note" role="status">Finding passes...</p>
           ) : view && (
