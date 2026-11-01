@@ -230,3 +230,11 @@ test('search: limit and empty query', async () => {
   assert.deepEqual(await reader.search(''), []);
   assert.deepEqual(await reader.search('   '), []);
 });
+
+test('noradIds lists snapshot ids ascending, [] without a snapshot', async () => {
+  const store = createMemorySnapshotStore(snap([rec(40000, 'B'), rec(25544, 'A'), rec(100000, 'C')]));
+  const { reader } = make({ store });
+  assert.deepEqual(await reader.noradIds(), [25544, 40000, 100000]);
+  const empty = make({ store: createMemorySnapshotStore(null) });
+  assert.deepEqual(await empty.reader.noradIds(), []);
+});

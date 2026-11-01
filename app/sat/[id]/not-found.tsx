@@ -1,0 +1,14 @@
+import Link from "next/link";
+import "@/app/home.css";
+
+export default function NotFound() {
+  return (
+    <main className="home">
+      <h1 className="home-heading">Satellite not found</h1>
+      <p className="home-note">
+        That satellite isn&apos;t in our catalog. It may have come down, or the number may be wrong.
+      </p>
+      <Link className="home-link" href="/">Back to SeekSat</Link>
+    </main>
+  );
+}
