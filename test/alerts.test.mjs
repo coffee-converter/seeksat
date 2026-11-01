@@ -126,3 +126,12 @@ test('the runner drops a started pass and never shows an id twice', () => {
   assert.match(runner, /fired\.add\(/);
 });
 
+const REMINDER_NOTE = 'Reminders work only while SeekSat is open, in a tab or as an installed app.';
+
+test('the reminder note says reminders need SeekSat open', () => {
+  assert.ok(src('components/AlertBell.tsx').includes(`"${REMINDER_NOTE}"`));
+  assert.ok(src('components/home/AboutSection.tsx').includes(`<p>${REMINDER_NOTE}</p>`));
+  for (const p of ['components/AlertBell.tsx', 'components/home/AboutSection.tsx']) {
+    assert.doesNotMatch(src(p), /installed as an app/, p);
+  }
+});

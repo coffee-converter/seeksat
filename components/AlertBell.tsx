@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { canRemind as canRemindFn, addAlert, makeAlert, removeAlert, DEFAULT_LEAD_MIN } from "@/lib/alerts/alerts.mjs";
 import { readAlerts, watchAlerts, writeAlerts, type PassAlert } from "@/lib/alerts/store";
 
-export const OPEN_TAB_NOTE = "Reminders work while SeekSat is open in a tab or installed as an app.";
+export const OPEN_TAB_NOTE = "Reminders work only while SeekSat is open, in a tab or as an installed app.";
 const BLOCKED_NOTE = "Your browser blocked notifications. Allow them for this site to get reminders.";
 const UNSUPPORTED_NOTE = "This browser can't show reminders. On iPhone, add SeekSat to your Home Screen first.";
 const NOTE_MS = 6000;
