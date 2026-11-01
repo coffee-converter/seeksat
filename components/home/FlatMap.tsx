@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { drawMap, hitTest } from "@/lib/map/draw.mjs";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
+import { graticuleBox, graticuleLabels, graticuleStep, pickPlaceLabels } from "@/lib/map/labels.mjs";
+import { createLabelCache, labelKey } from "@/lib/map/label-cache.mjs";
 import {
   PROJECTIONS,
   DEFAULT_PROJECTION,
@@ -73,6 +75,26 @@ const hit = hitTest as (sats: MapSat[], p: Projection, x: number, y: number) => 
 type LegendItem = { key: string; kind: string; label: string; color?: string };
 const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
 type Pt = { x: number; y: number };
+type Box = { x0: number; y0: number; x1: number; y1: number };
+type GratLabel = { text: string; x: number; y: number; align: string; baseline: string; line?: unknown };
+type PlaceData = { places: unknown; regions: unknown };
+type LabelSet = { places: unknown; graticule: GratLabel[] };
+type LabelOpts = { width: number; height: number; zoom: number; projectionId: string; places: unknown; regions: unknown };
+const gratLabels = graticuleLabels as unknown as (
+  p: Projection,
+  o: { width: number; height: number; step: number; projectionId: string },
+) => GratLabel[];
+const gratBox = graticuleBox as unknown as (l: GratLabel) => Box;
+const gratStep = graticuleStep as unknown as (zoom: number) => number;
+const pickPlaces = (
+  createLabelCache as unknown as (pick: (p: Projection, o: LabelOpts) => LabelSet) => {
+    get: (key: string, args: [Projection, LabelOpts]) => LabelSet;
+  }
+);
+const keyOf = labelKey as unknown as (o: {
+  projectionId: string; width: number; height: number; zoom: number; pan: [number, number];
+  observer: MapObserver | null; sub: SelectedSub | null;
+}) => string;
 
 const TAP_SLOP_PX = 6;
 const DOUBLE_TAP_MS = 300;
@@ -94,6 +116,29 @@ export default function FlatMap({
   const size = useRef({ width: 0, height: 0, dpr: 1 });
   const projection = useRef<Projection | null>(null);
   const night = useRef<{ at: number; bands: NightBands } | null>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  // Place data arrives after mount, in its own chunk.
+  const placeData = useRef<PlaceData | null>(null);
+  const labelCache = useRef(
+    pickPlaces((proj, o) => {
+      const graticule = gratLabels(proj, {
+        width: o.width, height: o.height, step: gratStep(o.zoom), projectionId: o.projectionId,
+      });
+      const places = (pickPlaceLabels as unknown as (p: Projection, o: Record<string, unknown>) => unknown)(proj, {
+        width: o.width, height: o.height, zoom: o.zoom, places: o.places, regions: o.regions,
+        avoid: graticule.map(gratBox),
+      });
+      return { graticule, places };
+    }),
+  );
+  // While a drag or pinch is in progress the last labels are reused; they are
+  // recomputed once when the gesture ends.
+  const gesturing = useRef(false);
+  const lastLabels = useRef<LabelSet | null>(null);
+  const [full, setFull] = useState(false);
+  const fullRef = useRef(false);
+  fullRef.current = full;
+  const nativeFull = useRef(false);
 
   // A projection that is unavailable right now (no observer, no selected satellite)
   // is shown and drawn as the default. The saved choice is left alone so it
@@ -126,7 +171,22 @@ export default function FlatMap({
     });
     projection.current = proj;
     // At zoom 1 the map leaves vertical scrolling to the page; zoomed in, it owns touch.
-    canvas.style.touchAction = view.current.zoom > 1 ? "none" : "pan-y";
+    // Full screen has no page to scroll, so it always owns touch.
+    canvas.style.touchAction = view.current.zoom > 1 || fullRef.current ? "none" : "pan-y";
+    let labels = lastLabels.current;
+    if (!(gesturing.current && labels)) {
+      const data = placeData.current;
+      const { zoom, pan } = view.current;
+      const key = `${keyOf({
+        projectionId: cur.projectionId, width, height, zoom, pan,
+        observer: cur.observer, sub: cur.selectedSub,
+      })}|${data ? "p" : "g"}`;
+      labels = labelCache.current.get(key, [
+        proj,
+        { width, height, zoom, projectionId: cur.projectionId, places: data?.places ?? [], regions: data?.regions ?? [] },
+      ]);
+      lastLabels.current = labels;
+    }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
     // Clip to the map so zoomed or panned geometry stays inside the frame.
@@ -143,7 +203,7 @@ export default function FlatMap({
       sats: cur.sats,
       observer: cur.observer,
       zoom: view.current.zoom,
-      labels: null,
+      labels: placeData.current ? labels : { places: [], graticule: labels.graticule },
     });
     ctx.restore();
   }, []);
@@ -198,6 +258,79 @@ export default function FlatMap({
     };
   }, [redraw]);
 
+  // Place names are 35 KB; fetch them after mount so first paint stays light.
+  useEffect(() => {
+    let alive = true;
+    Promise.all([import("@/lib/map/places.json"), import("@/lib/map/regions.mjs")]).then(
+      ([p, r]) => {
+        if (!alive) return;
+        placeData.current = {
+          places: (p as { default?: unknown }).default ?? p,
+          regions: (r as { REGIONS: unknown }).REGIONS,
+        };
+        redraw();
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [redraw]);
+
+  const toggleFull = useCallback(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    if (fullRef.current) {
+      if (nativeFull.current && document.fullscreenElement) void document.exitFullscreen();
+      else setFull(false);
+      return;
+    }
+    if (document.fullscreenEnabled && shell.requestFullscreen) {
+      nativeFull.current = true;
+      shell.requestFullscreen().then(
+        () => setFull(true),
+        () => {
+          nativeFull.current = false;
+          setFull(true);
+        },
+      );
+    } else {
+      nativeFull.current = false;
+      setFull(true);
+    }
+  }, []);
+
+  // Keep state in step with the browser (Esc in native full screen) and
+  // handle the CSS fallback: Esc exits, and the page behind stops scrolling.
+  useEffect(() => {
+    const onChange = () => {
+      const active = document.fullscreenElement === shellRef.current;
+      if (active || nativeFull.current) {
+        setFull(active);
+        if (!active) nativeFull.current = false;
+      }
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  useEffect(() => {
+    if (!full) return;
+    const fallback = !nativeFull.current;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && fallback) setFull(false);
+    };
+    if (fallback) document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (fallback) document.body.style.overflow = "";
+    };
+  }, [full]);
+  // The wrapper changes size; the ResizeObserver refits, and the touch mode changes.
+  useEffect(() => {
+    redraw();
+  }, [full, redraw]);
+
   // A new projection starts from the default view.
   useEffect(() => {
     view.current = { zoom: 1, pan: [0, 0] };
@@ -229,6 +362,7 @@ export default function FlatMap({
     const onDown = (e: PointerEvent) => {
       canvas.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, local(e));
+      gesturing.current = true;
       if (pointers.size === 1) { moved = 0; multi = false; }
       else multi = true;
     };
@@ -240,7 +374,7 @@ export default function FlatMap({
         const dx = next.x - prev.x;
         const dy = next.y - prev.y;
         moved += Math.abs(dx) + Math.abs(dy);
-        if (moved >= TAP_SLOP_PX && view.current.zoom > 1) {
+        if (moved >= TAP_SLOP_PX && (view.current.zoom > 1 || fullRef.current)) {
           const [px, py] = view.current.pan;
           view.current.pan = [px + dx, py + dy];
           redraw();
@@ -251,7 +385,7 @@ export default function FlatMap({
         pointers.set(e.pointerId, next);
         const after = spread();
         if (before.dist > 0) zoomAt(after.dist / before.dist, after.mid.x, after.mid.y);
-        if (view.current.zoom > 1) {
+        if (view.current.zoom > 1 || fullRef.current) {
           const [px, py] = view.current.pan;
           view.current.pan = [px + after.mid.x - before.mid.x, py + after.mid.y - before.mid.y];
           redraw();
@@ -262,6 +396,10 @@ export default function FlatMap({
       const wasOnly = pointers.size === 1;
       const at = local(e);
       pointers.delete(e.pointerId);
+      if (pointers.size === 0 && gesturing.current) {
+        gesturing.current = false;
+        redraw();
+      }
       // One finger left after a pinch: let it pan straight away, but never tap.
       if (pointers.size === 1) moved = TAP_SLOP_PX;
       if (!wasOnly || multi || moved >= TAP_SLOP_PX) return;
@@ -280,12 +418,16 @@ export default function FlatMap({
     };
     const onCancel = (e: PointerEvent) => {
       pointers.delete(e.pointerId);
+      if (pointers.size === 0 && gesturing.current) {
+        gesturing.current = false;
+        redraw();
+      }
       if (pointers.size === 1) moved = TAP_SLOP_PX;
     };
-    // Plain wheel scrolls the page at zoom 1; ctrl/meta (trackpad pinch) or a zoomed map captures it.
+    // Plain wheel scrolls the page at zoom 1; ctrl/meta (trackpad pinch), a zoomed map or full screen captures it.
     const onWheel = (e: WheelEvent) => {
       const pinch = e.ctrlKey || e.metaKey;
-      if (!pinch && view.current.zoom <= 1) return;
+      if (!pinch && view.current.zoom <= 1 && !fullRef.current) return;
       e.preventDefault();
       const p = local(e);
       zoomAt(Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002)), p.x, p.y);
@@ -308,7 +450,7 @@ export default function FlatMap({
   }, [redraw, zoomAt, reset]);
 
   return (
-    <>
+    <div className={`flat-map-shell${full ? " flat-map-shell--full" : ""}`} ref={shellRef}>
     <div className="flat-map" ref={wrapRef}>
       <canvas
         ref={canvasRef}
@@ -336,6 +478,14 @@ export default function FlatMap({
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.5)}>+</button>
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.5)}>{"\u2212"}</button>
         <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
+        <button
+          type="button"
+          aria-label={full ? "Exit full screen" : "Full screen"}
+          aria-pressed={full}
+          onClick={toggleFull}
+        >
+          {"\u26F6"}
+        </button>
       </div>
       <table className="sr-only">
         <caption>Current satellite positions</caption>
@@ -369,6 +519,6 @@ export default function FlatMap({
         </li>
       ))}
     </ul>
-    </>
+    </div>
   );
 }

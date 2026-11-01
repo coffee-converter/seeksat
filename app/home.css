@@ -78,6 +78,27 @@
   outline-offset: 1px;
 }
 
+/* Full screen: the native API when present, else this class (iPhone Safari). */
+.flat-map-shell--full {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  background: #0a0e1a;
+  overflow: hidden;
+}
+.flat-map-shell--full .flat-map {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  /* The legend takes its own height; the map gets the rest of the dynamic viewport. */
+  max-height: calc(100dvh - 16px);
+}
+.flat-map-shell--full .map-legend { flex: 0 0 auto; }
+.flat-map-shell:fullscreen { background: #0a0e1a; }
+
 /* Visually hidden, still read by screen readers. */
 .sr-only {
   position: absolute;
