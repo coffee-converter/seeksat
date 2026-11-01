@@ -4,7 +4,7 @@ import { createCatalogReader } from '../../lib/mirror/reader.mjs';
 import { createMemorySnapshotStore } from '../../lib/mirror/snapshot-store.mjs';
 import { ISS_OMM } from '../fixtures/omm-iss.mjs';
 import { buildSatCardSvg } from '../../lib/og/sat-card.mjs';
-import { satOgResponse } from '../../lib/og/sat-og.mjs';
+import { satOgResponse, elementsFromText } from '../../lib/og/sat-og.mjs';
 
 const T0 = Date.parse('2026-03-01T13:00:00Z');
 const quiet = { warn() {}, error() {} };
@@ -71,4 +71,9 @@ test('satOgResponse returns a PNG for the ISS', async () => {
   const buf = Buffer.from(await res.arrayBuffer());
   assert.deepEqual([...buf.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
   assert.equal(buf.readUInt32BE(16), 1200);
+});
+
+test('the card states the absolute epoch, which does not go stale in a cache', () => {
+  assert.equal(elementsFromText(Date.parse('2026-11-01T14:00:00Z')), 'Elements from 1 Nov 2026, 14:00 UTC');
+  assert.equal(elementsFromText(null), '');
 });

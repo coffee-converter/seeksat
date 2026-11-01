@@ -21,7 +21,7 @@ const PassChartModals = dynamic(() => import("@/components/passes/PassChartModal
 
 type Pass = { startMs: number; endMs: number; [k: string]: unknown };
 type Row = {
-  key: string; dayLabel: string; startLabel: string; peakLabel: string; endLabel: string;
+  key: string; dayLabel: string; startLabel: string; peakLabel: string; endLabel: string; timesLabel: string;
   durationLabel: string; maxElevLabel: string; azLabel: string;
   visible: boolean; inProgress: boolean; runsPastEnd: boolean; accuracy: string | null; pass: Pass;
 };
@@ -225,9 +225,8 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
                     <li key={row.key} className="sat-pass">
                       <p className="sat-pass__main">
                         <span className="sat-pass__day">{row.dayLabel}</span>
-                        {` ${row.startLabel} to ${row.endLabel}, ${row.durationLabel}, max ${row.maxElevLabel}, ${row.azLabel}`}
+                        {` ${row.timesLabel}, ${row.durationLabel}, max ${row.maxElevLabel}, ${row.azLabel}`}
                         {row.visible && <span className="pass-card__tag">visible</span>}
-                        {row.inProgress && <span className="pass-card__tag">up now</span>}
                         {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
                       </p>
                       {row.accuracy && <p className="sat-how">{row.accuracy}</p>}

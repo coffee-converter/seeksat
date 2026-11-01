@@ -8,12 +8,11 @@ import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
 import PassSection from "./PassSection";
 import RawElements from "./RawElements";
-import { useHomeStore, watchVisibility } from "@/lib/home/store";
+import { useHomeStore } from "@/lib/home/store";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { resolveSatellite } from "@/lib/catalog.mjs";
 import { makeTrack } from "@/lib/sat/track.mjs";
-import { elementAge, liveNumbers, orbitElements } from "@/lib/sat/numbers.mjs";
-import { elementEpochMs } from "@/lib/sat/page-data.mjs";
+import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/numbers.mjs";
 import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -31,15 +30,6 @@ const trackOf = groundTrack as (track: unknown, nowMs: number) => Shape;
 
 const TRACK_REFRESH_MS = 60_000;
 
-function relativeTime(thenMs: number, nowMs: number): string {
-  const min = Math.max(0, Math.floor((nowMs - thenMs) / 60_000));
-  if (min < 1) return "just now";
-  if (min < 60) return `${min} min ago`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} h ago`;
-  return `${Math.floor(h / 24)} days ago`;
-}
-
 export default function SatApp({ data }: { data: SatPageData }) {
   const prefs = useHomeStore((s) => s.prefs);
   const hydrate = useHomeStore((s) => s.hydrate);
@@ -51,7 +41,6 @@ export default function SatApp({ data }: { data: SatPageData }) {
   const [nowMs, setNowMs] = useState(data.renderedAtMs);
 
   useEffect(() => { hydrate(); }, [hydrate]);
-  useEffect(() => watchVisibility(), []);
   useEffect(() => {
     let id: number | undefined;
     const stop = () => {
@@ -93,10 +82,8 @@ export default function SatApp({ data }: { data: SatPageData }) {
 
   // Age from the live clock, so it never contradicts "fetched X ago". The
   // first nowMs is renderedAtMs, so the first render matches the server's.
-  const epochMs = useMemo(
-    () => (elementEpochMs as (e: number | null, t: unknown) => number | null)(data.epochMs, track),
-    [data.epochMs, track],
-  );
+  // data.elementEpochMs is data.epochMs, falling back to the track's epoch.
+  const epochMs = data.elementEpochMs;
   const age = useMemo(() => elementAge(epochMs, nowMs), [epochMs, nowMs]);
 
   const trackMinute = Math.floor(nowMs / TRACK_REFRESH_MS);

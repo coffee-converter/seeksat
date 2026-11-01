@@ -71,3 +71,16 @@ test('joint GEO: the text names the place that cannot see it', () => {
   r.pointing[0].elMaxDeg = -2;
   assert.equal(passRows(r, { ...opts, names }).text, 'It never rises here.');
 });
+test('a pass already up shows when it sets and how long is left', () => {
+  const r = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_T0 });
+  const p = r.passes[0];
+  const nowMs = p.startMs + 60_000;
+  const row = passRows(r, { ...opts, nowMs }).rows[0];
+  const until = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }).format(p.endMs);
+  assert.equal(row.timesLabel, `up now, until ${until}`);
+  const leftS = Math.round((p.endMs - nowMs) / 1000);
+  assert.equal(row.durationLabel, `${Math.floor(leftS / 60)}m${String(leftS % 60).padStart(2, '0')}s left`);
+  const later = passRows(r, { ...opts, nowMs: p.startMs - 60_000 }).rows[0];
+  assert.equal(later.timesLabel, `${later.startLabel} to ${later.endLabel}`);
+  assert.doesNotMatch(later.durationLabel, /left/);
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { HOW_WE_COMPUTE, formatNumber } from "@/lib/sat/numbers.mjs";
+import { HOW_WE_COMPUTE, formatNumber, periodText } from "@/lib/sat/numbers.mjs";
 import type { SatPageData } from "./SatApp";
 
 type Live = NonNullable<SatPageData["live"]>;
@@ -25,9 +25,6 @@ export function isoUtc(ms: number): string {
 export default function LiveNumbers({
   live, elements, epochMs,
 }: { live: Live; elements: Elements; epochMs: number | null }) {
-  const period = elements.periodMin;
-  const periodText = `${formatNumber(period, 2)} min` +
-    (period > 600 ? ` (${Math.floor(period / 60)} h ${formatNumber(Math.round(period % 60), 0)} min)` : "");
   const ecc = elements.eccentricity;
   return (
     <div className="sat-numbers">
@@ -45,7 +42,7 @@ export default function LiveNumbers({
         <Row label="Perigee" value={`${formatNumber(elements.perigeeAltKm, 0)} km`} />
         <Row label="Apogee" value={`${formatNumber(elements.apogeeAltKm, 0)} km`} />
         <Row label="Eccentricity" value={formatNumber(ecc, ecc < 0.01 ? 7 : 4)} />
-        <Row label="Period" value={periodText} />
+        <Row label="Period" value={periodText(elements.periodMin)} />
         <Row label="Inclination" value={`${formatNumber(elements.inclinationDeg, 2)}°`} />
         <Row label="Semi-major axis" value={`${formatNumber(elements.semiMajorAxisKm, 1)} km`} />
       </dl>

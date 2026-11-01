@@ -32,8 +32,10 @@ function staticSpecs(src) {
   return specs;
 }
 
-function reachable(entry) {
+// Local files reachable from entry, plus every package specifier they import.
+function walk(entry) {
   const seen = new Set();
+  const packages = new Set();
   const stack = [entry];
   while (stack.length) {
     const file = stack.pop();
@@ -41,26 +43,42 @@ function reachable(entry) {
     seen.add(file);
     const src = readFileSync(file, 'utf8');
     for (const spec of staticSpecs(src)) {
-      if (!spec.startsWith('.') && !spec.startsWith('@/')) continue;
+      if (!spec.startsWith('.') && !spec.startsWith('@/')) { packages.add(spec); continue; }
       const r = resolveSpec(spec, file);
       if (r) stack.push(r);
     }
   }
-  return new Set([...seen].map((f) => path.relative(ROOT, f)));
+  return { files: new Set([...seen].map((f) => path.relative(ROOT, f))), packages };
 }
 
-test('the home page does not statically reach the chart painters', () => {
-  const set = reachable(path.join(ROOT, 'components/home/HomeApp.tsx'));
-  const banned = [
-    'lib/passes/charts.js',
-    'lib/pass-finder/radio-chart.js',
-    'lib/pass-finder/constellations.js',
-    'lib/pass-finder/star-catalog.js',
-    'components/passes/RadioChartModalView.tsx',
-  ];
-  const hit = banned.filter((b) => set.has(b));
-  assert.deepEqual(hit, [], `reachable chart modules: ${hit.join(', ')}`);
-});
+function reachable(entry) {
+  return walk(entry).files;
+}
+
+const CHART_MODULES = [
+  'lib/passes/charts.js',
+  'lib/pass-finder/radio-chart.js',
+  'lib/pass-finder/constellations.js',
+  'lib/pass-finder/star-catalog.js',
+  'components/passes/RadioChartModalView.tsx',
+];
+
+for (const [label, entry] of [
+  ['the home page', 'components/home/HomeApp.tsx'],
+  ['the satellite page', 'components/sat/SatApp.tsx'],
+]) {
+  test(`${label} does not statically reach the chart painters`, () => {
+    const set = reachable(path.join(ROOT, entry));
+    const hit = CHART_MODULES.filter((b) => set.has(b));
+    assert.deepEqual(hit, [], `reachable chart modules: ${hit.join(', ')}`);
+  });
+
+  test(`${label} does not statically reach Cesium`, () => {
+    const { files, packages } = walk(path.join(ROOT, entry));
+    const hit = [...files, ...packages].filter((p) => /cesium/i.test(p));
+    assert.deepEqual(hit, [], `reachable Cesium modules: ${hit.join(', ')}`);
+  });
+}
 
 test('the card painter does not reach charts.js', () => {
   const set = reachable(path.join(ROOT, 'lib/passes/card-chart.js'));

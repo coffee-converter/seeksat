@@ -72,6 +72,7 @@ test('page data never throws on a record with no elements', () => {
 test('page data with no epoch anywhere says the age is unknown, never fresh', () => {
   const d = satPageData({ noradId: 7, omm: {}, source: 'x', groups: [] }, null, ISS_T0);
   assert.equal(d.epochMs, null);
+  assert.equal(d.elementEpochMs, null);
   assert.deepEqual(d.age, { ageDays: null, level: 'stale', text: 'Element age unknown' });
 });
 
@@ -79,6 +80,7 @@ test('page data age falls back to the epoch inside the elements', () => {
   const { epochMs, ...noEpoch } = ISS_SERVED_RECORD;
   const d = satPageData(noEpoch, resolveSatellite(25544), epochMs + 2 * 86_400_000);
   assert.equal(d.epochMs, null);
+  assert.equal(d.elementEpochMs, epochMs);
   assert.equal(d.age.text, 'Elements are 2.0 days old');
 });
 

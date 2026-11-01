@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
-import { liveNumbers, orbitElements, elementAge, formatNumber } from '../lib/sat/numbers.mjs';
+import { liveNumbers, orbitElements, elementAge, formatNumber, periodText, relativeTime } from '../lib/sat/numbers.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, recordFrom } from './fixtures/orbits.mjs';
 
@@ -53,4 +53,21 @@ test('elementAge with no finite epoch is unknown and stale', () => {
 test('formatNumber is en-US whatever the process locale', () => {
   assert.equal(formatNumber(12345.678, 1), '12,345.7');
   assert.equal(formatNumber(NaN, 2), 'n/a');
+});
+test('formatNumber never prints a negative zero', () => {
+  assert.equal(formatNumber(-0.01, 1), '0.0');
+  assert.equal(formatNumber(-1.5, 1), '-1.5');
+});
+test('periodText rounds total minutes before splitting hours', () => {
+  assert.equal(periodText(92.87), '92.87 min');
+  assert.equal(periodText(719.7), '719.70 min (12 h 0 min)');
+  assert.equal(periodText(1436.1), '1,436.10 min (23 h 56 min)');
+});
+test('relativeTime', () => {
+  const M = 60_000, H = 60 * M, D = 24 * H;
+  assert.equal(relativeTime(0, 30_000), 'just now');
+  assert.equal(relativeTime(0, 5 * M), '5 min ago');
+  assert.equal(relativeTime(0, 3 * H), '3 h ago');
+  assert.equal(relativeTime(0, D + H), '1 day ago');
+  assert.equal(relativeTime(0, 2 * D), '2 days ago');
 });
