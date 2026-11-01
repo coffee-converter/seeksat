@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { radioSeries, radioCsvText, chartStepMs, csvStepMs, passFileName } from '../lib/passes/charts.js';
+import { radioSeries, radioCsvText, chartStepMs, csvStepMs, passFileName, paintPassCard } from '../lib/passes/charts.js';
+import { SVG_NS, newSvgRoot } from '../lib/og/dom.mjs';
 import { CATALOG } from '../lib/catalog.mjs';
 import { ISS_LINE1, ISS_LINE2, ISS_OMM } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
@@ -12,7 +13,8 @@ const T0 = Date.parse('2026-03-01T12:00:00Z');
 const DAY = 86_400_000;
 const MOLNIYA = makeTrack(recordFrom(MOLNIYA_LINE1, MOLNIYA_LINE2, 'M'));
 const ISS_WITH_ENTRY = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'), CATALOG.find((c) => c.noradId === 25544));
-const firstIssPeakMs = findPasses({ track: ISS, observers: [EN52VE], startMs: T0, endMs: T0 + DAY }).passes[0].peakMs;
+const firstIssPass = findPasses({ track: ISS, observers: [EN52VE], startMs: T0, endMs: T0 + DAY }).passes[0];
+const firstIssPeakMs = firstIssPass.peakMs;
 
 test('radio series for an ISS pass keeps today\'s 2 s chart step and is not clamped', () => {
   const b = radioSeries({ track: ISS, obs: EN52VE, anchorMs: firstIssPeakMs, minElevDeg: 10, freqHz: 437_800_000 });
@@ -41,4 +43,39 @@ test('CSV omits TLE lines for an OMM-only track', () => {
   const b = radioSeries({ track: omm, obs: EN52VE, anchorMs: firstIssPeakMs, minElevDeg: 10, freqHz: 437_800_000, purpose: 'csv' });
   const csv = radioCsvText(b, { track: omm, obs: EN52VE, generatedAtMs: T0, clockSkewMs: 0 });
   assert.ok(!csv.includes('undefined'));
+});
+
+// The pass card's skeleton, with the same classes PolarPlotSvg renders.
+function cardSkeleton() {
+  const svg = newSvgRoot('0 0 100 100');
+  const horizon = document.createElementNS(SVG_NS, 'circle');
+  horizon.setAttribute('class', 'horizon');
+  svg.appendChild(horizon);
+  for (const cls of ['bodies', 'arc', 'events']) {
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.setAttribute('class', cls);
+    svg.appendChild(g);
+  }
+  const dot = document.createElementNS(SVG_NS, 'circle');
+  dot.setAttribute('class', 'iss-dot');
+  svg.appendChild(dot);
+  return svg;
+}
+
+test('paintPassCard fills the arc, markers and horizon, and hides the dot outside the pass', () => {
+  const svg = cardSkeleton();
+  paintPassCard(svg, { track: ISS, obs: EN52VE, win: firstIssPass, nowMs: firstIssPass.startMs - 3_600_000 });
+  // renderArcSegments draws the arc as line and polyline segments.
+  assert.ok(svg.querySelector('.arc').querySelectorAll('line, polyline').length > 0);
+  assert.equal(svg.querySelector('.events').children.length, 3);
+  assert.ok(svg.querySelector('.horizon').style.fill);
+  assert.ok(svg.querySelector('.bodies').children.length > 0);
+  assert.equal(svg.querySelector('.iss-dot').style.display, 'none');
+});
+test('paintPassCard shows the dot while the satellite is up', () => {
+  const svg = cardSkeleton();
+  paintPassCard(svg, { track: ISS, obs: EN52VE, win: firstIssPass, nowMs: firstIssPeakMs });
+  const dot = svg.querySelector('.iss-dot');
+  assert.equal(dot.style.display, '');
+  assert.ok(Number.isFinite(Number(dot.getAttribute('cx'))));
 });
