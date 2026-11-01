@@ -1,4 +1,4 @@
-# Map Polish Implementation Plan
+# Map and Satellite Page Polish Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -179,3 +179,63 @@ Plans 1 to 5 come first.
   2. **Labels:** on every projection at phone width and in full screen, the city count feels right at zoom 1 and grows when zooming in, and lat/lon labels sit on the edges or rim.
   3. **From the satellite:** over the Pacific it shows `PACIFIC OCEAN`.
   4. **Track and footprint:** the footprint is a dashed, tinted circle, and the track fades behind the satellite.
+
+---
+
+### Task 5: Satellite page as a live dashboard
+
+Added 2026-11-01 at Aaron's request:
+
+> the live data changes on pages need some visual flash as they update? current time display should be somewhat prominent... really the detail page is a bit ugly - needs some nice compact live dashboard feel, large data, clearly updating (visual flash etc)
+
+**Files:**
+- Create: `components/LiveClock.tsx`, `components/sat/StatTile.tsx`, `lib/ui/use-flash.ts` (hook), `test/sat-dashboard.test.mjs`
+- Modify: `components/sat/SatApp.tsx`, `components/sat/LiveNumbers.tsx` (it becomes the tile grid), `components/sat/PassSection.tsx` (an `onNextPass` callback), `lib/sat/numbers.mjs` (`sunlit`, `dashboardValues`), `components/home/HomeApp.tsx` (a compact `LiveClock`), `app/sat.css`, `app/home.css`
+
+**Interfaces:**
+- `liveNumbers` gains `sunlit: boolean`, from `satIlluminated(rEcef, sunPositionEcef(date))`.
+- `dashboardValues(live, elements) -> Array<{ key, label, value, unit, note }>`. It is pure and formatted with `formatNumber`. Exact rows:
+
+  | key | label | value | unit | note |
+  |---|---|---|---|---|
+  | altitude | `Altitude` | 1 decimal | `km` | `above the WGS84 ellipsoid` |
+  | speed | `Speed` | 3 decimals | `km/s` | `inertial, from SGP4` |
+  | groundSpeed | `Ground speed` | 3 decimals | `km/s` | `over Earth's surface` |
+  | radius | `From Earth's center` | 1 decimal | `km` | `distance, from SGP4` |
+  | lat | `Latitude` | 3 decimals, with N/S | | `below the satellite` |
+  | lon | `Longitude` | 3 decimals, with E/W | | `below the satellite` |
+  | sun | `Sunlight` | `Sunlit` / `In shadow` | | `Earth's shadow, no refraction` |
+
+  Test: the keys, labels, digits and hemisphere letters for an ISS fixture moment.
+- `useFlash(value: string) -> string` returns a class name, `"is-ticking"`, for 700 ms after `value` changes, then `""`. It restarts the CSS animation on every change. No flash on the first render.
+- `StatTile({ label, value, unit, note, size = 'md' | 'lg' })`:
+  - an uppercase 11 px label;
+  - the value in `font-variant-numeric: tabular-nums`, at 30 px on desktop and 24 px under 480 px (`lg`: 40 / 30), with the unit at 0.5 em;
+  - the note in 11 px muted text.
+
+  Only the value span carries the flash class.
+- CSS flash: `@keyframes tick { from { background: rgba(126,184,255,0.24); color: #fff; } to { background: transparent; } }`, 700 ms ease-out on `.is-ticking`. Under `prefers-reduced-motion: reduce`, there is no animation.
+- `LiveClock({ nowMs, timeZone, compact = false })`:
+  - UTC `HH:MM:SS` large (28 px; 18 px when compact) with a pulsing green `LIVE` dot, then the local time and the zone abbreviation on a smaller line (`"14:12:07 CST, your time"`).
+  - Its first render uses the passed `nowMs`, so it is hydration-safe.
+- **Page layout, top to bottom:**
+  1. A header row: wordmark, name, `NORAD · designator`, Follow and Share on the left; `LiveClock` on the right (below on phones).
+  2. The tile grid (`.sat-dash`): 2 columns under 480 px, 3 from 480, 4 from 720.
+     - A `lg` tile `Next pass`: `"in 42 min"`, `"up now, 6 min left"`, `"none in the next 10 days"`, or `"Set your location"`, linking to `#passes`. Its value comes from PassSection's `onNextPass(pass | null)` and the clock.
+     - The seven `dashboardValues` tiles.
+  3. A wide tile: `"v²r/GM <a> vs 2 − r/a <b>, within <pct>%"`.
+  4. Element age with its badge, and a compact two-column table of mean elements (perigee, apogee, period, inclination, eccentricity, semi-major axis).
+  5. The map and the orbit diagram side by side from 900 px, stacked below that.
+  6. Passes, downlinks and raw elements, as now.
+  7. `How we compute these`: every `HOW_WE_COMPUTE` line as visible text, in place of the per-row lines. Tiles carry the short notes above. This keeps the honesty rule: visible text, never tooltips.
+- **Home:** a compact `LiveClock` sits beside the wordmark. The "Next up" headline countdown flashes on change with `useFlash`.
+- The implementer loads the `frontend-design` skill first and keeps the dark theme, the Exo 2 wordmark and the existing colour tokens.
+
+- [ ] **Step 1: Write the failing tests** for `dashboardValues` and `sunlit` (ISS fixture: sunlit at one fixed moment, in shadow at another; pick the moments from the fixture and assert both). **Step 2: Run.** Expected: FAIL.
+- [ ] **Step 3: Implement** the pure parts, then the components and CSS.
+- [ ] **Step 4: Run** `npm test`, `npx tsc --noEmit` and `npm run build`. Expected: PASS, clean, and the build succeeds.
+- [ ] **Step 5: Screenshot check.**
+  - Run `npx next dev -p 3457`. It reads the stored snapshot, never CelesTrak.
+  - Capture `/sat/25544` at 390×844 and 1280×800 with Playwright through the system Chrome channel (`/Users/aaron/work/qrz-swapmeet-watch/node_modules/playwright`), plus a second capture 1 s later.
+  - View both and fix anything cramped or misaligned. Report the image paths.
+- [ ] **Step 6: Commit** with `git commit -m "feat: Turn the satellite page into a live dashboard with ticking values"`.
