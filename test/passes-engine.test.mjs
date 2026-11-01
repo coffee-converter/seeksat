@@ -70,3 +70,7 @@ test('accuracyNote', () => {
   assert.equal(accuracyNote(T0, T0 + 3 * DAY), null);
   assert.deepEqual(accuracyNote(T0, T0 + 4.24 * DAY), { ageDays: 4.2, text: 'Elements are 4.2 days old at this pass, so times may be off by a minute or more.' });
 });
+
+test('no observers means no passes, not a crash', () => {
+  assert.deepEqual(findPasses({ track: ISS, observers: [], startMs: T0 }), { kind: 'passes', passes: [] });
+});

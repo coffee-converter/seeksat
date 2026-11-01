@@ -31,3 +31,21 @@ test('a URL line appears only when given', () => {
 test('icsFileName', () => {
   assert.equal(icsFileName('ISS', 'EN52ve', Date.parse('2026-03-01T13:16:05Z')), 'iss-pass-en52ve-20260301T1316Z.ics');
 });
+
+const descOf = (extra) => passToIcs({ ...BASE, ...extra }).replace(/\r\n /g, '').match(/DESCRIPTION:(.*)\r\n/)[1];
+test('joint pass description names the observer count and peak', () => {
+  assert.equal(descOf({ observerCount: 3 }),
+    'Joint radio pass for 3 observers. All see it above 35° at the peak\\, 13:18:45 UTC. '
+    + 'Azimuths for EN52ve: 204° at the start\\, 75° at the end.');
+});
+test('in-progress description does not claim a rise', () => {
+  assert.equal(descOf({ inProgress: true }),
+    'Radio pass\\, already in progress. Peaks at 35° at 13:18:45 UTC\\, ends at azimuth 75°.');
+});
+test('visual description says appears and disappears', () => {
+  assert.equal(descOf({ mode: 'visual' }),
+    'Visual pass. Appears at azimuth 204°\\, peaks at 35° at 13:18:45 UTC\\, disappears at azimuth 75°.');
+});
+test('joint takes precedence over in-progress and visual', () => {
+  assert.match(descOf({ observerCount: 2, inProgress: true, mode: 'visual' }), /^Joint visual pass for 2 observers\./);
+});

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePassFinderStore } from "@/lib/pass-finder-store";
+import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passIcsFor } from "@/lib/scene-bridge";
 
 // Download one pass as an .ics file. The scene builds the event and
@@ -30,6 +31,7 @@ export default function WindowsList() {
   const rows = usePassFinderStore((s) => s.windowRows);
   const status = usePassFinderStore((s) => s.windowsStatus);
   const activeIdx = usePassFinderStore((s) => s.activeWindowIdx);
+  const observerCount = usePassFinderStore((s) => s.observers.length);
   const selectWindow = usePassFinderStore((s) => s.selectWindow);
 
   const gridTemplate = headers.length
@@ -60,7 +62,9 @@ export default function WindowsList() {
         <div className="window-empty">add an observer to begin</div>
       )}
       {status === "empty" && (
-        <div className="window-empty">no simultaneous passes found</div>
+        <div className="window-empty">
+          {observerCount > 1 ? "no simultaneous passes" : "no passes"} in the next {DEFAULT_SEARCH_DAYS} days
+        </div>
       )}
       {status === "ready" && rows.map((row, i) => (
         <div

@@ -79,3 +79,30 @@ for (const [label, impl] of [
     assert.equal(g.calls(), 2, 'requests resume after the pause');
   });
 }
+
+for (const [label, impl] of [
+  ['a plain-text 200', async () => text('Invalid query')],
+  ['an empty 200', async () => text('')],
+  ['a JSON object body', async () => json({ error: 'bad' })],
+]) {
+  test(`${label} trips the pause for both fetchers`, async () => {
+    for (const run of [(o) => fetchGroup('active', o), (o) => fetchByCatnr(1, o)]) {
+      const g = guarded(impl);
+      await assert.rejects(run(g.opts), /celestrak/);
+      assert.equal(g.calls(), 1);
+      await assert.rejects(fetchByCatnr(2, g.opts), /paused/);
+      assert.equal(g.calls(), 1, 'no request leaves while paused');
+    }
+  });
+}
+
+test('No GP data found and an empty array do not pause', async () => {
+  const g = guarded(async () => text('No GP data found'));
+  assert.equal(await fetchByCatnr(1, g.opts), null);
+  assert.equal(await fetchByCatnr(2, g.opts), null);
+  assert.equal(g.calls(), 2);
+  const h = guarded(async () => json([]));
+  assert.equal(await fetchByCatnr(1, h.opts), null);
+  assert.equal(await fetchByCatnr(2, h.opts), null);
+  assert.equal(h.calls(), 2);
+});
