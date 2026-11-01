@@ -105,7 +105,7 @@ type LabelSet = { places: unknown; graticule: GratLabel[] };
 type LabelOpts = {
   width: number; height: number; zoom: number; projectionId: string; places: unknown; regions: unknown; sats: MapSat[];
   observer: MapObserver | null;
-  /** Map controls laid over the canvas (the docked Legend toggle). */
+  /** Map controls laid over the canvas (zoom buttons, chips, menu, focus bar, legend). */
   controls: Box[];
 };
 const gratLabels = graticuleLabels as unknown as (
@@ -139,6 +139,8 @@ const panTo = centredPan as (
 ) => [number, number] | null;
 
 const TAP_SLOP_PX = 6;
+/** Labels keep this far clear of the controls laid over the map. */
+const CONTROL_PAD_PX = 4;
 const DOUBLE_TAP_MS = 300;
 const NIGHT_REFRESH_MS = 60_000;
 /** Where MapShell docks the map beside the panel (keep in step with home.css). */
@@ -207,7 +209,14 @@ export default function FlatMap({
   const docked = useRef(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const legendId = useId();
-  const legendBtnRef = useRef<HTMLButtonElement>(null);
+  // The controls laid over the canvas, measured after each render and on
+  // resize (never per frame), in canvas px: labels keep clear of them.
+  const zoomRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
+  const legendBoxRef = useRef<HTMLDivElement>(null);
+  const controls = useRef<Box[]>([]);
+  const controlsKey = useRef("");
 
   // A projection that is unavailable right now (no observer, no selected satellite)
   // is shown and drawn as the default. The saved choice is left alone so it
@@ -249,26 +258,18 @@ export default function FlatMap({
     if (!(gesturing.current && labels)) {
       const data = placeData.current;
       const { zoom, pan, rotLon } = view.current;
-      // Docked, the Legend toggle sits over the bottom left of the canvas.
-      const controls: Box[] = [];
-      const btn = legendBtnRef.current;
-      if (docked.current && btn && btn.offsetParent) {
-        const c = canvas.getBoundingClientRect();
-        const b = btn.getBoundingClientRect();
-        controls.push({ x0: b.left - c.left - 4, y0: b.top - c.top - 4, x1: b.right - c.left + 4, y1: b.bottom - c.top + 4 });
-      }
       labels = labelCache.current.get(
         {
           projectionId: cur.projectionId, width, height, zoom, pan,
           observer: cur.observer, sub: cur.selectedSub, sats: cur.sats, rotLon,
-          controls: controls.map((b) => `${Math.round(b.x0)},${Math.round(b.y0)},${Math.round(b.x1)},${Math.round(b.y1)}`).join(";"),
+          controls: controlsKey.current,
           data: data ? "p" : "g",
         },
         proj,
         {
           width, height, zoom, projectionId: cur.projectionId,
           places: data?.places ?? [], regions: data?.regions ?? [], sats: cur.sats,
-          observer: cur.observer, controls,
+          observer: cur.observer, controls: controls.current,
         },
       );
       lastLabels.current = labels;
@@ -293,6 +294,41 @@ export default function FlatMap({
     });
     ctx.restore();
   }, []);
+
+  // Re-measure the overlaid controls; true when they moved. Each control's
+  // box counts only where it covers the canvas (the focus bar above a phone
+  // map and the legend below it do not).
+  const measureControls = useCallback((): boolean => {
+    const canvas = canvasRef.current;
+    if (!canvas) return false;
+    const c = canvas.getBoundingClientRect();
+    const els: Element[] = [];
+    for (const el of [zoomRef.current, headRef.current, legendBoxRef.current]) if (el) els.push(el);
+    // The chips and the menu, not the row between them (taps pass through it).
+    if (topRef.current) els.push(...Array.from(topRef.current.children));
+    const out: Box[] = [];
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (r.right <= c.left || r.left >= c.right || r.bottom <= c.top || r.top >= c.bottom) continue;
+      out.push({
+        x0: r.left - c.left - CONTROL_PAD_PX,
+        y0: r.top - c.top - CONTROL_PAD_PX,
+        x1: r.right - c.left + CONTROL_PAD_PX,
+        y1: r.bottom - c.top + CONTROL_PAD_PX,
+      });
+    }
+    const key = out.map((b) => `${Math.round(b.x0)},${Math.round(b.y0)},${Math.round(b.x1)},${Math.round(b.y1)}`).join(";");
+    controls.current = out;
+    if (key === controlsKey.current) return false;
+    controlsKey.current = key;
+    return true;
+  }, []);
+  // After each render (chips, focus bar, legend or full screen changed). This
+  // runs before the prop-change redraw below, so that draw sees the new boxes.
+  useEffect(() => {
+    if (measureControls()) redraw();
+  });
 
   // The home view: a world map turns to centre the focused satellite, else
   // the observer, else lon 0, and in a frame taller than its aspect fills the
@@ -368,6 +404,7 @@ export default function FlatMap({
       size.current = { width, height, dpr };
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
+      measureControls();
       // A new size refits the home view (on load, on resize, and entering full
       // screen); a view zoomed or panned by hand is kept.
       if (fitOnResize.current || atHome.current) {
@@ -385,19 +422,32 @@ export default function FlatMap({
       ro.disconnect();
       window.removeEventListener("resize", fit);
     };
-  }, [redraw, goHome]);
+  }, [redraw, goHome, measureControls]);
+  // Controls that change size outside a render (fonts loading, the focus bar
+  // wrapping) re-measure too.
+  const hasTop = top != null;
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (measureControls()) redraw();
+    });
+    for (const el of [zoomRef.current, headRef.current, legendBoxRef.current, topRef.current]) if (el) ro.observe(el);
+    for (const el of Array.from(topRef.current?.children ?? [])) ro.observe(el);
+    return () => ro.disconnect();
+  }, [fill, hasTop, measureControls, redraw]);
 
   useEffect(() => {
     if (!fill || typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia(DOCKED_QUERY);
     const sync = () => {
       docked.current = mq.matches;
+      measureControls();
       redraw();
     };
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
-  }, [fill, redraw]);
+  }, [fill, redraw, measureControls]);
 
   // Place names are 35 KB; fetch them after mount so first paint stays light.
   useEffect(() => {
@@ -684,7 +734,7 @@ export default function FlatMap({
   }, [redraw, zoomAt, reset, degPerPx, worldPanY]);
 
   const chipRow = (
-    <div className="flat-map__top">
+    <div className="flat-map__top" ref={topRef}>
       {chips}
       <select
         className="flat-map__menu"
@@ -726,7 +776,7 @@ export default function FlatMap({
       // Docked (home.css, 1100 px and up) these lay over the top of the map;
       // narrower, the wrapper dissolves and the focus bar sits above the map.
       <div className="flat-map__over">
-        {top ? <div className="flat-map__head">{top}</div> : null}
+        {top ? <div className="flat-map__head" ref={headRef}>{top}</div> : null}
         {chipRow}
       </div>
     ) : top}
@@ -738,7 +788,7 @@ export default function FlatMap({
         aria-label="Map of followed satellites"
       />
       {fill ? null : chipRow}
-      <div className="flat-map__zoom">
+      <div className="flat-map__zoom" ref={zoomRef}>
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.5)}>+</button>
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.5)}>{"\u2212"}</button>
         <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
@@ -773,9 +823,8 @@ export default function FlatMap({
     </div>
     {fill ? (
       // The toggle shows only when docked; narrower, the legend is always open below the map.
-      <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
+      <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`} ref={legendBoxRef}>
         <button
-          ref={legendBtnRef}
           type="button"
           className="map-legend__toggle"
           aria-expanded={legendOpen}
