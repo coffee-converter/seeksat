@@ -38,7 +38,7 @@ const UNAVAILABLE = "These elements can't be used to compute passes.";
 interface Props {
   track: unknown;
   record: unknown;
-  epochMs: number;
+  epochMs: number | null;
   nowMs: number;
 }
 

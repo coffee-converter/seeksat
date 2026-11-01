@@ -45,6 +45,11 @@ test('elementAge', () => {
   assert.equal(elementAge(E, E + 5 * H).text, 'Elements are 5 hours old');
   assert.equal(elementAge(E, E - H).text, 'Elements are less than an hour old');
 });
+test('elementAge with no finite epoch is unknown and stale', () => {
+  for (const bad of [null, undefined, NaN]) {
+    assert.deepEqual(elementAge(bad, Date.parse('2026-11-01T00:00:00Z')), { ageDays: null, level: 'stale', text: 'Element age unknown' });
+  }
+});
 test('formatNumber is en-US whatever the process locale', () => {
   assert.equal(formatNumber(12345.678, 1), '12,345.7');
   assert.equal(formatNumber(NaN, 2), 'n/a');

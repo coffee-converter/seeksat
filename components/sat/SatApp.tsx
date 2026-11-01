@@ -12,7 +12,8 @@ import { useHomeStore, watchVisibility } from "@/lib/home/store";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { resolveSatellite } from "@/lib/catalog.mjs";
 import { makeTrack } from "@/lib/sat/track.mjs";
-import { liveNumbers, orbitElements } from "@/lib/sat/numbers.mjs";
+import { elementAge, liveNumbers, orbitElements } from "@/lib/sat/numbers.mjs";
+import { elementEpochMs } from "@/lib/sat/page-data.mjs";
 import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -90,6 +91,14 @@ export default function SatApp({ data }: { data: SatPageData }) {
   }, [track]);
   const usable = Boolean(track && liveNow && elementsNow && data.live);
 
+  // Age from the live clock, so it never contradicts "fetched X ago". The
+  // first nowMs is renderedAtMs, so the first render matches the server's.
+  const epochMs = useMemo(
+    () => (elementEpochMs as (e: number | null, t: unknown) => number | null)(data.epochMs, track),
+    [data.epochMs, track],
+  );
+  const age = useMemo(() => elementAge(epochMs, nowMs), [epochMs, nowMs]);
+
   const trackMinute = Math.floor(nowMs / TRACK_REFRESH_MS);
   const ground = useMemo(() => {
     if (!track || !usable) return null;
@@ -144,17 +153,17 @@ export default function SatApp({ data }: { data: SatPageData }) {
       </header>
 
       <p className="home-note sat-age">
-        {`${data.age.text}, from ${data.source}`}
+        {`${age.text}, from ${data.source}`}
         {data.fetchedAtMs != null ? `, fetched ${relativeTime(data.fetchedAtMs, nowMs)}.` : "."}
-        {data.age.level === "old" ? <span className="sat-badge sat-badge--old">old elements</span> : null}
-        {data.age.level === "stale" ? (
+        {age.level === "old" ? <span className="sat-badge sat-badge--old">old elements</span> : null}
+        {age.level === "stale" ? (
           <span className="sat-badge sat-badge--stale">stale elements: positions may be far off</span>
         ) : null}
       </p>
 
       {usable && liveNow && elementsNow ? (
         <>
-          <LiveNumbers live={liveNow} elements={elementsNow} epochMs={data.epochMs} />
+          <LiveNumbers live={liveNow} elements={elementsNow} epochMs={epochMs} />
           <FlatMap
             sats={sats}
             observer={prefs.location}
@@ -171,7 +180,7 @@ export default function SatApp({ data }: { data: SatPageData }) {
         <p className="home-note">These elements can&apos;t be used to compute a position.</p>
       )}
 
-      <PassSection track={usable ? track : null} record={data.record} epochMs={data.epochMs} nowMs={nowMs} />
+      <PassSection track={usable ? track : null} record={data.record} epochMs={epochMs} nowMs={nowMs} />
 
       <Downlinks downlinks={data.downlinks} />
       <RawElements raw={data.raw} />

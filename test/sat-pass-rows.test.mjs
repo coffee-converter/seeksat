@@ -51,3 +51,7 @@ test('up now follows nowMs', () => {
   assert.equal(passRows(r, { ...opts, nowMs: p.startMs + 60_000 }).rows[0].inProgress, true);
   assert.equal(passRows(r, { ...opts, nowMs: p.startMs - 60_000 }).rows[0].inProgress, false);
 });
+test('no finite epoch means no accuracy note, not a huge age', () => {
+  const r = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_EPOCH + 5 * DAY });
+  assert.equal(passRows(r, { ...opts, epochMs: null, nowMs: ISS_EPOCH + 5 * DAY }).rows[0].accuracy, null);
+});

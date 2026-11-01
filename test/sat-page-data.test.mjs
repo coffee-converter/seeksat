@@ -6,7 +6,7 @@ import { resolveSatellite } from '../lib/catalog.mjs';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
 import {
-  parseSatParam, satPath, rawElements, sourceLabel, satPageData, satMetadata,
+  parseSatParam, satPath, rawElements, sourceLabel, satPageData, satMetadata, elementEpochMs,
 } from '../lib/sat/page-data.mjs';
 
 const ISS_T0 = Date.parse('2026-03-01T13:00:00Z');
@@ -67,6 +67,26 @@ test('page data never throws on a record with no elements', () => {
   assert.equal(d.elements, null);
   assert.equal(d.live, null);
   assert.equal(d.name, 'NORAD 7');
+});
+
+test('page data with no epoch anywhere says the age is unknown, never fresh', () => {
+  const d = satPageData({ noradId: 7, omm: {}, source: 'x', groups: [] }, null, ISS_T0);
+  assert.equal(d.epochMs, null);
+  assert.deepEqual(d.age, { ageDays: null, level: 'stale', text: 'Element age unknown' });
+});
+
+test('page data age falls back to the epoch inside the elements', () => {
+  const { epochMs, ...noEpoch } = ISS_SERVED_RECORD;
+  const d = satPageData(noEpoch, resolveSatellite(25544), epochMs + 2 * 86_400_000);
+  assert.equal(d.epochMs, null);
+  assert.equal(d.age.text, 'Elements are 2.0 days old');
+});
+
+test('elementEpochMs prefers the record epoch, then the track epoch', () => {
+  assert.equal(elementEpochMs(5, { epochMs: 9 }), 5);
+  assert.equal(elementEpochMs(null, { epochMs: 9 }), 9);
+  assert.equal(elementEpochMs(null, null), null);
+  assert.equal(elementEpochMs(null, { epochMs: NaN }), null);
 });
 
 test('sourceLabel', () => {
