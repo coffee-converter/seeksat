@@ -44,11 +44,11 @@ export function SearchBar() {
   function onChange(value: string) {
     setText(value);
     setActive(-1);
+    setResults([]);
     if (timer.current) clearTimeout(timer.current);
     abort.current?.abort();
     const q = searchQuery(value);
     if (!q) {
-      setResults([]);
       setStatus("idle");
       setOpen(false);
       return;
@@ -60,8 +60,10 @@ export function SearchBar() {
       abort.current = ctl;
       try {
         const res = await fetch(searchUrl(q), { signal: ctl.signal });
+        if (ctl.signal.aborted) return;
         if (!res.ok) throw new Error(String(res.status));
         const body = (await res.json()) as { results: Result[] };
+        if (ctl.signal.aborted) return;
         setResults(body.results);
         setQueried(q);
         setStatus("done");
@@ -74,6 +76,8 @@ export function SearchBar() {
   }
 
   function choose(r: Result) {
+    if (timer.current) clearTimeout(timer.current);
+    abort.current?.abort();
     follow(r.noradId);
     setSelectedId(r.noradId);
     setOpen(false);
@@ -116,16 +120,29 @@ export function SearchBar() {
   }
 
   const showList = open && status !== "idle";
+  const listVisible = showList && results.length > 0;
+
+  useEffect(() => {
+    if (active >= 0) document.getElementById(`${uid}-opt-${active}`)?.scrollIntoView({ block: "nearest" });
+  }, [active, uid]);
 
   return (
-    <div className="search-bar">
+    <div
+      className="search-bar"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setOpen(false);
+          setActive(-1);
+        }
+      }}
+    >
       <div className="search-bar__row">
         <input
           className="search-bar__input"
           type="search"
           role="combobox"
           aria-label="Search satellites"
-          aria-expanded={showList}
+          aria-expanded={listVisible}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={active >= 0 ? `${uid}-opt-${active}` : undefined}
@@ -151,7 +168,7 @@ export function SearchBar() {
         role="listbox"
         aria-label="Search results"
         className="search-bar__list"
-        hidden={!showList || results.length === 0}
+        hidden={!listVisible}
       >
         {results.map((r, i) => (
           <li
@@ -187,7 +204,10 @@ export function SearchBar() {
             rows={4}
             spellCheck={false}
             value={pasted}
-            onChange={(e) => setPasted(e.target.value)}
+            onChange={(e) => {
+              setPasted(e.target.value);
+              setPasteError(null);
+            }}
           />
           {pasteError && (
             <p className="search-bar__error" role="alert">
