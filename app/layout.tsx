@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
+import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
 import "./globals.css";
 const SITE_NAME = "SeekSat";
 // SEO title: ~52 chars (target 50-60) so search results don't truncate
@@ -75,7 +76,10 @@ export const metadata: Metadata = {
 // in globals.css (#0a0e1a) so mobile address-bar / standalone-PWA
 // chrome blends in instead of flashing white.
 export const viewport: Viewport = {
-  themeColor: "#0a0e1a",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0e1a" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f7fb" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
@@ -121,8 +125,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Sets data-theme on <html> before first paint (no light/dark flash). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {/* Exo 2 (subset, base64) for the SeekSat brand wordmark. Same
             embed the polar-chart export uses - inlined here so the font
             is available document-wide (e.g. the on-scene corner mark)

@@ -860,7 +860,20 @@ a.home-chip { display: inline-block; text-decoration: none; }
   border-bottom: 1px solid var(--map-border);
 }
 .map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
-.map-shell__top .live-clock { grid-area: clock; justify-self: end; }
+.map-shell__end { grid-area: clock; justify-self: end; display: flex; align-items: center; gap: 12px; }
+/* ThemeToggle (components/ThemeToggle.tsx): segmented from 480 px, one cycling button below. */
+.theme-toggle[data-ready="false"] { visibility: hidden; }
+.theme-toggle__group { display: inline-flex; border: 1px solid var(--map-border); border-radius: 8px; overflow: hidden; }
+.theme-toggle__opt, .theme-toggle__cycle {
+  font: inherit; font-size: 12px; line-height: 1; color: inherit; background: none; border: 0; cursor: pointer;
+  padding: 7px 9px; min-height: 30px;
+}
+.theme-toggle__opt[aria-checked="true"] { background: rgba(126, 184, 255, 0.2); font-weight: 600; }
+.theme-toggle__cycle { display: none; border: 1px solid var(--map-border); border-radius: 8px; min-width: 56px; }
+@media (max-width: 479px) {
+  .theme-toggle__group { display: none; }
+  .theme-toggle__cycle { display: inline-block; }
+}
 .map-shell__search { grid-area: search; min-width: 0; }
 /* The search bar sits flat in the bar; what opens under it floats over the page. */
 .map-shell__top .search-bar { position: relative; top: auto; z-index: auto; padding: 0; background: none; border: 0; border-radius: 0; }

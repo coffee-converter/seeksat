@@ -12,6 +12,7 @@ import DashboardTiles, { type NextPassTile } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
 import HowWeCompute from "./HowWeCompute";
 import LiveClock from "@/components/LiveClock";
+import ThemeToggle from "@/components/ThemeToggle";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
 import ShareButton from "./ShareButton";
@@ -253,7 +254,10 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             {/* A search result opens that satellite's page; Esc in an empty search shows all. */}
             <SearchBar onView={(id) => router.push(satPath(id))} onClearFocus={showAll} />
           </div>
-          <LiveClock nowMs={nowMs} compact />
+          <div className="map-shell__end">
+            <LiveClock nowMs={nowMs} compact />
+            <ThemeToggle />
+          </div>
         </>
       )}
       map={map}

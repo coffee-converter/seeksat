@@ -23,6 +23,7 @@ import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AboutSection from "./AboutSection";
 import LiveClock from "@/components/LiveClock";
+import ThemeToggle from "@/components/ThemeToggle";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import MapShell from "@/components/MapShell";
 import "@/app/home.css";
@@ -327,7 +328,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           <div className="map-shell__search">
             <SearchBar onView={focusOn} onClearFocus={() => focusOn(null)} />
           </div>
-          <LiveClock nowMs={nowMs} compact />
+          <div className="map-shell__end">
+            <LiveClock nowMs={nowMs} compact />
+            <ThemeToggle />
+          </div>
         </>
       )}
       map={(
