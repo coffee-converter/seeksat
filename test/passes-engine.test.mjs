@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { subpoint } from '../lib/map/geometry.mjs';
 import { satAltitudeDeg } from '../lib/pass-finder/visibility.js';
 import { makeTrack } from '../lib/sat/track.mjs';
-import { findPasses, accuracyNote } from '../lib/passes/engine.mjs';
+import { findPasses, accuracyNote, stationaryPointing } from '../lib/passes/engine.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, INCLINED_GEO_LINE1, INCLINED_GEO_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -85,15 +85,23 @@ test('GEO pointing values are rounded to 0.1°', () => {
   const r = findPasses({ track: goes, observers: [EN52VE], startMs: GOES_T0 });
   for (const k of ['azDeg', 'elDeg', 'elMinDeg', 'elMaxDeg']) assert.equal(r.pointing[0][k], round1(r.pointing[0][k]));
 });
-test('GEO pointing skips samples that do not propagate', () => {
-  const holey = { ...goes, ecefAt: (d) => ((d.getTime() - GOES_T0) % 1_200_000 === 600_000 ? null : goes.ecefAt(d)) };
-  const p = findPasses({ track: holey, observers: [EN52VE], startMs: GOES_T0 }).pointing[0];
-  for (const k of ['azDeg', 'elDeg', 'elMinDeg', 'elMaxDeg']) assert.ok(Number.isFinite(p[k]));
+test('GEO pointing starts from the first sample that propagates', () => {
+  const first = stationaryPointing(goes, [EN52VE], GOES_T0)[0];
+  const step = 600_000;
+  const holey = { ...goes, ecefAt: (d) => {
+    const k = (d.getTime() - GOES_T0) / step;
+    return k === 0 || k === 2 || k === 5 ? null : goes.ecefAt(d);
+  } };
+  const p = stationaryPointing(holey, [EN52VE], GOES_T0)[0];
+  const second = stationaryPointing({ ...goes, ecefAt: (d) => goes.ecefAt(d) }, [EN52VE], GOES_T0 + step)[0];
+  for (const k of ['azDeg', 'elDeg', 'elMinDeg', 'elMaxDeg']) assert.ok(Number.isFinite(p[k]), k);
+  assert.equal(p.azDeg, second.azDeg);
+  assert.equal(p.elDeg, second.elDeg);
+  assert.ok(first.azDeg !== null);
 });
-test('GEO pointing is null, and findPasses unavailable, when nothing propagates', () => {
-  const dead = { ...goes, ecefAt: (d) => (d.getTime() === GOES_T0 ? goes.ecefAt(d) : null) };
-  const r = findPasses({ track: dead, observers: [EN52VE], startMs: GOES_T0 });
-  assert.ok(r.kind === 'stationary' || (r.kind === 'unavailable' && r.reason === 'propagation'));
+test('GEO pointing is all null when no sample propagates', () => {
+  const dead = { ...goes, ecefAt: () => null };
+  assert.deepEqual(stationaryPointing(dead, [EN52VE], GOES_T0)[0], { obsId: 'en52ve', azDeg: null, elDeg: null, elMinDeg: null, elMaxDeg: null });
 });
 test('the last pass runs past a search end that cuts it', () => {
   const first = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_T0 }).passes[0];
