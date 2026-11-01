@@ -829,3 +829,218 @@
 .home-about p { margin: 8px 0 0; }
 .home-about a { color: var(--map-accent); }
 a.home-chip { display: inline-block; text-decoration: none; }
+
+/* Map shell (components/MapShell.tsx), shared by / and /sat/<id>.
+   Under 1100 px: one column, a sticky top bar, a tall map, the panel below.
+   From 1100 px: the map fills the window beside a scrolling panel. */
+.map-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "top" "map" "panel";
+  min-height: 100%;
+  color: var(--map-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+}
+.map-shell__top {
+  grid-area: top;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 560px) minmax(max-content, 1fr);
+  grid-template-areas: "brand search clock";
+  align-items: center;
+  gap: 8px 20px;
+  min-height: 56px;
+  padding: 6px 12px;
+  background: #0a0e1a;
+  border-bottom: 1px solid var(--map-border);
+}
+.map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
+.map-shell__top .live-clock { grid-area: clock; justify-self: end; }
+.map-shell__search { grid-area: search; min-width: 0; }
+/* The search bar sits flat in the bar; what opens under it floats over the page. */
+.map-shell__top .search-bar { position: relative; top: auto; z-index: auto; padding: 0; background: none; border: 0; border-radius: 0; }
+.map-shell__top .search-bar__below {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.map-shell__top .search-bar__list { position: static; }
+.map-shell__top .search-bar__below > p,
+.map-shell__top .search-bar__paste {
+  margin: 0;
+  padding: 8px 10px;
+  background: #0d1322;
+  border: 1px solid rgba(126, 184, 255, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+.map-shell__top .search-bar__paste .search-bar__error { padding: 0; border: 0; box-shadow: none; }
+.map-shell__map { grid-area: map; min-width: 0; padding: 8px 8px 0; }
+.map-shell__panel {
+  grid-area: panel;
+  /* Positioned, so visually hidden labels inside stay inside (and never
+     stretch the page past the docked shell). */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 8px 24px;
+}
+/* Docked, the panel has a fixed height: its children must not shrink to fit
+   (the tile grid clips its overflow, so it would collapse to nothing). */
+.map-shell__panel > * { flex-shrink: 0; }
+.map-shell.sat .map-shell__panel { gap: 16px; }
+.map-shell .clock-skew-banner {
+  padding: 6px 10px;
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.32);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f5d36a;
+}
+.map-shell .clock-skew-banner strong { color: #facc15; font-weight: 600; }
+
+/* Phones: two rows, wordmark and clock, then search. Only the first row
+   scrolls away (the negative top), so the search stays pinned. */
+@media (max-width: 699.98px) {
+  .map-shell__top {
+    top: -48px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 38px auto;
+    grid-template-areas: "brand clock" "search search";
+    gap: 4px 12px;
+    padding: 6px 8px 8px;
+  }
+}
+
+/* FlatMap fill: sized by the shell. Narrow screens stack the focus bar,
+   the map (chips over its top) and the open legend in a grid. */
+.flat-map-shell--fill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "map" "legend";
+}
+.flat-map-shell--fill .flat-map__over { display: contents; }
+.flat-map-shell--fill .flat-map__head { grid-area: head; min-width: 0; }
+.flat-map-shell--fill .flat-map__top {
+  grid-area: map;
+  align-self: start;
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  z-index: 2;
+  min-width: 0;
+  margin: 8px;
+}
+.flat-map-shell--fill .flat-map {
+  grid-area: map;
+  height: max(260px, 60vh);
+  height: max(260px, 60svh);
+}
+.flat-map-shell--fill .map-legend-box { grid-area: legend; min-width: 0; }
+.map-legend__toggle { display: none; }
+.flat-map-shell--fill.flat-map-shell--full { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.flat-map-shell--fill.flat-map-shell--full .flat-map { height: auto; min-height: 0; }
+
+/* Docked: the map fills the window under the top bar, beside the panel. */
+@media (min-width: 1100px) {
+  .map-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-rows: 56px minmax(0, 1fr);
+    grid-template-areas: "top top" "map panel";
+  }
+  .map-shell__top { position: relative; height: 56px; padding: 0 16px; }
+  .map-shell__map { display: grid; min-height: 0; padding: 0; }
+  .map-shell__panel {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px 16px 24px;
+    background: #0b1121;
+    border-left: 1px solid var(--map-border);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(126, 184, 255, 0.25) transparent;
+  }
+
+  .flat-map-shell--fill {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "map";
+  }
+  .flat-map-shell--fill .flat-map {
+    height: auto;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  /* Focus bar and chips stack over the top of the map; taps between them reach the canvas. */
+  .flat-map-shell--fill .flat-map__over {
+    grid-area: map;
+    align-self: start;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+    padding: 10px;
+    pointer-events: none;
+  }
+  .flat-map-shell--fill .flat-map__head { align-self: flex-start; max-width: min(640px, 100%); pointer-events: auto; }
+  .flat-map-shell--fill .flat-map__head .focus-bar { margin: 0; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); }
+  .flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
+  .flat-map-shell--fill .flat-map__zoom { left: auto; right: 10px; bottom: 10px; }
+  /* The legend: a toggle at the bottom left that opens upward. */
+  .flat-map-shell--fill .map-legend-box {
+    grid-area: map;
+    align-self: end;
+    justify-self: start;
+    z-index: 2;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0 0 10px 10px;
+  }
+  .flat-map-shell--fill .map-legend__toggle {
+    display: block;
+    min-height: 32px;
+    padding: 0 12px;
+    background: var(--map-panel);
+    color: var(--map-text);
+    border: 1px solid rgba(126, 184, 255, 0.4);
+    border-radius: 6px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .flat-map-shell--fill .map-legend__toggle:hover { background: rgba(126, 184, 255, 0.22); }
+  .flat-map-shell--fill .map-legend__toggle[aria-expanded="true"] { border-color: var(--map-accent); }
+  .flat-map-shell--fill .map-legend__toggle:focus-visible { outline: 2px solid var(--map-accent); outline-offset: 1px; }
+  .flat-map-shell--fill .map-legend-box:not(.map-legend-box--open) .map-legend { display: none; }
+  .flat-map-shell--fill .map-legend {
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 10px 12px;
+    background: var(--map-panel);
+    border: 1px solid var(--map-border);
+    border-radius: 8px;
+  }
+  .flat-map-shell--fill.flat-map-shell--full { grid-template-rows: minmax(0, 1fr); padding: 0; }
+  .flat-map-shell--fill.flat-map-shell--full .flat-map { max-height: none; }
+}

@@ -1,5 +1,4 @@
 .sat { overflow-wrap: anywhere; }
-.home.sat { max-width: 1120px; gap: 16px; }
 .sat-title { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.15; color: #eef4ff; }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; margin-top: 6px; }
 .sat-age { line-height: 1.6; }
@@ -42,19 +41,8 @@ p.sat-how { margin: 0 0 8px; }
   background: var(--map-footprint); box-shadow: inset 3px 0 0 var(--map-accent);
 }
 
-/* Header: who it is on the left, the clock on the right (below on phones). */
-.sat-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 24px; }
-.sat-top__id { display: flex; flex-direction: column; gap: 4px; flex: 1 1 300px; min-width: 0; }
-.sat-top .home-wordmark { align-self: flex-start; margin: 0 0 6px; text-decoration: none; }
-.sat-top .live-clock { padding-top: 4px; }
-@media (max-width: 600px) {
-  .sat-top .live-clock {
-    flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-    gap: 2px 12px; padding: 10px 14px; text-align: left;
-    background: var(--map-ocean); border: 1px solid var(--map-border); border-radius: 10px;
-  }
-  .sat-top .live-clock__utc { justify-content: flex-start; }
-}
+/* Header: who it is, then Follow and Share. The clock lives in the shell's top bar. */
+.sat-top { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 
 /* The live tile grid: one instrument panel split by hairlines, not loose cards.
    2 columns under 480 px, 3 from 480, 4 from 720. */
@@ -120,13 +108,6 @@ a.stat-tile:focus-visible { outline: 2px solid var(--map-accent); outline-offset
   .sat-etable { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* Map and orbit diagram side by side from 900 px. */
-.sat-views { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
-.sat-views__map { min-width: 0; }
-@media (min-width: 900px) {
-  .sat-views { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
-}
-
 /* How we compute these: visible text, never tooltips. */
 .sat-how-section { padding-top: 4px; }
 .sat-how-list { display: grid; gap: 10px; margin: 0; }
@@ -135,4 +116,19 @@ a.stat-tile:focus-visible { outline: 2px solid var(--map-accent); outline-offset
 .sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: 13px; line-height: 1.5; }
 @media (min-width: 600px) {
   .sat-how-list__row { grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: 16px; }
+}
+
+/* Docked (1100 px and up) the panel is 380 px wide, whatever the viewport:
+   two tile columns, one column of elements, and stacked How-we-compute rows. */
+@media (min-width: 1100px) {
+  .map-shell__panel .sat-title { font-size: 24px; }
+  .map-shell__panel .sat-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .map-shell__panel .sat-dash .stat-tile--wide,
+  .map-shell__panel .sat-dash__sun { grid-column: 1 / -1; }
+  .map-shell__panel .stat-tile__value { font-size: min(24px, 16.5cqi); }
+  .map-shell__panel .stat-tile--lg .stat-tile__value { font-size: min(30px, 9.5cqi); }
+  .map-shell__panel .stat-tile--wide .stat-tile__value { font-size: min(20px, 7cqi); }
+  .map-shell__panel .sat-etable { grid-template-columns: minmax(0, 1fr); }
+  .map-shell__panel .sat-how-list__row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .map-shell__panel .sat-diagram svg { max-width: 300px; }
 }

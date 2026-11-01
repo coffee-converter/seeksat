@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createLabelCache, labelKey } from '../lib/map/label-cache.mjs';
+import { createLabelCache, labelKey, satsKey } from '../lib/map/label-cache.mjs';
 
 test('the same key costs one pick, a changed key costs one more', () => {
   let n = 0;
@@ -37,4 +37,14 @@ test('labelKey rounds the subpoint to 0.5 degrees and pan to whole pixels', () =
   assert.notEqual(labelKey(base), labelKey({ ...base, zoom: 2 }));
   assert.notEqual(labelKey(base), labelKey({ ...base, width: 901 }));
   assert.notEqual(labelKey(base), labelKey({ ...base, observer: null }));
+});
+
+test('labelKey changes once a satellite moves 2 degrees, not on every tick', () => {
+  const sat = (lonDeg, latDeg, emphasis = 'normal') => [{ noradId: 25544, name: 'ISS', position: { lonDeg, latDeg }, emphasis }];
+  const k = (sats) => labelKey({ ...base, sats });
+  assert.equal(k(sat(10.2, 20.1)), k(sat(10.6, 20.4)));
+  assert.notEqual(k(sat(10.2, 20.1)), k(sat(12.4, 20.1)));
+  assert.notEqual(k(sat(10, 20)), k(sat(10, 20, 'ghost')));
+  assert.equal(k(sat(10, 20, 'hidden')), k([]));
+  assert.equal(satsKey(null), '-');
 });

@@ -6,6 +6,7 @@ import { makeProjection, PROJECTIONS } from '../lib/map/projections.mjs';
 import { EN52VE } from './fixtures/orbits.mjs';
 import {
   graticuleStep, formatLat, formatLon, graticuleLabels, pickPlaceLabels, placeBox, graticuleBox,
+  satBoxes, seasAllowed, maxRegionLabels, CHAR_PX,
 } from '../lib/map/labels.mjs';
 
 const SAT = { latDeg: 30, lonDeg: -80, altKm: 420 };
@@ -161,5 +162,70 @@ test('place labels avoid the lat/lon labels', () => {
         }
       }
     }
+  }
+});
+
+test('a phone-sized map shows no seas and at most 2 region names', () => {
+  const width = 360;
+  const height = 240;
+  for (const { id } of PROJECTIONS) {
+    const labels = pickPlaceLabels(proj(id, width, height), { width, height, zoom: 1, places, regions: REGIONS });
+    const regions = labels.filter((l) => l.kind === 'region');
+    const seaNames = new Set(REGIONS.filter((r) => r.kind === 'sea').map((r) => r.name));
+    assert.deepEqual(regions.filter((l) => seaNames.has(l.text)).map((l) => l.text), [], `${id}: seas`);
+    assert.ok(regions.length <= 2, `${id}: ${regions.length} regions: ${regions.map((l) => l.text)}`);
+  }
+});
+
+test('seas need zoom 2 or a 600 x 400 canvas; regions are capped by area', () => {
+  assert.equal(seasAllowed(360, 240, 1), false);
+  assert.equal(seasAllowed(360, 240, 2), true);
+  assert.equal(seasAllowed(600, 400, 1), true);
+  assert.equal(seasAllowed(599, 400, 1), false);
+  assert.equal(maxRegionLabels(360, 240), 2);
+  assert.equal(maxRegionLabels(900, 450), 7);
+  assert.equal(maxRegionLabels(1060, 844), 15);
+});
+
+test('a big map still names seas once the continents and oceans are placed', () => {
+  const width = 1400;
+  const height = 800;
+  const labels = pickPlaceLabels(proj('equirectangular', width, height), { width, height, zoom: 1, places, regions: REGIONS });
+  const seaNames = new Set(REGIONS.filter((r) => r.kind === 'sea').map((r) => r.name));
+  assert.ok(labels.some((l) => seaNames.has(l.text)), 'no sea labels');
+  assert.ok(labels.filter((l) => l.kind === 'region').length <= maxRegionLabels(width, height));
+});
+
+test('satBoxes covers the dot and the name, flips near the right edge, skips hidden and names no ghost', () => {
+  const width = 900;
+  const height = 450;
+  const p = proj('equirectangular', width, height);
+  const at = (lonDeg, latDeg, extra) => ({ noradId: 1, name: 'ISS', position: { lonDeg, latDeg }, emphasis: 'normal', ...extra });
+  const [x, y] = p([0, 0]);
+  const [dot, name] = satBoxes(p, [at(0, 0)], width);
+  assert.deepEqual(dot, { x0: x - 4, y0: y - 4, x1: x + 4, y1: y + 4 });
+  assert.equal(name.x0, x + 9);
+  assert.equal(name.x1, x + 9 + 3 * CHAR_PX);
+  const [xr] = p([175, 0]);
+  const flipped = satBoxes(p, [at(175, 0)], width)[1];
+  assert.equal(flipped.x1, xr - 9);
+  assert.equal(satBoxes(p, [at(0, 0, { emphasis: 'hidden' })], width).length, 0);
+  assert.equal(satBoxes(p, [at(0, 0, { emphasis: 'ghost' })], width).length, 1);
+});
+
+test('place labels keep clear of satellite dots and names', () => {
+  const width = 900;
+  const height = 450;
+  const p = proj('equirectangular', width, height);
+  // Satellites parked on top of busy places.
+  const sats = [[-74, 40.7], [2.3, 48.9], [139.7, 35.7], [20, 3], [-150, 25]].map(([lonDeg, latDeg], i) => ({
+    noradId: i + 1, name: `Satellite ${i + 1}`, position: { lonDeg, latDeg }, emphasis: 'normal',
+  }));
+  const avoid = satBoxes(p, sats, width);
+  const labels = pickPlaceLabels(p, { width, height, zoom: 1, places, regions: REGIONS, avoid });
+  assert.ok(labels.length >= 1);
+  for (const l of labels) {
+    const box = placeBox(l);
+    assert.ok(!avoid.some((a) => overlaps(a, box)), `${l.text} hits a satellite`);
   }
 });

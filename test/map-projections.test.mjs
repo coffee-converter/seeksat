@@ -85,3 +85,32 @@ test('centredPan works on winkel3 and azimuthal, and only those and equirectangu
     assert.ok(Math.abs(x - 400) < 1e-6 && Math.abs(y - 200) < 1e-6, id);
   }
 });
+
+test('fillView fills a tall frame on world maps only', async () => {
+  const { fillView, makeProjection: mk } = await import('../lib/map/projections.mjs');
+  const o = { width: 390, height: 504, observer: EN52VE };
+  const eq = fillView('equirectangular', o, 0);
+  assert.ok(Math.abs(eq.zoom - 504 / (390 / 2)) < 1e-6, `zoom ${eq.zoom}`);
+  // The map now spans the frame's full height.
+  const p = mk('equirectangular', { ...o, zoom: eq.zoom, pan: eq.pan });
+  const [[, y0], [, y1]] = geoPath(p).bounds({ type: 'Sphere' });
+  assert.ok(Math.abs(y0) < 1 && Math.abs(y1 - 504) < 1, `${y0}..${y1}`);
+  assert.ok(Math.abs(p([0, 0])[0] - 195) < 1, 'centred on lon 0');
+  const w3 = fillView('winkel3', o, 0);
+  assert.ok(w3 && w3.zoom > 1);
+  for (const id of ['azimuthal', 'polar-north', 'polar-south', 'satellite']) {
+    assert.equal(fillView(id, { ...o, sat: { latDeg: 0, lonDeg: 0, altKm: 420 } }, 0), null, id);
+  }
+  assert.equal(fillView('equirectangular', { width: 900, height: 450 }, 0), null);
+  assert.equal(fillView('equirectangular', { width: 900, height: 300 }, 0), null);
+});
+
+test('fillView centres on a longitude but keeps the map covering the frame', async () => {
+  const { fillView, makeProjection: mk } = await import('../lib/map/projections.mjs');
+  const o = { width: 390, height: 504 };
+  const v = fillView('equirectangular', o, 60);
+  assert.ok(Math.abs(mk('equirectangular', { ...o, ...v })([60, 0])[0] - 195) < 1);
+  const edge = fillView('equirectangular', o, 179);
+  const [[x0], [x1]] = geoPath(mk('equirectangular', { ...o, ...edge })).bounds({ type: 'Sphere' });
+  assert.ok(x0 <= 1e-6 && x1 >= 390 - 1e-6, `${x0}..${x1}`);
+});

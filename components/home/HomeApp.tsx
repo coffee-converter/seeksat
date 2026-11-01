@@ -24,6 +24,7 @@ import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AboutSection from "./AboutSection";
 import LiveClock from "@/components/LiveClock";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
+import MapShell from "@/components/MapShell";
 import "@/app/home.css";
 
 const CARD_REFRESH_MS = 10 * 60_000;
@@ -319,125 +320,138 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const showPrompt = hydrated && (!location || changingLocation);
 
   return (
-    <main className="home">
-      <header className="home-top">
-        <h1 className="home-wordmark">SeekSat</h1>
-        <LiveClock nowMs={nowMs} compact />
-      </header>
-      <ClockSkewBanner />
-      <Suspense fallback={null}>
-        <FocusParam />
-      </Suspense>
-      <SearchBar onView={focusOn} onClearFocus={() => focusOn(null)} />
-      <FlatMap
-        sats={sats}
-        observer={location}
-        selectedSub={focusSub}
-        projectionId={prefs.projection}
-        onProjectionChange={(id) => setPrefs({ projection: id })}
-        selectedId={focusId}
-        minElevDeg={prefs.minElevDeg}
-        onSelect={focusOn}
-        top={focusId != null && (
-          <FocusBar
-            name={nameOf(focusId)}
-            followed={prefs.following.includes(focusId)}
-            blocked={followBlockedMessage(prefs.following, focusId) as string | null}
-            total={showAll}
-            pageHref={allTracks.get(focusId)?.record?.source === "pasted" ? null : `/sat/${focusId}`}
-            onToggleFollow={() => (prefs.following.includes(focusId) ? unfollow(focusId) : follow(focusId))}
-            onShowAll={() => focusOn(null)}
-          />
-        )}
-        chips={hydrated && (
-          <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={toggleHidden} />
-        )}
-      />
-      <HomeControls
-        ready={hydrated}
-        mode={prefs.mode}
-        minElevDeg={prefs.minElevDeg}
-        locationName={location && !changingLocation ? location.name : null}
-        onModeChange={(mode) => setPrefs({ mode })}
-        onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
-        onChangeLocation={() => setChangingLocation(true)}
-      />
-
-      {status === "error" && (
-        <div className="home-banner" role="alert">
-          <span>{error ?? "Something went wrong loading satellites."}</span>
-          <button type="button" className="home-button" onClick={() => void loadRecords()}>
-            Try again
-          </button>
-        </div>
-      )}
-
-      {!hydrated ? null : showPrompt ? (
+    <MapShell
+      top={(
         <>
-          <LocationPrompt
-            onDone={() => setChangingLocation(false)}
-            onCancel={location ? () => setChangingLocation(false) : undefined}
-          />
-          {!location && <PopularList names={popularNames} />}
+          <h1 className="home-wordmark">SeekSat</h1>
+          <div className="map-shell__search">
+            <SearchBar onView={focusOn} onClearFocus={() => focusOn(null)} />
+          </div>
+          <LiveClock nowMs={nowMs} compact />
         </>
-      ) : observer && (
+      )}
+      map={(
         <>
-          {prefs.following.length === 0 ? (
-            <>
-              <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
-              {viewingCard && nowMs != null && (
-                <NextUpList
-                  cards={[]}
-                  viewingCard={viewingCard}
-                  tracks={allTracks}
-                  colors={colors}
-                  observer={observer}
-                  mode={prefs.mode}
-                  minElevDeg={prefs.minElevDeg}
-                  nowMs={nowMs}
-                  onUnfollow={unfollow}
-                  onFollow={follow}
-                  followBlocked={null}
-                  focusId={focusId}
-                  onFocus={focusOn}
-                />
-              )}
-              <PopularList names={popularNames} />
-            </>
-          ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
-            <p className="home-note">Loading satellites...</p>
-          ) : cardState.key !== cardKey ? (
-            <p className="home-note" role="status">Finding passes...</p>
-          ) : (
-            nowMs != null && (
-              <NextUpList
-                cards={cardState.cards}
-                viewingCard={viewingCard}
-                tracks={allTracks}
-                colors={colors}
-                observer={observer}
-                mode={prefs.mode}
-                minElevDeg={prefs.minElevDeg}
-                nowMs={nowMs}
-                onUnfollow={unfollow}
-                onFollow={follow}
-                followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
-                focusId={focusId}
-                onFocus={focusOn}
+          <Suspense fallback={null}>
+            <FocusParam />
+          </Suspense>
+          <FlatMap
+            fill
+            sats={sats}
+            observer={location}
+            selectedSub={focusSub}
+            projectionId={prefs.projection}
+            onProjectionChange={(id) => setPrefs({ projection: id })}
+            selectedId={focusId}
+            minElevDeg={prefs.minElevDeg}
+            onSelect={focusOn}
+            top={focusId != null && (
+              <FocusBar
+                name={nameOf(focusId)}
+                followed={prefs.following.includes(focusId)}
+                blocked={followBlockedMessage(prefs.following, focusId) as string | null}
+                total={showAll}
+                pageHref={allTracks.get(focusId)?.record?.source === "pasted" ? null : `/sat/${focusId}`}
+                onToggleFollow={() => (prefs.following.includes(focusId) ? unfollow(focusId) : follow(focusId))}
+                onShowAll={() => focusOn(null)}
               />
-            )
-          )}
+            )}
+            chips={hydrated && (
+              <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={toggleHidden} />
+            )}
+          />
         </>
       )}
+      panel={(
+        <>
+          <ClockSkewBanner />
+          <HomeControls
+            ready={hydrated}
+            mode={prefs.mode}
+            minElevDeg={prefs.minElevDeg}
+            locationName={location && !changingLocation ? location.name : null}
+            onModeChange={(mode) => setPrefs({ mode })}
+            onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
+            onChangeLocation={() => setChangingLocation(true)}
+          />
 
-      <AboutSection />
+          {status === "error" && (
+            <div className="home-banner" role="alert">
+              <span>{error ?? "Something went wrong loading satellites."}</span>
+              <button type="button" className="home-button" onClick={() => void loadRecords()}>
+                Try again
+              </button>
+            </div>
+          )}
 
-      <footer className="home-footer">
-        <span>
-          built by{" "}
-          <a href="https://aaronhanson.dev" target="_blank" rel="noopener">Aaron Hanson</a>
-        </span>
-      </footer>
-    </main>
+          {!hydrated ? null : showPrompt ? (
+            <>
+              <LocationPrompt
+                onDone={() => setChangingLocation(false)}
+                onCancel={location ? () => setChangingLocation(false) : undefined}
+              />
+              {!location && <PopularList names={popularNames} />}
+            </>
+          ) : observer && (
+            <>
+              {prefs.following.length === 0 ? (
+                <>
+                  <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
+                  {viewingCard && nowMs != null && (
+                    <NextUpList
+                      cards={[]}
+                      viewingCard={viewingCard}
+                      tracks={allTracks}
+                      colors={colors}
+                      observer={observer}
+                      mode={prefs.mode}
+                      minElevDeg={prefs.minElevDeg}
+                      nowMs={nowMs}
+                      onUnfollow={unfollow}
+                      onFollow={follow}
+                      followBlocked={null}
+                      focusId={focusId}
+                      onFocus={focusOn}
+                    />
+                  )}
+                  <PopularList names={popularNames} />
+                </>
+              ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
+                <p className="home-note">Loading satellites...</p>
+              ) : cardState.key !== cardKey ? (
+                <p className="home-note" role="status">Finding passes...</p>
+              ) : (
+                nowMs != null && (
+                  <NextUpList
+                    cards={cardState.cards}
+                    viewingCard={viewingCard}
+                    tracks={allTracks}
+                    colors={colors}
+                    observer={observer}
+                    mode={prefs.mode}
+                    minElevDeg={prefs.minElevDeg}
+                    nowMs={nowMs}
+                    onUnfollow={unfollow}
+                    onFollow={follow}
+                    followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
+                    focusId={focusId}
+                    onFocus={focusOn}
+                  />
+                )
+              )}
+            </>
+          )}
+
+          <AboutSection />
+
+          <footer className="home-footer">
+            <span>
+              built by{" "}
+              <a href="https://aaronhanson.dev" target="_blank" rel="noopener">Aaron Hanson</a>
+            </span>
+          </footer>
+        </>
+      )}
+    />
   );
 }

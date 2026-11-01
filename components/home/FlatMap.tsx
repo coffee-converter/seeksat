@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { drawMap, hitTest } from "@/lib/map/draw.mjs";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
-import { graticuleBox, graticuleLabels, graticuleStep, pickPlaceLabels } from "@/lib/map/labels.mjs";
+import { graticuleBox, graticuleLabels, graticuleStep, pickPlaceLabels, satBoxes } from "@/lib/map/labels.mjs";
 import { createLabelCache, labelKey } from "@/lib/map/label-cache.mjs";
 import {
   PROJECTIONS,
@@ -12,6 +12,7 @@ import {
   DEFAULT_PROJECTION,
   centredPan,
   clampZoom,
+  fillView,
   makeProjection,
   projectionAvailable,
 } from "@/lib/map/projections.mjs";
@@ -64,6 +65,9 @@ interface Props {
   chips?: React.ReactNode;
   /** Subpoint and altitude of the selected satellite, for the "From the satellite" view. */
   selectedSub?: SelectedSub | null;
+  /** Sized by its container (MapShell): docked full height on desktop, with the
+   *  focus bar and a collapsible legend laid over the map. */
+  fill?: boolean;
 }
 
 interface ProjectionOptions {
@@ -91,13 +95,22 @@ type Box = { x0: number; y0: number; x1: number; y1: number };
 type GratLabel = { text: string; x: number; y: number; align: string; baseline: string; line?: unknown };
 type PlaceData = { places: unknown; regions: unknown };
 type LabelSet = { places: unknown; graticule: GratLabel[] };
-type LabelOpts = { width: number; height: number; zoom: number; projectionId: string; places: unknown; regions: unknown };
+type LabelOpts = {
+  width: number; height: number; zoom: number; projectionId: string; places: unknown; regions: unknown; sats: MapSat[];
+};
 const gratLabels = graticuleLabels as unknown as (
   p: Projection,
   o: { width: number; height: number; step: number; projectionId: string },
 ) => GratLabel[];
 const gratBox = graticuleBox as unknown as (l: GratLabel) => Box;
 const gratStep = graticuleStep as unknown as (zoom: number, width: number) => number;
+const satBoxesOf = satBoxes as unknown as (p: Projection, sats: MapSat[], width: number) => Box[];
+type View = { zoom: number; pan: [number, number] };
+const fillOf = fillView as (
+  id: string,
+  o: { width: number; height: number; observer: MapObserver | null; sat: SelectedSub | null },
+  lonDeg: number,
+) => View | null;
 const pickPlaces = (
   createLabelCache as unknown as (pick: (p: Projection, o: LabelOpts) => LabelSet) => {
     get: (key: string, args: [Projection, LabelOpts]) => LabelSet;
@@ -111,12 +124,14 @@ const panTo = centredPan as (
 ) => [number, number] | null;
 const keyOf = labelKey as unknown as (o: {
   projectionId: string; width: number; height: number; zoom: number; pan: [number, number];
-  observer: MapObserver | null; sub: SelectedSub | null;
+  observer: MapObserver | null; sub: SelectedSub | null; sats: MapSat[];
 }) => string;
 
 const TAP_SLOP_PX = 6;
 const DOUBLE_TAP_MS = 300;
 const NIGHT_REFRESH_MS = 60_000;
+/** Where MapShell docks the map beside the panel (keep in step with home.css). */
+const DOCKED_QUERY = "(min-width: 1100px)";
 
 export default function FlatMap({
   sats,
@@ -129,6 +144,7 @@ export default function FlatMap({
   selectedSub = null,
   top = null,
   chips = null,
+  fill = false,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -146,7 +162,8 @@ export default function FlatMap({
       });
       const places = (pickPlaceLabels as unknown as (p: Projection, o: Record<string, unknown>) => unknown)(proj, {
         width: o.width, height: o.height, zoom: o.zoom, places: o.places, regions: o.regions,
-        avoid: graticule.map(gratBox),
+        // Clear of the lat/lon labels and of the satellites' dots and names.
+        avoid: [...graticule.map(gratBox), ...satBoxesOf(proj, o.sats, o.width)],
       });
       return { graticule, places };
     }),
@@ -160,9 +177,17 @@ export default function FlatMap({
   fullRef.current = full;
   const nativeFull = useRef(false);
   // View to restore on exit, and a flag to fit the map to the shell once it has resized.
-  const prevView = useRef<{ zoom: number; pan: [number, number] } | null>(null);
+  const prevView = useRef<{ zoom: number; pan: [number, number]; home: boolean } | null>(null);
+  // True while the view is the home view (no zoom or pan by hand since), so a
+  // resize refits it. homeZoom is that view's zoom: above it the map owns touch.
+  const atHome = useRef(true);
+  const homeZoom = useRef(1);
   const fitOnResize = useRef(false);
   const wheelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Docked beside the panel the page never scrolls, so the map owns wheel and drag.
+  const docked = useRef(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const legendId = useId();
 
   // A projection that is unavailable right now (no observer, no selected satellite)
   // is shown and drawn as the default. The saved choice is left alone so it
@@ -195,19 +220,24 @@ export default function FlatMap({
     });
     projection.current = proj;
     // At zoom 1 the map leaves vertical scrolling to the page; zoomed in, it owns touch.
-    // Full screen has no page to scroll, so it always owns touch.
-    canvas.style.touchAction = view.current.zoom > 1 || fullRef.current ? "none" : "pan-y";
+    // Full screen and the docked desktop map have no page to scroll, so they always own it.
+    canvas.style.touchAction = view.current.zoom > homeZoom.current + 1e-6 || fullRef.current || docked.current
+      ? "none"
+      : "pan-y";
     let labels = lastLabels.current;
     if (!(gesturing.current && labels)) {
       const data = placeData.current;
       const { zoom, pan } = view.current;
       const key = `${keyOf({
         projectionId: cur.projectionId, width, height, zoom, pan,
-        observer: cur.observer, sub: cur.selectedSub,
+        observer: cur.observer, sub: cur.selectedSub, sats: cur.sats,
       })}|${data ? "p" : "g"}`;
       labels = labelCache.current.get(key, [
         proj,
-        { width, height, zoom, projectionId: cur.projectionId, places: data?.places ?? [], regions: data?.regions ?? [] },
+        {
+          width, height, zoom, projectionId: cur.projectionId,
+          places: data?.places ?? [], regions: data?.regions ?? [], sats: cur.sats,
+        },
       ]);
       lastLabels.current = labels;
     }
@@ -232,12 +262,29 @@ export default function FlatMap({
     ctx.restore();
   }, []);
 
+  // The home view: a world map in a frame taller than its aspect fills the
+  // frame's height, centred on the focused satellite, else the observer, else
+  // lon 0. Everything else is zoom 1.
+  const homeView = useCallback((): View => {
+    const { width, height } = size.current;
+    const cur = latest.current;
+    const focus = cur.sats.find((s) => s.emphasis === "focus");
+    const lon = focus?.position.lonDeg ?? cur.observer?.lonDeg ?? 0;
+    const fit = fillOf(cur.projectionId, { width, height, observer: cur.observer, sat: cur.selectedSub }, lon);
+    homeZoom.current = fit?.zoom ?? 1;
+    return fit ?? { zoom: 1, pan: [0, 0] };
+  }, []);
+  const goHome = useCallback(() => {
+    view.current = homeView();
+    atHome.current = true;
+  }, [homeView]);
   const reset = useCallback(() => {
-    view.current = { zoom: 1, pan: [0, 0] };
+    goHome();
     redraw();
-  }, [redraw]);
+  }, [goHome, redraw]);
   // Zoom by factor k keeping the point (qx, qy) fixed on screen.
   const zoomAt = useCallback((k: number, qx: number, qy: number) => {
+    atHome.current = false;
     const { width, height } = size.current;
     const z1 = view.current.zoom;
     const z2 = clampZoom(z1 * k);
@@ -269,19 +316,11 @@ export default function FlatMap({
       size.current = { width, height, dpr };
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
-      if (fitOnResize.current) {
+      // A new size refits the home view (on load, on resize, and entering full
+      // screen); a view zoomed or panned by hand is kept.
+      if (fitOnResize.current || atHome.current) {
         fitOnResize.current = false;
-        const id = latest.current.projectionId;
-        if ((id === "equirectangular" || id === "winkel3") && height > width / 2) {
-          // A tall frame: zoom so the 2:1 map fills its height, centred on the satellite.
-          const z = clampZoom(height / (width / 2));
-          const c = latest.current.selectedSub ?? latest.current.observer ?? { lonDeg: 0, latDeg: 0 };
-          const flat = project(id, { width, height, observer: null, sat: null, zoom: z, pan: [0, 0] });
-          const pt = flat([c.lonDeg, 0]);
-          const maxPan = ((z - 1) * width) / 2;
-          const px = pt ? Math.max(-maxPan, Math.min(maxPan, width / 2 - pt[0])) : 0;
-          view.current = { zoom: z, pan: [px, 0] };
-        }
+        goHome();
       }
       redraw();
     };
@@ -294,7 +333,19 @@ export default function FlatMap({
       ro.disconnect();
       window.removeEventListener("resize", fit);
     };
-  }, [redraw]);
+  }, [redraw, goHome]);
+
+  useEffect(() => {
+    if (!fill || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(DOCKED_QUERY);
+    const sync = () => {
+      docked.current = mq.matches;
+      redraw();
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [fill, redraw]);
 
   // Place names are 35 KB; fetch them after mount so first paint stays light.
   useEffect(() => {
@@ -318,17 +369,23 @@ export default function FlatMap({
   // Entering full screen remembers the view; leaving restores it.
   useEffect(() => {
     if (full) {
-      prevView.current = { zoom: view.current.zoom, pan: [...view.current.pan] as [number, number] };
+      prevView.current = { zoom: view.current.zoom, pan: [...view.current.pan] as [number, number], home: atHome.current };
       fitOnResize.current = true;
     } else {
       fitOnResize.current = false;
       if (prevView.current) {
-        view.current = prevView.current;
+        const { zoom, pan, home } = prevView.current;
         prevView.current = null;
+        // A home view refits to the frame on the way out (its size changes back).
+        if (home) goHome();
+        else {
+          view.current = { zoom, pan };
+          atHome.current = false;
+        }
         redraw();
       }
     }
-  }, [full, redraw]);
+  }, [full, redraw, goHome]);
   useEffect(() => () => {
     if (wheelTimer.current) clearTimeout(wheelTimer.current);
   }, []);
@@ -392,10 +449,15 @@ export default function FlatMap({
     redraw();
   }, [full, redraw]);
 
-  // A new projection starts from the default view.
+  // A new projection starts from its home view, and an untouched home view
+  // follows the observer (it arrives after mount, once prefs load).
+  const obsLon = observer?.lonDeg ?? null;
   useEffect(() => {
-    view.current = { zoom: 1, pan: [0, 0] };
-  }, [effectiveId]);
+    goHome();
+  }, [effectiveId, goHome]);
+  useEffect(() => {
+    if (atHome.current) goHome();
+  }, [obsLon, goHome]);
   // Entering a focus pans once to centre it, keeping the zoom. It waits for the
   // satellite to have a position, then leaves the view alone.
   const centreOn = useRef<number | null>(null);
@@ -455,9 +517,12 @@ export default function FlatMap({
         const dx = next.x - prev.x;
         const dy = next.y - prev.y;
         moved += Math.abs(dx) + Math.abs(dy);
-        if (moved >= TAP_SLOP_PX && (view.current.zoom > 1 || fullRef.current)) {
+        if (moved >= TAP_SLOP_PX && (view.current.zoom > 1 || fullRef.current || docked.current)) {
           const [px, py] = view.current.pan;
-          view.current.pan = [px + dx, py + dy];
+          // At the filled home zoom the map is exactly the frame's height: pan sideways only.
+          const fitted = homeZoom.current > 1 && view.current.zoom <= homeZoom.current + 1e-6;
+          view.current.pan = [px + dx, fitted ? py : py + dy];
+          atHome.current = false;
           redraw();
         }
         pointers.set(e.pointerId, next);
@@ -466,8 +531,9 @@ export default function FlatMap({
         pointers.set(e.pointerId, next);
         const after = spread();
         if (before.dist > 0) zoomAt(after.dist / before.dist, after.mid.x, after.mid.y);
-        if (view.current.zoom > 1 || fullRef.current) {
+        if (view.current.zoom > 1 || fullRef.current || docked.current) {
           const [px, py] = view.current.pan;
+          atHome.current = false;
           view.current.pan = [px + after.mid.x - before.mid.x, py + after.mid.y - before.mid.y];
           redraw();
         }
@@ -505,10 +571,11 @@ export default function FlatMap({
       }
       if (pointers.size === 1) moved = TAP_SLOP_PX;
     };
-    // Plain wheel scrolls the page at zoom 1; ctrl/meta (trackpad pinch), a zoomed map or full screen captures it.
+    // Plain wheel scrolls the page at zoom 1; ctrl/meta (trackpad pinch), a zoomed map,
+    // full screen or the docked map captures it.
     const onWheel = (e: WheelEvent) => {
       const pinch = e.ctrlKey || e.metaKey;
-      if (!pinch && view.current.zoom <= 1 && !fullRef.current) return;
+      if (!pinch && view.current.zoom <= homeZoom.current + 1e-6 && !fullRef.current && !docked.current) return;
       e.preventDefault();
       // Labels hold still while wheel events stream in, then catch up once.
       gesturing.current = true;
@@ -538,9 +605,53 @@ export default function FlatMap({
     };
   }, [redraw, zoomAt, reset]);
 
+  const chipRow = (
+    <div className="flat-map__top">
+      {chips}
+      <select
+        className="flat-map__menu"
+        aria-label="Map projection"
+        value={effectiveId}
+        onChange={(e) => onProjectionChange(e.target.value)}
+      >
+        {PROJECTIONS.map((p: { id: string; label: string }) => (
+          <option
+            key={p.id}
+            value={p.id}
+            disabled={!isAvailable(p.id, { observer, sat: selectedSub })}
+          >
+            {p.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+  const legendList = (
+    <ul className="map-legend" id={legendId} aria-label="Map legend">
+      {legend({ sats, observer, minElevDeg }).map((item) => (
+        <li key={item.key}>
+          <span
+            className={`map-legend__swatch map-legend__swatch--${item.kind}`}
+            style={item.color ? ({ "--swatch": item.color } as React.CSSProperties) : undefined}
+            aria-hidden="true"
+          />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  );
+  const shellClass = `flat-map-shell${fill ? " flat-map-shell--fill" : ""}${full ? " flat-map-shell--full" : ""}`;
+
   return (
-    <div className={`flat-map-shell${full ? " flat-map-shell--full" : ""}`} ref={shellRef}>
-    {top}
+    <div className={shellClass} ref={shellRef}>
+    {fill ? (
+      // Docked (home.css, 1100 px and up) these lay over the top of the map;
+      // narrower, the wrapper dissolves and the focus bar sits above the map.
+      <div className="flat-map__over">
+        {top ? <div className="flat-map__head">{top}</div> : null}
+        {chipRow}
+      </div>
+    ) : top}
     <div className="flat-map" ref={wrapRef}>
       <canvas
         ref={canvasRef}
@@ -548,25 +659,7 @@ export default function FlatMap({
         role="img"
         aria-label="Map of followed satellites"
       />
-      <div className="flat-map__top">
-        {chips}
-        <select
-          className="flat-map__menu"
-          aria-label="Map projection"
-          value={effectiveId}
-          onChange={(e) => onProjectionChange(e.target.value)}
-        >
-          {PROJECTIONS.map((p: { id: string; label: string }) => (
-            <option
-              key={p.id}
-              value={p.id}
-              disabled={!isAvailable(p.id, { observer, sat: selectedSub })}
-            >
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {fill ? null : chipRow}
       <div className="flat-map__zoom">
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.5)}>+</button>
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.5)}>{"\u2212"}</button>
@@ -600,18 +693,21 @@ export default function FlatMap({
         </tbody>
       </table>
     </div>
-    <ul className="map-legend" aria-label="Map legend">
-      {legend({ sats, observer, minElevDeg }).map((item) => (
-        <li key={item.key}>
-          <span
-            className={`map-legend__swatch map-legend__swatch--${item.kind}`}
-            style={item.color ? ({ "--swatch": item.color } as React.CSSProperties) : undefined}
-            aria-hidden="true"
-          />
-          {item.label}
-        </li>
-      ))}
-    </ul>
+    {fill ? (
+      // The toggle shows only when docked; narrower, the legend is always open below the map.
+      <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
+        <button
+          type="button"
+          className="map-legend__toggle"
+          aria-expanded={legendOpen}
+          aria-controls={legendId}
+          onClick={() => setLegendOpen((v) => !v)}
+        >
+          Legend
+        </button>
+        {legendList}
+      </div>
+    ) : legendList}
     </div>
   );
 }

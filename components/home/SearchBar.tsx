@@ -194,6 +194,9 @@ export function SearchBar({ onView, onClearFocus }: Props) {
         </button>
       </div>
 
+      {/* Everything under the input row. In the map shell's top bar it drops
+          down over the page, so the bar keeps its height. */}
+      <div className="search-bar__below">
       <ul
         id={listId}
         role="listbox"
@@ -271,6 +274,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
