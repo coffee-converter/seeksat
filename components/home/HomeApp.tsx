@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import FlatMap, { type MapSat } from "./FlatMap";
 import { SearchBar } from "./SearchBar";
 import HomeControls from "./HomeControls";
@@ -303,7 +302,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           built by{" "}
           <a href="https://aaronhanson.dev" target="_blank" rel="noopener">Aaron Hanson</a>
         </span>
-        <Link href="/classic">3D view</Link>
       </footer>
     </main>
   );

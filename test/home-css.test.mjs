@@ -11,8 +11,7 @@ test('.flat-map declares vh before the svh override', () => {
   const svh = block.indexOf('height: max(220px, 50svh);');
   assert.ok(vh >= 0 && svh > vh);
 });
-test('coarse pointers get 16px chart inputs in both stylesheets', () => {
+test('coarse pointers get 16px chart inputs', () => {
   const re = (sel) => new RegExp(`@media \\(pointer: coarse\\)\\s*\\{\\s*${sel}\\s*\\{\\s*font-size: 16px;\\s*\\}\\s*\\}`);
   assert.match(read('app/home.css'), re('\\.radio-freq-select, \\.radio-freq-input'));
-  assert.match(read('app/pass-finder.css'), re('\\.radio-freq-select, \\.radio-freq-input, \\.radio-elev-input'));
 });

@@ -12,8 +12,7 @@ const SITE_TITLE = "SeekSat - Satellite & ISS Pass Forecasts for Any Sky";
 // Meta description: ~146 chars (target 110-160). The longer marketing
 // blurb was 198 chars and got truncated in results.
 const SITE_DESCRIPTION =
-  "Find when the ISS and other satellites pass over your ground stations " +
-  "- a 3D globe, multi-station overhead timing, and polar sky charts per pass.";
+  "Track any satellite and find its passes from where you are, for radio or watching, with honest live numbers and polar sky charts.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

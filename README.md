@@ -2,21 +2,18 @@
 
 **▶ Live: [seeksat.com](https://seeksat.com)**
 
-![SeekSat: a 3D globe showing a live ISS pass over a Chicago observer, with a ranked list of upcoming visibility windows and a polar sky chart](docs/globe.png)
-
-Satellite pass forecasts for ground stations. Place one or more
-observer locations on the globe, pick a satellite + a mode (visual
-naked-eye or radio), and SeekSat finds the windows when every
-observer can see (or reach) the satellite at once. Click a window to
-open a fullscreen polar sky chart showing the trajectory with sun /
-moon / planet / star context for that observer.
+The home screen shows what is overhead and coming up for your location,
+and search takes you to a page for any satellite. Each satellite page
+has live numbers, a ranked list of upcoming passes for radio or
+watching, and a polar sky chart per pass with sun / moon / planet /
+star context.
 
 ![A pass sky chart: the ISS trajectory arc across a polar star map, with sun, moon, planet, and constellation context for the observer](docs/skychart.png)
 
 A multi-observer ray-triangulation tool also lives in this repo
 (`components/TriangulateApp.tsx` + `lib/triangulate-scene.js`) for
 verifying the math against recorded sightings. It's a local dev
-tool, not wired up as a public route. To run it locally: add a
+tool, not wired up as a public route, and it still uses CesiumJS from the CDN. To run it locally: add a
 one-line `app/triangulate/page.tsx` that imports `TriangulateApp`,
 and supply your own observation sample data under `_data/`
 (gitignored).

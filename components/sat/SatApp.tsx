@@ -245,7 +245,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           built by{" "}
           <a href="https://aaronhanson.dev" target="_blank" rel="noopener">Aaron Hanson</a>
         </span>
-        <Link href="/classic">3D view</Link>
       </footer>
     </main>
   );

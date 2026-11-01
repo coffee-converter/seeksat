@@ -1,4 +1,4 @@
-/* home.css - the light home screen. Dark theme matches pass-finder.css. */
+/* home.css - the light home screen. Dark theme. */
 
 :root {
   --map-ocean: #0f1830;
@@ -221,8 +221,7 @@
 .home-footer a { color: var(--map-muted); text-decoration: underline; text-underline-offset: 2px; }
 .home-footer a:hover,
 .home-footer a:focus-visible { color: var(--map-accent); }
-/* ClockSkewBanner's look, copied from pass-finder.css (not loaded here) and
-   scoped so it never changes the classic app's banner. */
+/* ClockSkewBanner's look, scoped to the home screen. */
 .home .clock-skew-banner {
   padding: 6px 10px;
   background: rgba(250, 204, 21, 0.08);
@@ -402,9 +401,7 @@
 }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 
-/* The card's polar plot (PolarPlotSvg). Values copied from pass-finder.css,
-   which the home screen does not load; scoped to the card so they never
-   reach the classic observer cards if this file stays loaded there. */
+/* The card's polar plot (PolarPlotSvg). Scoped to the card. */
 .pass-card__plot .polar-plot {
   display: block;
   width: 100%;
@@ -443,8 +440,7 @@
 }
 
 /* Sky chart and radio chart modals (SkyChartModalView, RadioChartModalView).
-   Copied from pass-finder.css so the charts look exactly as in the classic app.
-   Every declaration matches the classic rule, so loading both files is harmless. */
+   This file is the chart style source. */
 #polar-modal,
 #radio-modal {
   position: fixed; inset: 0; z-index: 5000;

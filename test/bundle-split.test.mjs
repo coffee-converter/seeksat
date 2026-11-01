@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -83,4 +83,25 @@ for (const [label, entry] of [
 test('the card painter does not reach charts.js', () => {
   const set = reachable(path.join(ROOT, 'lib/passes/card-chart.js'));
   assert.ok(!set.has('lib/passes/charts.js'));
+});
+
+function appEntries(dir) {
+  const out = [];
+  for (const name of readdirSync(dir)) {
+    const p = path.join(dir, name);
+    if (statSync(p).isDirectory()) out.push(...appEntries(p));
+    else if (/^(page|layout|route)\.(tsx|ts|js|mjs)$/.test(name)) out.push(p);
+  }
+  return out;
+}
+
+test('no page, layout or route under app/ reaches the scene, Cesium or CesiumLoader', () => {
+  const entries = appEntries(path.join(ROOT, 'app'));
+  assert.ok(entries.length > 0);
+  for (const entry of entries) {
+    const { files, packages } = walk(entry);
+    const hit = [...files, ...packages].filter((p) =>
+      p === 'lib/pass-finder-scene.js' || /cesium/i.test(p) || p === 'components/CesiumLoader.tsx');
+    assert.deepEqual(hit, [], `${path.relative(ROOT, entry)} reaches: ${hit.join(', ')}`);
+  }
 });

@@ -86,9 +86,6 @@ const nextConfig: NextConfig = {
   // (its linux binary silently dropped all text on Vercel) and jsdom (its
   // dep tree hit ERR_REQUIRE_ESM), which is why there's no serverExternal
   // list anymore.
-  // Cesium is loaded from the CDN via a <Script> in app/classic/layout.tsx
-  // (same approach as the legacy static pages) - keeps the bundle
-  // out of Webpack/Turbopack and avoids the asset-copy ceremony.
 
   async headers() {
     return [

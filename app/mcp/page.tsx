@@ -19,8 +19,7 @@ export default function McpDocsPage() {
       <header>
         <h1><span className="seek">Seek</span><span className="sat">Sat</span> MCP</h1>
         <p className="lede">
-          Same engine, two faces: the web app renders satellite passes in a 3D globe for
-          humans; this MCP server exposes the same SGP4 + visibility-physics engine to AI agents.
+          Same engine, two faces: the web app shows satellite pages and pass lists for people; this MCP server exposes the same SGP4 + visibility-physics engine to AI agents.
         </p>
       </header>
 
@@ -69,7 +68,7 @@ export default function McpDocsPage() {
       </section>
 
       <footer>
-        <Link href="/">← Back to the globe</Link>
+        <Link href="/">← Back to SeekSat</Link>
         {GITHUB_URL && (
           <> · <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">Source</a></>
         )}
