@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import FlatMap, { type MapSat } from "@/components/home/FlatMap";
+import FlatMap from "@/components/home/FlatMap";
+import FocusBar from "@/components/home/FocusBar";
+import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { type NextPassTile } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
 import HowWeCompute from "./HowWeCompute";
@@ -14,12 +16,14 @@ import ShareButton from "./ShareButton";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import PassSection, { type NextPassReport, type PassSettings } from "./PassSection";
 import RawElements from "./RawElements";
-import { useHomeStore } from "@/lib/home/store";
+import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
+import { satPageLayers, showAllCount } from "@/lib/home/focus.mjs";
+import { tracksFor } from "@/lib/home/records.mjs";
+import { followedTracks } from "@/lib/home/view.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { resolveSatellite } from "@/lib/catalog.mjs";
 import { makeTrack } from "@/lib/sat/track.mjs";
 import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/numbers.mjs";
-import { footprintFeature, splitTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { nextPassTile } from "@/lib/sat/next-pass-tile.mjs";
@@ -43,18 +47,12 @@ const sharedOf = sharedSettings as (d: SharedBlob | null | undefined) => Shared 
 const effectiveOf = effectiveSettings as (prefs: unknown, shared: Shared | null) => PassSettings;
 const bannerOf = sharedBannerText as (s: Shared) => string;
 
-type Shape = MapSat["trackPast"];
-type Split = Pick<MapSat, "trackPast" | "trackFuture" | "trackTicks">;
-type Sub = { latDeg: number; lonDeg: number; altKm: number };
-const subOf = subpoint as (ecef: number[]) => Sub;
-const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
-const splitOf = splitTrack as (track: unknown, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
-const trackOf = (t: unknown, nowMs: number): Split => {
-  const s = splitOf(t, nowMs);
-  return { trackPast: s.past, trackFuture: s.future, trackTicks: s.ticks };
-};
-
-const TRACK_REFRESH_MS = 60_000;
+const pageLayersOf = satPageLayers as (o: {
+  followed: number[]; hidden: number[]; focusId: number | null; pageId: number;
+}) => Layer[];
+const countOf = showAllCount as (layers: Layer[]) => number;
+type HomeTrack = MapTrack & { record?: { source?: string } };
+const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, HomeTrack>;
 const tileOf = nextPassTile as (next: NextPassReport, o: {
   nowMs: number; located: boolean; hydrated: boolean; mode: string; minElevDeg: number;
 }) => NextPassTile;
@@ -67,6 +65,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const setPrefs = useHomeStore((s) => s.setPrefs);
+  const records = useHomeStore((s) => s.records);
+  const loadRecords = useHomeStore((s) => s.loadRecords);
 
   // A shared view lives here only, laid over the prefs and never saved.
   // It comes from the server-decoded prop, so the first render matches.
@@ -153,29 +153,53 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const epochMs = data.elementEpochMs;
   const age = useMemo(() => elementAge(epochMs, nowMs), [epochMs, nowMs]);
 
-  const trackMinute = Math.floor(nowMs / TRACK_REFRESH_MS);
-  const ground = useMemo(() => {
-    if (!track || !usable) return null;
-    try { return trackOf(track, trackMinute * TRACK_REFRESH_MS); } catch { return null; }
-  }, [track, usable, trackMinute]);
-
-  const { sats, selectedSub } = useMemo(() => {
-    if (!track || !ground) return { sats: [] as MapSat[], selectedSub: null };
-    const ecef = (track as { ecefAt: (d: Date) => number[] | null }).ecefAt(new Date(nowMs));
-    if (!ecef) return { sats: [] as MapSat[], selectedSub: null };
-    const sub = subOf(ecef);
-    const sat: MapSat = {
-      noradId: data.noradId,
-      name: data.shortName,
-      color: SAT_PALETTE[0],
-      ...ground,
-      position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
-      footprint: footprintOf(sub, sub.altKm, settings.minElevDeg),
-      selected: true,
-      orbitClass: (track as { orbitClass: string }).orbitClass,
+  // The map starts focused on this satellite. Show all draws the followed
+  // ones too, without navigating; their records load on the first Show all.
+  const [focusId, setFocusId] = useState<number | null>(data.noradId);
+  const loadedOthers = useRef(false);
+  const showAll = useCallback(() => {
+    setFocusId(null);
+    if (!loadedOthers.current) {
+      loadedOthers.current = true;
+      void loadRecords();
+    }
+  }, [loadRecords]);
+  useEffect(() => {
+    if (focusId == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      showAll();
     };
-    return { sats: [sat], selectedSub: sub };
-  }, [track, ground, nowMs, data.noradId, data.shortName, settings.minElevDeg]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusId, showAll]);
+
+  const mapTracks = useMemo(() => {
+    const out = new Map<number, HomeTrack>(
+      followedTracks(buildTracks(records, prefs.custom), prefs.following) as Map<number, HomeTrack>,
+    );
+    if (track && usable) out.set(data.noradId, track as HomeTrack);
+    return out;
+  }, [records, prefs.custom, prefs.following, track, usable, data.noradId]);
+  const colors = useMemo(() => {
+    const out = new Map(prefs.following.map((id, i) => [id, SAT_PALETTE[i % SAT_PALETTE.length]]));
+    // Not followed: the next colour, as a viewing satellite gets on the home page.
+    if (!out.has(data.noradId)) out.set(data.noradId, SAT_PALETTE[out.size % SAT_PALETTE.length]);
+    return out;
+  }, [prefs.following, data.noradId]);
+  const layers = useMemo(() => pageLayersOf({
+    followed: prefs.following, hidden: prefs.hidden, focusId, pageId: data.noradId,
+  }), [prefs.following, prefs.hidden, focusId, data.noradId]);
+  const showAllTotal = countOf(pageLayersOf({
+    followed: prefs.following, hidden: prefs.hidden, focusId: null, pageId: data.noradId,
+  }));
+  const { sats, focusSub } = useMapSats({
+    layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg,
+  });
+  const focusName = focusId === data.noradId ? data.shortName : focusId != null ? mapTracks.get(focusId)?.shortName ?? `NORAD ${focusId}` : "";
+  const focusFollowed = focusId != null && prefs.following.includes(focusId);
 
   const [nextPass, setNextPass] = useState<NextPassReport>(undefined);
   const nextTile = tileOf(nextPass, {
@@ -244,12 +268,25 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
               <FlatMap
                 sats={sats}
                 observer={settings.observer}
-                selectedSub={selectedSub}
+                selectedSub={focusSub}
                 projectionId={prefs.projection}
                 onProjectionChange={(id) => setPrefs({ projection: id })}
-                selectedId={data.noradId}
+                selectedId={focusId}
                 minElevDeg={settings.minElevDeg}
-                onSelect={() => {}}
+                onSelect={setFocusId}
+                top={focusId != null && (
+                  <FocusBar
+                    name={focusName}
+                    followed={focusFollowed}
+                    blocked={followBlockedMessage(prefs.following, focusId) as string | null}
+                    total={showAllTotal}
+                    pageHref={focusId === data.noradId || mapTracks.get(focusId)?.record?.source === "pasted"
+                      ? null
+                      : `/sat/${focusId}`}
+                    onToggleFollow={() => (focusFollowed ? unfollow(focusId) : follow(focusId))}
+                    onShowAll={showAll}
+                  />
+                )}
               />
             </div>
             <OrbitDiagram track={track} nowMs={nowMs} />

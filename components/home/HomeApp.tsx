@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import FlatMap, { type MapSat } from "./FlatMap";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import FlatMap from "./FlatMap";
+import FocusBar from "./FocusBar";
+import SatChips, { type Chip } from "./SatChips";
+import { useMapSats, type Layer } from "./useMapSats";
 import { SearchBar } from "./SearchBar";
 import HomeControls from "./HomeControls";
 import LocationPrompt, { PopularList } from "./LocationPrompt";
@@ -12,7 +16,8 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { followedTracks, shouldRefreshCards } from "@/lib/home/view.mjs";
-import { footprintFeature, splitTrack, subpoint } from "@/lib/map/geometry.mjs";
+import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
+import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -21,20 +26,23 @@ import LiveClock from "@/components/LiveClock";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import "@/app/home.css";
 
-const TRACK_REFRESH_MS = 60_000;
 const CARD_REFRESH_MS = 10 * 60_000;
 
-type Shape = MapSat["trackPast"];
-type Split = Pick<MapSat, "trackPast" | "trackFuture" | "trackTicks">;
-type Sub = { latDeg: number; lonDeg: number; altKm: number };
 const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, Track>;
-const subOf = subpoint as (ecef: number[]) => Sub;
-const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
-const splitOf = splitTrack as (track: Track, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
-const trackOf = (t: Track, nowMs: number): Split => {
-  const s = splitOf(t, nowMs);
-  return { trackPast: s.past, trackFuture: s.future, trackTicks: s.ticks };
-};
+const layersOf = mapLayers as (o: {
+  followed: number[]; hidden: number[]; focusId: number | null; viewing: number | null;
+}) => Layer[];
+const countOf = showAllCount as (layers: Layer[]) => number;
+
+/** Reads ?focus= into the store. Alone inside Suspense, so / stays static. */
+function FocusParam() {
+  const raw = useSearchParams().get("focus");
+  const setFocusId = useHomeStore((s) => s.setFocusId);
+  useEffect(() => {
+    setFocusId(parseFocus(raw) as number | null);
+  }, [raw, setFocusId]);
+  return null;
+}
 
 interface Props {
   /** Snapshot records for the popular set, shown until the first load lands. */
@@ -48,12 +56,16 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const missing = useHomeStore((s) => s.missing);
   const status = useHomeStore((s) => s.status);
   const error = useHomeStore((s) => s.error);
-  const selectedId = useHomeStore((s) => s.selectedId);
+  const focusId = useHomeStore((s) => s.focusId);
+  const viewing = useHomeStore((s) => s.viewing);
   const hydrate = useHomeStore((s) => s.hydrate);
   const loadRecords = useHomeStore((s) => s.loadRecords);
+  const loadViewing = useHomeStore((s) => s.loadViewing);
   const setPrefs = useHomeStore((s) => s.setPrefs);
+  const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
-  const setSelectedId = useHomeStore((s) => s.setSelectedId);
+  const toggleHidden = useHomeStore((s) => s.toggleHidden);
+  const router = useRouter();
 
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [changingLocation, setChangingLocation] = useState(false);
@@ -102,18 +114,69 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     [initialRecords],
   );
   const shownRecords = records.size > 0 || status === "ready" ? records : seed;
+  // Every track the map might draw: the followed ones plus a viewing one.
+  const allTracks = useMemo(() => {
+    const all = new Map(shownRecords);
+    if (viewing && !all.has(viewing.noradId as number)) all.set(viewing.noradId as number, viewing);
+    return buildTracks(all, prefs.custom);
+  }, [shownRecords, viewing, prefs.custom]);
   const tracks = useMemo(
-    () => followedTracks(buildTracks(shownRecords, prefs.custom), prefs.following) as Map<number, Track>,
-    [shownRecords, prefs.custom, prefs.following],
+    () => followedTracks(allTracks, prefs.following) as Map<number, Track>,
+    [allTracks, prefs.following],
   );
   const shownMissing = useMemo(
     () => missing.filter((id) => prefs.following.includes(id)),
     [missing, prefs.following],
   );
-  const colors = useMemo(
-    () => new Map(prefs.following.map((id, i) => [id, SAT_PALETTE[i % SAT_PALETTE.length]])),
-    [prefs.following],
+  const colors = useMemo(() => {
+    const out = new Map(prefs.following.map((id, i) => [id, SAT_PALETTE[i % SAT_PALETTE.length]]));
+    if (focusId != null && !out.has(focusId)) out.set(focusId, SAT_PALETTE[out.size % SAT_PALETTE.length]);
+    return out;
+  }, [prefs.following, focusId]);
+
+  // Focus lives in ?focus=. The first focus replaces the URL, switching pushes,
+  // clearing replaces.
+  const focusOn = useCallback((id: number | null) => {
+    const method = focusNavMethod(useHomeStore.getState().focusId, id) as "push" | "replace" | null;
+    if (!method) return;
+    useHomeStore.getState().setFocusId(id);
+    router[method](focusHref(window.location.pathname, window.location.search, id) as string, { scroll: false });
+  }, [router]);
+  // A focus that is not followed (from search, or a shared link) needs its record.
+  useEffect(() => {
+    if (hydrated && focusId != null && !prefs.following.includes(focusId)) void loadViewing(focusId);
+  }, [hydrated, focusId, prefs.following, loadViewing]);
+  useEffect(() => {
+    if (focusId == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      focusOn(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusId, focusOn]);
+
+  const layers = useMemo(() => layersOf({
+    followed: prefs.following,
+    hidden: prefs.hidden,
+    focusId,
+    viewing: (viewing?.noradId as number | undefined) ?? null,
+  }), [prefs.following, prefs.hidden, focusId, viewing]);
+  const showAll = useMemo(
+    () => countOf(layersOf({ followed: prefs.following, hidden: prefs.hidden, focusId: null, viewing: null })),
+    [prefs.following, prefs.hidden],
   );
+  const nameOf = useCallback((id: number) => allTracks.get(id)?.shortName
+    ?? CATALOG.find((s) => s.noradId === id)?.shortName
+    ?? `NORAD ${id}`, [allTracks]);
+  const chips = useMemo<Chip[]>(() => prefs.following.map((id) => ({
+    noradId: id,
+    name: nameOf(id),
+    color: colors.get(id) ?? SAT_PALETTE[0],
+    hidden: prefs.hidden.includes(id),
+  })), [prefs.following, prefs.hidden, nameOf, colors]);
 
   const location = prefs.location;
   const observer = useMemo<HomeObserver | null>(
@@ -129,41 +192,9 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     [location],
   );
 
-  // Ground tracks are the costly part of the map: once a minute.
-  const trackMinute = nowMs == null ? null : Math.floor(nowMs / TRACK_REFRESH_MS);
-  const groundTracks = useMemo(() => {
-    const out = new Map<number, Split>();
-    if (trackMinute == null) return out;
-    for (const [id, t] of tracks) out.set(id, trackOf(t, trackMinute * TRACK_REFRESH_MS));
-    return out;
-  }, [tracks, trackMinute]);
-
-  // Positions every second.
-  const { sats, selectedSub } = useMemo(() => {
-    const list: MapSat[] = [];
-    let sel: Sub | null = null;
-    if (nowMs == null) return { sats: list, selectedSub: sel };
-    const at = new Date(nowMs);
-    for (const [id, t] of tracks) {
-      const ecef = t.ecefAt(at);
-      const track = groundTracks.get(id);
-      if (!ecef || !track) continue;
-      const sub = subOf(ecef);
-      const selected = id === selectedId;
-      if (selected) sel = sub;
-      list.push({
-        noradId: id,
-        name: t.shortName,
-        color: colors.get(id) ?? SAT_PALETTE[0],
-        ...track,
-        position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
-        footprint: selected ? footprintOf(sub, sub.altKm, prefs.minElevDeg) : null,
-        selected,
-        orbitClass: t.orbitClass,
-      });
-    }
-    return { sats: list, selectedSub: sel };
-  }, [nowMs, tracks, groundTracks, colors, selectedId, prefs.minElevDeg]);
+  const { sats, focusSub } = useMapSats({
+    layers, tracks: allTracks, colors, nowMs, minElevDeg: prefs.minElevDeg,
+  });
 
   // Cards: on any input change, every 10 min, and when a pass starts or ends.
   // Cards are kept with the inputs they were computed for and shown only
@@ -247,16 +278,33 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         <LiveClock nowMs={nowMs} compact />
       </header>
       <ClockSkewBanner />
-      <SearchBar />
+      <Suspense fallback={null}>
+        <FocusParam />
+      </Suspense>
+      <SearchBar onView={focusOn} />
       <FlatMap
         sats={sats}
         observer={location}
-        selectedSub={selectedSub}
+        selectedSub={focusSub}
         projectionId={prefs.projection}
         onProjectionChange={(id) => setPrefs({ projection: id })}
-        selectedId={selectedId}
+        selectedId={focusId}
         minElevDeg={prefs.minElevDeg}
-        onSelect={setSelectedId}
+        onSelect={focusOn}
+        top={focusId != null && (
+          <FocusBar
+            name={nameOf(focusId)}
+            followed={prefs.following.includes(focusId)}
+            blocked={followBlockedMessage(prefs.following, focusId) as string | null}
+            total={showAll}
+            pageHref={allTracks.get(focusId)?.record?.source === "pasted" ? null : `/sat/${focusId}`}
+            onToggleFollow={() => (prefs.following.includes(focusId) ? unfollow(focusId) : follow(focusId))}
+            onShowAll={() => focusOn(null)}
+          />
+        )}
+        chips={hydrated && (
+          <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={toggleHidden} />
+        )}
       />
       <HomeControls
         ready={hydrated}
@@ -307,6 +355,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                 minElevDeg={prefs.minElevDeg}
                 nowMs={nowMs}
                 onUnfollow={unfollow}
+                focusId={focusId}
+                onFocus={focusOn}
               />
             )
           )}

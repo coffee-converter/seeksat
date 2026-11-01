@@ -83,10 +83,25 @@ interface PassCardProps {
   onSkyChart: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onRadioChart: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onUnfollow: () => void;
+  focus: FocusState;
+  onFocus: () => void;
+}
+
+/** none: nothing is focused; focus: this card's satellite is; dim: another is. */
+type FocusState = "none" | "focus" | "dim";
+const focusClass = (f: FocusState) => (f === "none" ? "" : ` pass-card--${f}`);
+
+/** The headline, as a button that focuses the satellite on the map. */
+function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; onFocus: () => void }) {
+  return (
+    <button type="button" className="pass-card__focus" aria-pressed={focus === "focus"} onClick={onFocus}>
+      <FlashText value={text} />
+    </button>
+  );
 }
 
 function PassCard({
-  card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onUnfollow,
+  card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onUnfollow, focus, onFocus,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
@@ -121,12 +136,12 @@ function PassCard({
   };
 
   return (
-    <li className="pass-card" style={{ "--sat-color": color } as React.CSSProperties}>
+    <li className={`pass-card${focusClass(focus)}`} style={{ "--sat-color": color } as React.CSSProperties}>
       <div className="pass-card__plot" aria-hidden="true">
         <PolarPlotSvg ref={svgRef} />
       </div>
       <div className="pass-card__body">
-        <p className="pass-card__headline"><FlashText value={headline(card, nowMs)} /></p>
+        <p className="pass-card__headline"><Headline text={headline(card, nowMs)} focus={focus} onFocus={onFocus} /></p>
         <p className="pass-card__meta">
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
           {pass.visible && <span className="pass-card__tag">visible</span>}
@@ -157,13 +172,19 @@ interface Props {
   minElevDeg: number;
   nowMs: number;
   onUnfollow: (noradId: number) => void;
+  /** The focused satellite: its card is pinned first and the others dim. */
+  focusId: number | null;
+  onFocus: (noradId: number) => void;
 }
 
 // "Next up": one card per followed satellite, with the sky and radio chart
 // modals for a pass card.
 export default function NextUpList({
-  cards, tracks, colors, observer, mode, minElevDeg, nowMs, onUnfollow,
+  cards: cardsIn, tracks, colors, observer, mode, minElevDeg, nowMs, onUnfollow, focusId, onFocus,
 }: Props) {
+  const pinned = cardsIn.find((c) => c.noradId === focusId);
+  const cards = pinned ? [pinned, ...cardsIn.filter((c) => c !== pinned)] : cardsIn;
+  const focusOf = (id: number): FocusState => (focusId == null ? "none" : id === focusId ? "focus" : "dim");
   // The subject is captured when a chart opens, so a card refresh or the
   // clock never repaints an open chart.
   const [subject, setSubject] = useState<ChartSubject | null>(null);
@@ -203,17 +224,19 @@ export default function NextUpList({
                 onSkyChart={(e) => open("sky", track, card.pass, e)}
                 onRadioChart={(e) => open("radio", track, card.pass, e)}
                 onUnfollow={() => onUnfollow(card.noradId)}
+                focus={focusOf(card.noradId)}
+                onFocus={() => onFocus(card.noradId)}
               />
             );
           }
           return (
             <li
               key={card.noradId}
-              className="pass-card pass-card--short"
+              className={`pass-card pass-card--short${focusClass(focusOf(card.noradId))}`}
               style={{ "--sat-color": color } as React.CSSProperties}
             >
               <p className="pass-card__headline">
-                <FlashText value={headline(card, nowMs)} />
+                <Headline text={headline(card, nowMs)} focus={focusOf(card.noradId)} onFocus={() => onFocus(card.noradId)} />
                 <ElementTags track={track} />
               </p>
               {card.kind !== "missing" && track?.record?.source !== "pasted" && (

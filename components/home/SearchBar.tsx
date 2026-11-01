@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { searchQuery, searchUrl } from "@/lib/home/search.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
+import { followLabel } from "@/lib/home/focus.mjs";
 import { useHomeStore } from "@/lib/home/store";
 
 interface Result {
@@ -13,7 +14,12 @@ type Status = "idle" | "loading" | "done" | "error";
 
 const DEBOUNCE_MS = 250;
 
-export function SearchBar() {
+interface Props {
+  /** View a result: focus it on the map (search means view, not follow). */
+  onView: (noradId: number) => void;
+}
+
+export function SearchBar({ onView }: Props) {
   const uid = useId();
   const listId = `${uid}-list`;
   const [text, setText] = useState("");
@@ -29,8 +35,8 @@ export function SearchBar() {
 
   const following = useHomeStore((s) => s.prefs.following);
   const follow = useHomeStore((s) => s.follow);
+  const unfollow = useHomeStore((s) => s.unfollow);
   const addCustom = useHomeStore((s) => s.addCustom);
-  const setSelectedId = useHomeStore((s) => s.setSelectedId);
   const hydrate = useHomeStore((s) => s.hydrate);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -78,17 +84,27 @@ export function SearchBar() {
     }, DEBOUNCE_MS);
   }
 
-  function choose(r: Result) {
-    // At the cap, following would do nothing: say so and keep the list open.
+  // The star: follow or unfollow, keeping the list open.
+  function toggleFollow(r: Result) {
+    if (following.includes(r.noradId)) {
+      setLimitError(null);
+      unfollow(r.noradId);
+      return;
+    }
+    // At the cap, following would do nothing: say so.
     const blocked = followBlockedMessage(following, r.noradId);
     if (blocked) {
       setLimitError(blocked);
       return;
     }
+    follow(r.noradId);
+  }
+
+  function choose(r: Result) {
     if (timer.current) clearTimeout(timer.current);
     abort.current?.abort();
-    follow(r.noradId);
-    setSelectedId(r.noradId);
+    onView(r.noradId);
+    setLimitError(null);
     setOpen(false);
     setText("");
     setResults([]);
@@ -181,22 +197,38 @@ export function SearchBar() {
         className="search-bar__list"
         hidden={!listVisible}
       >
-        {results.map((r, i) => (
-          <li
-            key={r.noradId}
-            id={`${uid}-opt-${i}`}
-            role="option"
-            aria-selected={i === active}
-            className="search-bar__option"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => choose(r)}
-          >
-            <span>
-              {r.name} <span className="search-bar__id">{r.noradId}</span>
-            </span>
-            {following.includes(r.noradId) && <span className="search-bar__tag">Following</span>}
-          </li>
-        ))}
+        {results.map((r, i) => {
+          const followed = following.includes(r.noradId);
+          return (
+            <li
+              key={r.noradId}
+              id={`${uid}-opt-${i}`}
+              role="option"
+              aria-selected={i === active}
+              className="search-bar__option"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(r)}
+            >
+              <span className="search-bar__name">
+                {r.name} <span className="search-bar__id">{r.noradId}</span>
+              </span>
+              {/* Out of the tab order: the focus bar has the same toggle for keyboards. */}
+              <button
+                type="button"
+                tabIndex={-1}
+                className={`search-bar__star${followed ? " search-bar__star--on" : ""}`}
+                aria-label={followLabel(r.name, followed)}
+                aria-pressed={followed}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFollow(r);
+                }}
+              >
+                {followed ? "\u2605" : "\u2606"}
+              </button>
+            </li>
+          );
+        })}
       </ul>
       {showList && limitError && (
         <p className="search-bar__error" role="alert">

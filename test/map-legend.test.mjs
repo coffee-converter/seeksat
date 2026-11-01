@@ -30,3 +30,18 @@ test('keys are unique', () => {
   const items = legendItems({ sats: [iss, goes], observer: obs, minElevDeg: 10 });
   assert.equal(new Set(items.map((i) => i.key)).size, items.length);
 });
+
+test('ghost and hidden satellites are not listed; ghosts get one faint-dot line', () => {
+  const items = legendItems({
+    sats: [{ ...iss, emphasis: 'focus' }, { ...goes, emphasis: 'ghost' }, { noradId: 3, name: 'X', color: '#fff', emphasis: 'hidden', orbitClass: 'leo' }],
+    observer: null,
+    minElevDeg: 10,
+  });
+  assert.deepEqual(items.map((i) => i.kind), ['sat', 'ghost', 'track', 'footprint', 'night']);
+  assert.equal(items[1].label, 'Faint dots: the other satellites you follow');
+});
+
+test('the GEO label ignores ghosts', () => {
+  const items = legendItems({ sats: [{ ...goes, emphasis: 'focus' }, { ...iss, emphasis: 'ghost' }], observer: null, minElevDeg: 5 });
+  assert.match(items.find((i) => i.kind === 'track').label, /every hour/);
+});

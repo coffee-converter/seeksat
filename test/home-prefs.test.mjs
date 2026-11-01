@@ -53,6 +53,7 @@ test('valid object round-trips', () => {
     minElevDeg: 20,
     projection: defaultPrefs().projection,
     observers: [{ id: 'obs-2', name: 'FN31', latDeg: 41.5, lonDeg: -72.7 }],
+    hidden: [41866],
   };
   assert.deepEqual(parsePrefs(JSON.parse(JSON.stringify(p))), p);
 });
@@ -130,4 +131,17 @@ test('migration never throws and ignores junk', () => {
   assert.equal(migrateClassicState(memStorage({ [LS_STATE_KEY]: encodeStateBlob({ observers: [] }) })), null);
   const p = migrateClassicState(memStorage({ [LS_STATE_KEY]: encodeStateBlob({ observers: [{ name: '', latDeg: 1, lonDeg: 2 }] }) }));
   assert.equal(p.location.name, 'Observer'); // the decoder already names nameless observers
+});
+
+test('hidden defaults to [] and old prefs parse to []', () => {
+  assert.deepEqual(defaultPrefs().hidden, []);
+  assert.deepEqual(parsePrefs({ mode: 'visual' }).hidden, []);
+  assert.deepEqual(parsePrefs({ hidden: 'x' }).hidden, []);
+});
+
+test('hidden is cleaned like following and keeps only followed ids', () => {
+  const p = parsePrefs({ following: [1, 2, 3], hidden: [3, 3, 'a', 2.5, 0, 9, 1] });
+  assert.deepEqual(p.hidden, [3, 1]);
+  // With following missing, the defaults are what hidden is checked against.
+  assert.deepEqual(parsePrefs({ hidden: [POPULAR_IDS[1], 77] }).hidden, [POPULAR_IDS[1]]);
 });

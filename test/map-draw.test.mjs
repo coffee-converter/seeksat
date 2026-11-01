@@ -236,3 +236,68 @@ test('ticks are labelled +10m and +20m for the selected satellite only', () => {
   assert.ok(!texts.includes('+30m'));
   assert.ok(!texts.includes('+1h'));
 });
+
+// Emphasis: focus, normal, ghost and hidden.
+function emphasisScene() {
+  const [iss, goes] = scene();
+  return { iss, goes };
+}
+
+test('a ghost is a 3 px dot at alpha 0.35 with no track or label', () => {
+  const { iss, goes } = emphasisScene();
+  const ghost = { ...goes, emphasis: 'ghost', selected: false, footprint: null };
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, { ...args([ghost]), observer: null, land: null, nightBands: [] });
+  const arcs = calls.filter((c) => c.m === 'arc');
+  assert.equal(arcs.length, 1);
+  assert.equal(arcs[0].args[2], 3);
+  const fill = calls[calls.indexOf(arcs[0]) + 1];
+  assert.equal(fill.m, 'fill');
+  assert.equal(fill.fillStyle, goes.color);
+  assert.equal(fill.globalAlpha, 0.35);
+  assert.deepEqual(calls.filter((c) => c.m === 'fillText'), []);
+  assert.ok(!strokes(calls).some((c) => c.strokeStyle === goes.color));
+  void iss;
+});
+
+test('a hidden satellite is not drawn at all', () => {
+  const { goes } = emphasisScene();
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, { ...args([{ ...goes, emphasis: 'hidden' }]), observer: null, land: null, nightBands: [] });
+  assert.equal(calls.filter((c) => c.m === 'arc').length, 0);
+  assert.deepEqual(calls.filter((c) => c.m === 'fillText'), []);
+  assert.ok(!strokes(calls).some((c) => c.strokeStyle === goes.color));
+});
+
+test('focus draws its footprint, labelled ticks and a dot 1 px larger; normal has no footprint', () => {
+  const { iss, goes } = emphasisScene();
+  const focus = { ...iss, emphasis: 'focus', selected: true };
+  const normal = { ...goes, emphasis: 'normal', selected: false, footprint: footprintFeature(
+    { lonDeg: goes.position.lonDeg, latDeg: goes.position.latDeg }, 35786, 0) };
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, { ...args([normal, focus]), observer: null });
+  const radii = calls.filter((c) => c.m === 'arc').map((c) => [c.fillStyle, c.args[2]]);
+  assert.ok(calls.some((c) => c.m === 'fill' && c.globalAlpha === 0.18 && c.fillStyle === iss.color));
+  assert.ok(!calls.some((c) => c.m === 'fill' && c.globalAlpha === 0.18 && c.fillStyle === goes.color));
+  const texts = calls.filter((c) => c.m === 'fillText').map((c) => c.args[0]);
+  assert.ok(texts.includes('+10m'));
+  assert.ok(texts.includes('ISS') && texts.includes('GOES 16'));
+  void radii;
+  const dots = calls.filter((c) => c.m === 'arc' && c.args[2] >= 4).map((c) => c.args[2]);
+  assert.deepEqual(dots.sort(), [4, 5]);
+});
+
+test('ghosts draw under normal and focus dots', () => {
+  const { iss, goes } = emphasisScene();
+  const { ctx, calls } = recordingCtx();
+  drawMap(ctx, { ...args([{ ...iss, emphasis: 'focus' }, { ...goes, emphasis: 'ghost', footprint: null }]), observer: null });
+  const radii = calls.filter((c) => c.m === 'arc').map((c) => c.args[2]);
+  assert.deepEqual(radii, [3, 5]);
+});
+
+test('hitTest skips hidden satellites and finds ghosts', () => {
+  const projection = makeProjection('equirectangular', { width: W, height: H });
+  const [x, y] = projection([0, 0]);
+  assert.equal(hitTest([{ noradId: 1, emphasis: 'hidden', position: { lonDeg: 0, latDeg: 0 } }], projection, x, y), null);
+  assert.equal(hitTest([{ noradId: 2, emphasis: 'ghost', position: { lonDeg: 0, latDeg: 0 } }], projection, x, y), 2);
+});

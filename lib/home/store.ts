@@ -5,7 +5,9 @@
 // watchVisibility() to document.visibilitychange from the component.
 
 import { create } from "zustand";
-import { addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, unfollowIn } from "./actions.mjs";
+import {
+  addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, toggleHiddenIn, unfollowIn,
+} from "./actions.mjs";
 import { defaultPrefs, loadPrefs, savePrefs } from "./prefs.mjs";
 import { fetchRecords } from "./records.mjs";
 
@@ -35,11 +37,14 @@ export interface Prefs {
   minElevDeg: number;
   projection: string;
   observers: ExtraObserver[];
+  /** Followed ids not drawn on the map unless focused. */
+  hidden: number[];
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SatApiRecord = Record<string, any>;
 
 const loadGuard = createLoadGuard();
+const viewGuard = createLoadGuard();
 
 interface HomeState {
   prefs: Prefs;
@@ -49,12 +54,18 @@ interface HomeState {
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
   lastLoadedMs: number | null;
-  selectedId: number | null;
+  /** The focused satellite (selected means focused). On / it mirrors ?focus=. */
+  focusId: number | null;
+  /** The record of a focused satellite that is not followed, opened from search. */
+  viewing: SatApiRecord | null;
   hydrate: () => void;
   setPrefs: (patch: Partial<Prefs>) => void;
   loadRecords: () => Promise<void>;
   reloadIfStale: (nowMs: number) => Promise<void>;
-  setSelectedId: (id: number | null) => void;
+  setFocusId: (id: number | null) => void;
+  /** Make sure a non-followed focus has its record, fetching it when needed. */
+  loadViewing: (id: number) => Promise<void>;
+  toggleHidden: (id: number) => void;
   follow: (id: number) => void;
   unfollow: (id: number) => void;
   addCustom: (text: string) => { ok: true } | { ok: false; message: string };
@@ -70,7 +81,8 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   status: "idle",
   error: null,
   lastLoadedMs: null,
-  selectedId: null,
+  focusId: null,
+  viewing: null,
 
   hydrate: () => {
     if (get().hydrated) return;
@@ -107,7 +119,33 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     if (isStale(lastLoadedMs, nowMs)) await get().loadRecords();
   },
 
-  setSelectedId: (id) => set({ selectedId: id }),
+  setFocusId: (id) => {
+    if (get().focusId !== id) set({ focusId: id });
+  },
+
+  loadViewing: async (id) => {
+    get().hydrate();
+    const isLatest = viewGuard.begin();
+    if (get().prefs.following.includes(id)) return;
+    if (get().viewing?.noradId === id) return;
+    const known = get().records.get(id);
+    if (known) {
+      set({ viewing: known });
+      return;
+    }
+    try {
+      const { records } = await fetchRecords([id]);
+      const rec = records.get(id);
+      if (rec && isLatest()) set({ viewing: rec });
+    } catch {
+      // The focus bar still names it; the map just has nothing to draw.
+    }
+  },
+
+  toggleHidden: (id) => {
+    get().hydrate();
+    get().setPrefs({ hidden: toggleHiddenIn(get().prefs, id).hidden });
+  },
 
   follow: (id) => {
     get().hydrate();
@@ -120,8 +158,10 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   unfollow: (id) => {
     get().hydrate();
     const next = unfollowIn(get().prefs, id);
-    get().setPrefs({ following: next.following, custom: next.custom });
-    if (get().selectedId === id) set({ selectedId: null });
+    // A focused satellite stays on the map as a viewing one.
+    const rec = get().records.get(id);
+    if (rec && get().focusId === id) set({ viewing: rec });
+    get().setPrefs({ following: next.following, custom: next.custom, hidden: next.hidden });
   },
 
   addCustom: (text) => {

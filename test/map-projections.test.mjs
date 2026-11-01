@@ -52,3 +52,36 @@ test('winkel3 centres [0,0], zoom scales, clampZoom bounds', () => {
   assert.ok(Math.abs(b.scale() / a.scale() - 2) < 1e-9);
   assert.equal(clampZoom(0.2), 1); assert.equal(clampZoom(20), 8); assert.equal(clampZoom(3), 3);
 });
+
+test('centredPan puts the point at the centre when zoomed in', async () => {
+  const { centredPan, makeProjection: mk } = await import('../lib/map/projections.mjs');
+  const o = { width: 800, height: 400, zoom: 4 };
+  const pan = centredPan('equirectangular', o, 20, 10);
+  const [x, y] = mk('equirectangular', { ...o, pan })([20, 10]);
+  assert.ok(Math.abs(x - 400) < 1e-6 && Math.abs(y - 200) < 1e-6);
+});
+
+test('centredPan keeps the map covering the frame', async () => {
+  const { centredPan } = await import('../lib/map/projections.mjs');
+  // Zoom 2 on an 800 x 400 frame: the map is 1600 x 800, so pan is within +-400 x +-200.
+  const [px, py] = centredPan('equirectangular', { width: 800, height: 400, zoom: 2 }, 179, 89);
+  assert.ok(Math.abs(px + 400) < 1e-6 && Math.abs(py - 200) < 1e-6);
+});
+
+test('centredPan leaves an axis the map does not fill centred', async () => {
+  const { centredPan } = await import('../lib/map/projections.mjs');
+  // Zoom 1 on a 1200 x 400 frame: the map is 800 x 400 and moves nowhere.
+  assert.deepEqual(centredPan('equirectangular', { width: 1200, height: 400, zoom: 1 }, 120, 40), [0, 0]);
+});
+
+test('centredPan works on winkel3 and azimuthal, and only those and equirectangular', async () => {
+  const { centredPan, makeProjection: mk, CENTRE_ON_FOCUS } = await import('../lib/map/projections.mjs');
+  assert.deepEqual(CENTRE_ON_FOCUS, ['equirectangular', 'winkel3', 'azimuthal']);
+  const observer = { latDeg: 42, lonDeg: -88 };
+  for (const id of ['winkel3', 'azimuthal']) {
+    const o = { width: 800, height: 400, zoom: 6, observer };
+    const pan = centredPan(id, o, -80, 40);
+    const [x, y] = mk(id, { ...o, pan })([-80, 40]);
+    assert.ok(Math.abs(x - 400) < 1e-6 && Math.abs(y - 200) < 1e-6, id);
+  }
+});

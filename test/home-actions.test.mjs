@@ -123,3 +123,17 @@ test('removeObserverFrom drops by id', () => {
   assert.deepEqual(removeObserverFrom(p, 'obs-1').observers, []);
   assert.equal(removeObserverFrom(p, 'nope').observers.length, 1);
 });
+
+test('unfollowIn also drops the id from hidden', () => {
+  const p = { ...defaultPrefs(), following: [1, 2], hidden: [1, 2] };
+  assert.deepEqual(unfollowIn(p, 1).hidden, [2]);
+});
+
+test('toggleHiddenIn hides and shows a followed id only', async () => {
+  const { toggleHiddenIn } = await import('../lib/home/actions.mjs');
+  const p = { ...defaultPrefs(), following: [1, 2], hidden: [] };
+  const a = toggleHiddenIn(p, 2);
+  assert.deepEqual(a.hidden, [2]);
+  assert.deepEqual(toggleHiddenIn(a, 2).hidden, []);
+  assert.equal(toggleHiddenIn(p, 9), p);
+});

@@ -8,7 +8,9 @@ import { graticuleBox, graticuleLabels, graticuleStep, pickPlaceLabels } from "@
 import { createLabelCache, labelKey } from "@/lib/map/label-cache.mjs";
 import {
   PROJECTIONS,
+  CENTRE_ON_FOCUS,
   DEFAULT_PROJECTION,
+  centredPan,
   clampZoom,
   makeProjection,
   projectionAvailable,
@@ -16,6 +18,8 @@ import {
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
+/** How loudly the map draws a satellite (lib/home/focus.mjs mapLayers). */
+export type Emphasis = "focus" | "normal" | "ghost" | "hidden";
 
 export interface MapSat {
   noradId: number;
@@ -26,7 +30,9 @@ export interface MapSat {
   trackTicks: { lonDeg: number; latDeg: number; minutes: number }[];
   position: { lonDeg: number; latDeg: number };
   footprint: GeoShape | null;
+  /** True for the focused satellite. */
   selected: boolean;
+  emphasis: Emphasis;
   orbitClass: string;
 }
 
@@ -47,9 +53,15 @@ interface Props {
   observer: MapObserver | null;
   projectionId: string;
   onProjectionChange: (id: string) => void;
+  /** The focused satellite. Entering a focus pans to centre it. */
   selectedId: number | null;
   minElevDeg: number;
+  /** A tap on a dot, ghosts included. */
   onSelect: (noradId: number) => void;
+  /** Shown above the map, inside the full screen frame (the focus bar). */
+  top?: React.ReactNode;
+  /** Laid over the top of the map, left of the projection menu (the chips). */
+  chips?: React.ReactNode;
   /** Subpoint and altitude of the selected satellite, for the "From the satellite" view. */
   selectedSub?: SelectedSub | null;
 }
@@ -91,6 +103,12 @@ const pickPlaces = (
     get: (key: string, args: [Projection, LabelOpts]) => LabelSet;
   }
 );
+const panTo = centredPan as (
+  id: string,
+  o: { width: number; height: number; observer: MapObserver | null; sat: SelectedSub | null; zoom: number },
+  lonDeg: number,
+  latDeg: number,
+) => [number, number] | null;
 const keyOf = labelKey as unknown as (o: {
   projectionId: string; width: number; height: number; zoom: number; pan: [number, number];
   observer: MapObserver | null; sub: SelectedSub | null;
@@ -109,6 +127,8 @@ export default function FlatMap({
   minElevDeg,
   onSelect,
   selectedSub = null,
+  top = null,
+  chips = null,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -353,7 +373,11 @@ export default function FlatMap({
     if (!full) return;
     const fallback = !nativeFull.current;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && fallback) setFull(false);
+      if (e.key === "Escape" && fallback) {
+        // Leaving full screen is all this Esc does (it does not also clear focus).
+        e.preventDefault();
+        setFull(false);
+      }
     };
     if (fallback) document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
@@ -371,8 +395,28 @@ export default function FlatMap({
   useEffect(() => {
     view.current = { zoom: 1, pan: [0, 0] };
   }, [effectiveId]);
+  // Entering a focus pans once to centre it, keeping the zoom. It waits for the
+  // satellite to have a position, then leaves the view alone.
+  const centreOn = useRef<number | null>(null);
+  useEffect(() => {
+    centreOn.current = selectedId;
+  }, [selectedId]);
   // The parent's clock tick passes new props each second; redraw on any prop change.
   useEffect(() => {
+    const id = centreOn.current;
+    const { width, height } = size.current;
+    if (id != null && width) {
+      const cur = latest.current;
+      const sat = cur.sats.find((s) => s.noradId === id && s.emphasis === "focus");
+      if (!CENTRE_ON_FOCUS.includes(cur.projectionId)) centreOn.current = null;
+      else if (sat) {
+        centreOn.current = null;
+        const pan = panTo(cur.projectionId, {
+          width, height, observer: cur.observer, sat: cur.selectedSub, zoom: view.current.zoom,
+        }, sat.position.lonDeg, sat.position.latDeg);
+        if (pan) view.current = { zoom: view.current.zoom, pan };
+      }
+    }
     redraw();
   }, [redraw, sats, observer, effectiveId, selectedSub, selectedId]);
 
@@ -495,6 +539,7 @@ export default function FlatMap({
 
   return (
     <div className={`flat-map-shell${full ? " flat-map-shell--full" : ""}`} ref={shellRef}>
+    {top}
     <div className="flat-map" ref={wrapRef}>
       <canvas
         ref={canvasRef}
@@ -502,22 +547,25 @@ export default function FlatMap({
         role="img"
         aria-label="Map of followed satellites"
       />
-      <select
-        className="flat-map__menu"
-        aria-label="Map projection"
-        value={effectiveId}
-        onChange={(e) => onProjectionChange(e.target.value)}
-      >
-        {PROJECTIONS.map((p: { id: string; label: string }) => (
-          <option
-            key={p.id}
-            value={p.id}
-            disabled={!isAvailable(p.id, { observer, sat: selectedSub })}
-          >
-            {p.label}
-          </option>
-        ))}
-      </select>
+      <div className="flat-map__top">
+        {chips}
+        <select
+          className="flat-map__menu"
+          aria-label="Map projection"
+          value={effectiveId}
+          onChange={(e) => onProjectionChange(e.target.value)}
+        >
+          {PROJECTIONS.map((p: { id: string; label: string }) => (
+            <option
+              key={p.id}
+              value={p.id}
+              disabled={!isAvailable(p.id, { observer, sat: selectedSub })}
+            >
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="flat-map__zoom">
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.5)}>+</button>
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.5)}>{"\u2212"}</button>
@@ -541,9 +589,9 @@ export default function FlatMap({
           </tr>
         </thead>
         <tbody>
-          {sats.map((s) => (
+          {sats.filter((s) => s.emphasis !== "hidden").map((s) => (
             <tr key={s.noradId}>
-              <th scope="row">{s.name}{s.noradId === selectedId ? " (selected)" : ""}</th>
+              <th scope="row">{s.name}{s.noradId === selectedId ? " (focused)" : ""}</th>
               <td>{s.position.latDeg.toFixed(1)} degrees</td>
               <td>{s.position.lonDeg.toFixed(1)} degrees</td>
             </tr>
