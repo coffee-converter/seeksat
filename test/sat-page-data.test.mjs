@@ -81,6 +81,8 @@ test('satMetadata', () => {
   assert.equal(m.alternates.canonical, '/sat/25544');
   assert.match(m.description, /^Live position, speed and passes for ISS \(ZARYA\), NORAD 25544\. Orbit \d+ by \d+ km, period \d+\.\d min, inclination 51\.6°\.$/);
   assert.ok(!m.description.includes('—'));
+  assert.deepEqual(m.openGraph.images, [{ url: '/api/og/sat/25544', width: 1200, height: 630 }]);
+  assert.deepEqual(m.twitter, { card: 'summary_large_image', images: ['/api/og/sat/25544'] });
   const none = satMetadata({ ...satPageData(ISS_SERVED_RECORD, null, ISS_T0), elements: null });
   assert.equal(none.description, 'Live position and passes for ISS (ZARYA), NORAD 25544.');
 });
