@@ -92,7 +92,7 @@ test('fillView fills a tall frame on world maps only', async () => {
   const eq = fillView('equirectangular', o, 0);
   assert.ok(Math.abs(eq.zoom - 504 / (390 / 2)) < 1e-6, `zoom ${eq.zoom}`);
   // The map now spans the frame's full height.
-  const p = mk('equirectangular', { ...o, zoom: eq.zoom, pan: eq.pan });
+  const p = mk('equirectangular', { ...o, ...eq });
   const [[, y0], [, y1]] = geoPath(p).bounds({ type: 'Sphere' });
   assert.ok(Math.abs(y0) < 1 && Math.abs(y1 - 504) < 1, `${y0}..${y1}`);
   assert.ok(Math.abs(p([0, 0])[0] - 195) < 1, 'centred on lon 0');
@@ -105,12 +105,29 @@ test('fillView fills a tall frame on world maps only', async () => {
   assert.equal(fillView('equirectangular', { width: 900, height: 300 }, 0), null);
 });
 
-test('fillView centres on a longitude but keeps the map covering the frame', async () => {
+test('fillView centres any longitude by rotating, with no pan', async () => {
   const { fillView, makeProjection: mk } = await import('../lib/map/projections.mjs');
   const o = { width: 390, height: 504 };
-  const v = fillView('equirectangular', o, 60);
-  assert.ok(Math.abs(mk('equirectangular', { ...o, ...v })([60, 0])[0] - 195) < 1);
-  const edge = fillView('equirectangular', o, 179);
-  const [[x0], [x1]] = geoPath(mk('equirectangular', { ...o, ...edge })).bounds({ type: 'Sphere' });
-  assert.ok(x0 <= 1e-6 && x1 >= 390 - 1e-6, `${x0}..${x1}`);
+  for (const lon of [60, 179, -175]) {
+    const v = fillView('equirectangular', o, lon);
+    assert.deepEqual(v.pan, [0, 0]);
+    assert.equal(v.rotLon, lon);
+    assert.ok(Math.abs(mk('equirectangular', { ...o, ...v })([lon, 0])[0] - 195) < 1, `${lon}`);
+  }
+  assert.equal(fillView('winkel3', o, 179).pan[0], 0);
+});
+
+test('world maps rotate: rotLon lands at the centre x, on equirectangular and Winkel tripel', async () => {
+  const { makeProjection: mk, wrapLon } = await import('../lib/map/projections.mjs');
+  for (const id of ['equirectangular', 'winkel3']) {
+    const p = mk(id, { width: 900, height: 450, rotLon: 179 });
+    assert.ok(Math.abs(p([179, 0])[0] - 450) < 1e-6, id);
+  }
+  // Disc projections ignore it.
+  const az = mk('azimuthal', { width: 900, height: 450, observer: EN52VE, rotLon: 179 });
+  const az0 = mk('azimuthal', { width: 900, height: 450, observer: EN52VE });
+  assert.deepEqual(az([10, 10]), az0([10, 10]));
+  assert.equal(wrapLon(181), -179);
+  assert.equal(wrapLon(-180), -180);
+  assert.equal(wrapLon(540), -180);
 });

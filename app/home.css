@@ -312,8 +312,9 @@
 .home-footer a { color: var(--map-muted); text-decoration: underline; text-underline-offset: 2px; }
 .home-footer a:hover,
 .home-footer a:focus-visible { color: var(--map-accent); }
-/* ClockSkewBanner's look, scoped to the home screen. */
-.home .clock-skew-banner {
+/* ClockSkewBanner's look, scoped to the home screen and the map shell. */
+.home .clock-skew-banner,
+.map-shell .clock-skew-banner {
   padding: 6px 10px;
   background: rgba(250, 204, 21, 0.08);
   border: 1px solid rgba(250, 204, 21, 0.32);
@@ -322,7 +323,8 @@
   line-height: 1.4;
   color: #f5d36a;
 }
-.home .clock-skew-banner strong { color: #facc15; font-weight: 600; }
+.home .clock-skew-banner strong,
+.map-shell .clock-skew-banner strong { color: #facc15; font-weight: 600; }
 .home-note { margin: 0; color: var(--map-muted); }
 .home-error { margin: 0; color: #ff9a9a; }
 
@@ -898,16 +900,6 @@ a.home-chip { display: inline-block; text-decoration: none; }
    (the tile grid clips its overflow, so it would collapse to nothing). */
 .map-shell__panel > * { flex-shrink: 0; }
 .map-shell.sat .map-shell__panel { gap: 16px; }
-.map-shell .clock-skew-banner {
-  padding: 6px 10px;
-  background: rgba(250, 204, 21, 0.08);
-  border: 1px solid rgba(250, 204, 21, 0.32);
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #f5d36a;
-}
-.map-shell .clock-skew-banner strong { color: #facc15; font-weight: 600; }
 
 /* Phones: two rows, wordmark and clock, then search. Only the first row
    scrolls away (the negative top), so the search stays pinned. */

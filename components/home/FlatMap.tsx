@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { drawMap, hitTest } from "@/lib/map/draw.mjs";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
-import { graticuleBox, graticuleLabels, graticuleStep, pickPlaceLabels, satBoxes } from "@/lib/map/labels.mjs";
+import { graticuleBox, graticuleLabels, graticuleStep, observerBox, pickPlaceLabels, satBoxes } from "@/lib/map/labels.mjs";
 import { createLabelCache, labelKey } from "@/lib/map/label-cache.mjs";
 import {
   PROJECTIONS,
@@ -12,9 +12,12 @@ import {
   DEFAULT_PROJECTION,
   centredPan,
   clampZoom,
+  FILL_PROJECTIONS,
   fillView,
   makeProjection,
   projectionAvailable,
+  worldSize,
+  wrapLon,
 } from "@/lib/map/projections.mjs";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
@@ -77,6 +80,8 @@ interface ProjectionOptions {
   sat: SelectedSub | null;
   zoom: number;
   pan: [number, number];
+  /** World maps only: the longitude at the centre. */
+  rotLon?: number;
 }
 // The .mjs helpers infer narrow default-parameter types; these state the real ones.
 const project = makeProjection as (id: string, o: ProjectionOptions) => Projection;
@@ -97,20 +102,24 @@ type PlaceData = { places: unknown; regions: unknown };
 type LabelSet = { places: unknown; graticule: GratLabel[] };
 type LabelOpts = {
   width: number; height: number; zoom: number; projectionId: string; places: unknown; regions: unknown; sats: MapSat[];
+  observer: MapObserver | null;
+  /** Map controls laid over the canvas (the docked Legend toggle). */
+  controls: Box[];
 };
 const gratLabels = graticuleLabels as unknown as (
   p: Projection,
-  o: { width: number; height: number; step: number; projectionId: string },
+  o: { width: number; height: number; step: number; projectionId: string; avoid: Box[] },
 ) => GratLabel[];
+const observerBoxOf = observerBox as unknown as (p: Projection, o: MapObserver | null) => Box | null;
 const gratBox = graticuleBox as unknown as (l: GratLabel) => Box;
 const gratStep = graticuleStep as unknown as (zoom: number, width: number) => number;
 const satBoxesOf = satBoxes as unknown as (p: Projection, sats: MapSat[], width: number) => Box[];
-type View = { zoom: number; pan: [number, number] };
-const fillOf = fillView as (
-  id: string,
-  o: { width: number; height: number; observer: MapObserver | null; sat: SelectedSub | null },
-  lonDeg: number,
-) => View | null;
+type View = { zoom: number; pan: [number, number]; rotLon: number };
+const fillOf = fillView as (id: string, o: { width: number; height: number }, lonDeg: number) => View | null;
+const worldSizeOf = worldSize as (id: string, o: { width: number; height: number }) => { width: number; height: number };
+const wrap = wrapLon as (lon: number) => number;
+/** World maps wrap by rotation; discs pan. */
+const isWorld = (id: string) => (FILL_PROJECTIONS as string[]).includes(id);
 const pickPlaces = (
   createLabelCache as unknown as (pick: (p: Projection, o: LabelOpts) => LabelSet) => {
     get: (key: string, args: [Projection, LabelOpts]) => LabelSet;
@@ -124,7 +133,7 @@ const panTo = centredPan as (
 ) => [number, number] | null;
 const keyOf = labelKey as unknown as (o: {
   projectionId: string; width: number; height: number; zoom: number; pan: [number, number];
-  observer: MapObserver | null; sub: SelectedSub | null; sats: MapSat[];
+  observer: MapObserver | null; sub: SelectedSub | null; sats: MapSat[]; rotLon: number;
 }) => string;
 
 const TAP_SLOP_PX = 6;
@@ -148,7 +157,7 @@ export default function FlatMap({
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const view = useRef({ zoom: 1, pan: [0, 0] as [number, number] });
+  const view = useRef<View>({ zoom: 1, pan: [0, 0], rotLon: 0 });
   const size = useRef({ width: 0, height: 0, dpr: 1 });
   const projection = useRef<Projection | null>(null);
   const night = useRef<{ at: number; bands: NightBands } | null>(null);
@@ -159,11 +168,16 @@ export default function FlatMap({
     pickPlaces((proj, o) => {
       const graticule = gratLabels(proj, {
         width: o.width, height: o.height, step: gratStep(o.zoom, o.width), projectionId: o.projectionId,
+        avoid: o.controls,
       });
+      const obs = observerBoxOf(proj, o.observer);
       const places = (pickPlaceLabels as unknown as (p: Projection, o: Record<string, unknown>) => unknown)(proj, {
         width: o.width, height: o.height, zoom: o.zoom, places: o.places, regions: o.regions,
-        // Clear of the lat/lon labels and of the satellites' dots and names.
-        avoid: [...graticule.map(gratBox), ...satBoxesOf(proj, o.sats, o.width)],
+        // Clear of the controls, the lat/lon labels, the observer marker and
+        // the satellites' dots and names.
+        avoid: [
+          ...o.controls, ...graticule.map(gratBox), ...(obs ? [obs] : []), ...satBoxesOf(proj, o.sats, o.width),
+        ],
       });
       return { graticule, places };
     }),
@@ -177,7 +191,7 @@ export default function FlatMap({
   fullRef.current = full;
   const nativeFull = useRef(false);
   // View to restore on exit, and a flag to fit the map to the shell once it has resized.
-  const prevView = useRef<{ zoom: number; pan: [number, number]; home: boolean } | null>(null);
+  const prevView = useRef<(View & { home: boolean }) | null>(null);
   // True while the view is the home view (no zoom or pan by hand since), so a
   // resize refits it. homeZoom is that view's zoom: above it the map owns touch.
   const atHome = useRef(true);
@@ -188,6 +202,7 @@ export default function FlatMap({
   const docked = useRef(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const legendId = useId();
+  const legendBtnRef = useRef<HTMLButtonElement>(null);
 
   // A projection that is unavailable right now (no observer, no selected satellite)
   // is shown and drawn as the default. The saved choice is left alone so it
@@ -217,6 +232,7 @@ export default function FlatMap({
       sat: cur.selectedSub,
       zoom: view.current.zoom,
       pan: view.current.pan,
+      rotLon: view.current.rotLon,
     });
     projection.current = proj;
     // At zoom 1 the map leaves vertical scrolling to the page; zoomed in, it owns touch.
@@ -227,16 +243,25 @@ export default function FlatMap({
     let labels = lastLabels.current;
     if (!(gesturing.current && labels)) {
       const data = placeData.current;
-      const { zoom, pan } = view.current;
+      const { zoom, pan, rotLon } = view.current;
+      // Docked, the Legend toggle sits over the bottom left of the canvas.
+      const controls: Box[] = [];
+      const btn = legendBtnRef.current;
+      if (docked.current && btn && btn.offsetParent) {
+        const c = canvas.getBoundingClientRect();
+        const b = btn.getBoundingClientRect();
+        controls.push({ x0: b.left - c.left - 4, y0: b.top - c.top - 4, x1: b.right - c.left + 4, y1: b.bottom - c.top + 4 });
+      }
       const key = `${keyOf({
         projectionId: cur.projectionId, width, height, zoom, pan,
-        observer: cur.observer, sub: cur.selectedSub, sats: cur.sats,
-      })}|${data ? "p" : "g"}`;
+        observer: cur.observer, sub: cur.selectedSub, sats: cur.sats, rotLon,
+      })}|${data ? "p" : "g"}|${controls.map((b) => `${Math.round(b.x0)},${Math.round(b.y0)}`).join(";")}`;
       labels = labelCache.current.get(key, [
         proj,
         {
           width, height, zoom, projectionId: cur.projectionId,
           places: data?.places ?? [], regions: data?.regions ?? [], sats: cur.sats,
+          observer: cur.observer, controls,
         },
       ]);
       lastLabels.current = labels;
@@ -262,18 +287,30 @@ export default function FlatMap({
     ctx.restore();
   }, []);
 
-  // The home view: a world map in a frame taller than its aspect fills the
-  // frame's height, centred on the focused satellite, else the observer, else
-  // lon 0. Everything else is zoom 1.
+  // The home view: a world map turns to centre the focused satellite, else
+  // the observer, else lon 0, and in a frame taller than its aspect fills the
+  // frame's height. Discs are zoom 1, unpanned.
   const homeView = useCallback((): View => {
     const { width, height } = size.current;
     const cur = latest.current;
+    if (!isWorld(cur.projectionId)) {
+      homeZoom.current = 1;
+      return { zoom: 1, pan: [0, 0], rotLon: 0 };
+    }
     const focus = cur.sats.find((s) => s.emphasis === "focus");
-    const lon = focus?.position.lonDeg ?? cur.observer?.lonDeg ?? 0;
-    const fit = fillOf(cur.projectionId, { width, height, observer: cur.observer, sat: cur.selectedSub }, lon);
+    const lon = wrap(focus?.position.lonDeg ?? cur.observer?.lonDeg ?? 0);
+    const fit = fillOf(cur.projectionId, { width, height }, lon);
     homeZoom.current = fit?.zoom ?? 1;
-    return fit ?? { zoom: 1, pan: [0, 0] };
+    return fit ?? { zoom: 1, pan: [0, 0], rotLon: lon };
   }, []);
+  // Degrees of longitude per screen px on a world map at this zoom.
+  const degPerPx = useCallback((zoom: number) => {
+    const { width, height } = size.current;
+    const w = worldSizeOf(latest.current.projectionId, { width, height }).width;
+    return w > 0 ? 360 / (w * zoom) : 0;
+  }, []);
+  // A world map's vertical pan: free above the home zoom, centred at or below it.
+  const worldPanY = useCallback((zoom: number, y: number) => (zoom > homeZoom.current + 1e-6 ? y : 0), []);
   const goHome = useCallback(() => {
     view.current = homeView();
     atHome.current = true;
@@ -292,12 +329,20 @@ export default function FlatMap({
     const cx = width / 2;
     const cy = height / 2;
     const [px, py] = view.current.pan;
-    view.current = {
-      zoom: z2,
-      pan: z2 === 1 ? [0, 0] : [qx - cx - (qx - cx - px) * kk, qy - cy - (qy - cy - py) * kk],
-    };
+    const y = qy - cy - (qy - cy - py) * kk;
+    if (isWorld(latest.current.projectionId)) {
+      // The anchor's horizontal shift becomes a turn of the globe; pan[0] stays 0.
+      const turn = (qx - cx) * (1 / z1 - 1 / z2) * degPerPx(1);
+      view.current = { zoom: z2, pan: [0, worldPanY(z2, y)], rotLon: wrap(view.current.rotLon + turn) };
+    } else {
+      view.current = {
+        zoom: z2,
+        pan: z2 === 1 ? [0, 0] : [qx - cx - (qx - cx - px) * kk, y],
+        rotLon: 0,
+      };
+    }
     redraw();
-  }, [redraw]);
+  }, [redraw, degPerPx, worldPanY]);
   const zoomBy = (k: number) => zoomAt(k, size.current.width / 2, size.current.height / 2);
 
   // Fit the canvas backing store to the wrapper's CSS size (set in home.css)
@@ -369,17 +414,22 @@ export default function FlatMap({
   // Entering full screen remembers the view; leaving restores it.
   useEffect(() => {
     if (full) {
-      prevView.current = { zoom: view.current.zoom, pan: [...view.current.pan] as [number, number], home: atHome.current };
+      prevView.current = {
+        zoom: view.current.zoom,
+        pan: [...view.current.pan] as [number, number],
+        rotLon: view.current.rotLon,
+        home: atHome.current,
+      };
       fitOnResize.current = true;
     } else {
       fitOnResize.current = false;
       if (prevView.current) {
-        const { zoom, pan, home } = prevView.current;
+        const { zoom, pan, rotLon, home } = prevView.current;
         prevView.current = null;
         // A home view refits to the frame on the way out (its size changes back).
         if (home) goHome();
         else {
-          view.current = { zoom, pan };
+          view.current = { zoom, pan, rotLon };
           atHome.current = false;
         }
         redraw();
@@ -474,10 +524,15 @@ export default function FlatMap({
       if (!CENTRE_ON_FOCUS.includes(cur.projectionId)) centreOn.current = null;
       else if (sat) {
         centreOn.current = null;
-        const pan = panTo(cur.projectionId, {
-          width, height, observer: cur.observer, sat: cur.selectedSub, zoom: view.current.zoom,
-        }, sat.position.lonDeg, sat.position.latDeg);
-        if (pan) view.current = { zoom: view.current.zoom, pan };
+        if (isWorld(cur.projectionId)) {
+          // World maps turn to put the satellite's longitude in the middle.
+          view.current = { ...view.current, rotLon: wrap(sat.position.lonDeg) };
+        } else {
+          const pan = panTo(cur.projectionId, {
+            width, height, observer: cur.observer, sat: cur.selectedSub, zoom: view.current.zoom,
+          }, sat.position.lonDeg, sat.position.latDeg);
+          if (pan) view.current = { ...view.current, pan };
+        }
       }
     }
     redraw();
@@ -517,11 +572,20 @@ export default function FlatMap({
         const dx = next.x - prev.x;
         const dy = next.y - prev.y;
         moved += Math.abs(dx) + Math.abs(dy);
-        if (moved >= TAP_SLOP_PX && (view.current.zoom > 1 || fullRef.current || docked.current)) {
+        const world = isWorld(latest.current.projectionId);
+        if (moved >= TAP_SLOP_PX && world) {
+          // Sideways turns the globe (it wraps for ever); up and down pans only above the home zoom.
+          const { zoom, pan, rotLon } = view.current;
+          view.current = {
+            zoom,
+            pan: [0, worldPanY(zoom, pan[1] + dy)],
+            rotLon: wrap(rotLon - dx * degPerPx(zoom)),
+          };
+          atHome.current = false;
+          redraw();
+        } else if (moved >= TAP_SLOP_PX && (view.current.zoom > 1 || fullRef.current || docked.current)) {
           const [px, py] = view.current.pan;
-          // At the filled home zoom the map is exactly the frame's height: pan sideways only.
-          const fitted = homeZoom.current > 1 && view.current.zoom <= homeZoom.current + 1e-6;
-          view.current.pan = [px + dx, fitted ? py : py + dy];
+          view.current.pan = [px + dx, py + dy];
           atHome.current = false;
           redraw();
         }
@@ -531,10 +595,17 @@ export default function FlatMap({
         pointers.set(e.pointerId, next);
         const after = spread();
         if (before.dist > 0) zoomAt(after.dist / before.dist, after.mid.x, after.mid.y);
-        if (view.current.zoom > 1 || fullRef.current || docked.current) {
+        const mx = after.mid.x - before.mid.x;
+        const my = after.mid.y - before.mid.y;
+        if (isWorld(latest.current.projectionId)) {
+          const { zoom, pan, rotLon } = view.current;
+          atHome.current = false;
+          view.current = { zoom, pan: [0, worldPanY(zoom, pan[1] + my)], rotLon: wrap(rotLon - mx * degPerPx(zoom)) };
+          redraw();
+        } else if (view.current.zoom > 1 || fullRef.current || docked.current) {
           const [px, py] = view.current.pan;
           atHome.current = false;
-          view.current.pan = [px + after.mid.x - before.mid.x, py + after.mid.y - before.mid.y];
+          view.current.pan = [px + mx, py + my];
           redraw();
         }
       }
@@ -603,7 +674,7 @@ export default function FlatMap({
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("dblclick", reset);
     };
-  }, [redraw, zoomAt, reset]);
+  }, [redraw, zoomAt, reset, degPerPx, worldPanY]);
 
   const chipRow = (
     <div className="flat-map__top">
@@ -697,6 +768,7 @@ export default function FlatMap({
       // The toggle shows only when docked; narrower, the legend is always open below the map.
       <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
         <button
+          ref={legendBtnRef}
           type="button"
           className="map-legend__toggle"
           aria-expanded={legendOpen}

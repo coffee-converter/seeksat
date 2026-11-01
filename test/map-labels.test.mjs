@@ -6,7 +6,7 @@ import { makeProjection, PROJECTIONS } from '../lib/map/projections.mjs';
 import { EN52VE } from './fixtures/orbits.mjs';
 import {
   graticuleStep, formatLat, formatLon, graticuleLabels, pickPlaceLabels, placeBox, graticuleBox,
-  satBoxes, seasAllowed, maxRegionLabels, CHAR_PX,
+  satBoxes, seasAllowed, maxRegionLabels, CHAR_PX, observerBox, REGION_SPACING_PX, REGION_CHAR_PX,
 } from '../lib/map/labels.mjs';
 
 const SAT = { latDeg: 30, lonDeg: -80, altKm: 420 };
@@ -228,4 +228,34 @@ test('place labels keep clear of satellite dots and names', () => {
     const box = placeBox(l);
     assert.ok(!avoid.some((a) => overlaps(a, box)), `${l.text} hits a satellite`);
   }
+});
+
+test('region boxes allow for capitals with letter spacing', () => {
+  // Chrome draws 'SOUTH AMERICA' 111 px wide at 11 px with 1.5 px spacing.
+  const b = placeBox({ text: 'South America', x: 100, y: 50, align: 'center' });
+  assert.ok(Math.abs(b.x1 - b.x0 - (13 * (REGION_CHAR_PX + REGION_SPACING_PX) + 4)) < 1e-9);
+  assert.ok(Math.abs(b.x0 + b.x1 - 200) < 1e-9);
+  assert.ok(b.x1 - b.x0 >= 111);
+});
+
+test('observerBox is 20 x 20 round the observer, null when off the map', () => {
+  const width = 900;
+  const height = 450;
+  const p = proj('equirectangular', width, height);
+  const [x, y] = p([EN52VE.lonDeg, EN52VE.latDeg]);
+  assert.deepEqual(observerBox(p, EN52VE), { x0: x - 10, y0: y - 10, x1: x + 10, y1: y + 10 });
+  assert.equal(observerBox(p, null), null);
+  const far = proj('polar-north', width, height);
+  assert.equal(observerBox(far, { latDeg: -80, lonDeg: 0 }), null);
+});
+
+test('graticule labels keep clear of boxes passed in avoid', () => {
+  const width = 900;
+  const height = 450;
+  const p = proj('equirectangular', width, height);
+  const all = graticuleLabels(p, { width, height, step: 30, projectionId: 'equirectangular' });
+  const corner = { x0: 0, y0: height - 42, x1: 80, y1: height };
+  const some = graticuleLabels(p, { width, height, step: 30, projectionId: 'equirectangular', avoid: [corner] });
+  assert.ok(some.length < all.length);
+  for (const l of some) assert.ok(!overlaps(graticuleBox(l), corner), l.text);
 });

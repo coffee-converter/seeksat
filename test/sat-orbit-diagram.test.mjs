@@ -39,3 +39,19 @@ test('motion is counterclockwise on screen (y flipped)', () => {
   const bx = b.dot.x - a.earth.cx, by = b.dot.y - a.earth.cy;
   assert.ok(ax * by - ay * bx < 0);
 });
+
+test('every coordinate is rounded to 2 decimals, so server and client SVG match', () => {
+  for (const t of [iss, goes, molniya]) {
+    const d = orbitDiagram(t, ISS_T0 + 123_457);
+    const values = [
+      d.earth.cx, d.earth.cy, d.earth.r,
+      d.ellipse.cx, d.ellipse.cy, d.ellipse.rx, d.ellipse.ry,
+      d.perigee.x, d.perigee.y, d.apogee.x, d.apogee.y,
+      d.dot.x, d.dot.y,
+    ];
+    for (const v of values) {
+      const h = v * 100;
+      assert.ok(Math.abs(h - Math.round(h)) < 1e-6, `${t.name ?? ''} ${v}`);
+    }
+  }
+});

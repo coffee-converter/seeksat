@@ -48,3 +48,9 @@ test('labelKey changes once a satellite moves 2 degrees, not on every tick', () 
   assert.equal(k(sat(10, 20, 'hidden')), k([]));
   assert.equal(satsKey(null), '-');
 });
+
+test('labelKey changes with the rotation, rounded to 0.5 degrees', () => {
+  assert.equal(labelKey({ ...base, rotLon: 10.1 }), labelKey({ ...base, rotLon: 10.2 }));
+  assert.notEqual(labelKey({ ...base, rotLon: 10 }), labelKey({ ...base, rotLon: 11 }));
+  assert.notEqual(labelKey(base), labelKey({ ...base, rotLon: 30 }));
+});
