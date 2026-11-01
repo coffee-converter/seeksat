@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { upNow, compassName } from '../lib/sky/up-now.mjs';
+import { upNow, upNowPoint, compassName } from '../lib/sky/up-now.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
-import { EN52VE, recordFrom } from './fixtures/orbits.mjs';
+import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
 const ISS = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
 const T0 = Date.parse('2026-03-01T12:00:00Z');
@@ -42,4 +42,16 @@ test('colors and names carry through; compassName', () => {
   assert.equal(r[0].color, '#abc');
   assert.equal(r[0].name, ISS.shortName);
   assert.equal(compassName(225), 'SW');
+});
+
+test('plot looks up: east on the left, west on the right, north at the top', () => {
+  assert.ok(upNowPoint(90, 30).x < 90);
+  assert.ok(upNowPoint(270, 30).x > 90);
+  assert.ok(upNowPoint(0, 30).y < 90);
+});
+test('a geostationary satellite has no rising or setting', () => {
+  const goes = makeTrack(recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'));
+  const r = upNow({ tracks: new Map([[goes.noradId, goes]]), observer: EN52VE, nowMs: Date.parse('2026-10-31T15:00:00Z') });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].rising, null);
 });
