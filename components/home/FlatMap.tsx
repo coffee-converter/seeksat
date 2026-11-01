@@ -5,7 +5,7 @@ import { drawMap, hitTest } from "@/lib/map/draw.mjs";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
 import { graticuleBox, graticuleLabels, graticuleStep, observerBox, pickPlaceLabels, satBoxes } from "@/lib/map/labels.mjs";
-import { createLabelCache, labelKey } from "@/lib/map/label-cache.mjs";
+import { createLabelLayers } from "@/lib/map/label-cache.mjs";
 import {
   PROJECTIONS,
   CENTRE_ON_FOCUS,
@@ -120,21 +120,21 @@ const worldSizeOf = worldSize as (id: string, o: { width: number; height: number
 const wrap = wrapLon as (lon: number) => number;
 /** World maps wrap by rotation; discs pan. */
 const isWorld = (id: string) => (FILL_PROJECTIONS as string[]).includes(id);
-const pickPlaces = (
-  createLabelCache as unknown as (pick: (p: Projection, o: LabelOpts) => LabelSet) => {
-    get: (key: string, args: [Projection, LabelOpts]) => LabelSet;
-  }
-);
+type LabelKeyOpts = {
+  projectionId: string; width: number; height: number; zoom: number; pan: [number, number];
+  observer: MapObserver | null; sub: SelectedSub | null; sats: MapSat[]; rotLon: number;
+  controls: string; data: string;
+};
+const labelLayers = createLabelLayers as unknown as (picks: {
+  graticule: (p: Projection, o: LabelOpts) => GratLabel[];
+  places: (p: Projection, o: LabelOpts, graticule: GratLabel[]) => unknown;
+}) => { get: (key: LabelKeyOpts, p: Projection, o: LabelOpts) => LabelSet };
 const panTo = centredPan as (
   id: string,
   o: { width: number; height: number; observer: MapObserver | null; sat: SelectedSub | null; zoom: number },
   lonDeg: number,
   latDeg: number,
 ) => [number, number] | null;
-const keyOf = labelKey as unknown as (o: {
-  projectionId: string; width: number; height: number; zoom: number; pan: [number, number];
-  observer: MapObserver | null; sub: SelectedSub | null; sats: MapSat[]; rotLon: number;
-}) => string;
 
 const TAP_SLOP_PX = 6;
 const DOUBLE_TAP_MS = 300;
@@ -164,22 +164,25 @@ export default function FlatMap({
   const shellRef = useRef<HTMLDivElement>(null);
   // Place data arrives after mount, in its own chunk.
   const placeData = useRef<PlaceData | null>(null);
+  // Lat/lon labels re-pick only when the view or the controls change; place
+  // names also re-pick as the satellites move (label-cache.mjs).
   const labelCache = useRef(
-    pickPlaces((proj, o) => {
-      const graticule = gratLabels(proj, {
+    labelLayers({
+      graticule: (proj, o) => gratLabels(proj, {
         width: o.width, height: o.height, step: gratStep(o.zoom, o.width), projectionId: o.projectionId,
         avoid: o.controls,
-      });
-      const obs = observerBoxOf(proj, o.observer);
-      const places = (pickPlaceLabels as unknown as (p: Projection, o: Record<string, unknown>) => unknown)(proj, {
-        width: o.width, height: o.height, zoom: o.zoom, places: o.places, regions: o.regions,
-        // Clear of the controls, the lat/lon labels, the observer marker and
-        // the satellites' dots and names.
-        avoid: [
-          ...o.controls, ...graticule.map(gratBox), ...(obs ? [obs] : []), ...satBoxesOf(proj, o.sats, o.width),
-        ],
-      });
-      return { graticule, places };
+      }),
+      places: (proj, o, graticule) => {
+        const obs = observerBoxOf(proj, o.observer);
+        return (pickPlaceLabels as unknown as (p: Projection, o: Record<string, unknown>) => unknown)(proj, {
+          width: o.width, height: o.height, zoom: o.zoom, places: o.places, regions: o.regions,
+          // Clear of the controls, the lat/lon labels, the observer marker and
+          // the satellites' dots and names.
+          avoid: [
+            ...o.controls, ...graticule.map(gratBox), ...(obs ? [obs] : []), ...satBoxesOf(proj, o.sats, o.width),
+          ],
+        });
+      },
     }),
   );
   // While a drag or pinch is in progress the last labels are reused; they are
@@ -252,18 +255,20 @@ export default function FlatMap({
         const b = btn.getBoundingClientRect();
         controls.push({ x0: b.left - c.left - 4, y0: b.top - c.top - 4, x1: b.right - c.left + 4, y1: b.bottom - c.top + 4 });
       }
-      const key = `${keyOf({
-        projectionId: cur.projectionId, width, height, zoom, pan,
-        observer: cur.observer, sub: cur.selectedSub, sats: cur.sats, rotLon,
-      })}|${data ? "p" : "g"}|${controls.map((b) => `${Math.round(b.x0)},${Math.round(b.y0)}`).join(";")}`;
-      labels = labelCache.current.get(key, [
+      labels = labelCache.current.get(
+        {
+          projectionId: cur.projectionId, width, height, zoom, pan,
+          observer: cur.observer, sub: cur.selectedSub, sats: cur.sats, rotLon,
+          controls: controls.map((b) => `${Math.round(b.x0)},${Math.round(b.y0)},${Math.round(b.x1)},${Math.round(b.y1)}`).join(";"),
+          data: data ? "p" : "g",
+        },
         proj,
         {
           width, height, zoom, projectionId: cur.projectionId,
           places: data?.places ?? [], regions: data?.regions ?? [], sats: cur.sats,
           observer: cur.observer, controls,
         },
-      ]);
+      );
       lastLabels.current = labels;
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
