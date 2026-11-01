@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultPrefs, parsePrefs, loadPrefs, savePrefs, PREFS_KEY, POPULAR_IDS, MAX_CUSTOM } from '../lib/home/prefs.mjs';
+import { defaultPrefs, parsePrefs, loadPrefs, savePrefs, migrateClassicState, PREFS_KEY, POPULAR_IDS, MAX_CUSTOM } from '../lib/home/prefs.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2 } from './fixtures/orbits.mjs';
 import { tleFor } from './fixtures/tle-variants.mjs';
 
@@ -88,4 +88,46 @@ test('observers are cleaned, deduped and capped at 3', () => {
   assert.deepEqual(out.map((x) => x.id), ['obs-1', 'obs-4', 'obs-5']);
   assert.equal(out[1].name.length, 60);
   assert.deepEqual(parsePrefs({ observers: 'x' }).observers, []);
+});
+
+import { LS_STATE_KEY, encodeStateBlob } from '../lib/pass-finder/state-blob.js';
+
+const OBS = { name: 'Chicago', latDeg: 41.8781, lonDeg: -87.6298 };
+const memStorage = (init = {}) => {
+  const m = new Map(Object.entries(init));
+  return { m, getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) };
+};
+
+test('classic saved state migrates once into home prefs', () => {
+  const extra = [1, 2, 3, 4].map((i) => ({ name: `Extra ${i}`, latDeg: i, lonDeg: -i }));
+  const blob = encodeStateBlob({ observers: [OBS, ...extra], mode: 'visual', minElevDeg: 20 });
+  const storage = memStorage({ [LS_STATE_KEY]: blob });
+  const p = loadPrefs(storage);
+  assert.equal(p.location.name, 'Chicago');
+  assert.equal(p.location.source, 'coords');
+  assert.equal(p.location.latDeg, 41.8781);
+  assert.deepEqual(p.observers.map((o) => o.id), ['obs-1', 'obs-2', 'obs-3']);
+  assert.equal(p.observers[0].name, 'Extra 1');
+  assert.equal(p.mode, 'visual');
+  assert.equal(p.minElevDeg, 20);
+  assert.deepEqual(JSON.parse(storage.m.get(PREFS_KEY)), p);
+  assert.equal(storage.m.get(LS_STATE_KEY), blob);
+  assert.deepEqual(loadPrefs(storage), p);
+});
+
+test('existing home prefs win over classic state', () => {
+  const mine = JSON.stringify({ ...defaultPrefs(), mode: 'visual' });
+  const storage = memStorage({ [PREFS_KEY]: mine, [LS_STATE_KEY]: encodeStateBlob({ observers: [OBS], mode: 'radio' }) });
+  const p = loadPrefs(storage);
+  assert.equal(p.location, null);
+  assert.equal(p.mode, 'visual');
+  assert.equal(storage.m.get(PREFS_KEY), mine);
+});
+
+test('migration never throws and ignores junk', () => {
+  assert.equal(migrateClassicState({ getItem() { throw new Error('x'); } }), null);
+  assert.equal(migrateClassicState(memStorage({ [LS_STATE_KEY]: '!!!' })), null);
+  assert.equal(migrateClassicState(memStorage({ [LS_STATE_KEY]: encodeStateBlob({ observers: [] }) })), null);
+  const p = migrateClassicState(memStorage({ [LS_STATE_KEY]: encodeStateBlob({ observers: [{ name: '', latDeg: 1, lonDeg: 2 }] }) }));
+  assert.equal(p.location.name, 'Observer'); // the decoder already names nameless observers
 });
