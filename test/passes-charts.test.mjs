@@ -4,6 +4,9 @@ import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
 import { radioSeries, radioCsvText, chartStepMs, csvStepMs, passFileName, paintPassCard } from '../lib/passes/charts.js';
 import { SVG_NS, newSvgRoot } from '../lib/og/dom.mjs';
+import { chartPalette } from '../lib/pass-finder/sky-helpers.js';
+import { sunAltitudeDeg } from '../lib/pass-finder/visibility.js';
+import { apparentAltDeg } from '../lib/refraction.js';
 import { CATALOG } from '../lib/catalog.mjs';
 import { ISS_LINE1, ISS_LINE2, ISS_OMM } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
@@ -65,9 +68,25 @@ function cardSkeleton() {
 test('paintPassCard fills the arc, markers and horizon, and hides the dot outside the pass', () => {
   const svg = cardSkeleton();
   paintPassCard(svg, { track: ISS, obs: EN52VE, win: firstIssPass, nowMs: firstIssPass.startMs - 3_600_000 });
-  // renderArcSegments draws the arc as line and polyline segments.
-  assert.ok(svg.querySelector('.arc').querySelectorAll('line, polyline').length > 0);
-  assert.equal(svg.querySelector('.events').children.length, 3);
+  // renderArcSegments draws the arc as line and polyline segments, in the
+  // sky-adapted stroke for the sun at the pass peak (the engine's peak).
+  const segs = [...svg.querySelector('.arc').querySelectorAll('line, polyline')];
+  assert.ok(segs.length > 0);
+  const stroke = chartPalette(apparentAltDeg(sunAltitudeDeg(EN52VE, new Date(firstIssPeakMs)))).arc;
+  for (const seg of segs) assert.equal(seg.getAttribute('stroke'), stroke);
+  // This daylight pass is not naked-eye visible, so it draws dashed.
+  const dashed = segs.filter((seg) => seg.tagName.toLowerCase() === 'polyline');
+  assert.ok(dashed.length > 0);
+  for (const seg of dashed) assert.equal(seg.getAttribute('stroke-dasharray'), '4 6');
+  // Markers are diamonds: the first vertex sits markerR above the centre,
+  // the second markerR to its right.
+  const markers = [...svg.querySelector('.events').children];
+  assert.equal(markers.length, 3);
+  for (const m of markers) {
+    const [[x0, y0], [x1, y1]] = m.getAttribute('d').match(/-?[\d.]+,-?[\d.]+/g)
+      .map((pt) => pt.split(',').map(Number));
+    assert.ok(Math.abs(x1 - x0 - 2.8) < 0.02 && Math.abs(y1 - y0 - 2.8) < 0.02);
+  }
   assert.ok(svg.querySelector('.horizon').style.fill);
   assert.ok(svg.querySelector('.bodies').children.length > 0);
   assert.equal(svg.querySelector('.iss-dot').style.display, 'none');

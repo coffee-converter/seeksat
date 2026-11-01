@@ -30,8 +30,8 @@ export default function PolarModal() {
   const setRadioModalObsId = usePassFinderStore((s) => s.setRadioModalObsId);
   const obsName = useObserverName(obsId);
 
-  // A new function per observer, so the view repaints (and stays hidden
-  // until the paint is ready) only when the observer changes.
+  // A new function per observer, so the view repaints only when the
+  // observer changes; subjectKey keeps it hidden until that paint is ready.
   const render = useCallback(
     (svg: SVGSVGElement) => (obsId ? renderPolarModal(svg, obsId) : Promise.resolve(null)),
     [obsId],
@@ -49,6 +49,7 @@ export default function PolarModal() {
   return (
     <SkyChartModalView
       open={!!obsId}
+      subjectKey={obsId ?? ""}
       title={obsName ? `Sky chart - ${obsName}` : "Pass sky chart"}
       render={render}
       onClose={onClose}

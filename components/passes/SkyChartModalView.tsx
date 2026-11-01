@@ -1,29 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { svgToPngBlob } from "@/lib/pass-finder/polar-png.js";
+import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
 
 export interface ChartRenderResult {
   blobUrl: string;
   filename: string;
 }
 
-/** Rasterize a chart SVG to a PNG and write it to the system clipboard.
- *  Throws if the Clipboard API is unavailable or the user denies
- *  permission. The default Copy behaviour for both chart modals. */
-export async function copySvgPng(svgEl: SVGSVGElement): Promise<void> {
-  const blob = await svgToPngBlob(svgEl);
-  if (!navigator.clipboard?.write) throw new Error("Clipboard API unavailable");
-  await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-}
-
 export interface SkyChartModalViewProps {
   open: boolean;
   /** The dialog's accessible name. */
   title: string;
+  /** What is being charted (e.g. the observer id). A new subject hides
+   *  the modal until its chart is painted. */
+  subjectKey: string;
   /** Paint the chart into `svgEl` and resolve its PNG blob URL + export
    *  file name, or null when there is nothing to chart. A new function
-   *  repaints; the modal stays hidden until the new paint resolves. */
+   *  repaints; for the same subject the modal stays visible meanwhile. */
   render: (svgEl: SVGSVGElement) => Promise<ChartRenderResult | null>;
   onClose: () => void;
   /** Copy button behaviour; defaults to rasterizing the SVG to the
@@ -39,7 +33,7 @@ export interface SkyChartModalViewProps {
 // Escape key. Copy + Save both use the same SVG, just to a different
 // destination.
 export default function SkyChartModalView({
-  open, title, render, onClose, copy = copySvgPng, onRadioChart,
+  open, title, subjectKey, render, onClose, copy = copySvgPngToClipboard, onRadioChart,
 }: SkyChartModalViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -49,10 +43,15 @@ export default function SkyChartModalView({
   // Modal stays hidden until the SVG + PNG blob are ready - matches
   // the legacy flow (cursor: progress; then reveal). Without this, a
   // fast click would flash an empty modal for the ~50-250ms render
-  // time. `renderedFor === render` is the gate.
-  const [renderedFor, setRenderedFor] = useState<SkyChartModalViewProps["render"] | null>(null);
+  // time. `renderedKey === subjectKey` is the gate.
+  const [renderedKey, setRenderedKey] = useState<string | null>(null);
   // Stash the blob URL so we can revoke it when the chart changes / closes.
   const lastBlobUrlRef = useRef<string | null>(null);
+
+  // Revoke the live blob URL on unmount too, not only on close.
+  useEffect(() => () => {
+    if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -61,7 +60,7 @@ export default function SkyChartModalView({
         lastBlobUrlRef.current = null;
       }
       if (imgRef.current) imgRef.current.removeAttribute("src");
-      setRenderedFor(null);
+      setRenderedKey(null);
       return;
     }
     let cancelled = false;
@@ -70,7 +69,11 @@ export default function SkyChartModalView({
       try {
         if (!svgRef.current) return;
         const result = await render(svgRef.current);
-        if (cancelled || !result) return;
+        if (cancelled) {
+          if (result) URL.revokeObjectURL(result.blobUrl);
+          return;
+        }
+        if (!result) return;
         // Revoke previous URL before adopting the new one.
         if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = result.blobUrl;
@@ -79,8 +82,7 @@ export default function SkyChartModalView({
           linkRef.current.href = result.blobUrl;
           linkRef.current.download = result.filename;
         }
-        // Functional form: `render` is itself a function.
-        setRenderedFor(() => render);
+        setRenderedKey(subjectKey);
       } catch (e) {
         if (!cancelled) console.warn("Polar modal render failed:", e);
       } finally {
@@ -91,9 +93,9 @@ export default function SkyChartModalView({
       cancelled = true;
       document.body.style.cursor = "";
     };
-  }, [open, render]);
+  }, [open, render, subjectKey]);
 
-  const visible = open && renderedFor === render;
+  const visible = open && renderedKey === subjectKey;
 
   // Escape closes; only attached while open.
   useEffect(() => {

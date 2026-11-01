@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { copySvgPng, type ChartRenderResult } from "./SkyChartModalView";
+import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
+import { type ChartRenderResult } from "./SkyChartModalView";
 
 export interface RadioChartModalViewProps {
   open: boolean;
   /** The dialog's accessible name. */
   title: string;
+  /** What is being charted (e.g. the observer id). A new subject hides
+   *  the modal until its chart is painted. */
+  subjectKey: string;
   /** Paint the chart into `svgEl` and resolve its PNG blob URL + export
    *  file name, or null when there is no series to chart (the modal then
-   *  closes). A new function repaints; once shown, the modal stays
-   *  visible while it repaints (e.g. after a frequency change). */
+   *  closes). A new function repaints; for the same subject the modal
+   *  stays visible meanwhile (e.g. after a frequency change). */
   render: (svgEl: SVGSVGElement) => Promise<ChartRenderResult | null>;
   /** Build the CSV download, or null when there is nothing to export. */
   csv: () => { csv: string; filename: string } | null;
@@ -35,8 +39,8 @@ export interface RadioChartModalViewProps {
 // download anchor. Close from: ✕ button, backdrop click, Escape key.
 // Copy + Save both use the same SVG, just to a different destination.
 export default function RadioChartModalView({
-  open, title, render, csv, freqHz, downlinks, onFreqChange, onClose,
-  copy = copySvgPng, onSkyChart, extraControls,
+  open, title, subjectKey, render, csv, freqHz, downlinks, onFreqChange, onClose,
+  copy = copySvgPngToClipboard, onSkyChart, extraControls,
 }: RadioChartModalViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -46,10 +50,15 @@ export default function RadioChartModalView({
   // Modal stays hidden until the SVG + PNG blob are ready - matches
   // the legacy flow (cursor: progress; then reveal). Without this, a
   // fast click would flash an empty modal for the ~50-250ms render
-  // time. `rendered` is the gate; it resets only on close.
-  const [rendered, setRendered] = useState(false);
+  // time. `renderedKey === subjectKey` is the gate.
+  const [renderedKey, setRenderedKey] = useState<string | null>(null);
   // Stash the blob URL so we can revoke it when the chart changes / closes.
   const lastBlobUrlRef = useRef<string | null>(null);
+
+  // Revoke the live blob URL on unmount too, not only on close.
+  useEffect(() => () => {
+    if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
+  }, []);
   // Read through a ref so a caller's inline onClose doesn't repaint.
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
@@ -61,7 +70,7 @@ export default function RadioChartModalView({
         lastBlobUrlRef.current = null;
       }
       if (imgRef.current) imgRef.current.removeAttribute("src");
-      setRendered(false);
+      setRenderedKey(null);
       return;
     }
     let cancelled = false;
@@ -70,11 +79,14 @@ export default function RadioChartModalView({
       try {
         if (!svgRef.current) return;
         const result = await render(svgRef.current);
-        if (cancelled) return;
+        if (cancelled) {
+          if (result) URL.revokeObjectURL(result.blobUrl);
+          return;
+        }
         if (!result) {
           // render resolves null when the series can't be built (e.g. no
           // window yet - toggling radio mode before running a search).
-          // Without this, `rendered` never flips, `visible` stays false
+          // Without this, `renderedKey` never matches, `visible` stays false
           // forever, and reopening for the same pass is a no-op - the
           // modal is stuck open-but-invisible with no feedback. Close
           // it instead.
@@ -90,7 +102,7 @@ export default function RadioChartModalView({
           linkRef.current.href = result.blobUrl;
           linkRef.current.download = result.filename;
         }
-        setRendered(true);
+        setRenderedKey(subjectKey);
       } catch (e) {
         if (!cancelled) console.warn("Radio modal render failed:", e);
       } finally {
@@ -101,9 +113,9 @@ export default function RadioChartModalView({
       cancelled = true;
       document.body.style.cursor = "";
     };
-  }, [open, render]);
+  }, [open, render, subjectKey]);
 
-  const visible = open && rendered;
+  const visible = open && renderedKey === subjectKey;
 
   // Escape closes; only attached while open.
   useEffect(() => {

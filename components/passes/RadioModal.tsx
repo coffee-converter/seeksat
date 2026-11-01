@@ -80,6 +80,7 @@ export default function RadioModal() {
   return (
     <RadioChartModalView
       open={!!obsId}
+      subjectKey={obsId ?? ""}
       title={obsName ? `Radio pass — ${obsName}` : "Radio pass chart"}
       render={render}
       csv={csv}
