@@ -38,6 +38,8 @@ export interface MapSat {
   selected: boolean;
   emphasis: Emphasis;
   orbitClass: string;
+  /** Minutes between the track's time ticks (geometry.mjs tickStepMin). */
+  tickMin: number;
 }
 
 export interface MapObserver {

@@ -2,7 +2,7 @@
 // FlatMap's MapSat list. Shared by the home and satellite pages.
 import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
-import { footprintFeature, splitTrack, subpoint } from "@/lib/map/geometry.mjs";
+import { footprintFeature, splitTrack, subpoint, tickStepMin } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 
 export interface Layer {
@@ -13,6 +13,7 @@ export interface Layer {
 export interface MapTrack {
   shortName: string;
   orbitClass: string;
+  periodMs: number;
   ecefAt: (d: Date) => number[] | null;
 }
 type Shape = MapSat["trackPast"];
@@ -83,6 +84,7 @@ export function useMapSats({
         selected: focus,
         emphasis,
         orbitClass: t.orbitClass,
+        tickMin: tickStepMin(t.periodMs),
       });
     }
     return { sats, focusSub };

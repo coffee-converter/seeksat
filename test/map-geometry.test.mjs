@@ -5,7 +5,7 @@ import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, recordFrom } from './fixtures/orbits.mjs';
 import { geoArea, geoCircle } from 'd3-geo';
 import {
-  footprintRadiusDeg, subsolarPoint, nightBands, groundTrack, subpoint, loadLand,
+  footprintRadiusDeg, subsolarPoint, nightBands, groundTrack, subpoint, loadLand, tickStepMin,
 } from '../lib/map/geometry.mjs';
 
 test('footprintRadiusDeg', () => {
@@ -78,4 +78,17 @@ test('splitTrack: past ends and future starts at the now point; ticks 10 min for
   const goes = makeTrack(recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'));
   const g = splitTrack(goes, NOW);
   assert.deepEqual(g.ticks.slice(0, 3).map((t) => t.minutes), [60, 120, 180]);
+});
+
+test('tickStepMin: 10 min under a 3 h period, else hourly; splitTrack ticks on it', () => {
+  const H = 3_600_000;
+  assert.equal(tickStepMin(92 * 60_000), 10);
+  assert.equal(tickStepMin(3 * H - 1), 10);
+  assert.equal(tickStepMin(3 * H), 60);
+  assert.equal(tickStepMin(12 * H), 60);
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const { ticks } = splitTrack(iss, Date.parse('2026-03-01T12:00:00Z'));
+  assert.equal(ticks[0].minutes, tickStepMin(iss.periodMs));
+  const goes = makeTrack(recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'));
+  assert.equal(splitTrack(goes, Date.parse('2026-03-01T12:00:00Z')).ticks[0].minutes, 60);
 });
