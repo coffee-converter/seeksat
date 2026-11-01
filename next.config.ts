@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { buildCsp } from "./lib/site/csp.mjs";
 
 // Vercel defaults static files in /public to `cache-control: public,
 // max-age=0, must-revalidate`, which forces a conditional revalidate
@@ -10,50 +11,23 @@ import type { NextConfig } from "next";
 // Next's own /_next/static/* chunks already get cache-control:
 // public, max-age=31536000, immutable from the framework (their
 // filenames are content-hashed), so we don't touch that path.
-// Content-Security-Policy - now ENFORCING. It shipped Report-Only first
-// and was tuned against the live Cesium globe + Vercel Analytics until the
-// browser console was violation-free, then flipped to enforce. If you add
-// a new external origin (a script CDN, tile server, data API), extend the
-// matching directive below or the browser will block it. To debug a
-// suspected CSP breakage, temporarily rename the header key to
-// "Content-Security-Policy-Report-Only" to log instead of block.
+// Content-Security-Policy is built in lib/site/csp.mjs (also unit-tested).
+// It is enforcing. To debug a suspected breakage, temporarily rename the
+// header key to "Content-Security-Policy-Report-Only" to log instead of block.
+// If you add a new external fetch origin, extend CONNECT_ORIGINS there;
+// test/csp.test.mjs scans the client code and fails on an unlisted origin.
 //
-// Origins are driven by what the app actually loads:
-//   cesium.com                     - Cesium.js + widgets.css from the CDN
-//   *.arcgisonline / carto / osm   - globe imagery tiles
-//   nominatim / open-meteo / met.no / wheretheiss / open-elevation
-//     / celestrak / ivanstanojevic / timeapi / ssd.jpl.nasa.gov
-//                                  - client-side geocode/weather/TLE/ephemeris
-//   'unsafe-eval'                  - Cesium evaluates strings as JS (shader
-//                                    / expression compilation) and needs
-//                                    real eval, not just wasm-unsafe-eval;
-//                                    this also covers its WebAssembly. It
-//                                    means script-src gives little XSS
-//                                    protection, but the host allowlist,
-//                                    object-src/base-uri/frame-ancestors
-//                                    still do useful work.
-//   blob: + cesium.com (worker)    - Cesium's CDN build spawns web workers
-//                                    both from blob: URLs and directly from
-//                                    the CDN origin
-//   'unsafe-inline' (script)       - Next.js hydration bootstrap inlines a
-//                                    <script>; drop it once we move to nonces
-//   'unsafe-inline' (style)        - the inlined Exo 2 @font-face <style> +
-//                                    Cesium widget styles
-//   data: (font/img)               - the base64 Exo 2 font + canvas data URIs
-const CSP = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cesium.com",
-  "worker-src 'self' blob: https://cesium.com",
-  "style-src 'self' 'unsafe-inline' https://cesium.com",
-  "font-src 'self' data:",
-  "img-src 'self' data: blob: https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
-  "connect-src 'self' https://cesium.com https://server.arcgisonline.com https://cartodb-basemaps-a.global.ssl.fastly.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.met.no https://api.wheretheiss.at https://api.open-elevation.com https://tle.ivanstanojevic.me https://celestrak.org https://timeapi.io https://ssd.jpl.nasa.gov",
-  "upgrade-insecure-requests",
-].join("; ");
+//   connect-src      - 'self' plus the browser-side APIs: Nominatim geocoder
+//                      and Open-Meteo / MET Norway cloud-cover forecasts.
+//                      Vercel Analytics and Speed Insights post to the
+//                      same-origin /_vercel/* paths, so they need nothing.
+//   script-src       - 'unsafe-inline' for the Next.js hydration bootstrap
+//                      script (drop once we move to nonces). 'unsafe-eval'
+//                      is added in dev only; the dev server needs it.
+//   worker-src blob: - the pass worker and bundler-created workers
+//   style-src inline - the inlined Exo 2 @font-face <style>
+//   data: (font/img) - the base64 Exo 2 font + canvas data URIs
+const CSP = buildCsp({ dev: process.env.NODE_ENV !== "production" });
 
 // Baseline security headers applied to every response. These are all
 // non-breaking for this app:
