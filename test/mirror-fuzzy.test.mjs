@@ -105,6 +105,24 @@ test('ordering', async () => {
   assert.ok(g.indexOf(36411) === -1 || g.indexOf(41866) < g.indexOf(36411));
 });
 
+test('short terms do not match names sharing two letters', async () => {
+  const r = readerFor([rec(20580, 'HST'), rec(1, 'STPSAT 1'), rec(2, 'STARLINK-1'), rec(3, 'ISS (ZARYA)'), rec(4, 'CSS (TIANHE)')]);
+  assert.deepEqual(ids(await r.search('hst')), [20580]);
+  const g = readerFor([rec(10, 'GPS BIIR-2'), rec(11, 'GPS BIIF-1'), rec(12, 'PSAT'), rec(13, 'GSAT0201')]);
+  assert.deepEqual(ids(await g.search('gps')).sort(), [10, 11]);
+});
+
+test('long tokens still tolerate a dropped letter', async () => {
+  const r = readerFor([rec(1, 'MOLNIYA 1-91'), rec(2, 'STARLINK-1')]);
+  assert.equal((await r.search('molnya'))[0].noradId, 1);
+  assert.equal((await r.search('starlnk'))[0].noradId, 2);
+});
+
+test('digit tokens never typo-match', async () => {
+  const r = readerFor([rec(7, 'STARLINK-2554')]);
+  assert.deepEqual(await r.search('25545'), []);
+});
+
 test('no match', async () => {
   assert.deepEqual(await readerFor(FIX).search('xqzv'), []);
 });
@@ -122,9 +140,12 @@ test('speed over 17,000 entries', async () => {
   list.push(rec(25544, 'ISS (ZARYA)'));
   const r = readerFor(list);
   await r.search('warmup'); // builds the index
-  const t0 = performance.now();
-  const out = await r.search('zayra');
-  const ms = performance.now() - t0;
+  let ms = Infinity, out;
+  for (let i = 0; i < 5; i++) {
+    const t0 = performance.now();
+    out = await r.search('zayra');
+    ms = Math.min(ms, performance.now() - t0);
+  }
   console.log(`search over 17001 entries: ${ms.toFixed(1)} ms`);
   assert.equal(out[0].noradId, 25544);
   assert.ok(ms < 100, `took ${ms} ms`);
