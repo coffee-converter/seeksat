@@ -96,6 +96,11 @@ test('tools throw "no orbit data" when getRecord resolves null', async () => {
   await assert.rejects(() => getPositionTool({ satellite: '25485' }, d), /no orbit data for NORAD 25485 yet/);
 });
 
+test('tools say "no orbit data" when getRecord resolves undefined (unknown)', async () => {
+  const d = { ...deps, getRecord: async () => undefined };
+  await assert.rejects(() => getPositionTool({ satellite: 'iss' }, d), /no orbit data for ISS \(ZARYA\) \(25544\) yet/);
+});
+
 import { bestPassTool } from '../lib/mcp/tools.mjs';
 
 // A synthesized (non-curated) satellite has no standardMag: visual passes

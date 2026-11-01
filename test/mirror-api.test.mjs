@@ -55,6 +55,14 @@ test('known and unknown split into objects and missing', async () => {
   assert.equal(r.body.generatedAtMs, 1000);
 });
 
+test('an unknown (undefined) record is reported as missing, same as a miss', async () => {
+  const s = { ...stub({ records: { 25544: rec(25544) } }), getRecord: async (id) => (id === 25544 ? rec(25544) : undefined) };
+  const r = await satsHandler(s, q({ ids: '25544,99999' }), NOW);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.objects.map((o) => o.noradId), [25544]);
+  assert.deepEqual(r.body.missing, [99999]);
+});
+
 test('6-digit object is returned without line1', async () => {
   const s = stub({ records: { 123456: rec(123456) } });
   const r = await satsHandler(s, q({ ids: '123456' }), NOW);

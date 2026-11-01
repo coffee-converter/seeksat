@@ -44,7 +44,9 @@ test('miss is cached for missTtlMs then refetched', async () => {
 
 test('default cap: 16 distinct unknown ids in one hour make exactly 15 fetches', async () => {
   const { f, calls, clock } = setup(async () => null);
-  for (let i = 1; i <= 16; i++) assert.equal(await f.get(i), null);
+  for (let i = 1; i <= 15; i++) assert.equal(await f.get(i), null);
+  // Budget spent: the 16th id is unknown (undefined), not a confirmed miss.
+  assert.equal(await f.get(16), undefined);
   assert.equal(calls.length, 15);
   clock.t += HOUR;
   await f.get(16);
@@ -64,10 +66,10 @@ test('cached hits and misses do not spend budget', async () => {
   assert.equal(calls.length, 2);
 });
 
-test('a rejected fetch returns null and is retried next call', async () => {
+test('a rejected fetch resolves undefined (unknown) and is retried next call', async () => {
   let fail = true;
   const { f, calls } = setup(async () => { if (fail) throw new Error('down'); return ISS_OMM; });
-  assert.equal(await f.get(25544), null);
+  assert.equal(await f.get(25544), undefined);
   fail = false;
   const r = await f.get(25544);
   assert.equal(r.noradId, 25544);
@@ -89,4 +91,12 @@ test('parallel gets for one cold id share one fetch and one budget slot', async 
   assert.equal(calls.length, 15);
   await f.get(1000);
   assert.equal(calls.length, 15);
+});
+
+test('a spent budget resolves undefined, while a cached miss stays null', async () => {
+  const { f, calls } = setup(async () => null, { maxPerHour: 1 });
+  assert.equal(await f.get(1), null);
+  assert.equal(await f.get(2), undefined);
+  assert.equal(await f.get(1), null);
+  assert.equal(calls.length, 1);
 });

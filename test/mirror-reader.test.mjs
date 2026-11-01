@@ -70,6 +70,12 @@ test('unknown id goes to onDemand and gets lines', async () => {
   assert.equal(await none.reader.getRecord(77777), null);
 });
 
+test('getRecord passes an unknown on-demand result through as undefined', async () => {
+  const store = createMemorySnapshotStore(snap([rec(25544, 'ISS (ZARYA)')]));
+  const { reader } = make({ store, onDemand: { get: async () => undefined } });
+  assert.equal(await reader.getRecord(77777), undefined);
+});
+
 const tick = () => new Promise((r) => setImmediate(r));
 
 test('snapshot reloads only after reloadMs', async () => {

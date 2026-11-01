@@ -106,3 +106,12 @@ test('lookupSat', async () => {
   assert.equal(ok.record.noradId, 25544);
   await assert.rejects(lookupSat(mk(null), '25544'), /not available/);
 });
+
+test('lookupSat throws, never a cacheable not-found, when the on-demand result is unknown', async () => {
+  const { lookupSat } = await import('../lib/sat/page-data.mjs');
+  const reader = createCatalogReader({
+    store: createMemorySnapshotStore({ version: 1, generatedAtMs: ISS_T0, objects: {} }),
+    onDemand: { get: async () => undefined }, now: () => ISS_T0, log: quiet,
+  });
+  await assert.rejects(lookupSat(reader, '99999'), /not available/);
+});
