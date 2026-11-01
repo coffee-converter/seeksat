@@ -24,8 +24,8 @@
   display: block;
   width: 100%;
   cursor: grab;
-  /* Pointer events handle drag and pinch; stop the browser scrolling or zooming the page. */
-  touch-action: none;
+  /* FlatMap switches this to none while zoomed in, so the page scrolls past an unzoomed map. */
+  touch-action: pan-y;
 }
 .flat-map__canvas:active { cursor: grabbing; }
 .flat-map__menu {
@@ -42,6 +42,30 @@
 }
 .flat-map__menu:focus-visible,
 .flat-map__canvas:focus-visible {
+  outline: 2px solid var(--map-accent);
+  outline-offset: 1px;
+}
+
+.flat-map__zoom {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+}
+.flat-map__zoom button {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  background: var(--map-panel);
+  color: var(--map-text);
+  border: 1px solid rgba(126, 184, 255, 0.4);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.flat-map__zoom button:hover { background: rgba(126, 184, 255, 0.22); }
+.flat-map__zoom button:focus-visible {
   outline: 2px solid var(--map-accent);
   outline-offset: 1px;
 }

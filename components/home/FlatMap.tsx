@@ -5,6 +5,7 @@ import { drawMap, hitTest } from "@/lib/map/draw.mjs";
 import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
 import {
   PROJECTIONS,
+  DEFAULT_PROJECTION,
   clampZoom,
   makeProjection,
   projectionAvailable,
@@ -90,9 +91,16 @@ export default function FlatMap({
   const projection = useRef<Projection | null>(null);
   const night = useRef<{ at: number; bands: NightBands } | null>(null);
 
+  // A projection that is unavailable right now (no observer, no selected satellite)
+  // is shown and drawn as the default. The saved choice is left alone so it
+  // returns when it becomes available again.
+  const effectiveId = isAvailable(projectionId, { observer, sat: selectedSub })
+    ? projectionId
+    : DEFAULT_PROJECTION;
+
   // Latest props, read by the draw loop and pointer handlers without re-binding them.
-  const latest = useRef({ sats, observer, projectionId, selectedSub, onSelect });
-  latest.current = { sats, observer, projectionId, selectedSub, onSelect };
+  const latest = useRef({ sats, observer, projectionId: effectiveId, selectedSub, onSelect });
+  latest.current = { sats, observer, projectionId: effectiveId, selectedSub, onSelect };
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -113,6 +121,8 @@ export default function FlatMap({
       pan: view.current.pan,
     });
     projection.current = proj;
+    // At zoom 1 the map leaves vertical scrolling to the page; zoomed in, it owns touch.
+    canvas.style.touchAction = view.current.zoom > 1 ? "none" : "pan-y";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
     // Clip to the map so zoomed or panned geometry stays inside the frame.
@@ -131,6 +141,27 @@ export default function FlatMap({
     });
     ctx.restore();
   }, []);
+
+  const reset = useCallback(() => {
+    view.current = { zoom: 1, pan: [0, 0] };
+    redraw();
+  }, [redraw]);
+  // Zoom by factor k keeping the point (qx, qy) fixed on screen.
+  const zoomAt = useCallback((k: number, qx: number, qy: number) => {
+    const { width, height } = size.current;
+    const z1 = view.current.zoom;
+    const z2 = clampZoom(z1 * k);
+    const kk = z2 / z1;
+    const cx = width / 2;
+    const cy = height / 2;
+    const [px, py] = view.current.pan;
+    view.current = {
+      zoom: z2,
+      pan: z2 === 1 ? [0, 0] : [qx - cx - (qx - cx - px) * kk, qy - cy - (qy - cy - py) * kk],
+    };
+    redraw();
+  }, [redraw]);
+  const zoomBy = (k: number) => zoomAt(k, size.current.width / 2, size.current.height / 2);
 
   // Fit the canvas to its container and the viewport, and re-fit on change.
   useEffect(() => {
@@ -152,9 +183,13 @@ export default function FlatMap({
     const ro = new ResizeObserver(fit);
     ro.observe(wrap);
     window.addEventListener("orientationchange", fit);
+    window.addEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
     return () => {
       ro.disconnect();
       window.removeEventListener("orientationchange", fit);
+      window.removeEventListener("resize", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
     };
   }, [redraw]);
 
@@ -163,9 +198,13 @@ export default function FlatMap({
     const id = window.setInterval(redraw, 1000);
     return () => window.clearInterval(id);
   }, [redraw]);
+  // A new projection starts from the default view.
+  useEffect(() => {
+    view.current = { zoom: 1, pan: [0, 0] };
+  }, [effectiveId]);
   useEffect(() => {
     redraw();
-  }, [redraw, sats, observer, projectionId, selectedSub, selectedId]);
+  }, [redraw, sats, observer, effectiveId, selectedSub, selectedId]);
 
   // Zoom, pan, pinch and tap.
   useEffect(() => {
@@ -180,24 +219,6 @@ export default function FlatMap({
     const local = (e: { clientX: number; clientY: number }): Pt => {
       const r = canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
-    };
-    const reset = () => {
-      view.current = { zoom: 1, pan: [0, 0] };
-      redraw();
-    };
-    // Zoom by factor k keeping the point (qx, qy) fixed on screen.
-    const zoomAt = (k: number, qx: number, qy: number) => {
-      const { width, height } = size.current;
-      const z1 = view.current.zoom;
-      const z2 = clampZoom(z1 * k);
-      const kk = z2 / z1;
-      const cx = width / 2;
-      const cy = height / 2;
-      const [px, py] = view.current.pan;
-      view.current = {
-        zoom: z2,
-        pan: [qx - cx - (qx - cx - px) * kk, qy - cy - (qy - cy - py) * kk],
-      };
     };
     const spread = () => {
       const [a, b] = [...pointers.values()];
@@ -218,7 +239,7 @@ export default function FlatMap({
         const dx = next.x - prev.x;
         const dy = next.y - prev.y;
         moved += Math.abs(dx) + Math.abs(dy);
-        if (moved >= TAP_SLOP_PX) {
+        if (moved >= TAP_SLOP_PX && view.current.zoom > 1) {
           const [px, py] = view.current.pan;
           view.current.pan = [px + dx, py + dy];
           redraw();
@@ -229,15 +250,19 @@ export default function FlatMap({
         pointers.set(e.pointerId, next);
         const after = spread();
         if (before.dist > 0) zoomAt(after.dist / before.dist, after.mid.x, after.mid.y);
-        const [px, py] = view.current.pan;
-        view.current.pan = [px + after.mid.x - before.mid.x, py + after.mid.y - before.mid.y];
-        redraw();
+        if (view.current.zoom > 1) {
+          const [px, py] = view.current.pan;
+          view.current.pan = [px + after.mid.x - before.mid.x, py + after.mid.y - before.mid.y];
+          redraw();
+        }
       }
     };
     const onUp = (e: PointerEvent) => {
       const wasOnly = pointers.size === 1;
       const at = local(e);
       pointers.delete(e.pointerId);
+      // One finger left after a pinch: let it pan straight away, but never tap.
+      if (pointers.size === 1) moved = TAP_SLOP_PX;
       if (!wasOnly || multi || moved >= TAP_SLOP_PX) return;
       // A tap: a second tap close in time and place resets the view, else it selects.
       const now = e.timeStamp;
@@ -254,12 +279,15 @@ export default function FlatMap({
     };
     const onCancel = (e: PointerEvent) => {
       pointers.delete(e.pointerId);
+      if (pointers.size === 1) moved = TAP_SLOP_PX;
     };
+    // Plain wheel scrolls the page at zoom 1; ctrl/meta (trackpad pinch) or a zoomed map captures it.
     const onWheel = (e: WheelEvent) => {
+      const pinch = e.ctrlKey || e.metaKey;
+      if (!pinch && view.current.zoom <= 1) return;
       e.preventDefault();
       const p = local(e);
-      zoomAt(Math.exp(-e.deltaY * 0.002), p.x, p.y);
-      redraw();
+      zoomAt(Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002)), p.x, p.y);
     };
 
     canvas.addEventListener("pointerdown", onDown);
@@ -276,9 +304,7 @@ export default function FlatMap({
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("dblclick", reset);
     };
-  }, [redraw]);
-
-  const availability = { observer, sat: selectedSub };
+  }, [redraw, zoomAt, reset]);
 
   return (
     <div className="flat-map" ref={wrapRef}>
@@ -291,19 +317,24 @@ export default function FlatMap({
       <select
         className="flat-map__menu"
         aria-label="Map projection"
-        value={projectionId}
+        value={effectiveId}
         onChange={(e) => onProjectionChange(e.target.value)}
       >
         {PROJECTIONS.map((p: { id: string; label: string }) => (
           <option
             key={p.id}
             value={p.id}
-            disabled={!isAvailable(p.id, availability)}
+            disabled={!isAvailable(p.id, { observer, sat: selectedSub })}
           >
             {p.label}
           </option>
         ))}
       </select>
+      <div className="flat-map__zoom">
+        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.5)}>+</button>
+        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.5)}>{"\u2212"}</button>
+        <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
+      </div>
       <table className="sr-only">
         <caption>Current satellite positions</caption>
         <thead>
