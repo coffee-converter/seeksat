@@ -10,6 +10,7 @@ import NextUpList, { type Card, type HomeObserver, type Track } from "./NextUpLi
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
+import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { followedTracks, shouldRefreshCards } from "@/lib/home/view.mjs";
 import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
@@ -151,7 +152,15 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   }, [nowMs, tracks, groundTracks, colors, selectedId, prefs.minElevDeg]);
 
   // Cards: on any input change, every 10 min, and when a pass starts or ends.
-  const [cardState, setCardState] = useState<{ cards: Card[]; at: number } | null>(null);
+  // Cards are kept with the inputs they were computed for and shown only
+  // while those still match; a refresh tick keeps the old cards up.
+  const cardKey = useMemo(
+    () => cardJobKey({
+      following: prefs.following, custom: prefs.custom, observer, mode: prefs.mode, minElevDeg: prefs.minElevDeg,
+    }),
+    [prefs.following, prefs.custom, observer, prefs.mode, prefs.minElevDeg],
+  );
+  const [cardState, setCardState] = useState<{ cards: Card[]; at: number; key: string } | null>(null);
   const [cardTick, setCardTick] = useState(0);
   const cardRequest = useRef(0);
   const warned = useRef(false);
@@ -184,7 +193,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       .then((cards: unknown) => {
         if (request !== cardRequest.current) return;
         inFlight.current = false;
-        setCardState({ cards: cards as unknown as Card[], at });
+        setCardState({ cards: cards as unknown as Card[], at, key: cardKey });
       })
       .catch((e: unknown) => {
         if (request === cardRequest.current) {
@@ -195,7 +204,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         warned.current = true;
         console.warn("Pass search failed; keeping the previous cards.", e);
       });
-  }, [shownRecords, prefs.custom, prefs.following, shownMissing, observer, prefs.mode, prefs.minElevDeg, cardTick]);
+  }, [shownRecords, prefs.custom, prefs.following, shownMissing, observer, prefs.mode, prefs.minElevDeg, cardKey, cardTick]);
   useEffect(() => {
     if (!observer) return;
     if (shouldRefreshCards({
@@ -268,6 +277,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             </>
           ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
             <p className="home-note">Loading satellites...</p>
+          ) : cardState.key !== cardKey ? (
+            <p className="home-note" role="status">Finding passes...</p>
           ) : (
             nowMs != null && (
               <NextUpList

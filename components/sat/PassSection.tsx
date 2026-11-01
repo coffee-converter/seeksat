@@ -13,6 +13,7 @@ import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
 import { passRows } from "@/lib/sat/pass-rows.mjs";
+import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 
 // The chart painters load on the first chart open, not with the page.
@@ -34,6 +35,7 @@ const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const icsName = icsFileName as (sat: string, place: string, startMs: number) => string;
 
 const UNAVAILABLE = "These elements can't be used to compute passes.";
+const SEARCH_FAILED = "Pass search failed. Reload the page to try again.";
 
 interface Props {
   track: unknown;
@@ -76,7 +78,15 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
     [observers],
   );
 
-  const [result, setResult] = useState<unknown>(null);
+  // A result is kept with the inputs it was computed for, and shown only
+  // while they still match, so a chart or .ics never pairs an old pass with
+  // new places or settings. A refresh tick is not part of the key.
+  const recordId = (record as { noradId?: number } | null)?.noradId ?? null;
+  const jobKey = useMemo(
+    () => passJobKey({ observers, mode: prefs.mode, minElevDeg: prefs.minElevDeg, recordId }),
+    [observers, prefs.mode, prefs.minElevDeg, recordId],
+  );
+  const [stored, setStored] = useState<{ key: string; result: unknown } | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
@@ -88,7 +98,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
     if (!observer || !track) {
       inFlight.current = false;
       setBusy(false);
-      setResult(null);
+      setStored(null);
       return;
     }
     inFlight.current = true;
@@ -109,7 +119,7 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
         if (mine !== request.current) return;
         inFlight.current = false;
         setBusy(false);
-        setResult(r);
+        setStored({ key: jobKey, result: r });
       })
       .catch((e: unknown) => {
         if (mine !== request.current) return;
@@ -118,12 +128,13 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
         setFailed(true);
         console.warn("Pass search failed.", e);
       });
-  }, [track, record, observer, observers, prefs.mode, prefs.minElevDeg, tick]);
+  }, [track, record, observer, observers, prefs.mode, prefs.minElevDeg, jobKey, tick]);
 
   // The clock in 15 s steps, so rows re-derive without a per-second pass.
   const bucketMs = Math.floor(nowMs / 15_000) * 15_000;
+  const result = stored && stored.key === jobKey ? stored.result : null;
   const view = useMemo<View | null>(() => {
-    if (failed) return { kind: "message", text: UNAVAILABLE };
+    if (failed) return { kind: "message", text: SEARCH_FAILED };
     if (!result || !observer) return null;
     return rowsOf(result, {
       epochMs,
@@ -203,9 +214,9 @@ export default function PassSection({ track: trackIn, record, epochMs, nowMs }: 
             />
           )}
           {observer && !showPrompt && <ExtraObservers />}
-          {observer && !showPrompt && (busy && !view ? (
+          {observer && !showPrompt && (!view ? (
             <p className="home-note" role="status">Finding passes...</p>
-          ) : view && (
+          ) : (
             <>
               {busy && <p className="home-note" role="status">Finding passes...</p>}
               {view.kind === "rows" ? (
