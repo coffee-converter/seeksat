@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { searchQuery, searchUrl } from "@/lib/home/search.mjs";
+import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { useHomeStore } from "@/lib/home/store";
 
 interface Result {
@@ -24,6 +25,7 @@ export function SearchBar() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasted, setPasted] = useState("");
   const [pasteError, setPasteError] = useState<string | null>(null);
+  const [limitError, setLimitError] = useState<string | null>(null);
 
   const following = useHomeStore((s) => s.prefs.following);
   const follow = useHomeStore((s) => s.follow);
@@ -44,6 +46,7 @@ export function SearchBar() {
   function onChange(value: string) {
     setText(value);
     setActive(-1);
+    setLimitError(null);
     setResults([]);
     if (timer.current) clearTimeout(timer.current);
     abort.current?.abort();
@@ -76,6 +79,12 @@ export function SearchBar() {
   }
 
   function choose(r: Result) {
+    // At the cap, following would do nothing: say so and keep the list open.
+    const blocked = followBlockedMessage(following, r.noradId);
+    if (blocked) {
+      setLimitError(blocked);
+      return;
+    }
     if (timer.current) clearTimeout(timer.current);
     abort.current?.abort();
     follow(r.noradId);
@@ -91,6 +100,7 @@ export function SearchBar() {
     if (e.key === "Escape") {
       setOpen(false);
       setActive(-1);
+      setLimitError(null);
     } else if (e.key === "ArrowDown" && results.length) {
       e.preventDefault();
       setOpen(true);
@@ -133,6 +143,7 @@ export function SearchBar() {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
           setOpen(false);
           setActive(-1);
+          setLimitError(null);
         }
       }}
     >
@@ -187,6 +198,11 @@ export function SearchBar() {
           </li>
         ))}
       </ul>
+      {showList && limitError && (
+        <p className="search-bar__error" role="alert">
+          {limitError}
+        </p>
+      )}
       {showList && status === "done" && results.length === 0 && (
         <p className="search-bar__note">No satellites match &quot;{queried}&quot;.</p>
       )}

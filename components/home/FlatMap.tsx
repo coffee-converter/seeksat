@@ -71,10 +71,6 @@ const TAP_SLOP_PX = 6;
 const DOUBLE_TAP_MS = 300;
 const NIGHT_REFRESH_MS = 60_000;
 
-function mapHeight(): number {
-  return Math.max(220, Math.round(window.innerHeight * 0.5));
-}
-
 export default function FlatMap({
   sats,
   observer,
@@ -163,45 +159,40 @@ export default function FlatMap({
   }, [redraw]);
   const zoomBy = (k: number) => zoomAt(k, size.current.width / 2, size.current.height / 2);
 
-  // Fit the canvas to its container and the viewport, and re-fit on change.
+  // Fit the canvas backing store to the wrapper's CSS size (set in home.css)
+  // and re-fit only when that size or the pixel ratio actually changes.
   useEffect(() => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return;
     const fit = () => {
       const width = Math.round(wrap.clientWidth);
-      if (!width) return;
-      const height = mapHeight();
+      const height = Math.round(wrap.clientHeight);
+      if (!width || !height) return;
       const dpr = window.devicePixelRatio || 1;
+      const cur = size.current;
+      if (cur.width === width && cur.height === height && cur.dpr === dpr) return;
       size.current = { width, height, dpr };
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
-      canvas.style.height = `${height}px`;
       redraw();
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(wrap);
-    window.addEventListener("orientationchange", fit);
+    // Browser zoom changes the pixel ratio without resizing the wrapper.
     window.addEventListener("resize", fit);
-    window.visualViewport?.addEventListener("resize", fit);
     return () => {
       ro.disconnect();
-      window.removeEventListener("orientationchange", fit);
       window.removeEventListener("resize", fit);
-      window.visualViewport?.removeEventListener("resize", fit);
     };
   }, [redraw]);
 
-  // Redraw once a second from the props the parent updates, and on any prop change.
-  useEffect(() => {
-    const id = window.setInterval(redraw, 1000);
-    return () => window.clearInterval(id);
-  }, [redraw]);
   // A new projection starts from the default view.
   useEffect(() => {
     view.current = { zoom: 1, pan: [0, 0] };
   }, [effectiveId]);
+  // The parent's clock tick passes new props each second; redraw on any prop change.
   useEffect(() => {
     redraw();
   }, [redraw, sats, observer, effectiveId, selectedSub, selectedId]);

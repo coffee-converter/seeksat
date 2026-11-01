@@ -13,6 +13,9 @@
 .flat-map {
   position: relative;
   width: 100%;
+  /* Sized here, not from JS, so the server render has its height and the
+     phone URL bar showing or hiding (svh ignores it) never resizes the map. */
+  height: max(220px, 50svh);
   background: var(--map-ocean);
   border: 1px solid var(--map-border);
   border-radius: 8px;
@@ -23,6 +26,7 @@
 .flat-map__canvas {
   display: block;
   width: 100%;
+  height: 100%;
   cursor: grab;
   /* FlatMap switches this to none while zoomed in, so the page scrolls past an unzoomed map. */
   touch-action: pan-y;
@@ -105,6 +109,8 @@
   border: 1px solid rgba(126, 184, 255, 0.4);
   border-radius: 6px;
   font: inherit;
+  /* 16px or more stops iOS Safari zooming the page on focus. */
+  font-size: 16px;
 }
 .search-bar__input::placeholder { color: var(--map-muted); }
 .search-bar__button {
@@ -153,7 +159,7 @@
   color: var(--map-text);
   border: 1px solid rgba(126, 184, 255, 0.4);
   border-radius: 6px;
-  font: 0.85rem ui-monospace, monospace;
+  font: 16px ui-monospace, monospace;
 }
 .search-bar__paste .search-bar__button { align-self: flex-start; }
 .search-bar__error { margin: 0; color: #ff9a9a; }
@@ -179,6 +185,41 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.home-wordmark {
+  margin: 2px 2px 0;
+  color: var(--map-accent);
+  font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+.home-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding: 12px 2px 0;
+  border-top: 1px solid var(--map-border);
+  color: var(--map-muted);
+  font-size: 12px;
+}
+.home-footer a { color: var(--map-muted); text-decoration: underline; text-underline-offset: 2px; }
+.home-footer a:hover,
+.home-footer a:focus-visible { color: var(--map-accent); }
+/* ClockSkewBanner's look, copied from pass-finder.css (not loaded here) and
+   scoped so it never changes the classic app's banner. */
+.home .clock-skew-banner {
+  padding: 6px 10px;
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.32);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f5d36a;
+}
+.home .clock-skew-banner strong { color: #facc15; font-weight: 600; }
 .home-note { margin: 0; color: var(--map-muted); }
 .home-error { margin: 0; color: #ff9a9a; }
 
@@ -215,6 +256,7 @@
   border: 1px solid rgba(126, 184, 255, 0.4);
   border-radius: 6px;
   font: inherit;
+  font-size: 16px;
 }
 .home-input::placeholder { color: var(--map-muted); }
 .home-link {
@@ -337,6 +379,13 @@
   border: 1px solid rgba(127, 229, 209, 0.5);
   border-radius: 999px;
   font-size: 11px;
+}
+/* Where the elements came from: a quieter cue than "visible". */
+.pass-card__tag--elements {
+  color: var(--map-muted);
+  border-color: var(--map-border);
+  font-weight: 400;
+  white-space: nowrap;
 }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 

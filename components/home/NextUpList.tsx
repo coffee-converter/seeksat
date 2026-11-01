@@ -5,15 +5,14 @@ import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
 import SkyChartModalView from "@/components/passes/SkyChartModalView";
 import RadioChartModalView from "@/components/passes/RadioChartModalView";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
-import { passTimesLabel } from "@/lib/home/view.mjs";
-import { formatPassDuration } from "@/lib/passes/format.mjs";
+import { elementTags, passMetaLabel } from "@/lib/home/view.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import {
   paintPassCard, paintSkyChart, passFileName, radioChartOptions, radioCsvText, radioSeries,
 } from "@/lib/passes/charts.js";
 import { paintRadioChart } from "@/lib/pass-finder/radio-chart.js";
 import { svgToPngBlob } from "@/lib/pass-finder/polar-png.js";
-import { getClockSkewMs, trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { getClockSkewMs, hasClockSyncSample, trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
@@ -72,6 +71,17 @@ function downloadText(text: string, filename: string, type: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function ElementTags({ track }: { track: Track | undefined }) {
+  if (!track) return null;
+  return (
+    <>
+      {(elementTags(track) as string[]).map((tag) => (
+        <span key={tag} className="pass-card__tag pass-card__tag--elements">{tag}</span>
+      ))}
+    </>
+  );
+}
+
 interface PassCardProps {
   card: Extract<Card, { kind: "pass" }>;
   track: Track;
@@ -120,10 +130,9 @@ function PassCard({
       <div className="pass-card__body">
         <p className="pass-card__headline">{headline(card, nowMs)}</p>
         <p className="pass-card__meta">
-          {passTimesLabel(pass.startMs, pass.endMs, nowMs, { timeZone: observer.tz })}
-          {" · "}
-          {formatPassDuration(pass.durationMs / 1000)}
+          {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
           {pass.visible && <span className="pass-card__tag">visible</span>}
+          <ElementTags track={track} />
         </p>
         <div className="pass-card__actions">
           <button type="button" className="home-chip" onClick={onSkyChart}>Sky chart</button>
@@ -212,7 +221,13 @@ export default function NextUpList({
     if (!r) return null;
     const { built, track, obs } = r;
     return {
-      csv: radioCsvText(built, { track, obs, generatedAtMs: trueNow(), clockSkewMs: getClockSkewMs() }),
+      csv: radioCsvText(built, {
+        track,
+        obs,
+        generatedAtMs: trueNow(),
+        // null until a response has measured the skew; the CSV then leaves the line out.
+        clockSkewMs: hasClockSyncSample() ? getClockSkewMs() : null,
+      }),
       filename: passFileName(track, obs, Math.round(built.series.summary.tcaMs), "radio", "csv"),
     };
   };
@@ -249,7 +264,10 @@ export default function NextUpList({
               className="pass-card pass-card--short"
               style={{ "--sat-color": color } as React.CSSProperties}
             >
-              <p className="pass-card__headline">{headline(card, nowMs)}</p>
+              <p className="pass-card__headline">
+                {headline(card, nowMs)}
+                <ElementTags track={track} />
+              </p>
               <button type="button" className="home-chip home-chip--quiet" onClick={() => onUnfollow(card.noradId)}>
                 Unfollow
               </button>

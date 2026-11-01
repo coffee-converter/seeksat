@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import FlatMap, { type MapSat } from "./FlatMap";
 import { SearchBar } from "./SearchBar";
 import HomeControls from "./HomeControls";
@@ -14,6 +15,8 @@ import { followedTracks, nextCardChangeMs } from "@/lib/home/view.mjs";
 import { footprintFeature, groundTrack, subpoint } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTE } from "@/lib/map/draw.mjs";
 import { CATALOG } from "@/lib/catalog.mjs";
+import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import "@/app/home.css";
 
 const TRACK_REFRESH_MS = 60_000;
@@ -53,11 +56,28 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     void loadRecords();
   }, [hydrate, loadRecords]);
   useEffect(() => watchVisibility(), []);
-  // Starts after mount so the server render and hydration agree.
+  // The one-second clock that drives the map and cards, on server time once a
+  // response has measured the skew (as the banner promises). Starts after mount so
+  // the server render and hydration agree, and stops while the tab is hidden.
   useEffect(() => {
-    setNowMs(Date.now());
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    let id: number | undefined;
+    const stop = () => {
+      if (id !== undefined) window.clearInterval(id);
+      id = undefined;
+    };
+    const start = () => {
+      stop();
+      setNowMs(trueNow());
+      id = window.setInterval(() => setNowMs(trueNow()), 1000);
+    };
+    const onVisibility = () => (document.hidden ? stop() : start());
+    if (document.hidden) setNowMs(trueNow());
+    else start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   // The server's snapshot records stand in until the first load lands.
@@ -136,7 +156,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       setCardState(null);
       return;
     }
-    const at = Date.now();
+    const at = trueNow();
     const cards = nextUp({
       tracks, missing: shownMissing, observer, mode: prefs.mode, minElevDeg: prefs.minElevDeg, nowMs: at,
     }) as unknown as Card[];
@@ -163,6 +183,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   return (
     <main className="home">
+      <h1 className="home-wordmark">SeekSat</h1>
+      <ClockSkewBanner />
       <SearchBar />
       <FlatMap
         sats={sats}
@@ -225,6 +247,14 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           )}
         </>
       )}
+
+      <footer className="home-footer">
+        <span>
+          built by{" "}
+          <a href="https://aaronhanson.dev" target="_blank" rel="noopener">Aaron Hanson</a>
+        </span>
+        <Link href="/classic">3D view</Link>
+      </footer>
     </main>
   );
 }
