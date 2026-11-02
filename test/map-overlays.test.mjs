@@ -117,6 +117,15 @@ test('marks have a chevron and a tick per time tick, with bearings', () => {
   }
 });
 
+test('the chevron sits in the same place at every track detail', () => {
+  const chevron = (detail) => build({ trackDetail: detail })['ss-marks'].features
+    .find((f) => f.properties.noradId === 1 && f.properties.kind === 'chevron');
+  const plain = chevron(1);
+  const fine = chevron(8);
+  assert.deepEqual(fine.geometry.coordinates, plain.geometry.coordinates);
+  assert.equal(fine.properties.bearing, plain.properties.bearing);
+});
+
 test('only the focus gets tick labels, and only two', () => {
   const marks = build()['ss-marks'].features;
   const labels = (id) => marks.filter((f) => f.properties.noradId === id && f.properties.label).map((f) => f.properties.label);
