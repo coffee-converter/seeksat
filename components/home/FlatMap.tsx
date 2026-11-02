@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 // Types only: the library itself loads in an effect, in its own chunk.
-import type { LayerSpecification, Map as MlMap, MapMouseEvent, StyleSpecification } from "maplibre-gl";
+import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
-import { trackDetailFor } from "@/lib/map/geometry.mjs";
+import { footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
+import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
 import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera } from "@/lib/map/view.mjs";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
@@ -113,8 +114,17 @@ const homeCentresFocus = homeCentresFocusOf as (
 ) => boolean;
 const addOverlays = addOverlaysTo as (
   map: MlMap,
-  o: { images: unknown[]; layers: LayerSpecification[]; data: SourceData },
+  o: { images: unknown[]; layers: LayerSpecification[]; data: SourceData; custom?: CustomLayerInterface[] },
 ) => void;
+/** The globe footprint fill (lib/map/footprint-layer.mjs). */
+type FootprintLayer = CustomLayerInterface & {
+  setFootprint(f: { center: LngLat; radiusDeg: number; color: string } | null): void;
+};
+const makeFootprintLayer = createFootprintLayer as (o: { onFail?: () => void }) => FootprintLayer;
+const capShown = drawsGlobeCap as (o: { view: View; zoom: number; failed?: boolean }) => boolean;
+const radiusFor = footprintRadiusDeg as (altKm: number, minElevDeg: number) => number;
+/** The GeoJSON footprint fill, hidden while the globe layer draws it. */
+const FILL_LAYER = "ss-footprint-fill";
 type Theme = "dark" | "light";
 
 const NIGHT_REFRESH_MS = 60_000;
@@ -178,6 +188,7 @@ export default function FlatMap({
   onSelect,
   top = null,
   chips = null,
+  selectedSub = null,
   fill = false,
 }: Props) {
   const view = viewOf(projectionId);
@@ -214,8 +225,32 @@ export default function FlatMap({
   const legendId = useId();
 
   // Latest props, read by map event handlers without re-binding them.
-  const latest = useRef({ sats, observer, view, onSelect });
-  latest.current = { sats, observer, view, onSelect };
+  const latest = useRef({ sats, observer, view, onSelect, selectedSub, minElevDeg });
+  latest.current = { sats, observer, view, onSelect, selectedSub, minElevDeg };
+
+  // The focus footprint's fill: on a full globe a custom layer draws it as a
+  // true spherical cap (the GeoJSON fill stops at 85 degrees); otherwise the
+  // GeoJSON fill does. Exactly one shows.
+  const capLayer = useRef<FootprintLayer | null>(null);
+  const capFailed = useRef(false);
+  // Whether the current style's GeoJSON fill is hidden; a new style shows it.
+  const fillHidden = useRef(false);
+  const syncFill = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !styleReady.current) return;
+    const hide = capShown({ view: latest.current.view, zoom: map.getZoom(), failed: capFailed.current });
+    if (hide === fillHidden.current) return;
+    fillHidden.current = hide;
+    map.setLayoutProperty(FILL_LAYER, "visibility", hide ? "none" : "visible");
+  }, []);
+  /** The focus satellite's footprint for the globe layer, as overlayData draws it. */
+  const pushFootprint = useCallback(() => {
+    const { sats: s, selectedSub: sub, minElevDeg: elev } = latest.current;
+    const focus = s.find((x) => x.emphasis === "focus" && x.footprint);
+    capLayer.current?.setFootprint(focus && sub
+      ? { center: [sub.lonDeg, sub.latDeg], radiusDeg: radiusFor(sub.altKm, elev), color: focus.color }
+      : null);
+  }, []);
 
   const homeView = useCallback((map: MlMap): Camera => {
     const { sats: s, observer: o, view: v } = latest.current;
@@ -351,6 +386,14 @@ export default function FlatMap({
       }
       made = map;
       mapRef.current = map;
+      capLayer.current = makeFootprintLayer({
+        // It fails inside a frame: change the style after it.
+        onFail: () => {
+          capFailed.current = true;
+          queueMicrotask(syncFill);
+        },
+      });
+      pushFootprint();
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
       const canvas = map.getCanvas();
@@ -381,8 +424,11 @@ export default function FlatMap({
           images: overlayImages(colors),
           layers: overlayLayers(colors) as LayerSpecification[],
           data,
+          custom: capLayer.current ? [capLayer.current] : [],
         });
         map.setProjection({ type: latest.current.view === "globe" ? "globe" : "mercator" });
+        fillHidden.current = false;
+        syncFill();
         limitZoom(map);
       });
       // A tap on a dot (or its name) selects the nearest one; hidden satellites are not in the layers.
@@ -415,6 +461,8 @@ export default function FlatMap({
       });
       // Zoomed in past home, a stacked map takes one-finger and wheel gestures.
       map.on("zoomend", syncGestures);
+      // Past zoom 11 the globe flattens toward Mercator and the GeoJSON fill takes over.
+      map.on("zoom", syncFill);
       // Zooming changes which tracks are too short for direction marks.
       map.on("moveend", push);
       // MapLibre follows its container; an untouched home view refits to it.
@@ -431,11 +479,12 @@ export default function FlatMap({
       alive = false;
       styleReady.current = false;
       mapRef.current = null;
+      capLayer.current = null;
       made?.remove();
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom, syncFill, pushFootprint]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {
@@ -523,7 +572,8 @@ export default function FlatMap({
     map.setMinZoom(null);
     map.jumpTo(homeView(map));
     limitZoom(map);
-  }, [view, homeView, setFollowing, limitZoom]);
+    syncFill();
+  }, [view, homeView, setFollowing, limitZoom, syncFill]);
 
   // An untouched home view follows the observer (it arrives after mount, once prefs load).
   const obsLon = observer?.lonDeg ?? null;
@@ -541,6 +591,7 @@ export default function FlatMap({
   }, [selectedId, setFollowing]);
   // The parent's clock tick passes new props each second.
   useEffect(() => {
+    pushFootprint();
     const map = mapRef.current;
     const id = centreOn.current;
     if (map && id != null) {
@@ -560,7 +611,7 @@ export default function FlatMap({
       return;
     }
     push();
-  }, [sats, observer, selectedId, push, moveTo]);
+  }, [sats, observer, selectedId, selectedSub, minElevDeg, push, pushFootprint, moveTo]);
 
   const reset = () => {
     const map = mapRef.current;

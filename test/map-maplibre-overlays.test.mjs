@@ -26,10 +26,20 @@ function fakeMap() {
       sources.set(id, { spec, setData: (d) => { calls.setData++; sources.get(id).data = d; } });
     },
     getLayer: (id) => layers.get(id),
-    addLayer: (layer) => {
+    addLayer: (layer, beforeId) => {
       calls.addLayer++;
       if (layers.has(layer.id)) throw new Error(`layer ${layer.id} exists`);
-      layers.set(layer.id, layer);
+      if (beforeId === undefined) {
+        layers.set(layer.id, layer);
+        return;
+      }
+      if (!layers.has(beforeId)) throw new Error(`layer ${beforeId} does not exist`);
+      const order = [...layers.entries()];
+      layers.clear();
+      for (const [id, l] of order) {
+        if (id === beforeId) layers.set(layer.id, layer);
+        layers.set(id, l);
+      }
     },
   };
 }
@@ -66,4 +76,19 @@ test('setOverlayData updates only sources that exist and are given', () => {
   setOverlayData(map, { 'src-a': next, 'src-missing': next });
   assert.equal(map.calls.setData, 1);
   assert.equal(map.sources.get('src-a').data, next);
+});
+
+test('addOverlays adds a custom layer once, below the past track', () => {
+  const map = fakeMap();
+  const custom = { id: 'ss-footprint-globe', type: 'custom', render() {} };
+  const withTracks = () => ({
+    ...input(),
+    layers: [{ id: 'a', type: 'fill', source: 'src-a' }, { id: 'ss-track-past', type: 'line', source: 'src-b' }],
+    custom: [custom],
+  });
+  addOverlays(map, withTracks());
+  addOverlays(map, withTracks());
+  assert.equal(map.calls.addLayer, 3);
+  assert.deepEqual([...map.layers.keys()], ['a', 'ss-footprint-globe', 'ss-track-past']);
+  assert.equal(map.layers.get('ss-footprint-globe'), custom);
 });
