@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { liveState, liveAvailable, clockText } from '../lib/live/live-state.mjs';
+import { liveState, liveAvailable, clockText, tuneMode } from '../lib/live/live-state.mjs';
+import { readFileSync } from 'node:fs';
 
 const s = (tMs, azDeg, elDeg, dopplerHz = 0, rangeM = 1_000_000) => ({ tMs, azDeg, elDeg, dopplerHz, dopplerRateHzPerSec: dopplerHz == null ? null : -1, rangeM });
 const pass = [s(0, 200, 10, 1000), s(1000, 210, 20, 0), s(2000, 220, 30, -1000)];
@@ -61,4 +62,20 @@ test('clockText', () => {
   assert.equal(clockText(245000), '4:05');
   assert.equal(clockText(3723000), '1:02:03');
   assert.equal(clockText(-1), '0:00');
+});
+
+test('tuneMode says what the radio block shows in each phase', () => {
+  assert.equal(tuneMode(null, 437.8e6), 'none');
+  assert.equal(tuneMode({ phase: 'during', dopplerHz: 100 }, null), 'pick');
+  assert.equal(tuneMode({ phase: 'during', dopplerHz: 100 }, 437.8e6), 'tune');
+  assert.equal(tuneMode({ phase: 'before', dopplerHz: 100 }, 437.8e6), 'tune');
+  assert.equal(tuneMode({ phase: 'before', dopplerHz: null }, 437.8e6), 'waiting');
+  assert.equal(tuneMode({ phase: 'after', dopplerHz: null }, 437.8e6), 'over');
+});
+
+test('LiveView handles Esc before the page does, and announces only the phase', () => {
+  const src = readFileSync(new URL('../components/live/LiveView.tsx', import.meta.url), 'utf8');
+  assert.match(src, /addEventListener\("keydown", onKey, \{ capture: true \}\)/);
+  assert.doesNotMatch(src, /className="live-view__status" aria-live/);
+  assert.match(src, /className="sr-only" aria-live="polite">\{phaseText\}/);
 });

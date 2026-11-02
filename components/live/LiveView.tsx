@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import LiveDial from "@/components/live/LiveDial";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
-import { liveState, clockText } from "@/lib/live/live-state.mjs";
+import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
 import { turnHint, headingFromOrientation } from "@/lib/live/heading.mjs";
 import { compass } from "@/lib/sat/pass-rows.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
@@ -19,6 +19,7 @@ type Live = {
 };
 const stateAt = liveState as (s: Sample[], now: number) => Live;
 const clock = clockText as (ms: number) => string;
+const tuneOf = tuneMode as (live: Live | null, freqHz: number | null) => "none" | "pick" | "tune" | "waiting" | "over";
 const hint = turnHint as (target: number, heading: number) => { deltaDeg: number; text: string };
 const headingOf = headingFromOrientation as (e: unknown) => number | null;
 const point = compass as (az: number) => string;
@@ -89,8 +90,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
   useEffect(() => {
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Capture, so the page's own Esc (clear focus) never sees this one.
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [onClose]);
 
   const live = samples.length ? stateAt(samples, now) : null;
@@ -101,6 +103,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
   const peak = live && live.msToPeak != null ? `Peak ${Math.round(live.peakElDeg)}° in ${clock(live.msToPeak)}` : null;
   const turn = live && live.azDeg != null && heading != null ? hint(live.azDeg, heading).text : null;
   const titleId = "live-view-title";
+  const tune = tuneOf(live, freqHz);
+  // Screen readers hear the phase change, not every tick of the countdown.
+  const phaseText = !live ? "" : live.phase === "before" ? "Not up yet." : live.phase === "during" ? "The satellite is up." : "This pass is over.";
   return (
     <div className="live-view" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className="live-view__inner">
@@ -111,7 +116,8 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
           </div>
           <button ref={closeRef} type="button" className="home-chip" onClick={onClose}>Close</button>
         </header>
-        <p className="live-view__status" aria-live="polite">
+        <p className="sr-only" aria-live="polite">{phaseText}</p>
+        <p className="live-view__status">
           <strong>{status}</strong>{peak && <span>{` · ${peak}`}</span>}
         </p>
         <LiveDial
@@ -128,9 +134,11 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
           </dl>
         )}
         <section className="live-view__radio" aria-label="Tuning">
-          {freqHz == null ? (
+          {tune === "none" ? null : tune === "pick" ? (
             <p className="home-note">Pick a frequency in the radio chart to see where to tune.</p>
-          ) : live && live.dopplerHz != null ? (
+          ) : tune === "over" ? (
+            <p className="home-note">{"The pass has set. Its radio chart still has the full Doppler curve."}</p>
+          ) : tune === "tune" && live && live.dopplerHz != null && freqHz != null ? (
             <>
               <p className="live-view__tune">
                 <span className="live-view__tune-label">{live.phase === "before" ? "At rise, tune" : "Tune"}</span>
@@ -146,7 +154,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
               <p className="home-note">{"Predicted. The satellite's own offset is unknown."}</p>
             </>
           ) : (
-            <p className="home-note">{`${(freqHz / 1e6).toFixed(3)} MHz once it rises.`}</p>
+            <p className="home-note">{`${((freqHz ?? 0) / 1e6).toFixed(3)} MHz once it rises.`}</p>
           )}
         </section>
         <div className="live-view__actions">
