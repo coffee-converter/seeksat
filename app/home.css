@@ -477,6 +477,8 @@
 }
 .home-controls__mode,
 .home-controls__elev { display: flex; align-items: center; }
+/* What the elevation setting does, on its own line under the controls. */
+.home-controls__hint { flex: 1 0 100%; order: 1; margin: -4px 0 0; color: var(--map-muted); font-size: 12px; }
 .home-controls__mode {
   padding: 2px;
   background: var(--input-bg);

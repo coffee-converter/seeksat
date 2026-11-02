@@ -47,7 +47,7 @@ export default function HomeControls({
           {"−"}
         </button>
         <span className="home-controls__value" aria-live="polite" title="Minimum elevation">
-          Min <span className={ready ? undefined : "home-controls__pending"}>{minElevDeg}°</span>
+          Min elevation <span className={ready ? undefined : "home-controls__pending"}>{minElevDeg}°</span>
         </span>
         <button
           type="button"
@@ -59,6 +59,8 @@ export default function HomeControls({
           +
         </button>
       </div>
+
+      <p className="home-controls__hint">Hides lower passes and sizes the footprint circle.</p>
 
       {locationName != null && (
         <div className="home-controls__place">

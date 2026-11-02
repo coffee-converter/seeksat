@@ -9,7 +9,7 @@ test('defaults', () => {
   assert.equal(d.location, null);
   assert.deepEqual(d.following, POPULAR_IDS);
   assert.equal(d.mode, 'radio');
-  assert.equal(d.minElevDeg, 10);
+  assert.equal(d.minElevDeg, 0);
 });
 
 test('garbage falls back to defaults', () => {
@@ -29,7 +29,7 @@ test('field-by-field validation', () => {
   assert.equal(p.location, null);
   assert.equal(p.following.length, 20);
   assert.deepEqual(p.following.slice(0, 2), [1, 3]);
-  assert.equal(p.minElevDeg, 10);
+  assert.equal(p.minElevDeg, 0);
   assert.equal(p.projection, defaultPrefs().projection);
   assert.equal(p.mode, 'radio');
 });
