@@ -27,7 +27,7 @@ import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { resolveSatellite } from "@/lib/catalog.mjs";
 import { makeTrack } from "@/lib/sat/track.mjs";
 import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/numbers.mjs";
-import { SAT_PALETTES } from "@/lib/map/draw.mjs";
+import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { nextPassTile } from "@/lib/sat/next-pass-tile.mjs";

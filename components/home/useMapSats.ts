@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
 import { footprintFeature, splitTrack, subpoint, tickStepMin } from "@/lib/map/geometry.mjs";
-import { SAT_PALETTES } from "@/lib/map/draw.mjs";
+import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 
 export interface Layer {
   noradId: number;

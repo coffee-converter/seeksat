@@ -21,7 +21,7 @@ import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { savedAgeNotice, shouldRefreshCards } from "@/lib/home/view.mjs";
 import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
-import { SAT_PALETTES } from "@/lib/map/draw.mjs";
+import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";

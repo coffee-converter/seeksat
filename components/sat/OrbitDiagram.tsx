@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { orbitDiagram } from "@/lib/sat/orbit-diagram.mjs";
-import { SAT_PALETTES } from "@/lib/map/draw.mjs";
+import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 
 type Diagram = {
