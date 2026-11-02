@@ -48,7 +48,7 @@ function build(over = {}) {
 const ids = (fc) => fc.features.map((f) => f.properties.noradId);
 
 test('overlayData builds every source', () => {
-  const data = build();
+  const data = build({ graticule: true });
   assert.deepEqual(Object.keys(data).sort(), [...OVERLAY_SOURCES].sort());
   for (const id of OVERLAY_SOURCES) {
     assert.equal(data[id].type, 'FeatureCollection', id);
@@ -62,7 +62,7 @@ test('overlayData builds every source', () => {
 });
 
 test('hidden satellites are not drawn and ghosts have no track', () => {
-  const data = build();
+  const data = build({ graticule: true });
   for (const id of OVERLAY_SOURCES) {
     assert.ok(!ids(data[id]).includes(4), `hidden satellite in ${id}`);
   }
@@ -167,7 +167,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-night', 'ss-footprint-fill', 'ss-footprint-line', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-night', 'ss-footprint-fill', 'ss-footprint-line', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -226,8 +226,8 @@ test('a dot image is a signed distance disc with room for its ring', () => {
 test('overlayColors takes water from the basemap and keeps the canvas observer and night', () => {
   assert.equal(overlayColors('dark').water, basemapColors('dark').water);
   assert.equal(overlayColors('light').water, basemapColors('light').water);
-  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, observer: '#7eb8ff', night: 'rgba(3, 5, 12, 0.24)' });
-  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, observer: '#1f5fbf', night: 'rgba(20, 30, 60, 0.07)' });
+  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, observer: '#7eb8ff', night: 'rgba(3, 5, 12, 0.24)', graticule: '#a7b0bf' });
+  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, observer: '#1f5fbf', night: 'rgba(20, 30, 60, 0.07)', graticule: '#3d4757' });
 });
 
 test('trackDetail curves extra points into past and future tracks', () => {
@@ -269,4 +269,43 @@ test('tracks: false leaves out the track sources without reading the tracks', ()
 test('the footprint fill stays faint so the map shows through', () => {
   const fill = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-fill');
   assert.ok(fill.paint['fill-opacity'] <= 0.1, `fill-opacity ${fill.paint['fill-opacity']}`);
+});
+
+test('the lat/lon grid is static and only built on request', () => {
+  assert.equal(build()['ss-graticule'], undefined);
+  const grid = build({ graticule: true })['ss-graticule'].features;
+  const meridians = grid.filter((f) => f.properties.kind === 'meridian');
+  const parallels = grid.filter((f) => f.properties.kind === 'parallel');
+  assert.equal(meridians.length, 72); // every 5 degrees
+  assert.equal(parallels.length, 35); // -85 to 85 every 5 degrees
+  const rankOf = (f) => f.properties.rank;
+  assert.equal(rankOf(parallels.find((f) => f.properties.deg === 0)), 'equator');
+  assert.equal(rankOf(meridians.find((f) => f.properties.deg === 30)), 30);
+  assert.equal(rankOf(meridians.find((f) => f.properties.deg === 20)), 10);
+  assert.equal(rankOf(meridians.find((f) => f.properties.deg === 25)), 5);
+  for (const f of grid) for (const [lon, lat] of f.geometry.coordinates) {
+    assert.ok(lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90);
+  }
+  // Parallels have enough points to curve on the globe.
+  assert.ok(parallels.every((f) => f.geometry.coordinates.length >= 90));
+  // Built once and reused.
+  assert.equal(build({ graticule: true })['ss-graticule'], build({ graticule: true })['ss-graticule']);
+});
+
+test('the grid sits under everything, faint, coarser when zoomed out', () => {
+  const grid = overlayLayers(COLORS).find((l) => l.id === 'ss-graticule');
+  assert.equal(grid.source, 'ss-graticule');
+  assert.equal(grid.paint['line-color'], COLORS.graticule);
+  assert.ok(typeof COLORS.graticule === 'string');
+  // A match expression may not mix string and number cases (MapLibre rejects the layer).
+  const matches = [];
+  const walk = (e) => {
+    if (Array.isArray(e)) { if (e[0] === 'match') matches.push(e); e.forEach(walk); } else if (e && typeof e === 'object') Object.values(e).forEach(walk);
+  };
+  walk(grid.paint);
+  assert.ok(matches.length >= 2, 'found the match expressions');
+  for (const m of matches) {
+    const labels = m.slice(2, -1).filter((_, i) => i % 2 === 0);
+    assert.equal(new Set(labels.map((l) => typeof l)).size, 1, `mixed match labels: ${JSON.stringify(labels)}`);
+  }
 });
