@@ -52,14 +52,16 @@
   --flash-bg: rgba(126, 184, 255, 0.24);
   --flash-text: #ffffff;
   /* Map chrome and legend. The swatches keep in step with lib/map/overlays.mjs. */
-  --map-ocean: #0f1830;
-  --map-land: #1b2845;
+  /* Ocean and land match the basemap's water and land (lib/map/basemap.mjs
+     basemapColors); text, muted and border are neutral greys like its labels. */
+  --map-ocean: #0e1116;
+  --map-land: #1b1e24;
   --map-night: rgba(3, 5, 12, 0.24);
   --map-footprint: rgba(126, 184, 255, 0.16);
   --map-accent: var(--accent);
-  --map-text: var(--text);
-  --map-muted: var(--muted);
-  --map-border: var(--border);
+  --map-text: #d4d8de;
+  --map-muted: #939aa5;
+  --map-border: #2c3138;
   --map-panel: var(--chip-bg);
 }
 /* Light: cool, slightly blue-grey paper. Tokens not listed here fall back
@@ -110,8 +112,11 @@
   --tile-hover: #eef2f8;
   --flash-bg: rgba(31, 95, 191, 0.16);
   --flash-text: #0b1220;
-  --map-ocean: #dfe8f3;
-  --map-land: #f7f4ec;
+  --map-ocean: #c2c8ca;
+  --map-land: #f2f3f0;
+  --map-text: #22262d;
+  --map-muted: #5c636d;
+  --map-border: #bfc6ca;
   --map-night: rgba(20, 30, 60, 0.1);
   --map-footprint: rgba(31, 95, 191, 0.14);
 }
