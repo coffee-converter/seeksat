@@ -92,3 +92,14 @@ test('formatMag', () => {
   assert.equal(formatMag(-2.1), '−2.1');
   assert.equal(formatMag(0.5), '0.5');
 });
+
+test('reason wording near the faintest visible stars', () => {
+  // City sky at full dark: the faintest stars you can see are mag 3.5.
+  assert.equal(visualQuality(known(3.1), city).reason,
+    'Peak mag 3.1, about as bright as the faintest stars you can see.');
+  assert.equal(visualQuality(known(3.5), city).reason,
+    'Peak mag 3.5, no brighter than the faintest stars you can see.');
+  assert.equal(visualQuality(known(4.0), city).reason,
+    'Peak mag 4.0, no brighter than the faintest stars you can see.');
+  assert.match(visualQuality(known(2.9), city).reason, /about 1 magnitude brighter/);
+});
