@@ -14,6 +14,7 @@ import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
 import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen } from "@/lib/sat/pass-rows.mjs";
 import QualityBadge from "@/components/passes/QualityBadge";
+import { liveAvailable } from "@/lib/live/live-state.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
@@ -47,6 +48,7 @@ type Track = { name: string; shortName: string; noradId: number };
 
 const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) => View;
 const rowOpen = isRowOpen as (key: string, sharedKey: string | null, toggled: ReadonlySet<string>) => boolean;
+const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const groupRows = (rows: Row[], nowMs: number, timeZone?: string) =>
   (groupRowsByDay as (r: Row[], n: number, tz?: string, l?: string) => Array<{ heading: string; rows: Row[] }>)(rows, nowMs, timeZone);
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
@@ -257,11 +259,11 @@ export default function PassSection({
 
   // The subject is captured at open, so the clock never repaints an open chart.
   const [subject, setSubject] = useState<ChartSubject | null>(null);
-  const [chart, setChart] = useState<"sky" | "radio" | null>(null);
+  const [chart, setChart] = useState<"sky" | "radio" | "live" | null>(null);
   const [chartsLoaded, setChartsLoaded] = useState(false);
   const trigger = useRef<HTMLElement | null>(null);
 
-  const openChart = (kind: "sky" | "radio", pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
+  const openChart = (kind: "sky" | "radio" | "live", pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
     if (!observer) return;
     trigger.current = e.currentTarget;
     setChartsLoaded(true);
@@ -407,6 +409,9 @@ export default function PassSection({
                               </p>
                               {row.accuracy && <p className="sat-how">{row.accuracy}</p>}
                               <div className="pass-card__actions">
+                                {liveOk(row.pass, bucketMs) && (
+                                  <button type="button" className="home-chip home-chip--live" onClick={(e) => openChart("live", row.pass, e)}>Live</button>
+                                )}
                                 <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
                                 <button
                                   type="button"

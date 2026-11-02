@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import SkyChartModalView from "@/components/passes/SkyChartModalView";
 import RadioChartModalView from "@/components/passes/RadioChartModalView";
+import LiveView from "@/components/live/LiveView";
 import {
   paintSkyChart, passFileName, radioChartOptions, radioCsvText, radioSeries,
 } from "@/lib/passes/charts.js";
@@ -22,8 +23,8 @@ export interface ChartSubject {
 
 interface Props {
   subject: ChartSubject | null;
-  chart: "sky" | "radio" | null;
-  onChartChange: (chart: "sky" | "radio") => void;
+  chart: "sky" | "radio" | "live" | null;
+  onChartChange: (chart: "sky" | "radio" | "live") => void;
   onClose: () => void;
   /** Used instead of the default downlink when the satellite changes (a shared view's frequency). */
   preferredFreqHz?: number | null;
@@ -31,7 +32,7 @@ interface Props {
   onFreqChange?: (hz: number | null) => void;
 }
 
-// The sky chart and radio chart modals for one pass. Loaded on first use, so
+// The sky chart, radio chart and live view for one pass. Loaded on first use, so
 // the painters stay out of the page's first bundle.
 export default function PassChartModals({ subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange }: Props) {
   const noradId = subject?.track.noradId ?? null;
@@ -122,6 +123,15 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
         onClose={onClose}
         onSkyChart={() => onChartChange("sky")}
       />
+      {chart === "live" && subject && (
+        <LiveView
+          subject={subject}
+          freqHz={freqHz}
+          downlinkLabel={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.label ?? null}
+          onChart={onChartChange}
+          onClose={onClose}
+        />
+      )}
     </>
   );
 }

@@ -13,6 +13,7 @@ import { paintPassCard } from "@/lib/passes/card-chart.js";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import QualityBadge from "@/components/passes/QualityBadge";
+import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
 import { useFlash } from "@/lib/ui/use-flash";
 import type { makeTrack } from "@/lib/sat/track.mjs";
@@ -55,6 +56,7 @@ const LIVE_LEAD_MS = 10 * 60_000;
 const IDLE_PAINT_MS = 30_000;
 
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
+const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
 
 /** Text that flashes when it changes, such as a countdown ticking down. */
@@ -84,6 +86,7 @@ interface PassCardProps {
   nowMs: number;
   onSkyChart: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onRadioChart: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onLive: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onUnfollow: () => void;
   focus: FocusState;
   onFocus: () => void;
@@ -134,7 +137,7 @@ function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; o
 }
 
 function PassCard({
-  card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onUnfollow, focus, onFocus, viewing,
+  card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onLive, onUnfollow, focus, onFocus, viewing,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
@@ -183,6 +186,7 @@ function PassCard({
           <ViewingTag viewing={viewing} />
         </p>
         <div className="pass-card__actions">
+          {liveOk(pass, nowMs) && <button type="button" className="home-chip home-chip--live" onClick={onLive}>Live</button>}
           <button type="button" className="home-chip" onClick={onSkyChart}>Sky chart</button>
           <button type="button" className="home-chip" onClick={onRadioChart}>Radio chart</button>
           <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={addToCalendar}>
@@ -238,11 +242,11 @@ export default function NextUpList({
   // The subject is captured when a chart opens, so a card refresh or the
   // clock never repaints an open chart.
   const [subject, setSubject] = useState<ChartSubject | null>(null);
-  const [chart, setChart] = useState<"sky" | "radio" | null>(null);
+  const [chart, setChart] = useState<"sky" | "radio" | "live" | null>(null);
   const [chartsLoaded, setChartsLoaded] = useState(false);
   const trigger = useRef<HTMLElement | null>(null);
 
-  const open = (kind: "sky" | "radio", track: Track, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
+  const open = (kind: "sky" | "radio" | "live", track: Track, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
     trigger.current = e.currentTarget;
     setChartsLoaded(true);
     setSubject({ track, obs: observer, pass, minElevDeg, jointWindow: null });
@@ -273,6 +277,7 @@ export default function NextUpList({
                 nowMs={nowMs}
                 onSkyChart={(e) => open("sky", track, card.pass, e)}
                 onRadioChart={(e) => open("radio", track, card.pass, e)}
+                onLive={(e) => open("live", track, card.pass, e)}
                 onUnfollow={() => onUnfollow(card.noradId)}
                 focus={focusOf(card.noradId)}
                 onFocus={() => toggle(card.noradId)}
