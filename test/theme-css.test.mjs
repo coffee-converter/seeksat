@@ -172,6 +172,16 @@ test('the token blocks define the minimum set in both themes', () => {
   }
 });
 
+// The satellite page's cards and the home chrome use these, so they stay
+// aliases of the site tokens in both themes; map-only colours get their own.
+test('the map text, muted and border tokens alias the site tokens', () => {
+  for (const theme of ['dark', 'light']) {
+    assert.equal(THEMES[theme]['--map-text'], 'var(--text)', `${theme} --map-text`);
+    assert.equal(THEMES[theme]['--map-muted'], 'var(--muted)', `${theme} --map-muted`);
+    assert.equal(THEMES[theme]['--map-border'], 'var(--border)', `${theme} --map-border`);
+  }
+});
+
 test('light uses the cool paper palette', () => {
   const L = THEMES.light;
   assert.equal(L['--bg'], '#f5f7fb');
