@@ -162,6 +162,11 @@ html[data-night='1'] {
   filter: var(--night-filter);
 }
 html[data-night='1'] :fullscreen { filter: var(--night-filter); }
+/* Printing stays as it was. */
+@media print {
+  html[data-night='1'],
+  html[data-night='1'] :fullscreen { filter: none; background: none; }
+}
 /* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than
    the actual visible area, leaving bare background below the globe.

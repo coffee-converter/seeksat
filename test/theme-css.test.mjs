@@ -357,3 +357,11 @@ test('home.css print styles hide the timeline and the cloud badges', () => {
   }
   for (const sel of ['.timeline', '.cloud']) assert.ok(hidden.has(sel), `${sel} is hidden in print`);
 });
+
+test('printing removes the night vision filter', () => {
+  const css = read('app/globals.css');
+  const m = css.match(/@media print\s*\{([^}]*\{[^}]*\})+\s*\}/);
+  assert.ok(m, 'no print block');
+  assert.match(m[0], /html\[data-night='1'\]/);
+  assert.match(m[0], /filter:\s*none/);
+});
