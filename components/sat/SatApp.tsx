@@ -301,14 +301,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           {usable && liveNow && elementsNow ? (
             <>
               <DashboardTiles live={liveNow} elements={elementsNow} nextPass={nextTile} />
-              <ElementsTable
-                elements={elementsNow}
-                age={age}
-                source={data.source}
-                fetchedText={fetchedText}
-                epochMs={epochMs}
-              />
-              <OrbitDiagram track={track} nowMs={nowMs} />
             </>
           ) : (
             <>
@@ -330,6 +322,19 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             onFreqPicked={(hz) => { pickedFreq.current = hz; }}
             onNextPass={setNextPass}
           />
+
+          {usable && liveNow && elementsNow ? (
+            <>
+              <ElementsTable
+                elements={elementsNow}
+                age={age}
+                source={data.source}
+                fetchedText={fetchedText}
+                epochMs={epochMs}
+              />
+              <OrbitDiagram track={track} nowMs={nowMs} />
+            </>
+          ) : null}
 
           <Downlinks downlinks={data.downlinks} />
           <RawElements raw={data.raw} />
