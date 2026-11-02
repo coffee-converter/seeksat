@@ -106,7 +106,6 @@ const unwrapped = (ring) => {
   }
   return out;
 };
-const allLons = (mp) => mp.coordinates.flat(2).map((p) => p[0]);
 const near = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
 
 test('mapPolygons leaves a small ring alone', () => {
@@ -120,27 +119,65 @@ test('mapPolygons leaves a small ring alone', () => {
   assert.ok(same(ring) || same(ring.slice().reverse()), 'points equal the input, up to winding');
 });
 
-test('mapPolygons cuts a ring across the date line', () => {
+// MapLibre (geojson-vt) wraps longitudes past +-180 onto the other side and
+// clips them per tile, so a polygon that never has an edge on the date line
+// never shows a seam there. mapPolygons keeps every ring in one piece.
+const jumps = (ring) => ring.slice(1).map((p, i) => Math.abs(p[0] - ring[i][0]));
+const onDateLine = (lon) => Math.abs(Math.abs(lon % 360) - 180) < 1e-9;
+const dateLineEdges = (ring) => ring.slice(1).filter((p, i) => onDateLine(p[0]) && onDateLine(ring[i][0]));
+// The same closed ring, starting at its vertex on the date line.
+const startOnDateLine = (ring) => {
+  const open = ring.slice(0, -1);
+  const i = open.findIndex((p) => onDateLine(p[0]));
+  const out = [...open.slice(i), ...open.slice(0, i)];
+  return [...out, out[0].slice()];
+};
+const NOV = nightBands(new Date('2026-11-02T17:48:00Z')).map((b) => b.feature.coordinates[0]);
+
+test('mapPolygons keeps a ring across the date line in one piece', () => {
   const ring = ringOf(179, 0, 10);
   const mp = mapPolygons(ring);
-  assert.equal(mp.coordinates.length, 2);
-  for (const lon of allLons(mp)) assert.ok(lon >= -180 && lon <= 180, `lon ${lon} in range`);
-  const maxes = mp.coordinates.map((poly) => Math.max(...poly[0].map((p) => p[0])));
-  const mins = mp.coordinates.map((poly) => Math.min(...poly[0].map((p) => p[0])));
-  assert.ok(maxes.includes(180), 'one polygon reaches 180');
-  assert.ok(mins.includes(-180), 'the other reaches -180');
-  const cut = mp.coordinates.reduce((s, poly) => s + Math.abs(signedArea(poly[0])), 0);
+  assert.equal(mp.coordinates.length, 1);
+  const out = mp.coordinates[0][0];
+  assert.ok(Math.max(...jumps(out)) < 10, 'longitudes run on with no jump');
+  const lons = out.map((p) => p[0]);
+  assert.ok(Math.min(...lons) < 180 && Math.max(...lons) > 180, `spans 180 unwrapped: ${Math.min(...lons)}..${Math.max(...lons)}`);
+  assert.ok(lons.every((lon) => lon >= -540 && lon <= 540), 'within the range MapLibre wraps');
   const whole = Math.abs(signedArea(unwrapped(ring)));
-  assert.ok(Math.abs(cut - whole) / whole < 0.01, `cut area ${cut} vs ${whole}`);
+  assert.ok(Math.abs(Math.abs(signedArea(out)) - whole) / whole < 1e-9, 'same area as the input');
 });
 
-test('mapPolygons closes a ring around a pole', () => {
+test('mapPolygons closes a ring around a pole across one unwrapped turn', () => {
   const band = nightBands(new Date('2026-06-21T12:00:00Z'))[0];
   const mp = mapPolygons(band.feature.coordinates[0]);
-  const pts = mp.coordinates.flat(2);
-  assert.ok(pts.some((p) => p[1] === -90), 'has a vertex at the South Pole');
-  assert.ok(!pts.some((p) => p[1] === 90), 'no vertex at the North Pole');
-  for (const lon of allLons(mp)) assert.ok(lon >= -180 && lon <= 180, `lon ${lon} in range`);
+  assert.equal(mp.coordinates.length, 1);
+  const out = mp.coordinates[0][0];
+  assert.ok(out.some((p) => p[1] === -90), 'has a vertex at the South Pole');
+  assert.ok(!out.some((p) => p[1] === 90), 'no vertex at the North Pole');
+  const lons = out.filter((p) => p[1] !== -90).map((p) => p[0]);
+  assert.ok(Math.abs(Math.max(...lons) - Math.min(...lons) - 360) < 1e-9, 'the ring part spans exactly 360');
+  const ringEdges = jumps(out).filter((_, i) => out[i][1] !== -90 && out[i + 1][1] !== -90);
+  assert.ok(Math.max(...ringEdges) < 10, 'the ring part runs on with no jump');
+  assert.ok(out.every((p) => p[0] >= -540 && p[0] <= 540), 'within the range MapLibre wraps');
+});
+
+test('mapPolygons never puts an edge on the date line', () => {
+  const rings = [
+    ringOf(179, 0, 10),
+    ringOf(-179, 40, 25),
+    ringOf(180, 0, 81),
+    ringOf(30, 80, 20),
+    startOnDateLine(ringOf(0, 80, 20)),
+    startOnDateLine(ringOf(0, -80, 30)),
+    ...NOV,
+    ...nightBands(new Date('2026-06-21T12:00:00Z')).map((b) => b.feature.coordinates[0]),
+    ...nightBands(new Date('2026-12-21T12:00:00Z')).map((b) => b.feature.coordinates[0]),
+  ];
+  for (const ring of rings) {
+    for (const poly of mapPolygons(ring).coordinates) {
+      assert.deepEqual(dateLineEdges(poly[0]), [], 'no edge runs along lon 180');
+    }
+  }
 });
 
 test('mapPolygons winds outer rings counter-clockwise', () => {
@@ -151,6 +188,7 @@ test('mapPolygons winds outer rings counter-clockwise', () => {
     ringOf(30, 80, 20),
     ...nightBands(new Date('2026-06-21T12:00:00Z')).map((b) => b.feature.coordinates[0]),
     ...nightBands(new Date('2026-12-21T12:00:00Z')).map((b) => b.feature.coordinates[0]),
+    ...NOV,
   ];
   for (const ring of rings) for (const poly of mapPolygons(ring).coordinates) {
     assert.ok(signedArea(poly[0]) > 0, 'outer ring is counter-clockwise');

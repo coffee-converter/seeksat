@@ -136,18 +136,24 @@ test('footprint only for the focus', () => {
   assert.equal(noFocus['ss-footprint'].features.length, 0);
 });
 
-test('night and footprint use repaired polygons', () => {
+test('night and footprint run on past the date line in one piece', () => {
   const data = build();
   const lons = (coords) => (typeof coords[0] === 'number' ? [coords[0]] : coords.flatMap(lons));
   for (const id of ['ss-night', 'ss-footprint']) {
     for (const f of data[id].features) {
-      for (const lon of lons(f.geometry.coordinates)) assert.ok(lon >= -180 && lon <= 180, `${id} lon ${lon}`);
+      for (const lon of lons(f.geometry.coordinates)) assert.ok(lon >= -540 && lon <= 540, `${id} lon ${lon}`);
     }
   }
-  assert.ok(data['ss-night'].features.every((f) => f.geometry.type === 'MultiPolygon'));
-  // The footprint centred on 179E crosses the date line, so its area has two pieces.
-  const area = data['ss-footprint'].features.find((f) => f.geometry.type === 'MultiPolygon');
-  assert.equal(area.geometry.coordinates.length, 2);
+  assert.ok(data['ss-night'].features.every((f) => f.geometry.type === 'MultiPolygon' && f.geometry.coordinates.length === 1));
+  // The footprint centred on 179E crosses the date line: one area and one
+  // edge line, both running on past 180 rather than cut there.
+  const area = data['ss-footprint'].features.find((f) => f.properties.part === 'area');
+  assert.equal(area.geometry.coordinates.length, 1);
+  assert.ok(Math.max(...lons(area.geometry.coordinates)) > 180);
+  const edge = data['ss-footprint'].features.find((f) => f.properties.part === 'edge');
+  assert.equal(edge.geometry.type, 'LineString');
+  assert.ok(Math.max(...lons(edge.geometry.coordinates)) > 180);
+  assert.deepEqual(edge.geometry.coordinates.at(-1), edge.geometry.coordinates[0], 'the edge closes on itself');
 });
 
 const COLORS = overlayColors('dark');
