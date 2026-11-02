@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { basemapStyle, basemapColors, OPENFREEMAP } from '../lib/map/basemap.mjs';
+// The icon names in the OpenFreeMap sprite the styles name (sprites/ofm_f384/ofm.json).
+import SPRITE_NAMES from './fixtures/ofm-sprite-names.json' with { type: 'json' };
 
 const THEMES = ['light', 'dark'];
 
@@ -33,6 +35,23 @@ for (const theme of THEMES) {
     assert.ok(ids.includes('water'));
     assert.ok(style.glyphs);
     assert.ok(style.sprite);
+  });
+
+  test(`basemap icons are all in the sprite (${theme})`, () => {
+    // Literal icon names in icon-image; concat builds names from feature data.
+    const names = (expr, out) => {
+      if (typeof expr === 'string') { if (expr) out.add(expr); return out; }
+      if (Array.isArray(expr) && !['concat', 'get', 'zoom'].includes(expr[0])) expr.slice(1).forEach((e) => names(e, out));
+      return out;
+    };
+    const used = new Set();
+    for (const layer of basemapStyle(theme).layers) {
+      const icon = layer.layout?.['icon-image'];
+      if (typeof icon === 'string') used.add(icon);
+      else if (icon) names(icon, used);
+    }
+    assert.ok(used.size > 0);
+    for (const name of used) assert.ok(SPRITE_NAMES.includes(name), `${name} is not in the sprite`);
   });
 
   test(`basemapColors reads water and land (${theme})`, () => {
