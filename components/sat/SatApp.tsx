@@ -20,7 +20,7 @@ import { shareUrl } from "@/lib/share/share-link.mjs";
 import PassSection, { type NextPassReport, type PassSettings } from "./PassSection";
 import RawElements from "./RawElements";
 import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
-import { satPageLayers, showAllCount } from "@/lib/home/focus.mjs";
+import { focusHref, satPageLayers, showAllCount } from "@/lib/home/focus.mjs";
 import { tracksFor } from "@/lib/home/records.mjs";
 import { followedTracks } from "@/lib/home/view.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -267,6 +267,10 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       panel={(
         <>
           <header className="sat-top">
+            {/* Home, with this satellite still focused on the map. */}
+            <Link className="home-link sat-back" href={focusHref("/", "", data.noradId)}>
+              {"← Your satellites"}
+            </Link>
             <h1 className="sat-title">{data.name}</h1>
             <p className="home-note">
               {`NORAD ${data.noradId}`}

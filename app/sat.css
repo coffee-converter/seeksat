@@ -65,6 +65,8 @@ p.sat-how { margin: 0 0 8px; }
 
 /* Header: who it is, then Follow and Share. The clock lives in the shell's top bar. */
 .sat-top { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sat-back { align-self: flex-start; display: inline-flex; align-items: center; font-size: 14px; text-decoration: none; }
+.sat-back:hover { text-decoration: underline; }
 
 /* The live tile grid: one instrument panel split by hairlines, not loose cards.
    2 columns under 480 px, 3 from 480, 4 from 720. */
@@ -180,7 +182,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   }
   /* Keep only: title block, element age line, the pass list. */
   .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
-  .sat-top .sat-follow, .sat-top .home-button { display: none !important; }
+  .sat-top .sat-follow, .sat-top .home-button, .sat-back { display: none !important; }
   .sat-top { margin-bottom: 6pt; }
   .sat-title { font-size: 16pt; margin: 0 0 2pt; }
   .sat-elements > *:not(.sat-age) { display: none !important; }
