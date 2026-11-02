@@ -434,6 +434,15 @@
 }
 .home-chip[aria-pressed="true"]:hover:not(:disabled),
 .home-chip--on:hover:not(:disabled) { background: var(--seg-on); }
+/* A main action that is on (Following): its own look, an accent outline and
+   accent text on the card colour, so it never reads as the filled Follow. */
+.home-button--primary.home-chip--on,
+.home-button--primary.home-chip--on:hover:not(:disabled) {
+  background: var(--panel);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.home-button--primary.home-chip--on:hover:not(:disabled) { background: var(--btn-hover); }
 .home-chip--quiet,
 .more-toggle { color: var(--map-muted); border-color: transparent; }
 .home-chip--quiet:hover:not(:disabled),
@@ -486,17 +495,17 @@
   border-radius: 8px;
 }
 .home-controls__mode .home-chip { padding: 4px 12px; color: var(--map-muted); border: 0; border-radius: 6px; }
-.home-controls__mode .home-chip:hover:not(:disabled) { color: var(--map-text); background: none; }
+.home-controls__mode .home-chip:hover:not(:disabled):not([aria-pressed="true"]) { color: var(--map-text); background: none; }
 .home-controls__mode .home-chip[aria-pressed="true"] { color: var(--seg-on-text); background: var(--seg-on); }
-.home-controls__elev { border: 1px solid var(--btn-line); border-radius: 7px; overflow: hidden; }
+.home-controls__elev { border: 1px solid var(--input-border); border-radius: 7px; overflow: hidden; }
 .home-controls__elev .home-chip { min-width: 32px; min-height: 30px; padding: 0 8px; border: 0; border-radius: 0; }
 .home-controls__value {
   min-width: 4.5em;
   padding: 0 8px;
   line-height: 30px;
   text-align: center;
-  border-left: 1px solid var(--btn-line);
-  border-right: 1px solid var(--btn-line);
+  border-left: 1px solid var(--input-border);
+  border-right: 1px solid var(--input-border);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
@@ -834,10 +843,24 @@
   font-size: 11px; color: #8aa0c8;
 }
 .radio-freq-select, .radio-freq-input {
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
-  color: #cfe0ff; font-size: 11px; padding: 4px 6px; border-radius: 6px;
+  /* The input tier in the dark Slate values (the modal is always dark):
+     a well, a 3:1 edge and, on the menu, an inset chevron. */
+  background-color: #19202a; border: 1px solid #626d7e;
+  color: #e4e8ee; font-size: 11px; padding: 4px 6px; border-radius: 7px;
   font-family: inherit;
 }
+.radio-freq-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 24px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #96a0ae 50%),
+    linear-gradient(135deg, #96a0ae 50%, transparent 50%);
+  background-position: calc(100% - 13px) 55%, calc(100% - 8px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.radio-freq-select:focus-visible, .radio-freq-input:focus-visible { outline: 2px solid #8fb4e6; outline-offset: 1px; }
 .radio-freq-input { width: 74px; }
 @media (pointer: coarse) {
   .radio-freq-select, .radio-freq-input { font-size: 16px; }

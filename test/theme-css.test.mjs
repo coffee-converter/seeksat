@@ -244,6 +244,15 @@ for (const theme of ['dark', 'light']) {
     }
   });
 
+  // Inputs, menus, segmented wells and the stepper are known by their edge
+  // alone (the well is barely apart from the page), so it needs 3:1 (WCAG 1.4.11).
+  test(`${theme}: input boundaries`, () => {
+    for (const bg of ['--bg', '--panel']) {
+      const r = contrast(theme, '--input-border', bg);
+      assert.ok(r >= 3, `${theme}: --input-border on ${bg} is ${r.toFixed(2)}, needs 3`);
+    }
+  });
+
   test(`${theme}: primary button contrast`, () => {
     const r = contrast(theme, '--primary-text', '--primary');
     assert.ok(r >= 4.5, `${theme}: --primary-text on --primary is ${r.toFixed(2)}, needs 4.5`);
