@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   THEME_KEY, MODES, parseMode, resolveTheme, readMode, writeMode, applyTheme, syncTheme, THEME_SCRIPT,
+  NIGHT_KEY, readNight, writeNight,
 } from '../lib/ui/theme.mjs';
 
 test('constants', () => {
@@ -141,4 +142,59 @@ test('THEME_SCRIPT defaults to dark when matchMedia throws', () => {
   const f = new Function('document', 'localStorage', 'matchMedia', THEME_SCRIPT);
   f(doc, { getItem: () => null }, () => { throw new Error('no'); });
   assert.equal(doc.documentElement.dataset.theme, 'dark');
+});
+
+test('resolveTheme forces dark in night vision', () => {
+  assert.equal(resolveTheme('light', false, true), 'dark');
+  assert.equal(resolveTheme('light', false, false), 'light');
+});
+
+test('readNight / writeNight round-trip and survive a throwing storage', () => {
+  const data = {};
+  const store = {
+    getItem: (k) => (k in data ? data[k] : null),
+    setItem: (k, v) => { data[k] = v; },
+    removeItem: (k) => { delete data[k]; },
+  };
+  assert.equal(NIGHT_KEY, 'seeksat.night');
+  assert.equal(readNight(store), false);
+  writeNight(true, store);
+  assert.equal(data[NIGHT_KEY], '1');
+  assert.equal(readNight(store), true);
+  writeNight(false, store);
+  assert.equal(NIGHT_KEY in data, false);
+  assert.equal(readNight(store), false);
+  assert.equal(readNight(throwing), false);
+  assert.doesNotThrow(() => writeNight(true, throwing));
+  assert.equal(readNight(null), false);
+});
+
+test('applyTheme sets and clears data-night and the night theme-color', () => {
+  const d = fakeDoc();
+  applyTheme(d, 'dark', true);
+  assert.equal(d.documentElement.dataset.night, '1');
+  assert.equal(d.head.children[0].attrs.content, '#1a0505');
+  applyTheme(d, 'dark', false);
+  assert.equal('night' in d.documentElement.dataset, false);
+  assert.equal(d.head.children[0].attrs.content, '#11151c');
+});
+
+test('syncTheme follows night vision', () => {
+  const store = (night) => ({ getItem: (k) => (k === NIGHT_KEY ? (night ? '1' : null) : 'light') });
+  const d = fakeDoc();
+  assert.equal(syncTheme(d, store(true), { matches: false }), 'dark');
+  assert.equal(d.documentElement.dataset.night, '1');
+  assert.equal(syncTheme(d, store(false), { matches: false }), 'light');
+  assert.equal('night' in d.documentElement.dataset, false);
+});
+
+test('THEME_SCRIPT forces dark and sets data-night when night vision is on', () => {
+  const doc = fakeDoc();
+  const ls = { getItem: (k) => (k === NIGHT_KEY ? '1' : 'light') };
+  new Function('document', 'localStorage', 'matchMedia', THEME_SCRIPT)(doc, ls, () => ({ matches: false }));
+  assert.equal(doc.documentElement.dataset.theme, 'dark');
+  assert.equal(doc.documentElement.dataset.night, '1');
+  assert.equal(doc.head.children[0].attrs.content, '#1a0505');
+  const off = runScript({ saved: 'light', systemDark: true });
+  assert.equal('night' in off.documentElement.dataset, false);
 });
