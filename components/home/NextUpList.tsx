@@ -13,6 +13,8 @@ import { paintPassCard } from "@/lib/passes/card-chart.js";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import QualityBadge from "@/components/passes/QualityBadge";
+import CloudBadge from "@/components/passes/CloudBadge";
+import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
 import MoreToggle from "@/components/passes/MoreToggle";
@@ -96,6 +98,8 @@ interface PassCardProps {
   /** Whether the card's More panel is open. */
   moreOpen: boolean;
   onToggleMore: () => void;
+  /** The cloud forecast, shown as a badge in visual mode. */
+  clouds: Forecast | null;
 }
 
 interface ViewingProps {
@@ -142,7 +146,7 @@ function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; o
 
 function PassCard({
   card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onLive, onUnfollow, focus, onFocus, viewing,
-  moreOpen, onToggleMore,
+  moreOpen, onToggleMore, clouds,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
@@ -186,6 +190,7 @@ function PassCard({
         <p className="pass-card__meta">
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
           <QualityBadge pass={pass} />
+          {mode === "visual" && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
           {pass.visible && <span className="pass-card__tag">visible</span>}
           <ElementTags track={track} nowMs={nowMs} />
           <ViewingTag viewing={viewing} />
@@ -230,6 +235,8 @@ interface Props {
   onFocus: (noradId: number | null) => void;
   /** Opens a chart for a pass (from `usePassCharts`). */
   openChart: OpenChart;
+  /** The cloud forecast for visual passes (from `useClouds`), or null. */
+  clouds?: Forecast | null;
 }
 
 export type ChartKind = "sky" | "radio" | "live";
@@ -267,7 +274,7 @@ export function usePassCharts(observer: HomeObserver | null, minElevDeg: number)
 // open the shared chart modals.
 export default function NextUpList({
   cards: followedCards, viewingCard = null, tracks, colors, observer, mode, minElevDeg, nowMs,
-  onUnfollow, onFollow, followBlocked, focusId, onFocus, openChart: open,
+  onUnfollow, onFollow, followBlocked, focusId, onFocus, openChart: open, clouds = null,
 }: Props) {
   const cardsIn = viewingCard
     ? [viewingCard, ...followedCards.filter((c) => c.noradId !== viewingCard.noradId)]
@@ -314,6 +321,7 @@ export default function NextUpList({
                 viewing={viewingOf(card.noradId)}
                 moreOpen={openMore.has(card.noradId)}
                 onToggleMore={() => toggleMore(card.noradId)}
+                clouds={clouds}
               />
             );
           }

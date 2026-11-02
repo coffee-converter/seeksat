@@ -30,6 +30,7 @@ import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { useClouds } from "@/lib/sky/use-clouds";
 import { nextPassTile } from "@/lib/sat/next-pass-tile.mjs";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
@@ -76,6 +77,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   // It comes from the server-decoded prop, so the first render matches.
   const [shared, setShared] = useState<Shared | null>(() => sharedOf(sharedIn));
   const settings = useMemo(() => effectiveOf(prefs, shared), [prefs, shared]);
+  // Cloud forecasts for visual passes; radio mode never fetches them.
+  const clouds = useClouds(settings.observer, settings.mode === "visual");
   // The radio chart's picked frequency (a shared view's, until one is picked).
   const pickedFreq = useRef<number | null>(sharedIn ? shared?.freqHz ?? null : null);
   const headerLink = () => shareUrl(window.location.origin, {
@@ -325,6 +328,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             preferredFreqHz={shared?.freqHz ?? null}
             onFreqPicked={(hz) => { pickedFreq.current = hz; }}
             onNextPass={setNextPass}
+            clouds={clouds}
           />
 
           {usable && liveNow && elementsNow ? (

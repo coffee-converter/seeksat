@@ -553,8 +553,9 @@
   border-radius: 999px;
   font-size: 11px;
 }
-/* Pass quality: the word carries it, the colour backs it up. */
-.quality {
+/* Pass quality and cloud cover: the word carries it, the colour backs it up. */
+.quality,
+.cloud {
   display: inline-block;
   margin-left: 6px;
   padding: 0 6px;
@@ -567,6 +568,9 @@
 }
 .quality--good { color: var(--ok); border-color: rgba(var(--ok-rgb), 0.5); }
 .quality--ok { color: var(--warn-text); border-color: rgba(var(--warn-rgb), 0.5); }
+.cloud--clear { color: var(--ok); border-color: rgba(var(--ok-rgb), 0.5); }
+.cloud--some { color: var(--warn-text); border-color: rgba(var(--warn-rgb), 0.5); }
+.cloud { white-space: nowrap; }
 /* Where the elements came from: a quieter cue than "visible". */
 .pass-card__tag--elements {
   color: var(--map-muted);
@@ -1305,7 +1309,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
   position: relative;
   height: 18px;
   border-radius: 3px;
-  background: rgba(var(--ink-rgb), 0.04);
+  background: var(--timeline-day);
 }
 /* Now: a hairline at the left edge. */
 .timeline__strip::after {
@@ -1319,7 +1323,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
   pointer-events: none;
 }
 .timeline__svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.timeline__night { fill: var(--map-night); }
+.timeline__night { fill: var(--timeline-night); }
 .timeline__grid { stroke: rgba(var(--ink-rgb), 0.1); stroke-width: 1; }
 .timeline__grid--day { stroke: rgba(var(--ink-rgb), 0.28); }
 /* A bar is at least 6 px wide, widened about its middle and kept inside the strip. */

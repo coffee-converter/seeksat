@@ -26,6 +26,8 @@ import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { useClouds } from "@/lib/sky/use-clouds";
+import { passCloud } from "@/components/passes/CloudBadge";
 import AboutSection from "./AboutSection";
 import LiveClock from "@/components/LiveClock";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -363,6 +365,13 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     if (track) openChart("sky", track, pass, e);
   }, [allTracks, openChart]);
 
+  // Cloud forecasts for visual passes; radio mode never fetches them.
+  const clouds = useClouds(location, prefs.mode === "visual");
+  const cloudFor = useCallback(
+    (pass: Pass) => (nowMs == null ? null : passCloud(clouds, pass, nowMs)),
+    [clouds, nowMs],
+  );
+
   return (
     <MapShell
       offlineFromCache={fromCache}
@@ -458,6 +467,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                   mode={prefs.mode}
                   nowMs={nowMs}
                   onOpenPass={openTimelinePass}
+                  cloudFor={cloudFor}
                 />
               )}
               {prefs.following.length === 0 ? (
@@ -479,6 +489,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                       focusId={focusId}
                       onFocus={focusOn}
                       openChart={openChart}
+                      clouds={clouds}
                     />
                   )}
                   <PopularList names={popularNames} />
@@ -504,6 +515,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                     focusId={focusId}
                     onFocus={focusOn}
                     openChart={openChart}
+                    clouds={clouds}
                   />
                 )
               )}

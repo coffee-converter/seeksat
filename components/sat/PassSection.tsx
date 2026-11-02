@@ -14,6 +14,8 @@ import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
 import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen, directionText } from "@/lib/sat/pass-rows.mjs";
 import QualityBadge from "@/components/passes/QualityBadge";
+import CloudBadge from "@/components/passes/CloudBadge";
+import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -96,11 +98,13 @@ interface Props {
    * why there is none. undefined while searching or with no location.
    */
   onNextPass?: (report: NextPassReport) => void;
+  /** The cloud forecast for the location (from `useClouds`), badged on visual passes. */
+  clouds?: Forecast | null;
 }
 
 export default function PassSection({
   track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange,
-  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass,
+  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null,
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
@@ -401,6 +405,9 @@ export default function PassSection({
                               <p className="sat-pass__line1">
                                 <span className="sat-pass__times">{row.timesLabel}</span>
                                 <QualityBadge pass={row.pass as NextPass} />
+                                {mode === "visual" && (
+                                  <CloudBadge forecast={clouds} pass={row.pass as NextPass & { peakMs: number }} nowMs={bucketMs} />
+                                )}
                                 <span className="sat-pass__max">{`max ${row.maxElevLabel}`}</span>
                               </p>
                               <p className="sat-pass__line2">

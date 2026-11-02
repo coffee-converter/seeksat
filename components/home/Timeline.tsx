@@ -2,16 +2,10 @@
 
 import { useMemo } from "react";
 import { TIMELINE_HOURS } from "@/lib/home/next-up.mjs";
-import { barSpan, hourTicks, nightSpans, timelineRows } from "@/lib/home/timeline.mjs";
+import { barSpan, clockLabel, hourTicks, nightSpans, timelineRows } from "@/lib/home/timeline.mjs";
 import { passQuality } from "@/lib/passes/quality.mjs";
+import type { CloudBadge } from "@/lib/sky/cloud-badge.mjs";
 import type { Card, HomeObserver, Pass, Track } from "./NextUpList";
-
-/** The cloud badge Task 4's `cloudFor` gives for a pass. */
-export interface CloudBadge {
-  level: "clear" | "some" | "cloudy";
-  label: string;
-  title?: string;
-}
 
 interface Props {
   cards: Card[];
@@ -37,19 +31,11 @@ const spanOf = barSpan as (pass: Pass, nowMs: number, hours: number) => Span | n
 const ticksOf = hourTicks as (nowMs: number, timeZone: string | undefined, o: { every: number; hours: number }) => Tick[];
 const nightOf = nightSpans as (observer: HomeObserver, nowMs: number, o: { hours: number }) => Span[];
 const qualityOf = passQuality as (pass: Pass) => Quality;
+const clockOf = clockLabel as (ms: number, timeZone: string | undefined) => string;
 
 const HOURS = TIMELINE_HOURS as number;
 const W = 1000;
 const H = 18;
-
-function clockFormat(timeZone: string | undefined): Intl.DateTimeFormat {
-  const opts: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", hourCycle: "h23", numberingSystem: "latn" };
-  try {
-    return new Intl.DateTimeFormat(undefined, { ...opts, timeZone });
-  } catch {
-    return new Intl.DateTimeFormat(undefined, { ...opts, timeZone: "UTC" });
-  }
-}
 
 const othersLine = (n: number) => (n === 1
   ? "1 other has no pass in the next 24 hours."
@@ -66,7 +52,6 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
     [lat, lon, windowMs],
   );
   const ticks = useMemo(() => ticksOf(windowMs, tz, { every: 3, hours: HOURS }), [windowMs, tz]);
-  const clock = useMemo(() => clockFormat(tz), [tz]);
   const { rows, leftOut } = useMemo(() => {
     const r = rowsOf(cards, windowMs);
     return { rows: r.rows.filter((row) => tracks.has(row.noradId)), leftOut: r.leftOut };
@@ -106,7 +91,7 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
                   if (!span) return null;
                   const q = qualityOf(pass);
                   const cloud = clouds?.(pass) ?? null;
-                  const label = `${row.name}, ${clock.format(pass.startMs)} to ${clock.format(pass.endMs)}, `
+                  const label = `${row.name}, ${clockOf(pass.startMs, tz)} to ${clockOf(pass.endMs, tz)}, `
                     + `max ${Math.round(pass.maxElevDeg)}°, ${q.label}${cloud ? `, ${cloud.label}` : ""}`;
                   return (
                     <button

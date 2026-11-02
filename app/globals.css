@@ -60,6 +60,9 @@
   --map-space: #0f1830;
   --map-night: rgba(3, 5, 12, 0.24);
   --map-footprint: rgba(126, 184, 255, 0.16);
+  /* The timeline strip: daylight lifted, night sunk, clearly apart. */
+  --timeline-day: #202c48;
+  --timeline-night: #060912;
   --map-accent: var(--accent);
   --map-text: var(--text);
   --map-muted: var(--muted);
@@ -119,6 +122,8 @@
   --map-space: #dfe8f3;
   --map-night: rgba(20, 30, 60, 0.1);
   --map-footprint: rgba(31, 95, 191, 0.14);
+  --timeline-day: #eaeff7;
+  --timeline-night: #bfcadc;
 }
 /* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than

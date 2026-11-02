@@ -240,6 +240,11 @@ for (const theme of ['dark', 'light']) {
     check('--text', '--tile-bg', 4.5);
     check('--text-strong', '--tile-hover', 4.5);
   });
+
+  test(`${theme}: the timeline's night stands apart from its day`, () => {
+    const r = contrast(theme, '--timeline-night', '--timeline-day');
+    assert.ok(r >= 1.4, `${theme}: night on day is ${r.toFixed(2)}, needs 1.4`);
+  });
 }
 
 // Colour keywords (black, white) are allowed only inside `@media print`,

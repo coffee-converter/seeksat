@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { timelineRows, barSpan, hourTicks, nightSpans } from '../lib/home/timeline.mjs';
+import { timelineRows, barSpan, hourTicks, nightSpans, clockLabel } from '../lib/home/timeline.mjs';
 
 const H = 3_600_000;
 const NOW = Date.parse('2026-11-02T03:30:00Z');
@@ -84,4 +84,18 @@ test('nightSpans at 80N is all night in December and none in June', () => {
   const obs = { latDeg: 80, lonDeg: 0 };
   assert.deepEqual(nightSpans(obs, Date.parse('2026-12-21T00:00:00Z')), [{ x0: 0, x1: 1 }]);
   assert.deepEqual(nightSpans(obs, Date.parse('2026-06-21T00:00:00Z')), []);
+});
+
+test('clockLabel is a fixed 24-hour HH:MM in the observer zone, in any locale', () => {
+  const t = Date.parse('2026-11-02T03:07:00Z');
+  assert.equal(clockLabel(t, 'America/Chicago'), '21:07');
+  for (const locale of ['fi-FI', 'da-DK', 'ar-EG', 'en-US', 'hi-IN-u-nu-deva']) {
+    assert.equal(clockLabel(t, 'America/Chicago', locale), '21:07', locale);
+  }
+  assert.equal(clockLabel(t, 'Asia/Kolkata'), '08:37');
+  assert.equal(clockLabel(Date.parse('2026-11-02T00:05:00Z'), 'UTC'), '00:05');
+});
+
+test('clockLabel falls back to UTC for an unknown zone', () => {
+  assert.equal(clockLabel(Date.parse('2026-11-02T03:07:00Z'), 'Not/AZone'), '03:07');
 });
