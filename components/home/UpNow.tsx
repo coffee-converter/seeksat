@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { upNow, upNowPoint, compassName } from "@/lib/sky/up-now.mjs";
+import { emptyUpNowText } from "@/lib/sky/up-now-line.mjs";
 import type { HomeObserver, Track } from "./NextUpList";
 
 interface Props {
@@ -10,60 +11,64 @@ interface Props {
   colors: ReadonlyMap<number, string>;
   nowMs: number;
   focusId: number | null;
+  /** The soonest pass, named when nothing is up. */
+  next: { text: string } | null;
 }
 
 const R = 70;
 const C = 90;
 // Live SGP4 positions for your location, recomputed from the page clock.
-export default function UpNow({ tracks, observer, colors, nowMs, focusId }: Props) {
+export default function UpNow({ tracks, observer, colors, nowMs, focusId, next }: Props) {
   const up = useMemo(
     () => upNow({ tracks, observer, nowMs, colors }) as Array<{
       noradId: number; name: string; azDeg: number; elDeg: number; rising: boolean | null; color?: string;
     }>,
     [tracks, observer, nowMs, colors],
   );
+  if (up.length === 0) {
+    return (
+      <section className="up-now up-now--empty" aria-labelledby="up-now-h">
+        <h2 id="up-now-h" className="up-now__title">Up now</h2>
+        <p className="up-now__none">{emptyUpNowText(next)}</p>
+      </section>
+    );
+  }
   return (
     <section className="up-now" aria-labelledby="up-now-h">
       <h2 id="up-now-h" className="up-now__title">Up now</h2>
       <div className="up-now__body">
-        {up.length > 0 && (
-          <svg className="up-now__sky" viewBox="0 0 180 180" role="img" aria-label="Sky view, north up, east left">
-            <circle cx={C} cy={C} r={R} className="up-now__horizon" />
-            <circle cx={C} cy={C} r={(R * 60) / 90} className="up-now__ring" />
-            <circle cx={C} cy={C} r={(R * 30) / 90} className="up-now__ring" />
-            <text x={C} y={12} className="up-now__dir" textAnchor="middle">N</text>
-            <text x={C} y={176} className="up-now__dir" textAnchor="middle">S</text>
-            <text x={6} y={C + 4} className="up-now__dir" textAnchor="middle">E</text>
-            <text x={174} y={C + 4} className="up-now__dir" textAnchor="middle">W</text>
-            {up.map((s) => {
-              const p = upNowPoint(s.azDeg, s.elDeg, 180);
-              return (
-                <circle
-                  key={s.noradId}
-                  cx={p.x}
-                  cy={p.y}
-                  r={s.noradId === focusId ? 6 : 4.5}
-                  fill={s.color ?? "var(--accent)"}
-                  className="up-now__dot"
-                >
-                  <title>{s.name}</title>
-                </circle>
-              );
-            })}
-          </svg>
-        )}
-        {up.length === 0 ? (
-          <p className="up-now__none">Nothing you follow is above the horizon right now.</p>
-        ) : (
-          <ul className="up-now__list">
-            {up.map((s) => (
-              <li key={s.noradId} className="up-now__item">
-                <span className="up-now__swatch" style={{ background: s.color ?? "var(--accent)" }} aria-hidden="true" />
-                {`${s.name} ${Math.round(s.elDeg)}° up, ${compassName(s.azDeg)}${s.rising == null ? "" : s.rising ? ", rising" : ", setting"}`}
-              </li>
-            ))}
-          </ul>
-        )}
+        <svg className="up-now__sky" viewBox="0 0 180 180" role="img" aria-label="Sky view, north up, east left">
+          <circle cx={C} cy={C} r={R} className="up-now__horizon" />
+          <circle cx={C} cy={C} r={(R * 60) / 90} className="up-now__ring" />
+          <circle cx={C} cy={C} r={(R * 30) / 90} className="up-now__ring" />
+          <text x={C} y={12} className="up-now__dir" textAnchor="middle">N</text>
+          <text x={C} y={176} className="up-now__dir" textAnchor="middle">S</text>
+          <text x={6} y={C + 4} className="up-now__dir" textAnchor="middle">E</text>
+          <text x={174} y={C + 4} className="up-now__dir" textAnchor="middle">W</text>
+          {up.map((s) => {
+            const p = upNowPoint(s.azDeg, s.elDeg, 180);
+            return (
+              <circle
+                key={s.noradId}
+                cx={p.x}
+                cy={p.y}
+                r={s.noradId === focusId ? 6 : 4.5}
+                fill={s.color ?? "var(--accent)"}
+                className="up-now__dot"
+              >
+                <title>{s.name}</title>
+              </circle>
+            );
+          })}
+        </svg>
+        <ul className="up-now__list">
+          {up.map((s) => (
+            <li key={s.noradId} className="up-now__item">
+              <span className="up-now__swatch" style={{ background: s.color ?? "var(--accent)" }} aria-hidden="true" />
+              {`${s.name} ${Math.round(s.elDeg)}° up, ${compassName(s.azDeg)}${s.rising == null ? "" : s.rising ? ", rising" : ", setting"}`}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

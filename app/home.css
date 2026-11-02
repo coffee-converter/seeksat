@@ -1204,3 +1204,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
 @media (max-width: 380px) {
   .live-view__tune-mhz { font-size: 26px; }
 }
+/* Nothing up: heading and the one line share a row. */
+.up-now--empty { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; }
+.up-now--empty .up-now__title { margin: 0; }
+.up-now--empty .up-now__none { flex: 1 1 200px; min-width: 0; }

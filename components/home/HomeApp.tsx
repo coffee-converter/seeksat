@@ -351,6 +351,9 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return () => window.removeEventListener("online", reload);
   }, [fromCache, loadRecords]);
 
+  // The soonest pass, for the phone strip and the empty "Up now" line.
+  const nextSummary = nowMs != null ? summarize(cardsNow(cardState, cardKey), nowMs) : null;
+
   return (
     <MapShell
       offlineFromCache={fromCache}
@@ -373,7 +376,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             <FocusParam />
           </Suspense>
           {nowMs != null && (
-            <NextStrip summary={summarize(cardsNow(cardState, cardKey), nowMs)} onFocus={focusOn} />
+            <NextStrip summary={nextSummary} onFocus={focusOn} />
           )}
           <FlatMap
             fill
@@ -435,7 +438,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           ) : observer && (
             <>
               {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
-                <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} />
+                <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} next={nextSummary} />
               )}
               {prefs.following.length === 0 ? (
                 <>
