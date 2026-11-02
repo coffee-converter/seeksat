@@ -42,4 +42,5 @@ test('clouds handler: upstream failure gives hours null', async () => {
     () => cloudsHandler(q('lat=-33.3&lon=151.2')));
   assert.equal(r.status, 200);
   assert.deepEqual(r.body, { startMs: null, hours: null });
+  assert.equal(r.headers['Cache-Control'], 'no-store');
 });
