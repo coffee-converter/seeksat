@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, MAX_ZOOM } from '../lib/map/view.mjs';
+import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
 
 test('the view list is flat and globe, flat by default', () => {
   assert.deepEqual(PROJECTIONS, [{ id: 'flat', label: 'Mercator' }, { id: 'globe', label: 'Globe' }]);
@@ -115,24 +115,16 @@ test('the flat map zooms out only until the whole world fits across', () => {
 test('the globe zooms out only until the whole Earth is in frame', () => {
   const size = { width: 1000, height: 800 };
   const home = (latDeg) => homeCamera('globe', { observer: { latDeg, lonDeg: 0 }, ...size }).zoom;
-  assert.equal(minZoomFor('globe', { ...size, latDeg: 0 }), home(0));
-  assert.equal(minZoomFor('globe', { ...size, latDeg: 45 }), home(45));
-  // MapLibre's globe zoom number shifts with latitude for the same disc size.
-  assert.ok(Math.abs(minZoomFor('globe', { ...size, latDeg: 60 }) - (minZoomFor('globe', { ...size, latDeg: 0 }) - 1)) < 1e-9);
-  // MapLibre scales the globe by 1 / cos(latitude) up to its 85.05 degree clamp.
-  assert.equal(minZoomFor('globe', { ...size, latDeg: 89 }), minZoomFor('globe', { ...size, latDeg: 85.05 }));
-  assert.ok(minZoomFor('globe', { ...size, latDeg: 89 }) < minZoomFor('globe', { ...size, latDeg: 80 }));
-});
-
-import { nextMinZoom } from '../lib/map/view.mjs';
-
-test('the zoom floor only falls while the camera moves, so a pole-to-pole flight never zooms in', () => {
-  // Mid-flight the centre passes the equator, where the floor is higher.
-  assert.equal(nextMinZoom({ current: -1.2, floor: 2.3, moving: true }), -1.2);
-  // Falling is fine mid-move (for example dragging toward a pole).
-  assert.equal(nextMinZoom({ current: 2.3, floor: -1.2, moving: true }), -1.2);
-  // Once the move ends the floor is set exactly.
-  assert.equal(nextMinZoom({ current: -1.2, floor: 2.3, moving: false }), 2.3);
+  // The floor is the equator's home zoom at any centre: MapLibre's globe
+  // already lowers the floor by log2(cos latitude) itself, so adding that
+  // here too let the disc shrink to a twelfth of its size at a pole.
+  for (const latDeg of [0, 41.88, 60, 85.05, 89, 90, -90]) {
+    assert.equal(minZoomFor('globe', { ...size, latDeg }), home(0), String(latDeg));
+  }
+  // At a pole, MapLibre's floor (ours plus log2(cos 85.05)) is the preset's zoom.
+  const north = presetCamera('north', size).zoom;
+  const cos = Math.cos((85.05 * Math.PI) / 180);
+  assert.ok(Math.abs(minZoomFor('globe', { ...size, latDeg: 90 }) + Math.log2(cos) - north) < 1e-9);
 });
 
 // MapLibre's setMinZoom throws below -2, which froze a phone's ease to a pole.
@@ -142,6 +134,18 @@ test('the zoom floor never goes below MapLibre\'s own minimum of -2', () => {
     assert.ok(minZoomFor('globe', { width: 30, height: 30, latDeg }) >= -2, `tiny globe ${latDeg}`);
   }
   assert.equal(minZoomFor('flat', { width: 60, height: 60, latDeg: 0 }), -2);
-  assert.equal(nextMinZoom({ current: 2, floor: -2.5, moving: true }), -2);
-  assert.equal(nextMinZoom({ current: 2, floor: -2.5, moving: false }), -2);
+});
+
+// MapLibre's globe ease scales the Earth along the way only when the zoom
+// number changes; pole to pole keeps the same number, so it is nudged.
+test('a preset ease always changes the zoom number, by a hair when it would not', () => {
+  const size = { width: 372, height: 504 };
+  const north = presetCamera('north', size).zoom;
+  const south = presetCamera('south', size).zoom;
+  assert.equal(north, south);
+  const z = easeZoom(north, south);
+  assert.notEqual(z, north);
+  assert.ok(Math.abs(z - south) < 1e-5);
+  assert.equal(easeZoom(1, 2.5), 2.5);
+  assert.equal(easeZoom(2.5, 1), 1);
 });

@@ -9,7 +9,7 @@ import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
-import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, nextMinZoom, presetCamera } from "@/lib/map/view.mjs";
+import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -147,8 +147,8 @@ const PRESETS: { id: Preset; label: string }[] = [
 const ZOOM_EPS = 0.01;
 
 const viewOf = (id: string): View => (id === "globe" ? "globe" : "flat");
-const floorNow = nextMinZoom as (o: { current: number; floor: number; moving: boolean }) => number;
-const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number; latDeg: number }) => number;
+const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number }) => number;
+const easeZoom = easeZoomOf as (current: number, target: number) => number;
 const wrapLon = (d: number) => d - 360 * Math.round(d / 360);
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 const reducedMotion = () =>
@@ -259,13 +259,11 @@ export default function FlatMap({
     return home(v, { observer: o, focus: focusOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
   }, []);
   /** Zoom out no further than the whole Earth: the floor follows the
-   *  container and, on the globe, the centre latitude. */
-  const limitZoom = useCallback((map: MlMap, moving = false) => {
+   *  container. On the globe MapLibre adds its own latitude term, so the
+   *  floor holds through moves. */
+  const limitZoom = useCallback((map: MlMap) => {
     const el = map.getContainer();
-    const floor = zoomFloor(latest.current.view, {
-      width: el.clientWidth || 1, height: el.clientHeight || 1, latDeg: map.getCenter().lat,
-    });
-    map.setMinZoom(floorNow({ current: map.getMinZoom(), floor, moving }));
+    map.setMinZoom(zoomFloor(latest.current.view, { width: el.clientWidth || 1, height: el.clientHeight || 1 }));
   }, []);
   const moveTo = useCallback((map: MlMap, cam: Move) => {
     if (reducedMotion()) map.jumpTo(cam);
@@ -472,13 +470,6 @@ export default function FlatMap({
         limitZoom(map);
         if (atHome.current) map.jumpTo(homeView(map));
       });
-      // On the globe the zoom floor moves with the centre latitude.
-      map.on("move", () => {
-        if (latest.current.view === "globe") limitZoom(map, true);
-      });
-      map.on("moveend", () => {
-        if (latest.current.view === "globe") limitZoom(map);
-      });
     })();
     return () => {
       alive = false;
@@ -637,7 +628,7 @@ export default function FlatMap({
     if (!cam) return;
     atHome.current = false;
     setFollowing(p === "sat");
-    moveTo(map, { center: cam.center, zoom: cam.zoom });
+    moveTo(map, { center: cam.center, zoom: easeZoom(map.getZoom(), cam.zoom) });
   };
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
