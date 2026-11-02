@@ -9,7 +9,7 @@ import { chartPalette } from '../lib/pass-finder/sky-helpers.js';
 import { sunAltitudeDeg } from '../lib/pass-finder/visibility.js';
 import { apparentAltDeg } from '../lib/refraction.js';
 import { CATALOG } from '../lib/catalog.mjs';
-import { ARC_OPACITY_UNIFORM } from '../lib/pass-finder/polar-arc.js';
+import { ARC_OPACITY_UNIFORM, ARC_DASH_ALPHA } from '../lib/pass-finder/polar-arc.js';
 import { ISS_LINE1, ISS_LINE2, ISS_OMM } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -128,10 +128,15 @@ test('paintPassCard draws a no-magnitude satellite with the plain arc, not a gue
   const solidOpacities = (track) => {
     const svg = cardSkeleton();
     paintPassCard(svg, { track, obs: EN52VE, win: darkPass, nowMs: T0 });
-    return [...svg.querySelector('.arc').querySelectorAll('line')].map((l) => l.getAttribute('stroke-opacity'));
+    // Solid segments only: a dashed run (shadowed or too faint) always
+    // carries ARC_DASH_ALPHA, which must not count as shading.
+    return [...svg.querySelector('.arc').querySelectorAll('line, polyline')]
+      .filter((l) => !l.hasAttribute('stroke-dasharray'))
+      .map((l) => l.getAttribute('stroke-opacity'));
   };
   const known = solidOpacities(ISS_WITH_ENTRY);
-  assert.ok(new Set(known).size > 1, 'a known magnitude shades the arc');
+  assert.ok(!known.includes(ARC_DASH_ALPHA.toFixed(3)), 'no dashed segment is counted');
+  assert.ok(new Set(known).size > 1, 'a known magnitude shades the solid arc');
   const unknown = solidOpacities(ISS);
   assert.equal(ISS.standardMag, null);
   assert.ok(unknown.length > 0);
