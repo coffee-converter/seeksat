@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -120,16 +120,17 @@ test('panelScale exposes the nice bounds it computed', () => {
 
 // ---- panelsFor: panel order and the no-frequency degrade path -----------
 
-test('panels run angular rate, Doppler, signal - Doppler in the middle', () => {
-  // Doppler is the reference the other two are read against (both peak
-  // where it crosses zero), so it sits adjacent to both.
+test('panels run Doppler, signal, angular rate - Doppler first and tallest', () => {
+  // Doppler is what a radio operator tunes by, so it leads; the TCA rule
+  // runs through all three, where Doppler crosses zero and the others peak.
   assert.deepEqual(panelsFor(true).map((p) => p.key),
-    ['angRateDegPerSec', 'dopplerHz', 'relSignalDb']);
+    ['dopplerHz', 'relSignalDb', 'angRateDegPerSec']);
+  assert.ok(panelsFor(true)[0].height > panelsFor(true)[1].height);
 });
 
 test('with no frequency, Doppler is replaced by range rate in place', () => {
   const keys = panelsFor(false).map((p) => p.key);
-  assert.deepEqual(keys, ['angRateDegPerSec', 'rangeRateMps', 'relSignalDb']);
+  assert.deepEqual(keys, ['rangeRateMps', 'relSignalDb', 'angRateDegPerSec']);
 });
 
 test('the degrade swap matches on key, not position', () => {
@@ -137,9 +138,9 @@ test('the degrade swap matches on key, not position', () => {
   // moment the order changes - which it did. Angular rate and signal must
   // survive the swap untouched.
   const on = panelsFor(true), off = panelsFor(false);
-  assert.equal(off[0].label, on[0].label, 'angular rate must be untouched');
-  assert.equal(off[2].label, on[2].label, 'signal must be untouched');
-  assert.equal(off[1].unit, 'm/s');
+  assert.equal(off[1].label, on[1].label, 'signal must be untouched');
+  assert.equal(off[2].label, on[2].label, 'angular rate must be untouched');
+  assert.equal(off[0].unit, 'm/s');
 });
 
 
@@ -187,4 +188,40 @@ test('axisTicks produces a sane number of ticks across magnitudes', () => {
     const n = axisTicks(lo, hi, 4).length;
     assert.ok(n >= 2 && n <= 12, `${n} ticks for [${lo}, ${hi}]`);
   }
+});
+
+// ---- elevationMarks, statTiles, tuneLabel ------------------------------
+
+const pass = (els, dops) => els.map((elDeg, i) => ({ tMs: i * 1000, elDeg, dopplerHz: dops ? dops[i] : null }));
+
+test('elevationMarks interpolates time and Doppler at each rise and set crossing', () => {
+  const s = pass([0, 20, 40, 20, 0], [8000, 6000, 0, -6000, -8000]);
+  const m = elevationMarks(s, [10, 30]);
+  assert.deepEqual(m.map((x) => [x.deg, x.leg, x.tMs, x.dopplerHz]), [
+    [10, 'rise', 500, 7000], [10, 'set', 3500, -7000],
+    [30, 'rise', 1500, 3000], [30, 'set', 2500, -3000],
+  ]);
+});
+
+test('elevationMarks leaves out an elevation the pass never reaches, and needs Doppler', () => {
+  assert.deepEqual(elevationMarks(pass([0, 20, 0], [1, 0, -1]), [30]), []);
+  assert.deepEqual(elevationMarks(pass([0, 20, 0], null), [10]), []);
+});
+
+test('statTiles leads with swing and rate when a frequency is set', () => {
+  const series = { samples: pass([0, 37.4, 0], [8000, 0, -8000]), summary: { dopplerPeakToPeakHz: 16370, maxDopplerRateHzPerSec: 34.2, closestRangeM: 1816300, maxAngRateDegPerSec: 0.231 } };
+  assert.deepEqual(statTiles(series, { freqHz: 435.605e6 }), [
+    { value: '16.37 kHz', label: 'Doppler swing' },
+    { value: '34 Hz/s', label: 'max Doppler rate' },
+    { value: '37°', label: 'max elevation' },
+    { value: '1,816 km', label: 'closest range' },
+    { value: '0.23°/s', label: 'max angular rate' },
+  ]);
+  assert.deepEqual(statTiles(series, {}).map((t) => t.label), ['max elevation', 'closest range', 'max angular rate']);
+});
+
+test('tuneLabel shows the receive frequency to the precision the step needs', () => {
+  assert.equal(tuneLabel(435.605e6, 5), '435.610');
+  assert.equal(tuneLabel(435.605e6, -2.5), '435.6025');
+  assert.equal(tuneLabel(145.8e6, 0), '145.800');
 });
