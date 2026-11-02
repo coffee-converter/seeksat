@@ -7,7 +7,7 @@ import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
-import { PROJECTIONS, homeCamera, homeCentresFocus as homeCentresFocusOf, presetCamera } from "@/lib/map/view.mjs";
+import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera } from "@/lib/map/view.mjs";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -118,6 +118,7 @@ const PRESETS: { id: Preset; label: string }[] = [
 const ZOOM_EPS = 0.01;
 
 const viewOf = (id: string): View => (id === "globe" ? "globe" : "flat");
+const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number; latDeg: number }) => number;
 const wrapLon = (d: number) => d - 360 * Math.round(d / 360);
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 const reducedMotion = () =>
@@ -201,6 +202,14 @@ export default function FlatMap({
     const { sats: s, observer: o, view: v } = latest.current;
     const el = map.getContainer();
     return home(v, { observer: o, focus: focusOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
+  }, []);
+  /** Zoom out no further than the whole Earth: the floor follows the
+   *  container and, on the globe, the centre latitude. */
+  const limitZoom = useCallback((map: MlMap) => {
+    const el = map.getContainer();
+    map.setMinZoom(zoomFloor(latest.current.view, {
+      width: el.clientWidth || 1, height: el.clientHeight || 1, latDeg: map.getCenter().lat,
+    }));
   }, []);
   const moveTo = useCallback((map: MlMap, cam: Move) => {
     if (reducedMotion()) map.jumpTo(cam);
@@ -301,7 +310,10 @@ export default function FlatMap({
           dragRotate: false,
           pitchWithRotate: false,
           touchPitch: false,
-          maxZoom: 8,
+          maxZoom: MAX_ZOOM,
+          // Labels and dots switch at once instead of fading: the fade also
+          // delays hiding dots that turn to the far side of the globe.
+          fadeDuration: 0,
           cooperativeGestures: !(docked.current || fullRef.current),
         });
       } catch {
@@ -342,6 +354,7 @@ export default function FlatMap({
           data,
         });
         map.setProjection({ type: latest.current.view === "globe" ? "globe" : "mercator" });
+        limitZoom(map);
       });
       // A tap on a dot (or its name) selects the nearest one; hidden satellites are not in the layers.
       map.on("click", (e: MapMouseEvent) => {
@@ -377,7 +390,12 @@ export default function FlatMap({
       map.on("moveend", push);
       // MapLibre follows its container; an untouched home view refits to it.
       map.on("resize", () => {
+        limitZoom(map);
         if (atHome.current) map.jumpTo(homeView(map));
+      });
+      // On the globe the zoom floor moves with the centre latitude.
+      map.on("move", () => {
+        if (latest.current.view === "globe") limitZoom(map);
       });
     })();
     return () => {
@@ -388,7 +406,7 @@ export default function FlatMap({
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {
@@ -472,8 +490,11 @@ export default function FlatMap({
     // Before the style loads, style.load applies the projection.
     if (styleReady.current) map.setProjection({ type: view === "globe" ? "globe" : "mercator" });
     atHome.current = true;
+    // The old view's floor could hold the new home view back.
+    map.setMinZoom(null);
     map.jumpTo(homeView(map));
-  }, [view, homeView, setFollowing]);
+    limitZoom(map);
+  }, [view, homeView, setFollowing, limitZoom]);
 
   // An untouched home view follows the observer (it arrives after mount, once prefs load).
   const obsLon = observer?.lonDeg ?? null;

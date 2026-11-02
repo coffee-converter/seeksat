@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera } from '../lib/map/view.mjs';
+import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, MAX_ZOOM } from '../lib/map/view.mjs';
 
 test('the view list is flat and globe, flat by default', () => {
-  assert.deepEqual(PROJECTIONS, [{ id: 'flat', label: 'Flat' }, { id: 'globe', label: 'Globe' }]);
+  assert.deepEqual(PROJECTIONS, [{ id: 'flat', label: 'Mercator' }, { id: 'globe', label: 'Globe' }]);
   assert.equal(DEFAULT_PROJECTION, 'flat');
 });
 
@@ -93,4 +93,23 @@ test('presetCamera needs an observer or a focus', () => {
   assert.deepEqual(presetCamera('north', {}), { center: [0, 90], zoom: null });
   assert.deepEqual(presetCamera('south', {}), { center: [0, -90], zoom: null });
   assert.equal(presetCamera('nope', {}), null);
+});
+
+test('zooming in goes to street level', () => {
+  assert.ok(MAX_ZOOM >= 14);
+});
+
+test('the flat map zooms out only until the whole world fits across', () => {
+  assert.equal(minZoomFor('flat', { width: 1024, height: 900, latDeg: 40 }), 1);
+  assert.equal(minZoomFor('flat', { width: 512, height: 900, latDeg: 0 }), 0);
+});
+
+test('the globe zooms out only until the whole Earth is in frame', () => {
+  const size = { width: 1000, height: 800 };
+  const home = (latDeg) => homeCamera('globe', { observer: { latDeg, lonDeg: 0 }, ...size }).zoom;
+  assert.equal(minZoomFor('globe', { ...size, latDeg: 0 }), home(0));
+  assert.equal(minZoomFor('globe', { ...size, latDeg: 45 }), home(45));
+  // MapLibre's globe zoom number shifts with latitude for the same disc size.
+  assert.ok(Math.abs(minZoomFor('globe', { ...size, latDeg: 60 }) - (minZoomFor('globe', { ...size, latDeg: 0 }) - 1)) < 1e-9);
+  assert.equal(minZoomFor('globe', { ...size, latDeg: 89 }), minZoomFor('globe', { ...size, latDeg: 80 }));
 });
