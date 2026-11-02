@@ -12,7 +12,8 @@ import LocationPrompt, { PopularList } from "./LocationPrompt";
 import UpNow from "./UpNow";
 import NextStrip, { type NextSummary } from "./NextStrip";
 import { nextPassSummary, currentCards } from "@/lib/home/next-strip.mjs";
-import NextUpList, { type Card, type HomeObserver, type Track } from "./NextUpList";
+import NextUpList, { usePassCharts, type Card, type HomeObserver, type Pass, type Track } from "./NextUpList";
+import Timeline from "./Timeline";
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
@@ -352,7 +353,15 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   }, [fromCache, loadRecords]);
 
   // The soonest pass, for the phone strip and the empty "Up now" line.
-  const nextSummary = nowMs != null ? summarize(cardsNow(cardState, cardKey), nowMs) : null;
+  const shownCards = cardsNow(cardState, cardKey) as Card[] | null;
+  const nextSummary = nowMs != null ? summarize(shownCards, nowMs) : null;
+
+  // One set of chart modals for the cards and the timeline.
+  const { open: openChart, modals: chartModals } = usePassCharts(observer, prefs.minElevDeg);
+  const openTimelinePass = useCallback((noradId: number, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
+    const track = allTracks.get(noradId);
+    if (track) openChart("sky", track, pass, e);
+  }, [allTracks, openChart]);
 
   return (
     <MapShell
@@ -440,6 +449,17 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
                 <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} next={nextSummary} />
               )}
+              {nowMs != null && prefs.following.length > 0 && shownCards && (
+                <Timeline
+                  cards={shownCards}
+                  tracks={allTracks}
+                  colors={colors}
+                  observer={observer}
+                  mode={prefs.mode}
+                  nowMs={nowMs}
+                  onOpenPass={openTimelinePass}
+                />
+              )}
               {prefs.following.length === 0 ? (
                 <>
                   <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
@@ -458,6 +478,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                       followBlocked={null}
                       focusId={focusId}
                       onFocus={focusOn}
+                      openChart={openChart}
                     />
                   )}
                   <PopularList names={popularNames} />
@@ -482,11 +503,14 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                     followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
                     focusId={focusId}
                     onFocus={focusOn}
+                    openChart={openChart}
                   />
                 )
               )}
             </>
           )}
+
+          {chartModals}
 
           <AboutSection />
 

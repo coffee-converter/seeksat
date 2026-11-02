@@ -44,7 +44,7 @@ export interface Pass {
 }
 
 export type Card =
-  | { kind: "pass"; noradId: number; name: string; pass: Pass }
+  | { kind: "pass"; noradId: number; name: string; pass: Pass; passes?: Pass[] }
   | { kind: "stationary"; noradId: number; name: string; visible: boolean; pointing: { azDeg: number; elDeg: number } }
   | { kind: "none" | "unavailable" | "missing"; noradId: number; name: string };
 
@@ -228,13 +228,46 @@ interface Props {
   focusId: number | null;
   /** A headline tap: focus that satellite, or null to unfocus the focused one. */
   onFocus: (noradId: number | null) => void;
+  /** Opens a chart for a pass (from `usePassCharts`). */
+  openChart: OpenChart;
 }
 
-// "Next up": one card per followed satellite, with the sky and radio chart
-// modals for a pass card.
+export type ChartKind = "sky" | "radio" | "live";
+export type OpenChart = (kind: ChartKind, track: Track, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => void;
+
+/** The sky, radio and live chart modals, shared by the cards and the
+ *  timeline: `open` records its trigger so closing returns focus to it. */
+export function usePassCharts(observer: HomeObserver | null, minElevDeg: number) {
+  // The subject is captured when a chart opens, so a card refresh or the
+  // clock never repaints an open chart.
+  const [subject, setSubject] = useState<ChartSubject | null>(null);
+  const [chart, setChart] = useState<ChartKind | null>(null);
+  const [chartsLoaded, setChartsLoaded] = useState(false);
+  const trigger = useRef<HTMLElement | null>(null);
+
+  const open = useCallback<OpenChart>((kind, track, pass, e) => {
+    if (!observer) return;
+    trigger.current = e.currentTarget;
+    setChartsLoaded(true);
+    setSubject({ track, obs: observer, pass, minElevDeg, jointWindow: null });
+    setChart(kind);
+  }, [observer, minElevDeg]);
+  const onClose = useCallback(() => {
+    setChart(null);
+    trigger.current?.focus();
+  }, []);
+
+  const modals = chartsLoaded
+    ? <PassChartModals subject={subject} chart={chart} onChartChange={setChart} onClose={onClose} />
+    : null;
+  return { open, modals };
+}
+
+// "Next up": one card per followed satellite; a pass card's chart buttons
+// open the shared chart modals.
 export default function NextUpList({
   cards: followedCards, viewingCard = null, tracks, colors, observer, mode, minElevDeg, nowMs,
-  onUnfollow, onFollow, followBlocked, focusId, onFocus,
+  onUnfollow, onFollow, followBlocked, focusId, onFocus, openChart: open,
 }: Props) {
   const cardsIn = viewingCard
     ? [viewingCard, ...followedCards.filter((c) => c.noradId !== viewingCard.noradId)]
@@ -246,12 +279,6 @@ export default function NextUpList({
   const viewingOf = (id: number): ViewingProps | null => (viewingCard && viewingCard.noradId === id
     ? { onFollow: () => onFollow(id), blocked: followBlocked }
     : null);
-  // The subject is captured when a chart opens, so a card refresh or the
-  // clock never repaints an open chart.
-  const [subject, setSubject] = useState<ChartSubject | null>(null);
-  const [chart, setChart] = useState<"sky" | "radio" | "live" | null>(null);
-  const [chartsLoaded, setChartsLoaded] = useState(false);
-  const trigger = useRef<HTMLElement | null>(null);
   // Cards whose More panel is open; all start closed.
   const [openMore, setOpenMore] = useState<ReadonlySet<number>>(() => new Set());
   const toggleMore = (id: number) => setOpenMore((prev) => {
@@ -259,17 +286,6 @@ export default function NextUpList({
     if (!next.delete(id)) next.add(id);
     return next;
   });
-
-  const open = (kind: "sky" | "radio" | "live", track: Track, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
-    trigger.current = e.currentTarget;
-    setChartsLoaded(true);
-    setSubject({ track, obs: observer, pass, minElevDeg, jointWindow: null });
-    setChart(kind);
-  };
-  const onClose = useCallback(() => {
-    setChart(null);
-    trigger.current?.focus();
-  }, []);
 
   return (
     <section className="next-up" aria-labelledby="next-up-title">
@@ -320,10 +336,6 @@ export default function NextUpList({
           );
         })}
       </ul>
-
-      {chartsLoaded && (
-        <PassChartModals subject={subject} chart={chart} onChartChange={setChart} onClose={onClose} />
-      )}
     </section>
   );
 }

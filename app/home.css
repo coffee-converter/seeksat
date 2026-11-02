@@ -1290,3 +1290,96 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .up-now--empty { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; }
 .up-now--empty .up-now__title { margin: 0; }
 .up-now--empty .up-now__none { flex: 1 1 200px; min-width: 0; }
+
+/* Next 24 hours: a strip per satellite, one bar per pass. The SVG holds the
+   night shading and stretches; bars are buttons and the labels are HTML,
+   placed by percent, so nothing is distorted. */
+.timeline { margin: 0 0 12px; min-width: 0; container-type: inline-size; }
+.timeline__rows { position: relative; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.timeline__row,
+.timeline__axis { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 8px; align-items: center; }
+.timeline__name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--map-text); }
+.timeline__swatch { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-color); }
+.timeline__name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timeline__strip {
+  position: relative;
+  height: 18px;
+  border-radius: 3px;
+  background: rgba(var(--ink-rgb), 0.04);
+}
+/* Now: a hairline at the left edge. */
+.timeline__strip::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 0;
+  width: 1.5px;
+  background: var(--map-accent);
+  pointer-events: none;
+}
+.timeline__svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.timeline__night { fill: var(--map-night); }
+.timeline__grid { stroke: rgba(var(--ink-rgb), 0.1); stroke-width: 1; }
+.timeline__grid--day { stroke: rgba(var(--ink-rgb), 0.28); }
+/* A bar is at least 6 px wide, widened about its middle and kept inside the strip. */
+.timeline__bar {
+  --bw: max(calc(var(--w) * 100%), 6px);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: clamp(0px, calc(var(--mid) * 100% - var(--bw) / 2), calc(100% - var(--bw)));
+  width: var(--bw);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+.timeline__bar::before {
+  content: "";
+  position: absolute;
+  inset: 3px 0;
+  border-radius: 2px;
+  background-color: var(--sat-color);
+}
+.timeline__bar--ok::before { opacity: 0.7; }
+.timeline__bar--low::before { opacity: 0.45; }
+.timeline__bar--cloudy::before {
+  background-image: repeating-linear-gradient(135deg, transparent 0 2px, rgba(var(--bg-rgb), 0.7) 2px 4px);
+}
+.timeline__bar:hover::before { inset: 1px 0; }
+.timeline__bar:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; z-index: 1; }
+.timeline__axis { margin-top: 3px; align-items: start; }
+.timeline__ticks { grid-column: 2; position: relative; height: 26px; }
+/* Labels slide from left-aligned at the start to right-aligned at the end, so
+   none hangs past the strip. */
+.timeline__tick {
+  position: absolute;
+  top: 0;
+  left: calc(var(--x) * 100%);
+  transform: translateX(calc(var(--x) * -100%));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--map-muted);
+  font-size: 10px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.timeline__day { color: var(--map-text); font-weight: 600; }
+.timeline__note { margin: 6px 0 0; color: var(--map-muted); font-size: 13px; }
+/* Under 600 px (a phone, or the side panel on a wide screen) the name sits
+   above its strip, so the strip keeps the full width. */
+@container (max-width: 599.98px) {
+  .timeline__rows { gap: 2px; }
+  .timeline__row,
+  .timeline__axis { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .timeline__name { font-size: 12px; }
+  .timeline__ticks { grid-column: 1; }
+}
+@media print {
+  .timeline { display: none; }
+}
