@@ -203,3 +203,16 @@ test('peakMagnitude needs every observer in a dark sky', () => {
   const day = { id: 'day', latDeg: 50, lonDeg: 90 };
   assert.deepEqual(peakMagnitude(ISS_BRIGHT, [DUSK_OBS, day], radio.startMs, radio.endMs), { peakMag: null, peakMagSunAltDeg: null, peakMagElDeg: null });
 });
+
+test('every pass has finite start and end elevations; radio passes have time above 10 and 30 degrees', () => {
+  for (const mode of ['radio', 'visual']) {
+    const r = findPasses({ track: ISS, observers: [EN52VE], mode, startMs: T0, endMs: T0 + 3 * DAY });
+    assert.ok(r.passes.length > 0);
+    for (const p of r.passes) {
+      assert.ok(Number.isFinite(p.startElevDeg) && Number.isFinite(p.endElevDeg));
+    }
+  }
+  const r = findPasses({ track: ISS, observers: [EN52VE], mode: 'radio', startMs: T0, endMs: T0 + 3 * DAY });
+  for (const p of r.passes) assert.ok(p.msAbove10 >= p.msAbove30 && p.msAbove30 >= 0);
+  assert.ok(r.passes.some((p) => p.msAbove10 > 0));
+});

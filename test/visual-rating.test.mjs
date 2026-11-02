@@ -103,3 +103,13 @@ test('reason wording near the faintest visible stars', () => {
     'Peak mag 4.0, no brighter than the faintest stars you can see.');
   assert.match(visualQuality(known(2.9), city).reason, /about 1 magnitude brighter/);
 });
+
+test('visualQuality reports the cause of a reduced level', () => {
+  const bright = { peakMag: -3, peakMagSunAltDeg: -20, maxElevDeg: 60 };
+  assert.equal(visualQuality(bright).cause, null);
+  assert.equal(visualQuality(bright, { cloud: { level: 'cloudy' } }).cause, 'cloudy');
+  assert.equal(visualQuality(bright, { cloud: { level: 'some' } }).cause, 'some-cloud');
+  assert.equal(visualQuality({ peakMag: 3, peakMagSunAltDeg: -20 }).cause, 'faint');
+  assert.equal(visualQuality({ maxElevDeg: 60, peakSunAltDeg: -3 }).cause, 'twilight');
+  assert.equal(visualQuality({ maxElevDeg: 5, peakSunAltDeg: -20 }).cause, 'low');
+});
