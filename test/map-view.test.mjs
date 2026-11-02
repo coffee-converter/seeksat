@@ -63,6 +63,16 @@ test('homeCamera globe centres on the observer, then the focus', () => {
   assert.deepEqual(homeCamera('globe', { width: 1024, height: 800 }).center, [0, 20]);
 });
 
+test('homeCamera globe near a pole zooms no further out than at 80 degrees', () => {
+  const size = { width: 1024, height: 800 };
+  const at80 = homeCamera('globe', { observer: { latDeg: 80, lonDeg: 0 }, ...size }).zoom;
+  const north = homeCamera('globe', { observer: { latDeg: 89, lonDeg: 0 }, ...size }).zoom;
+  const south = homeCamera('globe', { observer: { latDeg: -89, lonDeg: 0 }, ...size }).zoom;
+  assert.ok(Number.isFinite(north), `zoom ${north}`);
+  assert.ok(north >= at80 - 1e-9, `89N ${north} vs 80N ${at80}`);
+  assert.ok(south >= at80 - 1e-9, `89S ${south} vs 80N ${at80}`);
+});
+
 test('presetCamera needs an observer or a focus', () => {
   assert.equal(presetCamera('you', { observer: null, focus: null }), null);
   assert.equal(presetCamera('sat', { observer: null, focus: null }), null);

@@ -89,6 +89,41 @@
   outline-offset: 1px;
 }
 
+/* Globe camera buttons sit in a row above the zoom buttons (wrapping upward
+   on a very narrow map); the attribution moves up above them. */
+.flat-map__presets {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 46px;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  gap: 4px;
+  pointer-events: none;
+}
+.flat-map__presets button {
+  pointer-events: auto;
+  min-height: 32px;
+  padding: 0 8px;
+  background: var(--map-panel);
+  color: var(--map-text);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.flat-map__presets button:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.22); }
+.flat-map__presets button[aria-pressed="true"] {
+  background: rgba(var(--accent-rgb), 0.3);
+  border-color: var(--map-accent);
+}
+.flat-map__presets button:disabled { opacity: 0.45; cursor: default; }
+.flat-map__presets button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.flat-map--globe .maplibregl-ctrl-bottom-right { bottom: 82px; }
+
 /* Full screen: the native API when present, else this class (iPhone Safari). */
 .flat-map-shell--full {
   position: fixed;
@@ -1077,6 +1112,8 @@ a.home-chip { display: inline-block; text-decoration: none; }
   .flat-map-shell--fill .flat-map__head .focus-bar { margin: 0; box-shadow: 0 6px 20px var(--shadow-soft); }
   .flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
   .flat-map-shell--fill .flat-map__zoom { left: auto; right: 10px; bottom: 10px; }
+  .flat-map-shell--fill .flat-map__presets { left: 10px; right: 10px; bottom: 48px; justify-content: flex-end; }
+  .flat-map-shell--fill .flat-map--globe .maplibregl-ctrl-bottom-right { bottom: 84px; }
   /* The legend: a toggle at the bottom left that opens upward. */
   .flat-map-shell--fill .map-legend-box {
     grid-area: map;

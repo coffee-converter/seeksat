@@ -5,7 +5,7 @@ import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, recordFrom } from './fixtures/orbits.mjs';
 import { geoArea, geoCircle } from 'd3-geo';
 import {
-  footprintRadiusDeg, subsolarPoint, nightBands, groundTrack, subpoint, loadLand, tickStepMin,
+  footprintRadiusDeg, subsolarPoint, nightBands, groundTrack, subpoint, tickStepMin,
 } from '../lib/map/geometry.mjs';
 
 test('footprintRadiusDeg', () => {
@@ -41,10 +41,6 @@ test('subpoint of the ISS is about 400 km up', () => {
   const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
   const s = subpoint(iss.ecefAt(new Date('2026-03-01T12:00:00Z')));
   assert.ok(s.altKm > 380 && s.altKm < 450 && Math.abs(s.latDeg) <= 52);
-});
-test('loadLand returns land polygons', () => {
-  const land = loadLand();
-  assert.ok(['Feature', 'FeatureCollection'].includes(land.type));
 });
 test('night bands nest: deeper night is a smaller cap', () => {
   const areas = nightBands(new Date('2026-06-21T12:00:00Z')).map((b) => geoArea(b.feature));

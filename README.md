@@ -118,7 +118,7 @@ After that the cron runs every 4 hours on its own.
 
 ## Map data credits
 
-City labels come from [Natural Earth](https://www.naturalearthdata.com/) populated places (public domain). `scripts/build-places.mjs` reduces the download to `lib/map/places.json`.
+The basemap tiles come from [OpenFreeMap](https://openfreemap.org/), built from [OpenStreetMap](https://www.openstreetmap.org/copyright) data. The map shows their attribution in its corner.
 
 ## License
 

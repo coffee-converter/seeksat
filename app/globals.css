@@ -51,7 +51,7 @@
   --tile-hover: #13203d;
   --flash-bg: rgba(126, 184, 255, 0.24);
   --flash-text: #ffffff;
-  /* Map chrome and legend. The swatches keep in step with lib/map/draw.mjs. */
+  /* Map chrome and legend. The swatches keep in step with lib/map/overlays.mjs. */
   --map-ocean: #0f1830;
   --map-land: #1b2845;
   --map-night: rgba(3, 5, 12, 0.24);

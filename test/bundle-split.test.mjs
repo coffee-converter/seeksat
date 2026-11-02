@@ -49,21 +49,6 @@ function appEntries(dir) {
   return out;
 }
 
-const PLACE_DATA = ['lib/map/places.json', 'lib/map/regions.mjs'];
-
-test('no entry reaches the place data statically', () => {
-  const entries = [
-    ...appEntries(path.join(ROOT, 'app')),
-    path.join(ROOT, 'components/home/HomeApp.tsx'),
-    path.join(ROOT, 'components/sat/SatApp.tsx'),
-  ];
-  for (const entry of entries) {
-    const { files } = walk(entry);
-    const hit = PLACE_DATA.filter((f) => files.has ? files.has(f) : [...files].includes(f));
-    assert.deepEqual(hit, [], `${path.relative(ROOT, entry)} reaches: ${hit.join(', ')}`);
-  }
-});
-
 test('no page, layout or route under app/ reaches the scene, Cesium or CesiumLoader', () => {
   const entries = appEntries(path.join(ROOT, 'app'));
   assert.ok(entries.length > 0);
