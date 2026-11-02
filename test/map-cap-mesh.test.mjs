@@ -61,3 +61,31 @@ test('longitude is continuous over the date line', () => {
     assert.ok(Math.abs(positions[i * 2] - positions[0]) < 0.5);
   }
 });
+
+function toXyz([lon, lat]) {
+  const l = (lon * Math.PI) / 180;
+  const p = (lat * Math.PI) / 180;
+  return [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)];
+}
+
+test('triangles on the sphere: consistent outward winding, none span the map', () => {
+  for (const [centre, r] of [[[-40, 78], 18], [[0, 0], 20], [[179, 0], 10], [[-40, 70], 18]]) {
+    const { positions, indices } = capMesh(centre, r);
+    const pts = [];
+    for (let i = 0; i < positions.length; i += 2) {
+      pts.push(toXyz(mercToLonLat(positions[i], positions[i + 1])));
+    }
+    const signs = new Set();
+    for (let t = 0; t < indices.length; t += 3) {
+      const [a, b, c] = [pts[indices[t]], pts[indices[t + 1]], pts[indices[t + 2]]];
+      const e1 = a.map((v, i) => b[i] - v);
+      const e2 = a.map((v, i) => c[i] - v);
+      const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      const dot = n[0] * (a[0] + b[0] + c[0]) + n[1] * (a[1] + b[1] + c[1]) + n[2] * (a[2] + b[2] + c[2]);
+      const area = Math.hypot(...n) / 2;
+      assert.ok(area < (4 * Math.PI) * 1e-3, `triangle ${t / 3} spans too much (${centre})`);
+      if (area > 1e-9) signs.add(Math.sign(dot));
+    }
+    assert.deepEqual([...signs], [1], `winding not consistent outward for ${centre}`);
+  }
+});
