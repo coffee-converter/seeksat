@@ -71,11 +71,11 @@ test('drawMap runs on equirectangular with ISS and GOES-16', () => {
   assert.ok(calls.some((c) => c.m === 'stroke'));
 });
 
-test('the first fill is the sphere, in the ocean colour', () => {
+test('the sphere fill comes right after the space behind it, in the ocean colour', () => {
   const { ctx, calls } = recordingCtx();
   drawMap(ctx, args(scene()));
-  const first = calls.find((c) => c.m === 'fill');
-  assert.equal(first.fillStyle, MAP_COLORS.ocean);
+  const fills = calls.filter((c) => c.m === 'fill');
+  assert.equal(fills[1].fillStyle, MAP_COLORS.ocean);
 });
 
 test('night bands fill once each with the night colour', () => {
@@ -318,8 +318,7 @@ test('hitTest skips hidden satellites and finds ghosts', () => {
 test('the light run fills the ocean light and uses no dark-palette colour', () => {
   const { ctx, calls } = recordingCtx();
   drawMap(ctx, { ...args(scene().map((s, i) => ({ ...s, color: SAT_PALETTES.light[i] }))), palette: MAP_PALETTES.light });
-  const first = calls.find((c) => c.m === 'fill');
-  assert.equal(first.fillStyle, '#dfe8f3');
+  assert.equal(calls.filter((c) => c.m === 'fill')[1].fillStyle, '#dfe8f3');
   const dark = new Set([...Object.values(MAP_PALETTES.dark), ...SAT_PALETTES.dark]);
   for (const c of calls) {
     for (const v of [c.fillStyle, c.strokeStyle]) assert.ok(!dark.has(v), `dark colour ${v} used in the light run`);
@@ -407,4 +406,17 @@ test('a geostationary satellite gets no direction chevron or ticks', () => {
   assert.equal(chevrons('#ff9b54'), 1, 'ISS keeps its chevron');
   assert.equal(thin('#7fe5d1'), 0);
   assert.equal(chevrons('#7fe5d1'), 0);
+});
+
+test('outside the globe is painted apart from the ocean, and the rim is outlined', () => {
+  for (const theme of ['dark', 'light']) {
+    const palette = MAP_PALETTES[theme];
+    assert.notEqual(palette.space, palette.ocean, theme);
+    const { ctx, calls } = recordingCtx();
+    drawMap(ctx, { ...args(scene()), projection: makeProjection('azimuthal', { width: W, height: H, observer: EN52VE }), palette });
+    const fills = calls.filter((c) => c.m === 'fill');
+    assert.equal(fills[0].fillStyle, palette.space, `${theme}: space first`);
+    assert.equal(fills[1].fillStyle, palette.ocean, `${theme}: then the ocean`);
+    assert.ok(calls.some((c) => c.m === 'stroke' && c.strokeStyle === palette.rim), `${theme}: rim stroked`);
+  }
 });
