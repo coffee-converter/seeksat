@@ -83,16 +83,16 @@ On 2026-11-02 Aaron chose these two from the UX list: "2/3". The order of work a
   - Only in visual mode. Radio mode never fetches.
 - **Badge rule:** `cloudBadge(cloudPct, ageDays)`.
   - `cloudPct` is `cloudAt(forecast, pass.peakMs)`, which already interpolates between forecast hours, including MET Norway's 6-hourly stretch. When it returns null (past the forecast), there is no badge. `ageDays` is the time from now to the pass peak.
-  - `effectivePClear` (`lib/pass-finder/ratings.js`) gives the chance of clear sky, blended toward 0.5 with distance.
+  - The badge grades the raw forecast cloud percent. An earlier draft graded `effectivePClear` (`lib/pass-finder/ratings.js`), which blends toward 0.5 with forecast age; that made a 0% forecast read `Some cloud` from about 3.7 days out and every pass read it from about 6.5 days, a claim the forecast does not make. The badge should say what the forecast says, and drop out once the forecast is too far ahead to trust.
 
-  | Effective P(clear) | Badge |
+  | Forecast cloud percent | Badge |
   |---|---|
-  | 0.7 or more | `Clear` |
-  | 0.4 up to 0.7 | `Some cloud` |
-  | Under 0.4 | `Cloudy` |
-  | `cloudAt` null, or the pass more than 7 days out | no badge |
+  | 30 or less | `Clear` |
+  | Over 30, up to 60 | `Some cloud` |
+  | Over 60 | `Cloudy` |
+  | `cloudAt` null, or the pass more than 4 days out | no badge |
 
-  - Distance is shown honestly: from 3 days out the badge text gains `(forecast)`, and its title gives the raw cloud percent and the forecast age.
+  - Distance is shown honestly: from 2 days out the badge text gains `(forecast)`, and its title gives the raw cloud percent and the forecast age ("under a day ahead", then whole days rounded down, such as "1 day ahead").
   - **Style:** a small pill like `QualityBadge`, using the existing `--ok`, `--warn` and `--muted` tokens, with the word always shown.
 - **Attribution:** the About section gains "Cloud forecasts from Open-Meteo and MET Norway." MET Norway's licence (CC BY 4.0) requires attribution.
 - **Privacy text:** add to the About line that SeekSat's server asks the weather services about your area, rounded to about 11 km.
