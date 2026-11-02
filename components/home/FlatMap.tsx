@@ -82,6 +82,7 @@ const buildData = overlayData as (o: {
   shortTrackIds?: Set<number>;
   trackDetail?: number;
   tracks?: boolean;
+  graticule?: boolean;
 }) => SourceData;
 const detailFor = trackDetailFor as (zoom: number) => number;
 // A stable id per track shape object, so an unchanged minute's tracks are not
@@ -104,8 +105,8 @@ const home = homeCamera as (
 ) => Camera;
 const preset = presetCamera as (
   p: Preset,
-  o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null },
-) => { center: LngLat; zoom: number | null } | null;
+  o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null; width: number; height: number },
+) => { center: LngLat; zoom: number } | null;
 const homeCentresFocus = homeCentresFocusOf as (
   view: View,
   o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null },
@@ -252,7 +253,8 @@ export default function FlatMap({
     const key = trackKey(s, short, detail);
     const tracks = all || key !== sentTrackKey.current;
     sentTrackKey.current = key;
-    return buildData({ sats: s, observer: o, shortTrackIds: short, trackDetail: detail, tracks });
+    // The lat/lon grid never changes: it goes in only when the style loads.
+    return buildData({ sats: s, observer: o, shortTrackIds: short, trackDetail: detail, tracks, graticule: all });
   }, []);
 
   // Push the latest props into the overlay sources.
@@ -570,11 +572,13 @@ export default function FlatMap({
   const focusNow = focusOf(sats);
   const goTo = (p: Preset) => {
     const map = mapRef.current;
-    const cam = preset(p, { observer, focus: focusNow });
-    if (!map || !cam) return;
+    if (!map) return;
+    const el = map.getContainer();
+    const cam = preset(p, { observer, focus: focusNow, width: el.clientWidth || 1, height: el.clientHeight || 1 });
+    if (!cam) return;
     atHome.current = false;
     setFollowing(p === "sat");
-    moveTo(map, cam.zoom == null ? { center: cam.center } : { center: cam.center, zoom: cam.zoom });
+    moveTo(map, { center: cam.center, zoom: cam.zoom });
   };
   const zoomBy = (delta: number) => {
     const map = mapRef.current;

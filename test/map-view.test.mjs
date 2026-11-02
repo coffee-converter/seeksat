@@ -63,14 +63,16 @@ test('homeCamera globe centres on the observer, then the focus', () => {
   assert.deepEqual(homeCamera('globe', { width: 1024, height: 800 }).center, [0, 20]);
 });
 
-test('homeCamera globe near a pole zooms no further out than at 80 degrees', () => {
+test('homeCamera globe near a pole keeps the whole Earth in frame', () => {
+  // MapLibre scales the globe by 1 / cos(centre latitude), clamped at 85.05
+  // degrees; the home zoom undoes exactly that, so the disc is the same size.
   const size = { width: 1024, height: 800 };
-  const at80 = homeCamera('globe', { observer: { latDeg: 80, lonDeg: 0 }, ...size }).zoom;
-  const north = homeCamera('globe', { observer: { latDeg: 89, lonDeg: 0 }, ...size }).zoom;
-  const south = homeCamera('globe', { observer: { latDeg: -89, lonDeg: 0 }, ...size }).zoom;
-  assert.ok(Number.isFinite(north), `zoom ${north}`);
-  assert.ok(north >= at80 - 1e-9, `89N ${north} vs 80N ${at80}`);
-  assert.ok(south >= at80 - 1e-9, `89S ${south} vs 80N ${at80}`);
+  const at = (latDeg) => homeCamera('globe', { observer: { latDeg, lonDeg: 0 }, ...size }).zoom;
+  const equator = at(0);
+  assert.ok(Number.isFinite(at(89)) && at(89) > -2, `zoom ${at(89)}`);
+  assert.equal(at(89), at(85.05));
+  assert.equal(at(-89), at(85.05));
+  assert.ok(Math.abs(at(60) - (equator - 1)) < 1e-9);
 });
 
 test('homeCentresFocus: the flat home centres a focus, the globe home only without an observer', () => {
@@ -86,13 +88,19 @@ test('homeCentresFocus: the flat home centres a focus, the globe home only witho
 });
 
 test('presetCamera needs an observer or a focus', () => {
-  assert.equal(presetCamera('you', { observer: null, focus: null }), null);
-  assert.equal(presetCamera('sat', { observer: null, focus: null }), null);
-  assert.deepEqual(presetCamera('you', { observer: { latDeg: 41.9, lonDeg: -88 } }), { center: [-88, 41.9], zoom: null });
-  assert.deepEqual(presetCamera('sat', { focus: { latDeg: -10, lonDeg: 100 } }), { center: [100, -10], zoom: null });
-  assert.deepEqual(presetCamera('north', {}), { center: [0, 90], zoom: null });
-  assert.deepEqual(presetCamera('south', {}), { center: [0, -90], zoom: null });
-  assert.equal(presetCamera('nope', {}), null);
+  const size = { width: 1000, height: 800 };
+  assert.equal(presetCamera('you', { observer: null, focus: null, ...size }), null);
+  assert.equal(presetCamera('sat', { observer: null, focus: null, ...size }), null);
+  assert.equal(presetCamera('nope', size), null);
+});
+
+test('globe presets frame the whole Earth whatever the current zoom', () => {
+  const size = { width: 1000, height: 800 };
+  const disc = (latDeg) => homeCamera('globe', { observer: { latDeg, lonDeg: 0 }, ...size }).zoom;
+  assert.deepEqual(presetCamera('you', { observer: { latDeg: 41.9, lonDeg: -88 }, ...size }), { center: [-88, 41.9], zoom: disc(41.9) });
+  assert.deepEqual(presetCamera('sat', { focus: { latDeg: -10, lonDeg: 100 }, ...size }), { center: [100, -10], zoom: disc(-10) });
+  assert.deepEqual(presetCamera('north', size), { center: [0, 90], zoom: disc(90) });
+  assert.deepEqual(presetCamera('south', size), { center: [0, -90], zoom: disc(-90) });
 });
 
 test('zooming in goes to street level', () => {
@@ -111,5 +119,7 @@ test('the globe zooms out only until the whole Earth is in frame', () => {
   assert.equal(minZoomFor('globe', { ...size, latDeg: 45 }), home(45));
   // MapLibre's globe zoom number shifts with latitude for the same disc size.
   assert.ok(Math.abs(minZoomFor('globe', { ...size, latDeg: 60 }) - (minZoomFor('globe', { ...size, latDeg: 0 }) - 1)) < 1e-9);
-  assert.equal(minZoomFor('globe', { ...size, latDeg: 89 }), minZoomFor('globe', { ...size, latDeg: 80 }));
+  // MapLibre scales the globe by 1 / cos(latitude) up to its 85.05 degree clamp.
+  assert.equal(minZoomFor('globe', { ...size, latDeg: 89 }), minZoomFor('globe', { ...size, latDeg: 85.05 }));
+  assert.ok(minZoomFor('globe', { ...size, latDeg: 89 }) < minZoomFor('globe', { ...size, latDeg: 80 }));
 });
