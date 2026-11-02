@@ -14,6 +14,8 @@
   color: var(--map-text);
   font-family: system-ui, -apple-system, sans-serif;
 }
+/* The globe view shows the frame around the globe, so it gets its own colour. */
+.flat-map--globe { background: var(--map-space); }
 /* Above maplibregl-map's own position: relative. */
 .flat-map > .flat-map__gl {
   position: absolute;
