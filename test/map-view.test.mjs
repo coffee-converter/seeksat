@@ -134,3 +134,14 @@ test('the zoom floor only falls while the camera moves, so a pole-to-pole flight
   // Once the move ends the floor is set exactly.
   assert.equal(nextMinZoom({ current: -1.2, floor: 2.3, moving: false }), 2.3);
 });
+
+// MapLibre's setMinZoom throws below -2, which froze a phone's ease to a pole.
+test('the zoom floor never goes below MapLibre\'s own minimum of -2', () => {
+  for (const latDeg of [0, 60, 85.05, 89, 90, -90]) {
+    assert.ok(minZoomFor('globe', { width: 390, height: 500, latDeg }) >= -2, `globe ${latDeg}`);
+    assert.ok(minZoomFor('globe', { width: 30, height: 30, latDeg }) >= -2, `tiny globe ${latDeg}`);
+  }
+  assert.equal(minZoomFor('flat', { width: 60, height: 60, latDeg: 0 }), -2);
+  assert.equal(nextMinZoom({ current: 2, floor: -2.5, moving: true }), -2);
+  assert.equal(nextMinZoom({ current: 2, floor: -2.5, moving: false }), -2);
+});
