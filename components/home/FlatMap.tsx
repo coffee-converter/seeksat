@@ -605,7 +605,10 @@ export default function FlatMap({
         centreOn.current = null;
         // Off home now, so a resize or a new observer leaves the satellite centred.
         atHome.current = false;
-        moveTo(map, { center: [sat.position.lonDeg, sat.position.latDeg], zoom: map.getZoom() });
+        // No zoom: on the globe MapLibre then keeps the Earth the same size as
+        // the centre's latitude changes; passing the current zoom number
+        // shrank it far out when the focus was nearer the equator.
+        moveTo(map, { center: [sat.position.lonDeg, sat.position.latDeg] });
       }
     }
     const focus = focusOf(sats);
