@@ -474,6 +474,20 @@
   border-radius: 999px;
   font-size: 11px;
 }
+/* Pass quality: the word carries it, the colour backs it up. */
+.quality {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--map-border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.quality--good { color: var(--ok); border-color: rgba(var(--ok-rgb), 0.5); }
+.quality--ok { color: var(--warn-text); border-color: rgba(var(--warn-rgb), 0.5); }
 /* Where the elements came from: a quieter cue than "visible". */
 .pass-card__tag--elements {
   color: var(--map-muted);

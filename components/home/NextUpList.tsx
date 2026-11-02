@@ -12,6 +12,7 @@ import { downloadText } from "@/lib/passes/download.js";
 import { paintPassCard } from "@/lib/passes/card-chart.js";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import QualityBadge from "@/components/passes/QualityBadge";
 import AlertBell from "@/components/AlertBell";
 import { useFlash } from "@/lib/ui/use-flash";
 import type { makeTrack } from "@/lib/sat/track.mjs";
@@ -176,6 +177,7 @@ function PassCard({
         <p className="pass-card__headline"><Headline text={headline(card, nowMs)} focus={focus} onFocus={onFocus} /></p>
         <p className="pass-card__meta">
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
+          <QualityBadge pass={pass} />
           {pass.visible && <span className="pass-card__tag">visible</span>}
           <ElementTags track={track} nowMs={nowMs} />
           <ViewingTag viewing={viewing} />
