@@ -1,5 +1,6 @@
 "use client";
 
+import { useFocusTrap } from "./useFocusTrap";
 import { useEffect, useRef, useState } from "react";
 import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
 
@@ -96,6 +97,8 @@ export default function SkyChartModalView({
   }, [open, render, subjectKey]);
 
   const visible = open && renderedKey === subjectKey;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, visible);
 
   // Escape closes; only attached while open.
   useEffect(() => {
@@ -133,6 +136,7 @@ export default function SkyChartModalView({
   return (
     <div
       id="polar-modal"
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={title}

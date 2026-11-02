@@ -12,7 +12,7 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen } from "@/lib/sat/pass-rows.mjs";
+import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen, directionText } from "@/lib/sat/pass-rows.mjs";
 import QualityBadge from "@/components/passes/QualityBadge";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
@@ -48,6 +48,7 @@ type View =
 type Track = { name: string; shortName: string; noradId: number };
 
 const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) => View;
+const bearings = directionText as (pass: { startAzDeg: number; endAzDeg: number }) => string;
 const rowOpen = isRowOpen as (key: string, sharedKey: string | null, toggled: ReadonlySet<string>) => boolean;
 const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const groupRows = (rows: Row[], nowMs: number, timeZone?: string) =>
@@ -420,6 +421,7 @@ export default function PassSection({
                                   onToggle={() => toggleRow(row.key)}
                                   label={`the ${row.timesLabel} pass`}
                                 >
+                                  <p className="more-panel__note">{bearings(row.pass as Pass & { startAzDeg: number; endAzDeg: number })}</p>
                                   <button type="button" className="home-chip" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</button>
                                   {track && (
                                     <ShareButton

@@ -15,3 +15,9 @@ test('headingFromOrientation reads iOS and absolute orientation', () => {
   assert.equal(headingFromOrientation({ absolute: false, alpha: 90 }), null);
   assert.equal(headingFromOrientation({}), null);
 });
+
+test('headingFromOrientation adds the screen angle in landscape', () => {
+  assert.equal(headingFromOrientation({ webkitCompassHeading: 300 }, 90), 30);
+  assert.equal(headingFromOrientation({ absolute: true, alpha: 90 }, 90), 0);
+  assert.equal(headingFromOrientation({ absolute: false, alpha: 90 }, 90), null);
+});

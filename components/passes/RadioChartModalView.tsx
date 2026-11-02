@@ -1,5 +1,6 @@
 "use client";
 
+import { useFocusTrap } from "./useFocusTrap";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
 import { type ChartRenderResult } from "./SkyChartModalView";
@@ -116,6 +117,8 @@ export default function RadioChartModalView({
   }, [open, render, subjectKey]);
 
   const visible = open && renderedKey === subjectKey;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, visible);
 
   // Escape closes; only attached while open.
   useEffect(() => {
@@ -175,6 +178,7 @@ export default function RadioChartModalView({
   return (
     <div
       id="radio-modal"
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={title}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useFocusTrap } from "@/components/passes/useFocusTrap";
 import { useEffect, useMemo, useRef, useState } from "react";
 import LiveDial from "@/components/live/LiveDial";
 import { radioSeries } from "@/lib/passes/charts.js";
@@ -21,7 +22,8 @@ const stateAt = liveState as (s: Sample[], now: number) => Live;
 const clock = clockText as (ms: number) => string;
 const tuneOf = tuneMode as (live: Live | null, freqHz: number | null) => "none" | "pick" | "tune" | "waiting" | "over";
 const hint = turnHint as (target: number, heading: number) => { deltaDeg: number; text: string };
-const headingOf = headingFromOrientation as (e: unknown) => number | null;
+const headingOf = headingFromOrientation as (e: unknown, screenAngleDeg?: number) => number | null;
+const NO_READING_MS = 3000;
 const point = compass as (az: number) => string;
 const build = radioSeries as (a: Record<string, unknown>) => { series: { samples: Sample[] } } | null;
 
@@ -71,22 +73,42 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
   // The phone compass, only after a tap (iOS asks permission).
   const [heading, setHeading] = useState<number | null>(null);
   const [compassOn, setCompassOn] = useState(false);
+  // Why the compass isn't steering the dial, when it isn't.
+  const [compassNote, setCompassNote] = useState<string | null>(null);
   const hasOrientation = typeof window !== "undefined" && "DeviceOrientationEvent" in window;
   useEffect(() => {
     if (!compassOn) return;
-    const on = (e: Event) => { const h = headingOf(e); if (h != null) setHeading(h); };
+    let got = false;
+    const on = (e: Event) => {
+      const h = headingOf(e, screen.orientation?.angle ?? 0);
+      if (h == null) return;
+      got = true;
+      setCompassNote(null);
+      setHeading(h);
+    };
     const type = "ondeviceorientationabsolute" in window ? "deviceorientationabsolute" : "deviceorientation";
     window.addEventListener(type, on);
-    return () => window.removeEventListener(type, on);
+    const quiet = window.setTimeout(() => {
+      if (!got) setCompassNote("No compass reading. This device may not have one.");
+    }, NO_READING_MS);
+    return () => {
+      window.removeEventListener(type, on);
+      window.clearTimeout(quiet);
+    };
   }, [compassOn]);
   const startCompass = async () => {
     const ctor = (window as unknown as { DeviceOrientationEvent: OrientationCtor }).DeviceOrientationEvent;
-    if (ctor.requestPermission && (await ctor.requestPermission().catch(() => "denied")) !== "granted") return;
+    if (ctor.requestPermission && (await ctor.requestPermission().catch(() => "denied")) !== "granted") {
+      setCompassNote("Compass permission was denied. Use the dial with north up.");
+      return;
+    }
     setCompassOn(true);
   };
 
   // Esc closes; focus starts on the close button.
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
   useEffect(() => {
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };
@@ -107,7 +129,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
   // Screen readers hear the phase change, not every tick of the countdown.
   const phaseText = !live ? "" : live.phase === "before" ? "Not up yet." : live.phase === "during" ? "The satellite is up." : "This pass is over.";
   return (
-    <div className="live-view" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div ref={dialogRef} className="live-view" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className="live-view__inner">
         <header className="live-view__head">
           <div>
@@ -126,6 +148,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
           headingDeg={compassOn ? heading : null}
         />
         {turn && <p className="live-view__turn">{turn}</p>}
+        {compassNote && <p className="home-note">{compassNote}</p>}
         {live && live.azDeg != null && live.elDeg != null && (
           <dl className="live-view__nums">
             <div><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></div>
