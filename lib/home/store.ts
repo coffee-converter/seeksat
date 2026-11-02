@@ -36,6 +36,8 @@ export interface Prefs {
   mode: "radio" | "visual";
   minElevDeg: number;
   projection: string;
+  /** The sky type the visual rating uses (lib/sky/visual-rating.mjs SKY_TYPES). */
+  skyType: string;
   observers: ExtraObserver[];
   /** Followed ids not drawn on the map unless focused. */
   hidden: number[];

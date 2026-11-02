@@ -12,8 +12,8 @@ import { downloadText } from "@/lib/passes/download.js";
 import { paintPassCard } from "@/lib/passes/card-chart.js";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
-import QualityBadge from "@/components/passes/QualityBadge";
-import CloudBadge from "@/components/passes/CloudBadge";
+import QualityBadge, { peakMagText, visualRating } from "@/components/passes/QualityBadge";
+import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
@@ -43,6 +43,11 @@ export interface Pass {
   endAzDeg: number | null;
   visible: boolean;
   inProgress: boolean;
+  /** Visual mode only: the brightest dark-sky magnitude (null when unknown)
+   *  and the Sun altitudes the visual rating reads. */
+  peakMag?: number | null;
+  peakMagSunAltDeg?: number | null;
+  peakSunAltDeg?: number | null;
 }
 
 export type Card =
@@ -100,6 +105,8 @@ interface PassCardProps {
   onToggleMore: () => void;
   /** The cloud forecast, shown as a badge in visual mode. */
   clouds: Forecast | null;
+  /** The sky type the visual rating uses. */
+  skyType: string;
 }
 
 interface ViewingProps {
@@ -146,12 +153,15 @@ function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; o
 
 function PassCard({
   card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onLive, onUnfollow, focus, onFocus, viewing,
-  moreOpen, onToggleMore, clouds,
+  moreOpen, onToggleMore, clouds, skyType,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
   const live = nowMs >= pass.startMs - LIVE_LEAD_MS && nowMs <= pass.endMs;
   const paintKey = live ? nowMs : Math.floor(nowMs / IDLE_PAINT_MS);
+  const visual = mode === "visual";
+  const rating = visual ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) }) : undefined;
+  const mag = visual ? peakMagText(pass) : null;
 
   // Paints with the clock of the render that changed paintKey.
   useEffect(() => {
@@ -186,11 +196,15 @@ function PassCard({
         <PolarPlotSvg ref={svgRef} />
       </div>
       <div className="pass-card__body">
-        <p className="pass-card__headline"><Headline text={headline(card, nowMs)} focus={focus} onFocus={onFocus} /></p>
+        <p className="pass-card__headline">
+          <Headline text={headline(card, nowMs)} focus={focus} onFocus={onFocus} />
+          {/* A space, not a margin, so a wrapped "mag" line starts flush left. */}
+          {mag && <>{" "}<span className="pass-mag pass-card__mag">{mag}</span></>}
+        </p>
         <p className="pass-card__meta">
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
-          <QualityBadge pass={pass} />
-          {mode === "visual" && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
+          <QualityBadge pass={pass} rating={rating} />
+          {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
           {pass.visible && <span className="pass-card__tag">visible</span>}
           <ElementTags track={track} nowMs={nowMs} />
           <ViewingTag viewing={viewing} />
@@ -237,6 +251,8 @@ interface Props {
   openChart: OpenChart;
   /** The cloud forecast for visual passes (from `useClouds`), or null. */
   clouds?: Forecast | null;
+  /** The sky type for the visual rating (prefs `skyType`). */
+  skyType: string;
 }
 
 export type ChartKind = "sky" | "radio" | "live";
@@ -274,7 +290,7 @@ export function usePassCharts(observer: HomeObserver | null, minElevDeg: number)
 // open the shared chart modals.
 export default function NextUpList({
   cards: followedCards, viewingCard = null, tracks, colors, observer, mode, minElevDeg, nowMs,
-  onUnfollow, onFollow, followBlocked, focusId, onFocus, openChart: open, clouds = null,
+  onUnfollow, onFollow, followBlocked, focusId, onFocus, openChart: open, clouds = null, skyType,
 }: Props) {
   const cardsIn = viewingCard
     ? [viewingCard, ...followedCards.filter((c) => c.noradId !== viewingCard.noradId)]
@@ -322,6 +338,7 @@ export default function NextUpList({
                 moreOpen={openMore.has(card.noradId)}
                 onToggleMore={() => toggleMore(card.noradId)}
                 clouds={clouds}
+                skyType={skyType}
               />
             );
           }

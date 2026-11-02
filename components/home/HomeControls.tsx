@@ -1,23 +1,29 @@
 "use client";
 
 import { MIN_ELEV_MAX, stepMinElev } from "@/lib/home/view.mjs";
+import { SKY_TYPES } from "@/lib/sky/visual-rating.mjs";
+
+const skyTypes = SKY_TYPES as ReadonlyArray<{ id: string; label: string }>;
 
 interface Props {
   /** False until saved prefs are loaded: the controls show no values and are disabled. */
   ready: boolean;
   mode: "radio" | "visual";
   minElevDeg: number;
+  /** How dark the sky is where the user watches; picked in visual mode only. */
+  skyType: string;
   /** The saved location's name, or null when none is set. */
   locationName: string | null;
   onModeChange: (mode: "radio" | "visual") => void;
   onMinElevChange: (deg: number) => void;
+  onSkyTypeChange: (skyType: string) => void;
   onChangeLocation: () => void;
 }
 
-// The settings row under the map: pass mode, minimum elevation and the
-// location the cards are computed from.
+// The settings row under the map: pass mode, minimum elevation, the sky type
+// (visual mode) and the location the cards are computed from.
 export default function HomeControls({
-  ready, mode, minElevDeg, locationName, onModeChange, onMinElevChange, onChangeLocation,
+  ready, mode, minElevDeg, skyType, locationName, onModeChange, onMinElevChange, onSkyTypeChange, onChangeLocation,
 }: Props) {
   return (
     <div className="home-controls">
@@ -59,6 +65,19 @@ export default function HomeControls({
           +
         </button>
       </div>
+
+      {mode === "visual" && (
+        <select
+          className="home-controls__sky"
+          aria-label="Sky type"
+          title="Sky type"
+          value={skyType}
+          disabled={!ready}
+          onChange={(e) => onSkyTypeChange(e.target.value)}
+        >
+          {skyTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+      )}
 
       <p className="home-controls__hint">Hides lower passes and sizes the footprint circle.</p>
 

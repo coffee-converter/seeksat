@@ -13,8 +13,8 @@ import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
 import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen, directionText } from "@/lib/sat/pass-rows.mjs";
-import QualityBadge from "@/components/passes/QualityBadge";
-import CloudBadge from "@/components/passes/CloudBadge";
+import QualityBadge, { peakMagText, visualRating, type RatedPass } from "@/components/passes/QualityBadge";
+import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
@@ -87,6 +87,9 @@ interface Props {
   settings: PassSettings;
   onModeChange: (mode: "radio" | "visual") => void;
   onMinElevChange: (deg: number) => void;
+  /** The sky type for the visual rating (always the user's own pref, even in a shared view). */
+  skyType: string;
+  onSkyTypeChange: (skyType: string) => void;
   /** A shared view's pass start, highlighted in the list. */
   sharedPassMs?: number | null;
   /** A shared view's radio frequency, used by the radio chart. */
@@ -103,7 +106,7 @@ interface Props {
 }
 
 export default function PassSection({
-  track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange,
+  track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange, skyType, onSkyTypeChange,
   sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null,
 }: Props) {
   const track = trackIn as Track | null;
@@ -337,9 +340,11 @@ export default function PassSection({
               ready={shared || hydrated}
               mode={mode}
               minElevDeg={minElevDeg}
+              skyType={skyType}
               locationName={location && !shared ? location.name : null}
               onModeChange={onModeChange}
               onMinElevChange={onMinElevChange}
+              onSkyTypeChange={onSkyTypeChange}
               onChangeLocation={() => setChangingLocation(true)}
             />
           )}
@@ -396,6 +401,10 @@ export default function PassSection({
                         {group.rows.map((row) => {
                           const open = rowOpen(row.key, sharedKey, openRows);
                           const moreId = `pass-more-${row.key}`;
+                          const rated = row.pass as NextPass & RatedPass & { peakMs: number };
+                          const visual = mode === "visual";
+                          const rating = visual ? visualRating(rated, { skyType, cloud: passCloud(clouds, rated, bucketMs) }) : undefined;
+                          const mag = visual ? peakMagText(rated) : null;
                           return (
                             <li
                               key={row.key}
@@ -404,11 +413,10 @@ export default function PassSection({
                             >
                               <p className="sat-pass__line1">
                                 <span className="sat-pass__times">{row.timesLabel}</span>
-                                <QualityBadge pass={row.pass as NextPass} />
-                                {mode === "visual" && (
-                                  <CloudBadge forecast={clouds} pass={row.pass as NextPass & { peakMs: number }} nowMs={bucketMs} />
-                                )}
+                                <QualityBadge pass={rated} rating={rating} />
+                                {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
                                 <span className="sat-pass__max">{`max ${row.maxElevLabel}`}</span>
+                                {mag && <span className="pass-mag sat-pass__mag">{mag}</span>}
                               </p>
                               <p className="sat-pass__line2">
                                 <span title={row.azLabel}>{`${row.durationLabel} · ${row.fromLabel} → ${row.toLabel}`}</span>

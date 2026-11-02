@@ -510,6 +510,30 @@
   font-variant-numeric: tabular-nums;
 }
 .home-controls__pending { visibility: hidden; }
+/* Sky type (visual mode): the input tier, the same height as the elevation stepper. */
+.home-controls__sky {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 32px;
+  padding: 0 28px 0 10px;
+  background-color: var(--input-bg);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--map-muted) 50%),
+    linear-gradient(135deg, var(--map-muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--map-text);
+  border: 1px solid var(--input-border);
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+}
+.home-controls__sky:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.home-controls__sky:disabled { opacity: 0.6; }
+@media (pointer: coarse) {
+  .home-controls__sky { font-size: 16px; }
+}
 .home-controls__place {
   display: flex;
   align-items: baseline;
@@ -594,6 +618,9 @@
   gap: 4px;
 }
 .pass-card__headline { margin: 0; color: var(--text-strong); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+/* Peak magnitude (visual mode, known brightness): beside "max 47°". */
+.pass-mag { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pass-card__mag { color: var(--map-text); font-size: 14px; font-weight: 500; }
 .pass-card__meta {
   display: flex;
   flex-wrap: wrap;

@@ -98,6 +98,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     if (shared) setShared((s) => (s ? { ...s, minElevDeg } : s));
     else setPrefs({ minElevDeg });
   }, [shared, setPrefs]);
+  // The sky type is personal: a shared view never carries or changes it.
+  const onSkyTypeChange = useCallback((skyType: string) => setPrefs({ skyType }), [setPrefs]);
   const leaveShared = () => {
     setShared(null);
     router.replace(satPath(data.noradId));
@@ -326,6 +328,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             settings={settings}
             onModeChange={onModeChange}
             onMinElevChange={onMinElevChange}
+            skyType={prefs.skyType}
+            onSkyTypeChange={onSkyTypeChange}
             sharedPassMs={shared?.passTimeMs ?? null}
             preferredFreqHz={shared?.freqHz ?? null}
             onFreqPicked={(hz) => { pickedFreq.current = hz; }}

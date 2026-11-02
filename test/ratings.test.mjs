@@ -256,7 +256,7 @@ test('magnitudeAt: returns null when ISS is between observer and sun (back-lit)'
   assert.equal(m, null);
 });
 
-test('magnitudeAt: bright fully-lit overhead pass is mag ~-1 to -2', () => {
+test('magnitudeAt: fully-lit overhead ISS at 400 km is mag about -4.5', () => {
   // Observer at equator, ISS directly overhead at 400 km, sun behind
   // observer (so ISS is fully lit toward observer).
   const obs = { latDeg: 0, lonDeg: 0 };
@@ -272,8 +272,9 @@ test('magnitudeAt: bright fully-lit overhead pass is mag ~-1 to -2', () => {
   assert.ok(m !== null);
   // ISS overhead at 400 km: range = 400 km = 400_000 m.
   // m_std=-1.8, log10(400_000/1_000_000) = log10(0.4) ≈ -0.398.
-  // m = -1.8 + 5*(-0.398) - 2.5*log10(1) = -1.8 - 1.99 = -3.79
-  assert.ok(close(m, -3.79, 0.01), `m=${m}`);
+  // Full phase is F = 1, twice the standard half-lit F = 0.5:
+  // m = -1.8 + 5*(-0.398) - 2.5*log10(1 / 0.5) = -1.8 - 1.99 - 0.75 = -4.54
+  assert.ok(close(m, -4.54, 0.01), `m=${m}`);
 });
 
 test('magnitudeAt: returns null when observer at ISS position (range 0)', () => {

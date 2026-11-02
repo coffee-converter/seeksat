@@ -5,6 +5,7 @@ import { TIMELINE_HOURS } from "@/lib/home/next-up.mjs";
 import { barSpan, clockLabel, hourTicks, nightSpans, timelineRows } from "@/lib/home/timeline.mjs";
 import { passQuality } from "@/lib/passes/quality.mjs";
 import type { CloudBadge } from "@/lib/sky/cloud-badge.mjs";
+import { peakMagText, visualRating } from "@/components/passes/QualityBadge";
 import type { Card, HomeObserver, Pass, Track } from "./NextUpList";
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
   onOpenPass: (noradId: number, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => void;
   /** The cloud badge for a pass, or null; used in visual mode only. */
   cloudFor?: (pass: Pass) => CloudBadge | null;
+  /** The sky type for the visual rating (prefs `skyType`). */
+  skyType: string;
 }
 
 type Span = { x0: number; x1: number };
@@ -43,7 +46,7 @@ const othersLine = (n: number) => (n === 1
 
 // "Next 24 hours": every followed satellite's passes on one strip, with
 // night shaded and a bar per pass that opens its sky chart.
-export default function Timeline({ cards, tracks, colors, observer, mode, nowMs, onOpenPass, cloudFor }: Props) {
+export default function Timeline({ cards, tracks, colors, observer, mode, nowMs, onOpenPass, cloudFor, skyType }: Props) {
   // The layout moves once a minute; a second is far below a pixel.
   const windowMs = Math.floor(nowMs / 60_000) * 60_000;
   const { latDeg: lat, lonDeg: lon, tz } = observer;
@@ -58,7 +61,8 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
   }, [cards, windowMs, tracks]);
 
   if (rows.length === 0) return null;
-  const clouds = mode === "visual" ? cloudFor : undefined;
+  const visual = mode === "visual";
+  const clouds = visual ? cloudFor : undefined;
 
   return (
     <section className="timeline" aria-labelledby="timeline-title">
@@ -89,10 +93,11 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
                 {row.passes.map((pass) => {
                   const span = spanOf(pass, windowMs, HOURS);
                   if (!span) return null;
-                  const q = qualityOf(pass);
                   const cloud = clouds?.(pass) ?? null;
+                  const q = visual ? visualRating(pass, { skyType, cloud }) : qualityOf(pass);
+                  const mag = visual ? peakMagText(pass) : null;
                   const label = `${row.name}, ${clockOf(pass.startMs, tz)} to ${clockOf(pass.endMs, tz)}, `
-                    + `max ${Math.round(pass.maxElevDeg)}°, ${q.label}${cloud ? `, ${cloud.label}` : ""}`;
+                    + `max ${Math.round(pass.maxElevDeg)}°, ${q.label}${cloud ? `, ${cloud.label}` : ""}${mag ? `, ${mag}` : ""}`;
                   return (
                     <button
                       // startMs shifts a fraction of a second on each card

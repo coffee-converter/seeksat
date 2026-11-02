@@ -43,7 +43,8 @@ p.sat-how { margin: 0 0 8px; }
 .sat-pass__times { font-size: 16px; font-weight: 700; color: var(--text-strong); }
 .sat-pass__line1 .quality,
 .sat-pass__line1 .cloud { margin-left: 0; }
-.sat-pass__max { color: var(--map-text); }
+.sat-pass__max,
+.sat-pass__mag { color: var(--map-text); }
 .sat-pass__line2 { margin: 2px 0 6px; color: var(--map-muted); font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.5; }
 .sat-pass .pass-card__tag { margin-left: 8px; }
 .sat-observers { margin: 12px 0; }

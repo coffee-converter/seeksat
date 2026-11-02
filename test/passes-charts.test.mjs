@@ -9,6 +9,7 @@ import { chartPalette } from '../lib/pass-finder/sky-helpers.js';
 import { sunAltitudeDeg } from '../lib/pass-finder/visibility.js';
 import { apparentAltDeg } from '../lib/refraction.js';
 import { CATALOG } from '../lib/catalog.mjs';
+import { ARC_OPACITY_UNIFORM } from '../lib/pass-finder/polar-arc.js';
 import { ISS_LINE1, ISS_LINE2, ISS_OMM } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -118,4 +119,21 @@ test('paintPassCard shows the dot while the satellite is up', () => {
   const dot = svg.querySelector('.iss-dot');
   assert.equal(dot.style.display, '');
   assert.ok(Number.isFinite(Number(dot.getAttribute('cx'))));
+});
+
+// A satellite with no published brightness must not be drawn as if it had
+// the ISS's: its lit arc keeps one plain opacity, with no magnitude gradient.
+test('paintPassCard draws a no-magnitude satellite with the plain arc, not a guessed brightness', () => {
+  const darkPass = findPasses({ track: ISS_WITH_ENTRY, observers: [EN52VE], mode: 'visual', startMs: T0, endMs: T0 + 2 * DAY }).passes[0];
+  const solidOpacities = (track) => {
+    const svg = cardSkeleton();
+    paintPassCard(svg, { track, obs: EN52VE, win: darkPass, nowMs: T0 });
+    return [...svg.querySelector('.arc').querySelectorAll('line')].map((l) => l.getAttribute('stroke-opacity'));
+  };
+  const known = solidOpacities(ISS_WITH_ENTRY);
+  assert.ok(new Set(known).size > 1, 'a known magnitude shades the arc');
+  const unknown = solidOpacities(ISS);
+  assert.equal(ISS.standardMag, null);
+  assert.ok(unknown.length > 0);
+  for (const a of unknown) assert.equal(a, ARC_OPACITY_UNIFORM.toFixed(3));
 });

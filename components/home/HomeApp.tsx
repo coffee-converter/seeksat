@@ -28,6 +28,7 @@ import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { useClouds } from "@/lib/sky/use-clouds";
 import { passCloud } from "@/components/passes/CloudBadge";
+import { visualRating } from "@/components/passes/QualityBadge";
 import AboutSection from "./AboutSection";
 import LiveClock from "@/components/LiveClock";
 import NightToggle from "@/components/NightToggle";
@@ -396,7 +397,13 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             <FocusParam />
           </Suspense>
           {nowMs != null && (
-            <NextStrip summary={nextSummary} onFocus={focusOn} />
+            <NextStrip
+              summary={nextSummary}
+              rating={nextSummary && prefs.mode === "visual"
+                ? visualRating(nextSummary.pass, { skyType: prefs.skyType, cloud: cloudFor(nextSummary.pass as Pass) })
+                : undefined}
+              onFocus={focusOn}
+            />
           )}
           <FlatMap
             fill
@@ -432,9 +439,11 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             ready={hydrated}
             mode={prefs.mode}
             minElevDeg={prefs.minElevDeg}
+            skyType={prefs.skyType}
             locationName={location && !changingLocation ? location.name : null}
             onModeChange={(mode) => setPrefs({ mode })}
             onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
+            onSkyTypeChange={(skyType) => setPrefs({ skyType })}
             onChangeLocation={() => setChangingLocation(true)}
           />
 
@@ -470,6 +479,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                   nowMs={nowMs}
                   onOpenPass={openTimelinePass}
                   cloudFor={cloudFor}
+                  skyType={prefs.skyType}
                 />
               )}
               {prefs.following.length === 0 ? (
@@ -492,6 +502,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                       onFocus={focusOn}
                       openChart={openChart}
                       clouds={clouds}
+                      skyType={prefs.skyType}
                     />
                   )}
                   <PopularList names={popularNames} />
@@ -518,6 +529,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                     onFocus={focusOn}
                     openChart={openChart}
                     clouds={clouds}
+                    skyType={prefs.skyType}
                   />
                 )
               )}
