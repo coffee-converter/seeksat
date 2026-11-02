@@ -59,6 +59,7 @@ test('valid object round-trips', () => {
     mode: 'visual',
     minElevDeg: 20,
     projection: defaultPrefs().projection,
+    skyType: 'suburban',
     observers: [{ id: 'obs-2', name: 'FN31', latDeg: 41.5, lonDeg: -72.7 }],
     hidden: [41866],
   };
@@ -151,4 +152,10 @@ test('hidden is cleaned like following and keeps only followed ids', () => {
   assert.deepEqual(p.hidden, [3, 1]);
   // With following missing, the defaults are what hidden is checked against.
   assert.deepEqual(parsePrefs({ hidden: [POPULAR_IDS[1], 77] }).hidden, [POPULAR_IDS[1]]);
+});
+
+test('skyType defaults to suburban and is sanitised', () => {
+  assert.equal(defaultPrefs().skyType, 'suburban');
+  assert.equal(parsePrefs({ skyType: 'nonsense' }).skyType, 'suburban');
+  assert.equal(parsePrefs({ skyType: 'dark' }).skyType, 'dark');
 });
