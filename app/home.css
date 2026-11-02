@@ -1097,6 +1097,26 @@ a.home-chip { display: inline-block; text-decoration: none; }
   .theme-toggle__group { display: none; }
   .theme-toggle__cycle { display: inline-block; }
 }
+/* NightToggle (components/NightToggle.tsx): an outline toggle the height of
+   the theme well; on, it takes the accent outline and accent text (the
+   Following look), so it never reads as a fourth theme segment. Icon only
+   under 480 px. */
+.night-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 12.5px; font-weight: 500; line-height: 1; white-space: nowrap;
+  color: var(--map-muted); background: none; cursor: pointer;
+  border: 1px solid var(--btn-line); border-radius: 8px; padding: 0 10px; min-height: 38px;
+}
+.night-toggle[data-ready="false"] { visibility: hidden; }
+.night-toggle:hover { color: var(--map-text); background: var(--btn-hover); }
+.night-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.night-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.night-toggle__icon { display: none; flex: none; }
+@media (max-width: 479px) {
+  .night-toggle { justify-content: center; min-width: 36px; min-height: 36px; padding: 0; border-radius: 7px; }
+  .night-toggle__icon { display: block; }
+  .night-toggle__label { display: none; }
+}
 .map-shell__search { grid-area: search; min-width: 0; }
 /* The search bar sits flat in the bar; what opens under it floats over the page. */
 .map-shell__top .search-bar { position: relative; top: auto; z-index: auto; padding: 0; background: none; border: 0; border-radius: 0; }
@@ -1148,6 +1168,13 @@ a.home-chip { display: inline-block; text-decoration: none; }
     gap: 4px 12px;
     padding: 6px 8px 8px;
   }
+}
+/* Small phones: tighter gaps so the wordmark, clock, theme and Night vision
+   fit on one row at 360 px. */
+@media (max-width: 479px) {
+  .map-shell__top { column-gap: 8px; }
+  .map-shell__end { gap: 6px; }
+  .theme-toggle__cycle { min-width: 48px; padding: 7px 8px; }
 }
 
 /* FlatMap fill: sized by the shell. Narrow screens stack the focus bar,

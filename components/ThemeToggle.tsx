@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MODES, applyTheme, readMode, resolveTheme, writeMode } from "@/lib/ui/theme.mjs";
+import { MODES, applyMode, readMode, writeMode } from "@/lib/ui/theme.mjs";
 
 type Mode = "auto" | "light" | "dark";
 
@@ -9,8 +9,8 @@ const LABEL: Record<Mode, string> = { auto: "Auto", light: "Light", dark: "Dark"
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 function apply(mode: Mode) {
-  const theme = resolveTheme(mode, window.matchMedia(DARK_QUERY).matches);
-  applyTheme(document, theme);
+  // Keeps night vision on if it is: night forces dark whatever the mode.
+  const theme = applyMode(document, mode, window.matchMedia(DARK_QUERY).matches);
   window.dispatchEvent(new CustomEvent("seeksat:theme", { detail: theme }));
 }
 

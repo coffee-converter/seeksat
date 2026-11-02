@@ -12,6 +12,7 @@ import DashboardTiles, { type NextPassTile } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
 import HowWeCompute from "./HowWeCompute";
 import LiveClock from "@/components/LiveClock";
+import NightToggle from "@/components/NightToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
@@ -263,6 +264,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           <div className="map-shell__end">
             <LiveClock nowMs={nowMs} compact />
             <ThemeToggle />
+            <NightToggle />
           </div>
         </>
       )}

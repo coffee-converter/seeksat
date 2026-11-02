@@ -147,6 +147,21 @@
   --timeline-day: #e4e8ee;
   --timeline-night: #b7c0cc;
 }
+/* Night vision (lib/ui/theme.mjs sets data-night, with data-theme forced to
+   dark): one filter on the root turns every colour, the map and the charts
+   included, into a dim red. Grayscale, then darken before sepia and saturate
+   so no channel clips (clipping is what lets green and blue creep back),
+   then scale so white lands at about 70% red with green and blue about 30%
+   of it. A filter on the root does not make a containing block, so fixed
+   dialogs and the full-screen map stay put. The background is the
+   overscroll colour. An element in native full screen (the map) renders
+   in the top layer, outside the root's filter, so it gets the same one. */
+html[data-night='1'] {
+  --night-filter: grayscale(1) brightness(0.3) sepia(1) saturate(12) hue-rotate(-25deg) brightness(0.71);
+  background: #0a0303;
+  filter: var(--night-filter);
+}
+html[data-night='1'] :fullscreen { filter: var(--night-filter); }
 /* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than
    the actual visible area, leaving bare background below the globe.

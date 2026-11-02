@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   THEME_KEY, MODES, parseMode, resolveTheme, readMode, writeMode, applyTheme, syncTheme, THEME_SCRIPT,
-  NIGHT_KEY, readNight, writeNight,
+  NIGHT_KEY, readNight, writeNight, applyMode,
 } from '../lib/ui/theme.mjs';
 
 test('constants', () => {
@@ -197,4 +197,21 @@ test('THEME_SCRIPT forces dark and sets data-night when night vision is on', () 
   assert.equal(doc.head.children[0].attrs.content, '#1a0505');
   const off = runScript({ saved: 'light', systemDark: true });
   assert.equal('night' in off.documentElement.dataset, false);
+});
+
+test('applyMode keeps night vision when the mode or the system changes', () => {
+  const store = (night) => ({ getItem: (k) => (k === NIGHT_KEY ? (night ? '1' : null) : null) });
+  const d = fakeDoc();
+  applyTheme(d, 'dark', true);
+  // Picking Light with night on: still dark and still night.
+  assert.equal(applyMode(d, 'light', false, store(true)), 'dark');
+  assert.equal(d.documentElement.dataset.night, '1');
+  // A system change in auto mode with night on.
+  assert.equal(applyMode(d, 'auto', false, store(true)), 'dark');
+  assert.equal(d.documentElement.dataset.night, '1');
+  assert.equal(d.head.children[0].attrs.content, '#1a0505');
+  // Night off: the mode resolves as before.
+  assert.equal(applyMode(d, 'light', true, store(false)), 'light');
+  assert.equal('night' in d.documentElement.dataset, false);
+  assert.equal(applyMode(d, 'auto', true, store(false)), 'dark');
 });

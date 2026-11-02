@@ -30,6 +30,7 @@ import { useClouds } from "@/lib/sky/use-clouds";
 import { passCloud } from "@/components/passes/CloudBadge";
 import AboutSection from "./AboutSection";
 import LiveClock from "@/components/LiveClock";
+import NightToggle from "@/components/NightToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import MapShell from "@/components/MapShell";
@@ -385,6 +386,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           <div className="map-shell__end">
             <LiveClock nowMs={nowMs} compact />
             <ThemeToggle />
+            <NightToggle />
           </div>
         </>
       )}
