@@ -32,6 +32,15 @@ test('omits the magnitude from the summary when standardMag is unknown', async (
   assert.doesNotMatch(res.summary, /mag/);
 });
 
+test('shades the chart arc only when the standard magnitude is known', async () => {
+  const observer = { name: 'Sydney-ish', latDeg: -30, lonDeg: 150 };
+  const chart = async (standardMag) => (await renderPassChartPng({
+    entry: { noradId: 25544, name: 'ISS (ZARYA)', shortName: 'ISS', standardMag },
+    record: REC, observer, mode: 'visual', nowMs: NOW,
+  })).pngBase64;
+  assert.notEqual(await chart(-1.8), await chart(null));
+});
+
 test('titles a synthesized satellite with the record name', async () => {
   const observer = { name: 'Equator', latDeg: 0, lonDeg: 0 };
   const entry = { noradId: 25485, name: '25485', shortName: null, standardMag: null };

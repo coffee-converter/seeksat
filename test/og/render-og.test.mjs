@@ -39,3 +39,13 @@ test("renderOgPng renders an OMM-only record with a six-digit id", async () => {
     getRecord: async () => ({ noradId: 270001, name: "BIG ID", omm: ISS_OMM }) });
   isPng(png);
 });
+
+// The card shades the arc with the satellite's own brightness: the same
+// orbit drawn for the ISS and for a satellite with no published magnitude
+// gives different pictures (the plain arc for the unknown one).
+test("renderOgPng shades the arc only for a satellite with a known magnitude", async () => {
+  const getRecord = async (id) => ({ ...ISS_TLE, noradId: id, name: "SAME ORBIT" });
+  const iss = await renderOgPng(decoded, { ...opts, noradId: 25544, getRecord });
+  const unknown = await renderOgPng(decoded, { ...opts, noradId: 270001, getRecord });
+  assert.notDeepEqual(iss, unknown);
+});

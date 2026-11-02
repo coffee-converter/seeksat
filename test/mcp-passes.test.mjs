@@ -90,6 +90,15 @@ test('findPasses (visual) leaves peakMagnitude null when standardMag is null', (
   }
 });
 
+test('findPasses (visual) guesses no magnitude when standardMag is not given', () => {
+  const { passes } = findPasses({
+    record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS,
+    startMs: START, windowHours: 48, mode: 'visual',
+  });
+  assert.ok(passes.length > 0);
+  for (const p of passes) assert.equal(p.peakMagnitude, null);
+});
+
 test('findPasses (visual) still computes a magnitude when standardMag is known', () => {
   const { passes } = findPasses({
     record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS,
