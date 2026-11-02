@@ -56,6 +56,18 @@ test('a 1.25-orbit ISS track crosses the antimeridian into separate lines', () =
   }
 });
 
+test('a track split at the antimeridian meets it on both sides, with no gap', () => {
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const lines = groundTrack(iss, Date.parse('2026-03-01T12:00:00Z')).coordinates;
+  assert.ok(lines.length >= 2);
+  for (let k = 1; k < lines.length; k++) {
+    const end = lines[k - 1].at(-1), start = lines[k][0];
+    assert.equal(Math.abs(end[0]), 180, `line ${k - 1} ends on the date line`);
+    assert.equal(start[0], -end[0], `line ${k} starts on the other side`);
+    assert.equal(start[1], end[1], 'at the same latitude');
+  }
+});
+
 import { splitTrack } from '../lib/map/geometry.mjs';
 test('splitTrack: past ends and future starts at the now point; ticks 10 min for ISS, hourly for GOES', () => {
   const NOW = Date.parse('2026-03-01T12:00:00Z');
