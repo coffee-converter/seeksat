@@ -95,7 +95,10 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
                     + `max ${Math.round(pass.maxElevDeg)}°, ${q.label}${cloud ? `, ${cloud.label}` : ""}`;
                   return (
                     <button
-                      key={pass.startMs}
+                      // startMs shifts a fraction of a second on each card
+                      // refresh; a key to the minute keeps the same button, so
+                      // focus survives (and a chart opened from it can return it).
+                      key={`${row.noradId}:${Math.round(pass.startMs / 60_000)}`}
                       type="button"
                       className={`timeline__bar timeline__bar--${q.level}${cloud?.level === "cloudy" ? " timeline__bar--cloudy" : ""}`}
                       style={{ "--mid": (span.x0 + span.x1) / 2, "--w": span.x1 - span.x0 } as React.CSSProperties}
