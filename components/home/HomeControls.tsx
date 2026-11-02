@@ -66,6 +66,9 @@ export default function HomeControls({
         </button>
       </div>
 
+      {/* The hint sits right under the elevation stepper it explains. */}
+      <p className="home-controls__hint">Hides lower passes and sizes the footprint circle.</p>
+
       {mode === "visual" && (
         <select
           className="home-controls__sky"
@@ -78,8 +81,6 @@ export default function HomeControls({
           {skyTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
       )}
-
-      <p className="home-controls__hint">Hides lower passes and sizes the footprint circle.</p>
 
       {locationName != null && (
         <div className="home-controls__place">
