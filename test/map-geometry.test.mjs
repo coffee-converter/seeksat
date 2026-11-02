@@ -92,3 +92,71 @@ test('tickStepMin: 10 min under a 3 h period, else hourly; splitTrack ticks on i
   const goes = makeTrack(recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'));
   assert.equal(splitTrack(goes, Date.parse('2026-03-01T12:00:00Z')).ticks[0].minutes, 60);
 });
+
+import { mapPolygons } from '../lib/map/geometry.mjs';
+
+const ringOf = (lon, lat, r) => geoCircle().center([lon, lat]).radius(r)().coordinates[0];
+const signedArea = (ring) => {
+  let a = 0;
+  for (let i = 0; i < ring.length - 1; i++) a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  return a / 2;
+};
+const unwrapped = (ring) => {
+  const out = [ring[0].slice()];
+  for (let i = 1; i < ring.length; i++) {
+    let d = ring[i][0] - ring[i - 1][0];
+    d -= 360 * Math.round(d / 360);
+    out.push([out[i - 1][0] + d, ring[i][1]]);
+  }
+  return out;
+};
+const allLons = (mp) => mp.coordinates.flat(2).map((p) => p[0]);
+const near = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+
+test('mapPolygons leaves a small ring alone', () => {
+  const ring = ringOf(0, 0, 10);
+  const mp = mapPolygons(ring);
+  assert.equal(mp.type, 'MultiPolygon');
+  assert.equal(mp.coordinates.length, 1);
+  const out = mp.coordinates[0][0];
+  assert.equal(out.length, ring.length);
+  const same = (ref) => ref.every((p, i) => near(p, out[i]));
+  assert.ok(same(ring) || same(ring.slice().reverse()), 'points equal the input, up to winding');
+});
+
+test('mapPolygons cuts a ring across the date line', () => {
+  const ring = ringOf(179, 0, 10);
+  const mp = mapPolygons(ring);
+  assert.equal(mp.coordinates.length, 2);
+  for (const lon of allLons(mp)) assert.ok(lon >= -180 && lon <= 180, `lon ${lon} in range`);
+  const maxes = mp.coordinates.map((poly) => Math.max(...poly[0].map((p) => p[0])));
+  const mins = mp.coordinates.map((poly) => Math.min(...poly[0].map((p) => p[0])));
+  assert.ok(maxes.includes(180), 'one polygon reaches 180');
+  assert.ok(mins.includes(-180), 'the other reaches -180');
+  const cut = mp.coordinates.reduce((s, poly) => s + Math.abs(signedArea(poly[0])), 0);
+  const whole = Math.abs(signedArea(unwrapped(ring)));
+  assert.ok(Math.abs(cut - whole) / whole < 0.01, `cut area ${cut} vs ${whole}`);
+});
+
+test('mapPolygons closes a ring around a pole', () => {
+  const band = nightBands(new Date('2026-06-21T12:00:00Z'))[0];
+  const mp = mapPolygons(band.feature.coordinates[0]);
+  const pts = mp.coordinates.flat(2);
+  assert.ok(pts.some((p) => p[1] === -90), 'has a vertex at the South Pole');
+  assert.ok(!pts.some((p) => p[1] === 90), 'no vertex at the North Pole');
+  for (const lon of allLons(mp)) assert.ok(lon >= -180 && lon <= 180, `lon ${lon} in range`);
+});
+
+test('mapPolygons winds outer rings counter-clockwise', () => {
+  const rings = [
+    ringOf(0, 0, 10),
+    ringOf(179, 0, 10),
+    ringOf(-179, 40, 25),
+    ringOf(30, 80, 20),
+    ...nightBands(new Date('2026-06-21T12:00:00Z')).map((b) => b.feature.coordinates[0]),
+    ...nightBands(new Date('2026-12-21T12:00:00Z')).map((b) => b.feature.coordinates[0]),
+  ];
+  for (const ring of rings) for (const poly of mapPolygons(ring).coordinates) {
+    assert.ok(signedArea(poly[0]) > 0, 'outer ring is counter-clockwise');
+  }
+});
