@@ -123,3 +123,14 @@ test('the globe zooms out only until the whole Earth is in frame', () => {
   assert.equal(minZoomFor('globe', { ...size, latDeg: 89 }), minZoomFor('globe', { ...size, latDeg: 85.05 }));
   assert.ok(minZoomFor('globe', { ...size, latDeg: 89 }) < minZoomFor('globe', { ...size, latDeg: 80 }));
 });
+
+import { nextMinZoom } from '../lib/map/view.mjs';
+
+test('the zoom floor only falls while the camera moves, so a pole-to-pole flight never zooms in', () => {
+  // Mid-flight the centre passes the equator, where the floor is higher.
+  assert.equal(nextMinZoom({ current: -1.2, floor: 2.3, moving: true }), -1.2);
+  // Falling is fine mid-move (for example dragging toward a pole).
+  assert.equal(nextMinZoom({ current: 2.3, floor: -1.2, moving: true }), -1.2);
+  // Once the move ends the floor is set exactly.
+  assert.equal(nextMinZoom({ current: -1.2, floor: 2.3, moving: false }), 2.3);
+});
