@@ -12,7 +12,7 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay } from "@/lib/sat/pass-rows.mjs";
+import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen } from "@/lib/sat/pass-rows.mjs";
 import QualityBadge from "@/components/passes/QualityBadge";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -46,6 +46,7 @@ type View =
 type Track = { name: string; shortName: string; noradId: number };
 
 const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) => View;
+const rowOpen = isRowOpen as (key: string, sharedKey: string | null, toggled: ReadonlySet<string>) => boolean;
 const groupRows = (rows: Row[], nowMs: number, timeZone?: string) =>
   (groupRowsByDay as (r: Row[], n: number, tz?: string, l?: string) => Array<{ heading: string; rows: Row[] }>)(rows, nowMs, timeZone);
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
@@ -225,7 +226,7 @@ export default function PassSection({
   const sharedKey = sharedHit?.kind === "row" ? sharedHit.key : null;
   // Ten days of passes is a long page on a phone: show two days, then a button.
   const [showAll, setShowAll] = useState(false);
-  // Rows whose extra actions are showing; the shared row always is.
+  // Rows whose More was toggled; the shared row starts open (isRowOpen).
   const [openRows, setOpenRows] = useState<ReadonlySet<string>>(() => new Set());
   const toggleRow = (key: string) => setOpenRows((prev) => {
     const next = new Set(prev);
@@ -385,7 +386,7 @@ export default function PassSection({
                       <h3 className="sat-day">{group.heading}</h3>
                       <ul className="sat-day__list">
                         {group.rows.map((row) => {
-                          const open = row.key === sharedKey || openRows.has(row.key);
+                          const open = rowOpen(row.key, sharedKey, openRows);
                           const moreId = `pass-more-${row.key}`;
                           return (
                             <li

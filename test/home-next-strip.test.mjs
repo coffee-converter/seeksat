@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nextPassSummary } from '../lib/home/next-strip.mjs';
+import { nextPassSummary, currentCards } from '../lib/home/next-strip.mjs';
 
 const NOW = Date.parse('2026-11-01T23:00:00Z');
 const MIN = 60_000;
@@ -34,4 +34,11 @@ test('nextPassSummary is null with no pass cards', () => {
   assert.equal(nextPassSummary([], NOW), null);
   assert.equal(nextPassSummary([{ kind: 'missing', noradId: 5, name: 'Y' }], NOW), null);
   assert.equal(nextPassSummary(undefined, NOW), null);
+});
+
+test('currentCards drops cards computed for another location or follow list', () => {
+  const cards = [passCard(25544, 'ISS', 5, 75)];
+  assert.equal(currentCards({ cards, key: 'k1' }, 'k1'), cards);
+  assert.equal(currentCards({ cards, key: 'k0' }, 'k1'), null);
+  assert.equal(currentCards(null, 'k1'), null);
 });

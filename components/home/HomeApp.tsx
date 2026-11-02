@@ -11,7 +11,7 @@ import HomeControls from "./HomeControls";
 import LocationPrompt, { PopularList } from "./LocationPrompt";
 import UpNow from "./UpNow";
 import NextStrip, { type NextSummary } from "./NextStrip";
-import { nextPassSummary } from "@/lib/home/next-strip.mjs";
+import { nextPassSummary, currentCards } from "@/lib/home/next-strip.mjs";
 import NextUpList, { type Card, type HomeObserver, type Track } from "./NextUpList";
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
@@ -62,6 +62,7 @@ interface Props {
 }
 
 const summarize = nextPassSummary as (cards: unknown, nowMs: number) => NextSummary | null;
+const cardsNow = currentCards as (state: { cards: unknown; key: string } | null, key: string) => unknown;
 
 export default function HomeApp({ initialRecords = [] }: Props) {
   const prefs = useHomeStore((s) => s.prefs);
@@ -372,7 +373,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             <FocusParam />
           </Suspense>
           {nowMs != null && (
-            <NextStrip summary={summarize(cardState?.cards, nowMs)} onFocus={focusOn} />
+            <NextStrip summary={summarize(cardsNow(cardState, cardKey), nowMs)} onFocus={focusOn} />
           )}
           <FlatMap
             fill

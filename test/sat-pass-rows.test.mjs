@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay } from '../lib/sat/pass-rows.mjs';
+import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay, isRowOpen } from '../lib/sat/pass-rows.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -149,4 +149,12 @@ test('passRows adds from and to compass labels', () => {
   const r = v.rows[0];
   assert.equal(r.fromLabel, compass(r.pass.startAzDeg));
   assert.equal(r.toLabel, compass(r.pass.endAzDeg));
+});
+
+test('isRowOpen: the shared row starts open and its toggle closes it', () => {
+  assert.equal(isRowOpen('a', 'a', new Set()), true);
+  assert.equal(isRowOpen('a', 'a', new Set(['a'])), false);
+  assert.equal(isRowOpen('b', 'a', new Set()), false);
+  assert.equal(isRowOpen('b', 'a', new Set(['b'])), true);
+  assert.equal(isRowOpen('b', null, new Set(['b'])), true);
 });
