@@ -4,6 +4,7 @@ import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
 import { visualQuality } from '../lib/sky/visual-rating.mjs';
 import { passQuality } from '../lib/passes/quality.mjs';
+import { timeFormat } from '../lib/home/view.mjs';
 import { ratingShort, passWords, bestPass, riseDopplerHz } from '../lib/passes/pass-words.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { EN52VE, recordFrom } from './fixtures/orbits.mjs';
@@ -35,12 +36,20 @@ const base = {
   startMs: Date.parse('2026-03-02T00:27:00Z'), peakMs: Date.parse('2026-03-02T00:29:00Z'), endMs: Date.parse('2026-03-02T00:31:00Z'),
   startAzDeg: 315, peakAzDeg: 225, endAzDeg: 135, maxElevDeg: 25.6, startElevDeg: 0, endElevDeg: 20,
 };
-test('passWords: fades versus sets, exact string in Chicago', () => {
+test('passWords: fades, sets and drops below', () => {
   const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
-  assert.equal(passWords(base, { timeZone: 'America/Chicago', mode: 'visual', clock }),
-    'Rises NW 6:27 PM · peaks 26° SW 6:29 · fades in the SE 6:31');
-  assert.equal(passWords({ ...base, endElevDeg: 0.2 }, { timeZone: 'America/Chicago', mode: 'radio', clock }),
-    'Rises NW 6:27 PM · peaks 26° SW 6:29 · sets SE 6:31');
+  const z = { timeZone: 'America/Chicago', clock };
+  assert.equal(passWords(base, { ...z, mode: 'visual' }),
+    'Rises NW 6:27 PM · peaks 26° SW 6:29 PM · fades in the SE 6:31 PM');
+  assert.match(passWords({ ...base, endElevDeg: 0.3 }, { ...z, mode: 'radio' }), /· sets SE 6:31 PM$/);
+  assert.match(passWords({ ...base, endElevDeg: 20 }, { ...z, mode: 'radio' }), /· sets SE/);
+  assert.match(passWords({ ...base, endElevDeg: 10 }, { ...z, mode: 'radio', minElevDeg: 10 }), /· drops below 10° SE 6:31 PM$/);
+  assert.match(passWords({ ...base, runsPastEnd: true }, { ...z, mode: 'visual' }), /· sets SE/);
+});
+test('passWords default clock matches the home cards', () => {
+  const out = passWords(base, { timeZone: 'America/Chicago', locale: 'en-US' });
+  const f = timeFormat('en-US', 'America/Chicago');
+  assert.ok(out.startsWith(`Rises NW ${f.format(base.startMs)} · peaks 26° SW ${f.format(base.peakMs)}`));
 });
 
 const card = (id, passes) => ({ kind: 'pass', noradId: id, name: `S${id}`, passes });
