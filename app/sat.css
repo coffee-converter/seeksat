@@ -13,27 +13,25 @@ p.sat-how { margin: 0 0 8px; }
 .sat-list { margin: 0; padding-left: 18px; }
 .sat-raw { margin-bottom: 10px; }
 .sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.sat-raw-head h3 { margin: 0; font-size: 14px; color: var(--map-text); }
+.sat-raw-head h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-heading); }
 .sat-raw pre {
   margin: 6px 0 0; padding: 8px; max-width: 100%; overflow-x: auto;
-  background: rgba(var(--ink-rgb), 0.04); border: 1px solid var(--map-border); border-radius: 6px;
+  background: var(--code-bg); border: 0; border-radius: 8px;
   font-size: 12px; user-select: text;
 }
-.sat-passes { margin-bottom: 14px; }
+.sat-passes { margin-bottom: 0; }
 .sat-passlist { list-style: none; margin: 0; padding: 0; }
 .sat-show-all { margin-top: 10px; }
 .sat-zone { margin: 4px 0 8px; }
 .sat-pass { padding: 8px 0; border-bottom: 1px solid var(--map-border); }
 /* Passes under day headings: times, rating and height on one line, then
    length and direction quieter below. */
-.sat-day-group + .sat-day-group { margin-top: 10px; }
+.sat-day-group + .sat-day-group { margin-top: 16px; }
 .sat-day {
   margin: 0;
-  padding: 6px 0 2px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  padding: 6px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--map-muted);
   border-bottom: 1px solid var(--map-border);
 }
@@ -49,7 +47,7 @@ p.sat-how { margin: 0 0 8px; }
 .sat-pass__line2 { margin: 2px 0 6px; color: var(--map-muted); font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.5; }
 .sat-pass .pass-card__tag { margin-left: 8px; }
 .sat-observers { margin: 12px 0; }
-.sat-observers__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.sat-observers__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--text-heading); }
 .sat-observers__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .sat-observers__item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--map-border); border-radius: 999px; }
 .sat-shared {
@@ -96,7 +94,7 @@ p.sat-how { margin: 0 0 8px; }
 a.stat-tile:hover { background: var(--tile-hover); }
 a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .stat-tile__label {
-  color: var(--map-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--map-muted); font-size: 12px; font-weight: 500;
 }
 .stat-tile__value {
   color: var(--text-strong); font-size: min(30px, 16.5cqi); font-weight: 600; line-height: 1.15;
@@ -105,7 +103,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: 4px; }
 .stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: 500; letter-spacing: 0; }
 .stat-tile__note { color: var(--map-muted); font-size: 11px; line-height: 1.35; }
-.stat-tile--lg .stat-tile__value { color: var(--map-accent); font-size: min(40px, 9cqi); white-space: normal; text-wrap: balance; }
+.stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: min(40px, 9cqi); white-space: normal; text-wrap: balance; }
 .stat-tile--wide .stat-tile__value { font-size: min(24px, 6cqi); white-space: normal; }
 .vis-viva__keep { white-space: nowrap; }
 .vis-viva__term { color: var(--map-muted); font-size: 0.6em; font-weight: 500; letter-spacing: 0; }

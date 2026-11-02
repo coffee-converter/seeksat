@@ -182,16 +182,22 @@ test('the map text, muted and border tokens alias the site tokens', () => {
   }
 });
 
-test('light uses the cool paper palette', () => {
+test('both themes use the Slate palette', () => {
+  const D = THEMES.dark;
+  assert.equal(D['--bg'], '#11151c');
+  assert.equal(D['--panel'], '#171c24');
+  assert.equal(D['--text'], '#e4e8ee');
+  assert.equal(D['--muted'], '#96a0ae');
+  assert.equal(D['--accent'], '#8fb4e6');
+  assert.equal(D['--primary'], '#5c8fd6');
   const L = THEMES.light;
-  assert.equal(L['--bg'], '#f5f7fb');
+  assert.equal(L['--bg'], '#f3f5f8');
   assert.equal(L['--panel'], '#ffffff');
-  assert.equal(L['--panel-2'], '#eef2f8');
-  assert.equal(L['--border'], 'rgba(15, 30, 60, 0.12)');
-  assert.equal(L['--text'], '#1b2333');
+  assert.equal(L['--text'], '#1a2230');
   assert.equal(L['--text-strong'], '#0b1220');
-  assert.equal(L['--muted'], '#5b6780');
-  assert.equal(L['--accent'], '#1f5fbf');
+  assert.equal(L['--muted'], '#5a6475');
+  assert.equal(L['--accent'], '#2c5a99');
+  assert.equal(L['--primary'], '#2c5a99');
 });
 
 test('the colour parser handles #rgb, #rrggbb and composites rgba', () => {
@@ -201,7 +207,54 @@ test('the colour parser handles #rgb, #rrggbb and composites rgba', () => {
   assert.equal(ratio([0, 0, 0], [255, 255, 255]).toFixed(1), '21.0');
 });
 
+/** OKLCH chroma of an opaque sRGB colour (Björn Ottosson's OKLab matrices). */
+function chroma([r, g, b]) {
+  const lin = (c) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const [R, G, B] = [r, g, b].map(lin);
+  const l = Math.cbrt(0.4122214708 * R + 0.5363325363 * G + 0.0514459929 * B);
+  const m = Math.cbrt(0.2119034982 * R + 0.6806995451 * G + 0.1073969566 * B);
+  const s = Math.cbrt(0.0883024619 * R + 0.2817188376 * G + 0.6299787005 * B);
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const Bk = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return Math.hypot(A, Bk);
+}
+
+test('the chroma helper reads grey as 0 and a saturated blue as high', () => {
+  assert.ok(chroma([128, 128, 128]) < 0.001);
+  assert.ok(chroma([31, 95, 191]) > 0.1);
+});
+
 for (const theme of ['dark', 'light']) {
+  // Slate: the chrome is neutral grey; blue is kept for the brand, links,
+  // focus, the main action and selected toggles.
+  test(`${theme}: slate tokens are neutral`, () => {
+    for (const t of ['--panel', '--input-bg', '--border']) {
+      const c = chroma(color(theme, t, color(theme, '--panel')));
+      assert.ok(c < 0.04, `${theme}: ${t} has OKLCH chroma ${c.toFixed(3)}, needs under 0.04`);
+    }
+  });
+
+  test(`${theme}: text contrast`, () => {
+    for (const [fg, bg] of [['--text', '--bg'], ['--text', '--panel'], ['--muted', '--panel']]) {
+      const r = contrast(theme, fg, bg);
+      assert.ok(r >= 4.5, `${theme}: ${fg} on ${bg} is ${r.toFixed(2)}, needs 4.5`);
+    }
+  });
+
+  test(`${theme}: primary button contrast`, () => {
+    const r = contrast(theme, '--primary-text', '--primary');
+    assert.ok(r >= 4.5, `${theme}: --primary-text on --primary is ${r.toFixed(2)}, needs 4.5`);
+    // A selected segment is a filled control too.
+    const s = contrast(theme, '--seg-on-text', '--seg-on');
+    assert.ok(s >= 4.5, `${theme}: --seg-on-text on --seg-on is ${s.toFixed(2)}, needs 4.5`);
+    // The fill and an outline both have to stand out from the page (non-text 3:1 and a visible edge).
+    const f = contrast(theme, '--primary', '--panel');
+    assert.ok(f >= 3, `${theme}: --primary on --panel is ${f.toFixed(2)}, needs 3`);
+  });
+
   test(`${theme}: required contrast`, () => {
     const check = (fg, bg, min, under) => {
       const r = contrast(theme, fg, bg, under);

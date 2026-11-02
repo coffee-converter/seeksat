@@ -1,32 +1,45 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 /* theme-tokens:begin */
-/* Page colours for both themes. <html data-theme> is set before first paint
+/* Page colours for both themes, the "Slate" look: neutral cool-grey chrome,
+   with a muted blue kept for the brand, links, focus, the main action and
+   selected toggles. <html data-theme> is set before first paint
    (lib/ui/theme.mjs); :root alone means dark. The chart modals and polar
    plots keep literal dark colours (the chart-block sections in the
    stylesheets). The *-rgb tokens are channels for rgba(var(--x-rgb), alpha). */
 :root, :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0a0e1a;
-  --bg-rgb: 10, 14, 26;
-  --panel: #0b1121;
-  --panel-2: #0d1322;
-  --popover: #0d1322;
-  --code-bg: #0c1322;
-  --border: rgba(255, 255, 255, 0.08);
+  --bg: #11151c;
+  --bg-rgb: 17, 21, 28;
+  /* Cards and tiles sit on the page in this lifted grey. */
+  --panel: #171c24;
+  --panel-2: #1c222c;
+  --popover: #1a2029;
+  --code-bg: #171c24;
+  --border: #232a35;
   --ink-rgb: 255, 255, 255;
-  --edge-rgb: 100, 140, 255;
-  --text: #cfe0ff;
-  --text-strong: #eef4ff;
-  --text-plain: #e0e0e0;
-  --text-heading: #eaf1ff;
-  --text-code: #d6e6ff;
-  --muted: #8899bb;
-  --faint: #6a7a9a;
-  --wordmark-dim: #8aa0c8;
-  --accent: #7eb8ff;
-  --accent-rgb: 126, 184, 255;
+  --edge-rgb: 120, 132, 150;
+  --text: #e4e8ee;
+  --text-strong: #f4f6f9;
+  --text-plain: #e4e8ee;
+  --text-heading: #eef1f5;
+  --text-code: #e4e8ee;
+  --muted: #96a0ae;
+  --faint: #727c8a;
+  --wordmark-dim: #96a0ae;
+  --accent: #8fb4e6;
+  --accent-rgb: 143, 180, 230;
   --accent-strong: #ffffff;
+  --link: var(--accent);
+  /* Control tiers: a filled main action, neutral outlines, and a well with a
+     filled segment for toggles and menus. */
+  --primary: #5c8fd6;
+  --primary-hover: #6f9de0;
+  --primary-text: #0b1220;
+  --btn-line: #364152;
+  --btn-hover: #1e2530;
+  --seg-on: #2e4a73;
+  --seg-on-text: #ffffff;
   --ok: #4ade80;
   --ok-rgb: 74, 222, 128;
   --warn: #facc15;
@@ -40,16 +53,17 @@
   --teal-rgb: 127, 229, 209;
   --badge-old-text: #fde68a;
   --badge-stale-text: #ffc4c4;
-  --focus-ring: #7eb8ff;
+  --focus-ring: #8fb4e6;
   --shadow: rgba(0, 0, 0, 0.55);
   --shadow-soft: rgba(0, 0, 0, 0.35);
-  --chip-bg: rgba(10, 14, 26, 0.92);
-  --chip-border: rgba(126, 184, 255, 0.25);
-  --input-bg: #0f1830;
-  --input-border: rgba(126, 184, 255, 0.4);
-  --tile-bg: #0f1830;
-  --tile-hover: #13203d;
-  --flash-bg: rgba(126, 184, 255, 0.24);
+  --chip-bg: rgba(17, 21, 28, 0.9);
+  --chip-border: #2b3341;
+  /* The well: inputs, menus and segmented toggles. */
+  --input-bg: #19202a;
+  --input-border: #2a3240;
+  --tile-bg: #171c24;
+  --tile-hover: #1c222c;
+  --flash-bg: rgba(143, 180, 230, 0.24);
   --flash-text: #ffffff;
   /* Map chrome and legend. The swatches keep in step with lib/map/overlays.mjs. */
   /* Ocean and land match the basemap's water and land (lib/map/basemap.mjs
@@ -57,42 +71,49 @@
   --map-ocean: #0e1116;
   --map-land: #1b1e24;
   /* Behind the globe: apart from the water, so the globe's edge shows. */
-  --map-space: #0f1830;
+  --map-space: #181d25;
   --map-night: rgba(3, 5, 12, 0.24);
-  --map-footprint: rgba(126, 184, 255, 0.16);
+  --map-footprint: rgba(143, 180, 230, 0.16);
   /* The timeline strip: daylight lifted, night sunk, clearly apart. */
-  --timeline-day: #202c48;
-  --timeline-night: #060912;
+  --timeline-day: #2a3344;
+  --timeline-night: #0d1117;
   --map-accent: var(--accent);
   --map-text: var(--text);
   --map-muted: var(--muted);
   --map-border: var(--border);
   --map-panel: var(--chip-bg);
 }
-/* Light: cool, slightly blue-grey paper. Tokens not listed here fall back
+/* Light: cool grey paper with white cards. Tokens not listed here fall back
    to the block above (the aliases follow the overridden values). */
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #f5f7fb;
-  --bg-rgb: 245, 247, 251;
+  --bg: #f3f5f8;
+  --bg-rgb: 243, 245, 248;
   --panel: #ffffff;
-  --panel-2: #eef2f8;
+  --panel-2: #ebeff4;
   --popover: #ffffff;
-  --code-bg: #eef2f8;
-  --border: rgba(15, 30, 60, 0.12);
-  --ink-rgb: 15, 30, 60;
-  --edge-rgb: 31, 95, 191;
-  --text: #1b2333;
+  --code-bg: #ebeff4;
+  --border: #dfe4ea;
+  --ink-rgb: 26, 34, 48;
+  --edge-rgb: 90, 100, 117;
+  --text: #1a2230;
   --text-strong: #0b1220;
-  --text-plain: #1b2333;
-  --text-heading: #0b1220;
-  --text-code: #1b2333;
-  --muted: #5b6780;
-  --faint: #6b7690;
-  --wordmark-dim: #5b6780;
-  --accent: #1f5fbf;
-  --accent-rgb: 31, 95, 191;
-  --accent-strong: #123f85;
+  --text-plain: #1a2230;
+  --text-heading: #111827;
+  --text-code: #1a2230;
+  --muted: #5a6475;
+  --faint: #6b7380;
+  --wordmark-dim: #5a6475;
+  --accent: #2c5a99;
+  --accent-rgb: 44, 90, 153;
+  --accent-strong: #173a6b;
+  --primary: #2c5a99;
+  --primary-hover: #244c84;
+  --primary-text: #ffffff;
+  --btn-line: #c3ccd8;
+  --btn-hover: #ebeff4;
+  --seg-on: #2c5a99;
+  --seg-on-text: #ffffff;
   --ok: #137a3a;
   --ok-rgb: 19, 122, 58;
   --warn: #94580a;
@@ -106,24 +127,24 @@
   --teal-rgb: 15, 118, 110;
   --badge-old-text: #7a4806;
   --badge-stale-text: #8f1d1d;
-  --focus-ring: #1f5fbf;
-  --shadow: rgba(15, 30, 60, 0.16);
-  --shadow-soft: rgba(15, 30, 60, 0.12);
-  --chip-bg: rgba(255, 255, 255, 0.92);
-  --chip-border: rgba(31, 95, 191, 0.3);
-  --input-bg: #ffffff;
-  --input-border: rgba(31, 95, 191, 0.45);
+  --focus-ring: #2c5a99;
+  --shadow: rgba(16, 22, 32, 0.16);
+  --shadow-soft: rgba(16, 22, 32, 0.12);
+  --chip-bg: rgba(255, 255, 255, 0.9);
+  --chip-border: #d3dae3;
+  --input-bg: #ebeff4;
+  --input-border: #d6dde6;
   --tile-bg: #ffffff;
-  --tile-hover: #eef2f8;
-  --flash-bg: rgba(31, 95, 191, 0.16);
+  --tile-hover: #f3f5f8;
+  --flash-bg: rgba(44, 90, 153, 0.16);
   --flash-text: #0b1220;
   --map-ocean: #c2c8ca;
   --map-land: #f2f3f0;
-  --map-space: #dfe8f3;
+  --map-space: #e4e8ee;
   --map-night: rgba(20, 30, 60, 0.1);
-  --map-footprint: rgba(31, 95, 191, 0.14);
-  --timeline-day: #eaeff7;
-  --timeline-night: #bfcadc;
+  --map-footprint: rgba(44, 90, 153, 0.14);
+  --timeline-day: #e4e8ee;
+  --timeline-night: #b7c0cc;
 }
 /* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than

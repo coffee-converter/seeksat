@@ -142,8 +142,8 @@ test('the manifest makes SeekSat installable', () => {
   assert.equal(m.short_name, 'SeekSat');
   assert.equal(m.start_url, '/');
   assert.equal(m.display, 'standalone');
-  assert.equal(m.background_color, '#0a0e1a');
-  assert.equal(m.theme_color, '#0a0e1a');
+  assert.equal(m.background_color, '#11151c');
+  assert.equal(m.theme_color, '#11151c');
   const icons = Object.fromEntries(m.icons.map((i) => [i.src, i]));
   assert.equal(icons['/icon.svg']?.type, 'image/svg+xml');
   assert.equal(icons['/apple-icon.png']?.sizes, '180x180');

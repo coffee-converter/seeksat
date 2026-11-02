@@ -74,12 +74,12 @@ export const metadata: Metadata = {
 
 // `themeColor` + `viewport` moved out of `metadata` in Next 14 - they
 // belong in a separate `viewport` export. Matches the page background
-// in globals.css (#0a0e1a) so mobile address-bar / standalone-PWA
+// in globals.css (#11151c) so mobile address-bar / standalone-PWA
 // chrome blends in instead of flashing white.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0a0e1a" },
-    { media: "(prefers-color-scheme: light)", color: "#f5f7fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#11151c" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f5f8" },
   ],
   width: "device-width",
   initialScale: 1,

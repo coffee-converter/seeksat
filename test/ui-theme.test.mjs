@@ -55,8 +55,8 @@ function fakeMeta(attrs0 = {}) {
 }
 
 function fakeDoc() {
-  const nextDark = fakeMeta({ name: 'theme-color', content: '#0a0e1a', media: '(prefers-color-scheme: dark)' });
-  const nextLight = fakeMeta({ name: 'theme-color', content: '#f5f7fb', media: '(prefers-color-scheme: light)' });
+  const nextDark = fakeMeta({ name: 'theme-color', content: '#11151c', media: '(prefers-color-scheme: dark)' });
+  const nextLight = fakeMeta({ name: 'theme-color', content: '#f3f5f8', media: '(prefers-color-scheme: light)' });
   const children = [nextDark, nextLight];
   return {
     documentElement: { dataset: {} },
@@ -79,15 +79,15 @@ test('applyTheme sets data-theme and updates only the owned theme-color tag', ()
   assert.equal(d.documentElement.dataset.theme, 'light');
   const own = d.head.children[0];
   assert.equal(own.attrs.id, 'seeksat-theme-color');
-  assert.equal(own.attrs.content, '#f5f7fb');
+  assert.equal(own.attrs.content, '#f3f5f8');
   assert.equal(d.head.children.length, 3);
   applyTheme(d, 'dark');
   assert.equal(d.head.children.length, 3);
-  assert.equal(own.attrs.content, '#0a0e1a');
+  assert.equal(own.attrs.content, '#11151c');
   // Next's metas are untouched: media kept.
   assert.equal(d.nextDark.attrs.media, '(prefers-color-scheme: dark)');
   assert.equal(d.nextLight.attrs.media, '(prefers-color-scheme: light)');
-  assert.equal(d.nextLight.attrs.content, '#f5f7fb');
+  assert.equal(d.nextLight.attrs.content, '#f3f5f8');
 });
 
 test('syncTheme applies when data-theme is missing or stale, not otherwise', () => {
@@ -95,7 +95,7 @@ test('syncTheme applies when data-theme is missing or stale, not otherwise', () 
   const d = fakeDoc();
   assert.equal(syncTheme(d, store('light'), { matches: true }), 'light');
   assert.equal(d.documentElement.dataset.theme, 'light');
-  assert.equal(d.head.children[0].attrs.content, '#f5f7fb');
+  assert.equal(d.head.children[0].attrs.content, '#f3f5f8');
   d.documentElement.dataset.theme = 'dark';
   syncTheme(d, store('light'), { matches: true });
   assert.equal(d.documentElement.dataset.theme, 'light');
@@ -131,9 +131,9 @@ test('THEME_SCRIPT prepends one owned theme-color tag and leaves Next metas alon
   const d = runScript({ saved: 'light', systemDark: true });
   assert.equal(d.head.children.length, 3);
   assert.equal(d.head.children[0].attrs.id, 'seeksat-theme-color');
-  assert.equal(d.head.children[0].attrs.content, '#f5f7fb');
+  assert.equal(d.head.children[0].attrs.content, '#f3f5f8');
   assert.equal(d.nextDark.attrs.media, '(prefers-color-scheme: dark)');
-  assert.equal(d.nextDark.attrs.content, '#0a0e1a');
+  assert.equal(d.nextDark.attrs.content, '#11151c');
 });
 
 test('THEME_SCRIPT defaults to dark when matchMedia throws', () => {
