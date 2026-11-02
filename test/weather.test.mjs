@@ -49,3 +49,48 @@ test('UTC parse trap: "YYYY-MM-DDTHH:MM" alone parses as local; "+Z" forces UTC'
     assert.notEqual(noZ, expectedUtc, "no-Z parsed as local, not UTC");
   }
 });
+
+// ---- upstream hardening (fetch is stubbed; no real network) ----
+
+import { fetchCloudForecast } from '../lib/pass-finder/weather.js';
+
+async function withStubFetch(impl, fn) {
+  const orig = globalThis.fetch;
+  const origWarn = console.warn;
+  globalThis.fetch = impl;
+  console.warn = () => {};
+  try { return await fn(); } finally { globalThis.fetch = orig; console.warn = origWarn; }
+}
+
+test('fetchCloudForecast: upstream calls carry User-Agent and a timeout signal', async () => {
+  const calls = [];
+  await withStubFetch(async (url, opts) => {
+    calls.push({ url: String(url), opts });
+    return { ok: false, status: 500 };
+  }, () => fetchCloudForecast(10.01, 20.01));
+  assert.equal(calls.length, 2);
+  for (const c of calls) {
+    assert.equal(c.opts.headers['User-Agent'], 'seeksat/1.0 (https://seeksat.app)');
+    assert.ok(c.opts.signal instanceof AbortSignal);
+  }
+});
+
+test('fetchCloudForecast: cache holds at most 200 entries, oldest evicted first', async () => {
+  let count = 0;
+  const okOpenMeteo = async (url) => {
+    count++;
+    if (String(url).includes('open-meteo')) {
+      return { ok: true, json: async () => ({ hourly: {
+        time: ['2026-11-02T00:00'], cloud_cover_low: [10], cloud_cover_mid: [0], cloud_cover_high: [0] } }) };
+    }
+    return { ok: false, status: 500 };
+  };
+  await withStubFetch(okOpenMeteo, async () => {
+    for (let i = 0; i < 201; i++) await fetchCloudForecast(-60 + i * 0.5, 100.5);
+    const after = count;
+    await fetchCloudForecast(-60 + 200 * 0.5, 100.5); // newest: still cached
+    assert.equal(count, after);
+    await fetchCloudForecast(-60, 100.5); // first key: evicted, refetches
+    assert.equal(count, after + 2);
+  });
+});

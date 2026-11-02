@@ -18,6 +18,7 @@ const NOT_FETCHED = new Set([
   'https://claude.ai', // MCP docs: link to connect the server
   'https://api.open-meteo.com', // server-only, via the MCP route
   'https://api.met.no', // server-only, via the MCP route
+  'https://seeksat.app', // User-Agent string in weather.js, never fetched
 ]);
 
 test('production CSP drops the globe-era origins and eval', () => {
