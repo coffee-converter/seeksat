@@ -271,7 +271,9 @@ test('tracks: false leaves out the track sources without reading the tracks', ()
 
 test('the footprint fill stays faint so the map shows through', () => {
   const fill = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-fill');
-  assert.ok(fill.paint['fill-opacity'] <= 0.1, `fill-opacity ${fill.paint['fill-opacity']}`);
+  assert.ok(fill.paint['fill-opacity'] <= 0.06, `fill-opacity ${fill.paint['fill-opacity']}`);
+  const edge = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-line');
+  assert.ok(edge.paint['line-opacity'] <= 0.5, `edge opacity ${edge.paint['line-opacity']}`);
 });
 
 test('the lat/lon grid is static and only built on request', () => {
