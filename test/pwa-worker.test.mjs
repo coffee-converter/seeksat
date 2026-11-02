@@ -234,3 +234,14 @@ test('the offline page has a light palette', () => {
   assert.match(light[0], /background:#f5f7fb/);
   assert.match(light[0], /color:#1b2333/);
 });
+
+// Night vision: the offline page must not flash bright when it is on.
+test('the offline page honours night vision with the same filter as the app', () => {
+  const sw = read('public/sw.js');
+  const css = read('app/globals.css');
+  const filter = css.match(/--night-filter:\s*([^;]+);/)[1];
+  const bg = css.match(/html\[data-night='1'\]\s*\{[^}]*background:\s*([^;]+);/)[1];
+  assert.match(sw, /seeksat\.night/);
+  assert.ok(sw.includes(filter), 'sw.js repeats the globals.css night filter');
+  assert.ok(sw.includes(bg), 'sw.js repeats the night background');
+});

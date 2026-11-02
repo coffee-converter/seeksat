@@ -134,7 +134,8 @@ h1{margin:0 0 8px;font-size:24px}
 p{margin:0 0 16px;color:#8899bb}
 a{color:#7eb8ff}
 @media (prefers-color-scheme: light){body{background:#f5f7fb;color:#1b2333}p{color:#5b6780}a{color:#1f5fbf}}
-</style></head>
+</style>
+<script>try{if(localStorage.getItem('seeksat.night')==='1'){var s=document.createElement('style');s.textContent='html{background:#0a0303;filter:grayscale(1) brightness(0.3) sepia(1) saturate(12) hue-rotate(-25deg) brightness(0.71)}body{background:#11151c;color:#cfe0ff}p{color:#8899bb}a{color:#8fb4e6}';document.head.appendChild(s)}}catch(e){}</script></head>
 <body><main class="offline-page"><h1>Offline</h1><p>This page wasn&#39;t saved for offline use.</p><a href="/">Go to SeekSat home</a></main></body></html>`;
 
 const offlinePage = () => new Response(OFFLINE_HTML, {
