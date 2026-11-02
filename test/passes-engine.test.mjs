@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { subpoint } from '../lib/map/geometry.mjs';
 import { satAltitudeDeg } from '../lib/pass-finder/visibility.js';
 import { makeTrack } from '../lib/sat/track.mjs';
-import { findPasses, accuracyNote, stationaryPointing } from '../lib/passes/engine.mjs';
+import { findPasses, accuracyNote, stationaryPointing, peakMagnitude } from '../lib/passes/engine.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, INCLINED_GEO_LINE1, INCLINED_GEO_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -125,4 +125,81 @@ test('a joint pass reports the lower of the observers\' elevations at its peak',
     const e = iss.ecefAt(new Date(p.peakMs));
     assert.equal(p.maxElevDeg, round1(Math.min(satAltitudeDeg(EN52VE, e), satAltitudeDeg(other, e))));
   }
+});
+
+// Visual peak magnitude. makeTrack without a catalogue entry has no
+// standardMag, so the bright track supplies the ISS's -1.8.
+const ISS_BRIGHT = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'), { standardMag: -1.8 });
+const TWILIGHT_SUN_DEG = -6;
+const MAG_FIELDS = ['peakMag', 'peakMagSunAltDeg', 'peakMagElDeg', 'peakSunAltDeg'];
+
+test('visual ISS passes carry a peak magnitude from a dark, sunlit sample', () => {
+  const r = findPasses({ track: ISS_BRIGHT, observers: [EN52VE], mode: 'visual', startMs: T0, endMs: T0 + 3 * DAY });
+  assert.ok(r.passes.length >= 1);
+  for (const p of r.passes) {
+    assert.ok(Number.isFinite(p.peakMag) && p.peakMag > -4 && p.peakMag < 3, `peakMag ${p.peakMag}`);
+    assert.ok(p.peakMagSunAltDeg <= TWILIGHT_SUN_DEG);
+    assert.ok(p.peakMagElDeg > 0 && p.peakMagElDeg <= 90);
+    assert.ok(Number.isFinite(p.peakSunAltDeg) && p.peakSunAltDeg <= TWILIGHT_SUN_DEG);
+  }
+});
+test('a track with no published brightness gets a null peakMag but keeps the other fields', () => {
+  const r = findPasses({ track: ISS, observers: [EN52VE], mode: 'visual', startMs: T0, endMs: T0 + 3 * DAY });
+  assert.equal(ISS.standardMag, null);
+  assert.ok(r.passes.length >= 1);
+  for (const p of r.passes) {
+    for (const k of MAG_FIELDS) assert.ok(k in p, k);
+    assert.equal(p.peakMag, null);
+    assert.equal(p.peakMagSunAltDeg, null);
+    assert.equal(p.peakMagElDeg, null);
+    assert.ok(Number.isFinite(p.peakSunAltDeg));
+  }
+});
+test('radio passes do not gain the magnitude fields', () => {
+  const r = findPasses({ track: ISS_BRIGHT, observers: [EN52VE], mode: 'radio', startMs: T0, endMs: T0 + DAY });
+  for (const p of r.passes) for (const k of MAG_FIELDS) assert.ok(!(k in p), k);
+});
+test('the magnitude fields are plain numbers or null, so they cross postMessage', () => {
+  const r = findPasses({ track: ISS_BRIGHT, observers: [EN52VE], mode: 'visual', startMs: T0, endMs: T0 + 3 * DAY });
+  assert.deepEqual(structuredClone(r), r);
+  for (const p of r.passes) for (const k of MAG_FIELDS) assert.ok(p[k] === null || typeof p[k] === 'number', k);
+});
+
+// A dusk pass from 50° S, 165° W on 2026-03-03: the ISS culminates near 70°
+// at 06:21Z with the Sun at about -5.7°, so its highest, brightest moment is
+// in a twilight sky. The Sun reaches -6° at about 06:23Z, as the ISS sinks
+// through 23°, and the visual pass is only that dark tail.
+const DUSK_OBS = { id: 'dusk', latDeg: -50, lonDeg: -165 };
+const duskRadioPass = () => findPasses({
+  track: ISS_BRIGHT, observers: [DUSK_OBS], mode: 'radio', minElevDeg: 0, startMs: T0, endMs: T0 + 3 * DAY,
+}).passes.find((p) => Math.abs(p.peakMs - Date.parse('2026-03-03T06:21:08Z')) < 60_000);
+
+test('a pass that peaks in twilight takes its peak magnitude from the dark part', () => {
+  const radio = duskRadioPass();
+  assert.ok(radio && radio.maxElevDeg > 60);
+  const dusk = findPasses({ track: ISS_BRIGHT, observers: [DUSK_OBS], mode: 'visual', minElevDeg: 0, startMs: T0, endMs: T0 + 3 * DAY })
+    .passes.find((p) => p.startMs >= radio.startMs && p.endMs <= radio.endMs);
+  assert.ok(dusk, 'the dark tail of the dusk pass is a visual pass');
+  assert.ok(dusk.startMs > radio.peakMs);
+  assert.ok(Number.isFinite(dusk.peakMag));
+  assert.ok(dusk.peakMagSunAltDeg <= TWILIGHT_SUN_DEG);
+  assert.ok(dusk.peakMagElDeg < 30, `peakMagElDeg ${dusk.peakMagElDeg}`);
+});
+test('peakMagnitude skips twilight samples even inside the window it is given', () => {
+  const radio = duskRadioPass();
+  const dark = peakMagnitude(ISS_BRIGHT, [DUSK_OBS], radio.startMs, radio.endMs);
+  assert.ok(Number.isFinite(dark.peakMag));
+  assert.ok(dark.peakMagSunAltDeg <= TWILIGHT_SUN_DEG);
+  assert.ok(dark.peakMagElDeg < 30, `peakMagElDeg ${dark.peakMagElDeg}`);
+  // Over the twilight half alone, nothing qualifies.
+  const twilight = peakMagnitude(ISS_BRIGHT, [DUSK_OBS], radio.startMs, radio.peakMs);
+  assert.deepEqual(twilight, { peakMag: null, peakMagSunAltDeg: null, peakMagElDeg: null });
+  // No published brightness: no magnitude at all.
+  assert.deepEqual(peakMagnitude(ISS, [DUSK_OBS], radio.startMs, radio.endMs), { peakMag: null, peakMagSunAltDeg: null, peakMagElDeg: null });
+});
+test('peakMagnitude needs every observer in a dark sky', () => {
+  const radio = duskRadioPass();
+  // At 90° E it is about midday during this pass.
+  const day = { id: 'day', latDeg: 50, lonDeg: 90 };
+  assert.deepEqual(peakMagnitude(ISS_BRIGHT, [DUSK_OBS, day], radio.startMs, radio.endMs), { peakMag: null, peakMagSunAltDeg: null, peakMagElDeg: null });
 });

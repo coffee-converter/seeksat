@@ -42,6 +42,25 @@ test('unknown magnitude uses elevation and sky darkness', () => {
   assert.equal(visualQuality(p(15, -8), city).level, 'low');
 });
 
+test('a missing Sun altitude is no evidence of darkness', () => {
+  const p = (peakSunAltDeg) => ({ peakMag: null, maxElevDeg: 45, peakSunAltDeg });
+  for (const alt of [null, undefined, NaN, Infinity, '-20']) {
+    assert.equal(visualQuality(p(alt), city).level, 'ok', String(alt));
+  }
+  const noSun = { maxElevDeg: 45 };
+  assert.equal(visualQuality(noSun, city).level, 'ok');
+});
+
+test('a known magnitude with no Sun altitude falls back to the unknown path', () => {
+  for (const alt of [null, undefined, NaN]) {
+    const q = visualQuality({ peakMag: -1.8, peakMagSunAltDeg: alt, maxElevDeg: 45, peakSunAltDeg: -30 }, city);
+    assert.equal(q.level, 'good', String(alt));
+    assert.equal(q.reason, 'Brightness unknown, so this is rated on height and sky darkness.');
+  }
+  const bright = visualQuality({ peakMag: -1.8, peakMagSunAltDeg: undefined, maxElevDeg: 45, peakSunAltDeg: -8 }, city);
+  assert.equal(bright.level, 'ok');
+});
+
 test('cloud caps or steps the rating', () => {
   const c = (level) => ({ skyType: 'city', cloud: { level } });
   assert.equal(visualQuality(known(-1.8), c('cloudy')).level, 'low');
