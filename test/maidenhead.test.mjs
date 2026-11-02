@@ -24,3 +24,12 @@ test('parseLocationInput', () => {
   assert.deepEqual(parseLocationInput('Elgin, Illinois'), { kind: 'place', query: 'Elgin, Illinois' });
   assert.equal(parseLocationInput('   '), null);
 });
+
+test('parseLocationInput names out-of-range coordinates instead of searching for them', () => {
+  const msg = 'Latitude runs from -90 to 90 and longitude from -180 to 180.';
+  assert.deepEqual(parseLocationInput('91, 200'), { kind: 'invalid', message: msg });
+  assert.deepEqual(parseLocationInput('-95.5, 10'), { kind: 'invalid', message: msg });
+  assert.deepEqual(parseLocationInput('45, 181'), { kind: 'invalid', message: msg });
+  assert.equal(parseLocationInput('90, 180').kind, 'coords');
+  assert.equal(parseLocationInput('Paris, 75').kind, 'place');
+});

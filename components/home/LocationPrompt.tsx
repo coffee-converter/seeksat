@@ -88,6 +88,10 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
     const typed = text.trim();
     const parsed = parseLocationInput(typed);
     if (!parsed) return;
+    if (parsed.kind === "invalid") {
+      setMessage(parsed.message);
+      return;
+    }
     setMessage(null);
     if (parsed.kind === "grid") {
       save({ name: parsed.grid, latDeg: parsed.latDeg, lonDeg: parsed.lonDeg, source: "grid" });
