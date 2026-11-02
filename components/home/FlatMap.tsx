@@ -131,7 +131,7 @@ type LabelKeyOpts = {
 const labelLayers = createLabelLayers as unknown as (picks: {
   graticule: (p: Projection, o: LabelOpts) => GratLabel[];
   places: (p: Projection, o: LabelOpts, graticule: GratLabel[]) => unknown;
-}) => { get: (key: LabelKeyOpts, p: Projection, o: LabelOpts) => LabelSet };
+}) => { get: (key: LabelKeyOpts, p: Projection, o: LabelOpts, flags?: { moving?: boolean }) => LabelSet };
 const panTo = centredPan as (
   id: string,
   o: { width: number; height: number; observer: MapObserver | null; sat: SelectedSub | null; zoom: number },
@@ -259,7 +259,7 @@ export default function FlatMap({
       ? "none"
       : "pan-y";
     let labels = lastLabels.current;
-    if (!(gesturing.current && labels)) {
+    {
       const data = placeData.current;
       const { zoom, pan, rotLon } = view.current;
       labels = labelCache.current.get(
@@ -275,6 +275,7 @@ export default function FlatMap({
           places: data?.places ?? [], regions: data?.regions ?? [], sats: cur.sats,
           observer: cur.observer, controls: controls.current,
         },
+        { moving: gesturing.current },
       );
       lastLabels.current = labels;
     }

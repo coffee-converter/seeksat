@@ -82,3 +82,23 @@ test('label layers: a satellites-only change re-picks places but not the lat/lon
   at({ sats: sat(20), zoom: 2 }, 'controls', 'p');
   assert.deepEqual(counts, { graticule: 3, places: 5 });
 });
+
+test('label layers while moving: lat/lon labels follow the view, place picks hold', () => {
+  const counts = { graticule: 0, places: 0 };
+  const layers = createLabelLayers({
+    graticule: (_proj, o) => ({ n: ++counts.graticule, zoom: o.zoom }),
+    places: () => ({ n: ++counts.places }),
+  });
+  const at = (zoom, moving) => layers.get({ ...base, zoom, controls: '', data: '' }, null, { zoom }, { moving });
+  const still = at(1, false);
+  assert.deepEqual(counts, { graticule: 1, places: 1 });
+  const m1 = at(1.5, true);
+  assert.equal(m1.graticule.zoom, 1.5, 'lat/lon labels are for the view being shown');
+  assert.equal(m1.places, still.places, 'places keep the last pick mid-gesture');
+  assert.deepEqual(counts, { graticule: 2, places: 1 });
+  at(2, true);
+  assert.deepEqual(counts, { graticule: 3, places: 1 });
+  const done = at(2, false);
+  assert.deepEqual(counts, { graticule: 3, places: 2 }, 'the end of the gesture re-picks places once');
+  assert.equal(done.graticule.zoom, 2);
+});
