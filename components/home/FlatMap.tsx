@@ -313,6 +313,15 @@ export default function FlatMap({
       canvas.setAttribute("role", "img");
       canvas.setAttribute("aria-label", "Map of followed satellites");
       canvas.tabIndex = 0;
+      // MapLibre opens the compact attribution at start and folds it only on a
+      // drag, which cooperative gestures never send on a phone. Fold it once the
+      // map has drawn, as its info button does; that button still opens it.
+      map.once("idle", () => {
+        const attrib = map.getContainer().querySelector(".maplibregl-ctrl-attrib.maplibregl-compact-show");
+        if (!attrib) return;
+        attrib.classList.remove("maplibregl-compact-show");
+        attrib.setAttribute("open", "");
+      });
       // A flat home camera already centres on a focus that exists now; the
       // globe's centres on the observer, so it still eases to the focus.
       const { observer: o, view: v, sats: s0 } = latest.current;
