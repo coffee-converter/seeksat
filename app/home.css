@@ -497,6 +497,8 @@
 }
 .pass-card__tag--viewing { color: var(--map-accent); border-color: rgba(var(--accent-rgb), 0.5); }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.more-panel { display: contents; }
+.more-panel[hidden] { display: none; }
 
 /* chart-block:begin */
 /* The pass-card polar plot and the sky and radio chart

@@ -19,6 +19,7 @@ import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
+import MoreToggle from "@/components/passes/MoreToggle";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 
@@ -413,16 +414,12 @@ export default function PassSection({
                                   <button type="button" className="home-chip home-chip--live" onClick={(e) => openChart("live", row.pass, e)}>Live</button>
                                 )}
                                 <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
-                                <button
-                                  type="button"
-                                  className="home-chip sat-pass__more-toggle"
-                                  aria-expanded={open}
-                                  aria-controls={moreId}
-                                  onClick={() => toggleRow(row.key)}
+                                <MoreToggle
+                                  id={moreId}
+                                  open={open}
+                                  onToggle={() => toggleRow(row.key)}
+                                  label={`the ${row.timesLabel} pass`}
                                 >
-                                  {open ? "Less" : "More"}
-                                </button>
-                                <div id={moreId} className="sat-pass__more" hidden={!open}>
                                   <button type="button" className="home-chip" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</button>
                                   {track && (
                                     <ShareButton
@@ -441,7 +438,7 @@ export default function PassSection({
                                       url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, null)}
                                     />
                                   )}
-                                </div>
+                                </MoreToggle>
                               </div>
                             </li>
                           );

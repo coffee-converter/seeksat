@@ -15,6 +15,7 @@ import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import QualityBadge from "@/components/passes/QualityBadge";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
+import MoreToggle from "@/components/passes/MoreToggle";
 import { useFlash } from "@/lib/ui/use-flash";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
@@ -92,6 +93,9 @@ interface PassCardProps {
   onFocus: () => void;
   /** Set for the viewed (not followed) satellite's card: Follow replaces Unfollow. */
   viewing: ViewingProps | null;
+  /** Whether the card's More panel is open. */
+  moreOpen: boolean;
+  onToggleMore: () => void;
 }
 
 interface ViewingProps {
@@ -138,6 +142,7 @@ function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; o
 
 function PassCard({
   card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onLive, onUnfollow, focus, onFocus, viewing,
+  moreOpen, onToggleMore,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
@@ -188,15 +193,17 @@ function PassCard({
         <div className="pass-card__actions">
           {liveOk(pass, nowMs) && <button type="button" className="home-chip home-chip--live" onClick={onLive}>Live</button>}
           <button type="button" className="home-chip" onClick={onSkyChart}>Sky chart</button>
-          <button type="button" className="home-chip" onClick={onRadioChart}>Radio chart</button>
-          <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={addToCalendar}>
-            📅
-          </button>
-          <AlertBell noradId={card.noradId} name={track.shortName} pass={pass} url={() => `/sat/${card.noradId}`} />
           {track.record?.source !== "pasted" && (
             <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
           )}
-          <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
+          <MoreToggle id={`card-more-${card.noradId}`} open={moreOpen} onToggle={onToggleMore} label={`the ${card.name} pass`}>
+            <button type="button" className="home-chip" onClick={onRadioChart}>Radio chart</button>
+            <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={addToCalendar}>
+              📅
+            </button>
+            <AlertBell noradId={card.noradId} name={track.shortName} pass={pass} url={() => `/sat/${card.noradId}`} />
+            <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
+          </MoreToggle>
         </div>
       </div>
     </li>
@@ -245,6 +252,13 @@ export default function NextUpList({
   const [chart, setChart] = useState<"sky" | "radio" | "live" | null>(null);
   const [chartsLoaded, setChartsLoaded] = useState(false);
   const trigger = useRef<HTMLElement | null>(null);
+  // Cards whose More panel is open; all start closed.
+  const [openMore, setOpenMore] = useState<ReadonlySet<number>>(() => new Set());
+  const toggleMore = (id: number) => setOpenMore((prev) => {
+    const next = new Set(prev);
+    if (!next.delete(id)) next.add(id);
+    return next;
+  });
 
   const open = (kind: "sky" | "radio" | "live", track: Track, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
     trigger.current = e.currentTarget;
@@ -282,6 +296,8 @@ export default function NextUpList({
                 focus={focusOf(card.noradId)}
                 onFocus={() => toggle(card.noradId)}
                 viewing={viewingOf(card.noradId)}
+                moreOpen={openMore.has(card.noradId)}
+                onToggleMore={() => toggleMore(card.noradId)}
               />
             );
           }
