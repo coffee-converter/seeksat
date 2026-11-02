@@ -152,7 +152,7 @@ test('night and footprint use repaired polygons', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-night', 'ss-footprint-fill', 'ss-footprint-line', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats',
+  'ss-night', 'ss-footprint-fill', 'ss-footprint-line', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -160,12 +160,20 @@ test('overlayLayers keeps the overlay order', () => {
   assert.deepEqual(layers.map((l) => l.id), LAYER_IDS);
   for (const l of layers) assert.ok(OVERLAY_SOURCES.includes(l.source), `${l.id} source ${l.source}`);
   const sats = layers.find((l) => l.id === 'ss-sats');
-  assert.equal(sats.layout['icon-allow-overlap'], true);
-  assert.equal(sats.layout['icon-ignore-placement'], false);
-  assert.equal(sats.layout['text-optional'], true);
-  assert.deepEqual(sats.layout['text-variable-anchor'], ['left', 'right']);
-  assert.equal(sats.paint['text-halo-color'], COLORS.water);
-  assert.equal(sats.paint['icon-halo-color'], COLORS.water);
+  const focus = layers.find((l) => l.id === 'ss-sats-focus');
+  for (const l of [sats, focus]) {
+    assert.equal(l.source, 'ss-sats');
+    assert.equal(l.layout['icon-allow-overlap'], true);
+    assert.equal(l.layout['icon-ignore-placement'], false);
+    assert.equal(l.layout['text-optional'], true);
+    assert.deepEqual(l.layout['text-variable-anchor'], ['left', 'right']);
+    assert.deepEqual(l.layout['symbol-sort-key'], ['get', 'sortKey']);
+    assert.equal(l.paint['text-halo-color'], COLORS.water);
+    assert.equal(l.paint['icon-halo-color'], COLORS.water);
+  }
+  // The focus is drawn last, on its own layer; ss-sats has everything else.
+  assert.deepEqual(focus.filter, ['==', ['get', 'emphasis'], 'focus']);
+  assert.deepEqual(sats.filter, ['!=', ['get', 'emphasis'], 'focus']);
 });
 
 function iconNames(expr) {
