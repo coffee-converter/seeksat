@@ -239,7 +239,8 @@ export default function FlatMap({
   }, [homeView]);
 
   // The theme: read once on mount, then follow the toggle by swapping the
-  // style. style.load re-adds the overlays; the camera is untouched.
+  // style. style.load re-adds the overlays; the style carries the current
+  // projection, so the camera is untouched.
   useEffect(() => {
     themeRef.current = readTheme();
     const onTheme = () => {
@@ -249,7 +250,7 @@ export default function FlatMap({
       const map = mapRef.current;
       if (!map) return;
       styleReady.current = false;
-      map.setStyle(basemapStyle(next) as StyleSpecification, { diff: false });
+      map.setStyle(basemapStyle(next, latest.current.view) as StyleSpecification, { diff: false });
     };
     window.addEventListener("seeksat:theme", onTheme);
     return () => window.removeEventListener("seeksat:theme", onTheme);
@@ -285,7 +286,7 @@ export default function FlatMap({
       try {
         map = new gl.Map({
           container: el,
-          style: basemapStyle(themeRef.current) as StyleSpecification,
+          style: basemapStyle(themeRef.current, latest.current.view) as StyleSpecification,
           center: cam.center,
           zoom: cam.zoom,
           attributionControl: { compact: true },

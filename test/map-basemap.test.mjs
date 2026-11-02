@@ -68,6 +68,14 @@ for (const theme of THEMES) {
     assert.ok(b.layers.length > 0);
     assert.notEqual(b.glyphs, 'x');
   });
+
+  // A style with no projection loads as Mercator and clamps the camera to
+  // Mercator's limits before the map can switch back to the globe.
+  test(`basemapStyle carries the view's projection (${theme})`, () => {
+    assert.deepEqual(basemapStyle(theme, 'globe').projection, { type: 'globe' });
+    assert.deepEqual(basemapStyle(theme, 'flat').projection, { type: 'mercator' });
+    assert.deepEqual(basemapStyle(theme).projection, { type: 'mercator' });
+  });
 }
 
 test('dark water is darker than dark land', () => {
