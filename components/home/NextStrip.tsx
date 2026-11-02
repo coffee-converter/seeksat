@@ -4,7 +4,7 @@ export interface NextSummary {
   noradId: number;
   name: string;
   text: string;
-  pass: { maxElevDeg?: number };
+  pass: { maxElevDeg?: number; inProgress?: boolean };
 }
 
 /**

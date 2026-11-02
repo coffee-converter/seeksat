@@ -17,3 +17,10 @@ test('emptyUpNowText does not double a full stop', () => {
   assert.ok(emptyUpNowText({ text: 'ISS now.' }).endsWith('ISS now.'));
   assert.ok(!emptyUpNowText({ text: 'ISS now.' }).endsWith('..'));
 });
+
+test('emptyUpNowText leaves out a pass already in progress', () => {
+  assert.equal(
+    emptyUpNowText({ text: 'ISS now, max 37°', pass: { inProgress: true } }),
+    'Nothing you follow is up right now.',
+  );
+});

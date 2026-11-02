@@ -12,7 +12,7 @@ interface Props {
   nowMs: number;
   focusId: number | null;
   /** The soonest pass, named when nothing is up. */
-  next: { text: string } | null;
+  next: { text: string; pass?: { inProgress?: boolean } } | null;
 }
 
 const R = 70;
