@@ -229,8 +229,8 @@ test('a dot image is a signed distance disc with room for its ring', () => {
 test('overlayColors takes water from the basemap and keeps the canvas observer and night', () => {
   assert.equal(overlayColors('dark').water, basemapColors('dark').water);
   assert.equal(overlayColors('light').water, basemapColors('light').water);
-  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, observer: '#7eb8ff', night: 'rgba(3, 5, 12, 0.24)', graticule: '#a7b0bf' });
-  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, observer: '#1f5fbf', night: 'rgba(20, 30, 60, 0.07)', graticule: '#3d4757' });
+  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, observer: '#8fb4e6', night: 'rgba(3, 5, 12, 0.24)', graticule: '#a7b0bf' });
+  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, observer: '#2c5a99', night: 'rgba(20, 30, 60, 0.07)', graticule: '#3d4757' });
 });
 
 test('trackDetail curves extra points into past and future tracks', () => {
