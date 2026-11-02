@@ -254,3 +254,25 @@ test('trackDetailFor adds points as the map zooms in', () => {
   assert.ok(trackDetailFor(15) >= 24 && trackDetailFor(15) <= 64);
   for (let z = 0; z < 15; z += 0.5) assert.ok(trackDetailFor(z + 0.5) >= trackDetailFor(z));
 });
+
+import { ringLine } from '../lib/map/geometry.mjs';
+
+test('ringLine stops at 85.05 degrees, where MapLibre tiles end', () => {
+  // A polar-orbit footprint reaching past the tile edge (centre 72N, 22 deg radius).
+  const ring = geoCircle().center([-20, 72]).radius(22)().coordinates[0];
+  const edge = ringLine(ring);
+  assert.equal(edge.type, 'MultiLineString');
+  const pts = edge.coordinates.flat();
+  assert.ok(pts.every(([, lat]) => Math.abs(lat) <= 85.0511 + 1e-9), 'no point past the tile edge');
+  // The cut ends sit on the edge itself, not short of it.
+  const ends = edge.coordinates.flatMap((l) => [l[0], l[l.length - 1]]);
+  assert.ok(ends.some(([, lat]) => Math.abs(lat - 85.0511) < 1e-6), 'a cut end lies on 85.05');
+});
+
+test('ringLine leaves a footprint well clear of the poles in one piece', () => {
+  const ring = geoCircle().center([10, 20]).radius(20)().coordinates[0];
+  const edge = ringLine(ring);
+  assert.equal(edge.coordinates.length, 1);
+  const line = edge.coordinates[0];
+  assert.deepEqual(line[0], line[line.length - 1]);
+});

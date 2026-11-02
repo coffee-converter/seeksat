@@ -16,7 +16,7 @@ test('full legend, in order', () => {
   assert.deepEqual(items.map((i) => i.kind), ['sat', 'sat', 'track', 'footprint', 'night', 'observer']);
   assert.deepEqual(items[0], { key: 'sat-25544', kind: 'sat', label: 'ISS', color: '#ff9b54' });
   assert.equal(items[2].label, MIXED);
-  assert.equal(items[3].label, 'Dashed circle: where ISS is at least 10° up');
+  assert.equal(items[3].label, 'Circle: where ISS is at least 10° up');
   assert.equal(items[4].label, 'Shading: night, darker through twilight');
   assert.equal(items[5].label, 'You');
 });

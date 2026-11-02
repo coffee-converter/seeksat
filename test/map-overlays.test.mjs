@@ -160,9 +160,12 @@ test('night and footprint run on past the date line in one piece', () => {
   assert.equal(area.geometry.coordinates.length, 1);
   assert.ok(Math.max(...lons(area.geometry.coordinates)) > 180);
   const edge = data['ss-footprint'].features.find((f) => f.properties.part === 'edge');
-  assert.equal(edge.geometry.type, 'LineString');
-  assert.ok(Math.max(...lons(edge.geometry.coordinates)) > 180);
-  assert.deepEqual(edge.geometry.coordinates.at(-1), edge.geometry.coordinates[0], 'the edge closes on itself');
+  // One line (the edge is cut only near the poles, at the tile limit).
+  assert.equal(edge.geometry.type, 'MultiLineString');
+  assert.equal(edge.geometry.coordinates.length, 1);
+  const line = edge.geometry.coordinates[0];
+  assert.ok(Math.max(...lons(line)) > 180);
+  assert.deepEqual(line.at(-1), line[0], 'the edge closes on itself');
 });
 
 const COLORS = overlayColors('dark');
@@ -308,4 +311,9 @@ test('the grid sits under everything, faint, coarser when zoomed out', () => {
     const labels = m.slice(2, -1).filter((_, i) => i % 2 === 0);
     assert.equal(new Set(labels.map((l) => typeof l)).size, 1, `mixed match labels: ${JSON.stringify(labels)}`);
   }
+});
+
+test('the footprint edge is solid: MapLibre dashes change length between tiles', () => {
+  const edge = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-line');
+  assert.equal(edge.paint['line-dasharray'], undefined);
 });
