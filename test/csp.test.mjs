@@ -51,3 +51,11 @@ test('every https origin in client-reachable source is allowed or link-only', ()
   const missing = [...found].filter(([o]) => !connect.includes(o) && !NOT_FETCHED.has(o));
   assert.deepEqual(missing, [], `origins not in connect-src or NOT_FETCHED: ${missing.map(([o, f]) => `${o} (${f})`).join(', ')}`);
 });
+
+test('CSP allows OpenFreeMap tiles', () => {
+  const dirs = buildCsp().split('; ');
+  for (const name of ['connect-src', 'img-src']) {
+    const d = dirs.find((x) => x.startsWith(name));
+    assert.ok(d.split(' ').includes('https://tiles.openfreemap.org'), name);
+  }
+});

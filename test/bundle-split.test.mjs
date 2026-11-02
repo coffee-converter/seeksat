@@ -27,6 +27,11 @@ for (const [label, entry] of [
     const hit = [...files, ...packages].filter((p) => /cesium/i.test(p));
     assert.deepEqual(hit, [], `reachable Cesium modules: ${hit.join(', ')}`);
   });
+
+  test(`${label} does not statically reach maplibre-gl`, () => {
+    const { packages } = walk(path.join(ROOT, entry));
+    assert.ok(![...packages].includes('maplibre-gl'));
+  });
 }
 
 test('the card painter does not reach charts.js', () => {
