@@ -81,9 +81,9 @@ const buildData = overlayData as (o: {
   nightDate?: Date | null;
   shortTrackIds?: Set<number>;
   trackDetail?: number;
+  tracks?: boolean;
 }) => SourceData;
 const detailFor = trackDetailFor as (zoom: number) => number;
-const TRACK_SOURCES = ["ss-track-past", "ss-track-future", "ss-marks"];
 // A stable id per track shape object, so an unchanged minute's tracks are not
 // re-sent to the map every second.
 const shapeIds = new WeakMap<object, number>();
@@ -241,27 +241,27 @@ export default function FlatMap({
     night.current = { at: now, data: buildData({ nightDate: new Date(now) })["ss-night"] };
     return true;
   }, []);
-  const builtTrackKey = useRef<string | null>(null);
   const sentTrackKey = useRef<string | null>(null);
-  const sourceData = useCallback((map: MlMap): SourceData => {
+  /** Source data for the map. Tracks change once a minute (or on a zoom that
+   *  changes their detail) while the dots change every second, so unless all
+   *  is set the track sources are only built when their key has changed. */
+  const sourceData = useCallback((map: MlMap, all: boolean): SourceData => {
     const { sats: s, observer: o } = latest.current;
     const short = shortTracks(map, s);
     const detail = detailFor(map.getZoom());
-    builtTrackKey.current = trackKey(s, short, detail);
-    return buildData({ sats: s, observer: o, shortTrackIds: short, trackDetail: detail });
+    const key = trackKey(s, short, detail);
+    const tracks = all || key !== sentTrackKey.current;
+    sentTrackKey.current = key;
+    return buildData({ sats: s, observer: o, shortTrackIds: short, trackDetail: detail, tracks });
   }, []);
 
   // Push the latest props into the overlay sources.
   const push = useCallback(() => {
     const map = mapRef.current;
     if (!map || !styleReady.current) return;
-    const data = sourceData(map);
+    const data = sourceData(map, false);
     if (refreshNight()) data["ss-night"] = night.current?.data;
     else delete data["ss-night"];
-    // Tracks change once a minute (or on a zoom that changes their detail);
-    // the dots change every second, so only resend tracks when they changed.
-    if (builtTrackKey.current === sentTrackKey.current) for (const id of TRACK_SOURCES) delete data[id];
-    sentTrackKey.current = builtTrackKey.current;
     setOverlayData(map, data);
   }, [sourceData, refreshNight]);
 
@@ -373,8 +373,7 @@ export default function FlatMap({
         styleReady.current = true;
         const colors = overlayColors(themeRef.current);
         refreshNight();
-        const data = sourceData(map);
-        sentTrackKey.current = builtTrackKey.current;
+        const data = sourceData(map, true);
         data["ss-night"] = night.current?.data;
         addOverlays(map, {
           images: overlayImages(colors),
