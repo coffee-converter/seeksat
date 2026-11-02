@@ -186,11 +186,14 @@ export function SearchBar({ onView, onClearFocus }: Props) {
         />
         <button
           type="button"
-          className="search-bar__button"
+          className="search-bar__button search-bar__paste-button"
           aria-expanded={pasteOpen}
+          aria-label="Paste elements"
+          title="Paste elements"
           onClick={() => setPasteOpen((v) => !v)}
         >
-          Paste elements
+          <span className="search-bar__paste-full" aria-hidden="true">Paste elements</span>
+          <span className="search-bar__paste-short" aria-hidden="true">+</span>
         </button>
       </div>
 
