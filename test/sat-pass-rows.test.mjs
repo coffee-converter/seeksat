@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount } from '../lib/sat/pass-rows.mjs';
+import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay } from '../lib/sat/pass-rows.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -118,4 +118,35 @@ test('initialRowCount keeps the next 48 hours, at least 3 rows, and the shared r
   assert.equal(initialRowCount(rows.slice(4), 0), 3);
   assert.equal(initialRowCount(rows.slice(0, 2), 0), 2);
   assert.equal(initialRowCount([], 0), 0);
+});
+
+test('dayHeading names today and tomorrow in the observer zone', () => {
+  const now = Date.parse('2026-11-02T03:00:00Z'); // 21:00 on 1 Nov in Chicago
+  const tz = 'America/Chicago';
+  assert.equal(dayHeading(Date.parse('2026-11-02T05:50:00Z'), now, tz, 'en-GB'), 'Today');
+  assert.equal(dayHeading(Date.parse('2026-11-02T06:10:00Z'), now, tz, 'en-GB'), 'Tomorrow');
+  assert.equal(dayHeading(Date.parse('2026-11-03T18:00:00Z'), now, tz, 'en-GB'), 'Tue 3 Nov');
+});
+
+test('groupRowsByDay keeps order and puts an in-progress pass under Today', () => {
+  const now = Date.parse('2026-11-02T06:05:00Z'); // 00:05 on 2 Nov in Chicago
+  const row = (key, startIso) => ({ key, pass: { startMs: Date.parse(startIso) } });
+  const rows = [
+    row('a', '2026-11-02T05:58:00Z'), // started 23:58 on 1 Nov, still up
+    row('b', '2026-11-02T09:00:00Z'),
+    row('c', '2026-11-03T09:00:00Z'),
+    row('d', '2026-11-03T12:00:00Z'),
+  ];
+  const groups = groupRowsByDay(rows, now, 'America/Chicago', 'en-GB');
+  assert.deepEqual(groups.map((g) => [g.heading, g.rows.map((r) => r.key)]), [
+    ['Today', ['a', 'b']],
+    ['Tomorrow', ['c', 'd']],
+  ]);
+});
+
+test('passRows adds from and to compass labels', () => {
+  const v = passRows(findPasses({ track: iss, observers: [EN52VE], startMs: ISS_T0 }), opts);
+  const r = v.rows[0];
+  assert.equal(r.fromLabel, compass(r.pass.startAzDeg));
+  assert.equal(r.toLabel, compass(r.pass.endAzDeg));
 });

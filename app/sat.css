@@ -24,8 +24,30 @@ p.sat-how { margin: 0 0 8px; }
 .sat-show-all { margin-top: 10px; }
 .sat-zone { margin: 4px 0 8px; }
 .sat-pass { padding: 8px 0; border-bottom: 1px solid var(--map-border); }
-.sat-pass__main { margin: 0 0 4px; color: var(--map-text); font-variant-numeric: tabular-nums; line-height: 1.5; }
-.sat-pass__day { font-weight: 600; }
+/* Passes under day headings: times, rating and height on one line, then
+   length and direction quieter below. */
+.sat-day-group + .sat-day-group { margin-top: 10px; }
+.sat-day {
+  margin: 0;
+  padding: 6px 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--map-muted);
+  border-bottom: 1px solid var(--map-border);
+}
+.sat-day__list { list-style: none; margin: 0; padding: 0; }
+.sat-pass__line1 {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px;
+  margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums;
+}
+.sat-pass__times { font-size: 16px; font-weight: 700; color: var(--text-strong); }
+.sat-pass__line1 .quality { margin-left: 0; }
+.sat-pass__max { color: var(--map-text); }
+.sat-pass__line2 { margin: 2px 0 6px; color: var(--map-muted); font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.5; }
+.sat-pass__more { display: contents; }
+.sat-pass__more[hidden] { display: none; }
 .sat-pass .pass-card__tag { margin-left: 8px; }
 .sat-observers { margin: 12px 0; }
 .sat-observers__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
@@ -180,7 +202,6 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   .sat-print-meta { margin: 0 0 6pt; font-size: 10pt; }
   .sat-print-foot { margin: 10pt 0 0; font-size: 9pt; }
   .sat-pass { padding: 3pt 0; border-bottom: 0.5pt solid black; break-inside: avoid; page-break-inside: avoid; }
-  .sat-pass__main { margin: 0; line-height: 1.3; font-size: 10pt; }
   .sat-pass .pass-card__tag { margin-left: 6pt; padding: 0 4pt; border: 0.5pt solid black; font-size: 8.5pt; }
   .sat-pass .pass-card__tag.pass-card__tag { background: none; }
   .sat-pass .sat-how { margin: 1pt 0 0; font-size: 8.5pt; }

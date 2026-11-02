@@ -12,7 +12,8 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows, printAccuracyNote, zoneLabel, initialRowCount } from "@/lib/sat/pass-rows.mjs";
+import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay } from "@/lib/sat/pass-rows.mjs";
+import QualityBadge from "@/components/passes/QualityBadge";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
@@ -36,7 +37,7 @@ export type NextPassReport =
   | { kind: "unavailable" };
 type Row = {
   key: string; dayLabel: string; startLabel: string; peakLabel: string; endLabel: string; timesLabel: string;
-  durationLabel: string; maxElevLabel: string; azLabel: string;
+  durationLabel: string; maxElevLabel: string; azLabel: string; fromLabel: string; toLabel: string;
   visible: boolean; inProgress: boolean; runsPastEnd: boolean; accuracy: string | null; pass: Pass;
 };
 type View =
@@ -45,6 +46,8 @@ type View =
 type Track = { name: string; shortName: string; noradId: number };
 
 const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) => View;
+const groupRows = (rows: Row[], nowMs: number, timeZone?: string) =>
+  (groupRowsByDay as (r: Row[], n: number, tz?: string, l?: string) => Array<{ heading: string; rows: Row[] }>)(rows, nowMs, timeZone);
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const icsName = icsFileName as (sat: string, place: string, startMs: number) => string;
 type SharedHit = { kind: "row"; key: string } | { kind: "past"; text: string } | null;
@@ -222,6 +225,13 @@ export default function PassSection({
   const sharedKey = sharedHit?.kind === "row" ? sharedHit.key : null;
   // Ten days of passes is a long page on a phone: show two days, then a button.
   const [showAll, setShowAll] = useState(false);
+  // Rows whose extra actions are showing; the shared row always is.
+  const [openRows, setOpenRows] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleRow = (key: string) => setOpenRows((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
   const rowCount = view?.kind === "rows"
     ? (showAll ? view.rows.length : (initialRowCount as (r: Row[], n: number, o: { sharedKey: string | null }) => number)(view.rows, bucketMs, { sharedKey }))
     : 0;
@@ -369,45 +379,71 @@ export default function PassSection({
               {view.kind === "rows" && <p className="home-note sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>}
               {view.kind === "rows" ? (
                 <>
-                <ul className="sat-passlist">
-                  {view.rows.slice(0, rowCount).map((row) => (
-                    <li
-                      key={row.key}
-                      ref={row.key === sharedKey ? sharedRow : undefined}
-                      className={row.key === sharedKey ? "sat-pass pass-row--shared" : "sat-pass"}
-                    >
-                      <p className="sat-pass__main">
-                        <span className="sat-pass__day">{row.dayLabel}</span>
-                        {` ${row.timesLabel}, ${row.durationLabel}, max ${row.maxElevLabel}, ${row.azLabel}`}
-                        {row.key === sharedKey && <span className="pass-card__tag">shared pass</span>}
-                        {row.visible && <span className="pass-card__tag">visible</span>}
-                        {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
-                      </p>
-                      {row.accuracy && <p className="sat-how">{row.accuracy}</p>}
-                      <div className="pass-card__actions">
-                        <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
-                        <button type="button" className="home-chip" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</button>
-                        {track && (
-                          <ShareButton
-                            url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, pickedFreq.current)}
-                            title={`${track.name} pass`}
-                          />
-                        )}
-                        <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
-                          {"📅"}
-                        </button>
-                        {track && (
-                          <AlertBell
-                            noradId={track.noradId}
-                            name={track.shortName}
-                            pass={row.pass as NextPass}
-                            url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, null)}
-                          />
-                        )}
-                      </div>
-                    </li>
+                <div className="sat-passlist">
+                  {groupRows(view.rows.slice(0, rowCount), bucketMs, observer?.tz).map((group) => (
+                    <section key={group.heading} className="sat-day-group">
+                      <h3 className="sat-day">{group.heading}</h3>
+                      <ul className="sat-day__list">
+                        {group.rows.map((row) => {
+                          const open = row.key === sharedKey || openRows.has(row.key);
+                          const moreId = `pass-more-${row.key}`;
+                          return (
+                            <li
+                              key={row.key}
+                              ref={row.key === sharedKey ? sharedRow : undefined}
+                              className={row.key === sharedKey ? "sat-pass pass-row--shared" : "sat-pass"}
+                            >
+                              <p className="sat-pass__line1">
+                                <span className="sat-pass__times">{row.timesLabel}</span>
+                                <QualityBadge pass={row.pass as NextPass} />
+                                <span className="sat-pass__max">{`max ${row.maxElevLabel}`}</span>
+                              </p>
+                              <p className="sat-pass__line2">
+                                <span title={row.azLabel}>{`${row.durationLabel} · ${row.fromLabel} → ${row.toLabel}`}</span>
+                                {row.key === sharedKey && <span className="pass-card__tag">shared pass</span>}
+                                {row.visible && <span className="pass-card__tag">visible</span>}
+                                {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
+                              </p>
+                              {row.accuracy && <p className="sat-how">{row.accuracy}</p>}
+                              <div className="pass-card__actions">
+                                <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
+                                <button
+                                  type="button"
+                                  className="home-chip sat-pass__more-toggle"
+                                  aria-expanded={open}
+                                  aria-controls={moreId}
+                                  onClick={() => toggleRow(row.key)}
+                                >
+                                  {open ? "Less" : "More"}
+                                </button>
+                                <div id={moreId} className="sat-pass__more" hidden={!open}>
+                                  <button type="button" className="home-chip" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</button>
+                                  {track && (
+                                    <ShareButton
+                                      url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, pickedFreq.current)}
+                                      title={`${track.name} pass`}
+                                    />
+                                  )}
+                                  <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
+                                    {"📅"}
+                                  </button>
+                                  {track && (
+                                    <AlertBell
+                                      noradId={track.noradId}
+                                      name={track.shortName}
+                                      pass={row.pass as NextPass}
+                                      url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, null)}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
                   ))}
-                </ul>
+                </div>
                 {view.rows.length > rowCount && (
                   <button type="button" className="home-chip sat-show-all" onClick={() => setShowAll(true)}>
                     {`Show all ${view.rows.length} passes`}
