@@ -206,3 +206,51 @@ test('mapPolygons winds outer rings counter-clockwise', () => {
     assert.ok(signedArea(poly[0]) > 0, 'outer ring is counter-clockwise');
   }
 });
+
+import { densifyLine, trackDetailFor } from '../lib/map/geometry.mjs';
+
+test('densifyLine with factor 1 returns the line unchanged', () => {
+  const line = [[0, 0], [1, 1], [2, 1.5]];
+  assert.deepEqual(densifyLine(line, 1), line);
+});
+
+test('densifyLine curves through the samples close to the true ISS track', () => {
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const t0 = Date.parse('2026-03-01T12:00:00Z');
+  const at = (ms) => { const s = subpoint(iss.ecefAt(new Date(ms))); return [s.lonDeg, s.latDeg]; };
+  // 30 s samples over 10 minutes, away from the date line.
+  const coarse = [];
+  for (let ms = t0; ms <= t0 + 600_000; ms += 30_000) coarse.push(at(ms));
+  assert.ok(coarse.every(([lon], i) => i === 0 || Math.abs(lon - coarse[i - 1][0]) < 180));
+  const dense = densifyLine(coarse, 6);
+  assert.equal(dense.length, (coarse.length - 1) * 6 + 1);
+  // Every 5 s point lands within 0.002 deg (about 200 m) of SGP4's.
+  let worst = 0;
+  for (let i = 0; i < dense.length; i++) {
+    const [lon, lat] = at(t0 + i * 5_000);
+    worst = Math.max(worst, Math.hypot(dense[i][0] - lon, dense[i][1] - lat));
+  }
+  assert.ok(worst < 0.002, `worst ${worst} deg`);
+  // A straight-line (linear) fill would be far worse, so the test has teeth.
+  let linear = 0;
+  for (let i = 0; i < dense.length; i++) {
+    const k = Math.floor(i / 6), f = (i % 6) / 6;
+    const a = coarse[k], b = coarse[Math.min(k + 1, coarse.length - 1)];
+    const [lon, lat] = at(t0 + i * 5_000);
+    linear = Math.max(linear, Math.hypot(a[0] + (b[0] - a[0]) * f - lon, a[1] + (b[1] - a[1]) * f - lat));
+  }
+  assert.ok(linear > worst * 5, `linear ${linear} vs spline ${worst}`);
+});
+
+test('densifyLine keeps longitudes in range next to the date line', () => {
+  const line = [[178, 10], [179, 10.5], [179.9, 11]];
+  for (const [lon] of densifyLine(line, 8)) assert.ok(lon >= -180 && lon <= 180 && lon > 170);
+});
+
+test('trackDetailFor adds points as the map zooms in', () => {
+  assert.equal(trackDetailFor(2), 1);
+  assert.equal(trackDetailFor(5), 1);
+  assert.ok(trackDetailFor(10) >= 4);
+  assert.ok(trackDetailFor(15) >= 24 && trackDetailFor(15) <= 64);
+  for (let z = 0; z < 15; z += 0.5) assert.ok(trackDetailFor(z + 0.5) >= trackDetailFor(z));
+});

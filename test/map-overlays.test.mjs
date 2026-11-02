@@ -220,3 +220,19 @@ test('overlayColors takes water from the basemap and keeps the canvas observer a
   assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, observer: '#7eb8ff', night: 'rgba(3, 5, 12, 0.24)' });
   assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, observer: '#1f5fbf', night: 'rgba(20, 30, 60, 0.07)' });
 });
+
+test('trackDetail curves extra points into past and future tracks', () => {
+  const count = (fc) => fc.features.filter((f) => f.properties.noradId === 1)
+    .flatMap((f) => f.geometry.coordinates).reduce((n, line) => n + line.length, 0);
+  const plain = build();
+  const fine = build({ trackDetail: 4 });
+  assert.ok(count(fine['ss-track-future']) > 3 * count(plain['ss-track-future']));
+  // One past line of n points becomes (n - 1) * 4 + 1.
+  assert.equal(count(fine['ss-track-past']), (count(plain['ss-track-past']) - 1) * 4 + 1);
+  // The same track and detail reuse the curved lines instead of recomputing them.
+  const again = build({ trackDetail: 4 });
+  assert.equal(
+    again['ss-track-past'].features[0].geometry.coordinates[0],
+    fine['ss-track-past'].features[0].geometry.coordinates[0],
+  );
+});

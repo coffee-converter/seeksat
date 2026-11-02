@@ -7,6 +7,7 @@ import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
+import { trackDetailFor } from "@/lib/map/geometry.mjs";
 import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera } from "@/lib/map/view.mjs";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
@@ -79,7 +80,24 @@ const buildData = overlayData as (o: {
   observer?: MapObserver | null;
   nightDate?: Date | null;
   shortTrackIds?: Set<number>;
+  trackDetail?: number;
 }) => SourceData;
+const detailFor = trackDetailFor as (zoom: number) => number;
+const TRACK_SOURCES = ["ss-track-past", "ss-track-future", "ss-marks"];
+// A stable id per track shape object, so an unchanged minute's tracks are not
+// re-sent to the map every second.
+const shapeIds = new WeakMap<object, number>();
+let nextShapeId = 1;
+const shapeId = (o: object | null | undefined) => {
+  if (!o) return 0;
+  let id = shapeIds.get(o);
+  if (!id) shapeIds.set(o, (id = nextShapeId++));
+  return id;
+};
+function trackKey(sats: MapSat[], short: Set<number>, detail: number): string {
+  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}`);
+  return `${detail}|${[...short].sort().join(",")}|${parts.join(";")}`;
+}
 const home = homeCamera as (
   view: View,
   o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null; width: number; height: number },
@@ -223,9 +241,14 @@ export default function FlatMap({
     night.current = { at: now, data: buildData({ nightDate: new Date(now) })["ss-night"] };
     return true;
   }, []);
+  const builtTrackKey = useRef<string | null>(null);
+  const sentTrackKey = useRef<string | null>(null);
   const sourceData = useCallback((map: MlMap): SourceData => {
     const { sats: s, observer: o } = latest.current;
-    return buildData({ sats: s, observer: o, shortTrackIds: shortTracks(map, s) });
+    const short = shortTracks(map, s);
+    const detail = detailFor(map.getZoom());
+    builtTrackKey.current = trackKey(s, short, detail);
+    return buildData({ sats: s, observer: o, shortTrackIds: short, trackDetail: detail });
   }, []);
 
   // Push the latest props into the overlay sources.
@@ -235,6 +258,10 @@ export default function FlatMap({
     const data = sourceData(map);
     if (refreshNight()) data["ss-night"] = night.current?.data;
     else delete data["ss-night"];
+    // Tracks change once a minute (or on a zoom that changes their detail);
+    // the dots change every second, so only resend tracks when they changed.
+    if (builtTrackKey.current === sentTrackKey.current) for (const id of TRACK_SOURCES) delete data[id];
+    sentTrackKey.current = builtTrackKey.current;
     setOverlayData(map, data);
   }, [sourceData, refreshNight]);
 
@@ -347,6 +374,7 @@ export default function FlatMap({
         const colors = overlayColors(themeRef.current);
         refreshNight();
         const data = sourceData(map);
+        sentTrackKey.current = builtTrackKey.current;
         data["ss-night"] = night.current?.data;
         addOverlays(map, {
           images: overlayImages(colors),
