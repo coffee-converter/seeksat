@@ -7,7 +7,7 @@ import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
-import { PROJECTIONS, homeCamera, presetCamera } from "@/lib/map/view.mjs";
+import { PROJECTIONS, homeCamera, homeCentresFocus as homeCentresFocusOf, presetCamera } from "@/lib/map/view.mjs";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -88,6 +88,10 @@ const preset = presetCamera as (
   p: Preset,
   o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null },
 ) => { center: LngLat; zoom: number | null } | null;
+const homeCentresFocus = homeCentresFocusOf as (
+  view: View,
+  o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null },
+) => boolean;
 const addOverlays = addOverlaysTo as (
   map: MlMap,
   o: { images: unknown[]; layers: LayerSpecification[]; data: SourceData },
@@ -309,8 +313,10 @@ export default function FlatMap({
       canvas.setAttribute("role", "img");
       canvas.setAttribute("aria-label", "Map of followed satellites");
       canvas.tabIndex = 0;
-      // The home camera already centres on a focus that exists now.
-      if (focusOf(latest.current.sats)) centreOn.current = null;
+      // A flat home camera already centres on a focus that exists now; the
+      // globe's centres on the observer, so it still eases to the focus.
+      const { observer: o, view: v, sats: s0 } = latest.current;
+      if (homeCentresFocus(v, { observer: o, focus: focusOf(s0) })) centreOn.current = null;
 
       map.on("style.load", () => {
         styleReady.current = true;

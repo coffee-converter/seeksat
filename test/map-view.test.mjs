@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, presetCamera } from '../lib/map/view.mjs';
+import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera } from '../lib/map/view.mjs';
 
 test('the view list is flat and globe, flat by default', () => {
   assert.deepEqual(PROJECTIONS, [{ id: 'flat', label: 'Flat' }, { id: 'globe', label: 'Globe' }]);
@@ -71,6 +71,18 @@ test('homeCamera globe near a pole zooms no further out than at 80 degrees', () 
   assert.ok(Number.isFinite(north), `zoom ${north}`);
   assert.ok(north >= at80 - 1e-9, `89N ${north} vs 80N ${at80}`);
   assert.ok(south >= at80 - 1e-9, `89S ${south} vs 80N ${at80}`);
+});
+
+test('homeCentresFocus: the flat home centres a focus, the globe home only without an observer', () => {
+  const observer = { latDeg: 41.9, lonDeg: -88 };
+  const focus = { latDeg: -10, lonDeg: 100 };
+  assert.equal(homeCentresFocus('flat', { observer, focus }), true);
+  assert.equal(homeCentresFocus('flat', { observer: null, focus }), true);
+  // The globe home is observer-first, so the map still has to move to the focus.
+  assert.equal(homeCentresFocus('globe', { observer, focus }), false);
+  assert.equal(homeCentresFocus('globe', { observer: null, focus }), true);
+  assert.equal(homeCentresFocus('flat', { observer, focus: null }), false);
+  assert.equal(homeCentresFocus('globe', { observer: null, focus: null }), false);
 });
 
 test('presetCamera needs an observer or a focus', () => {
