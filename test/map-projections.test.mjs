@@ -31,6 +31,15 @@ test('polar-north centres the pole and clips the far south', () => {
   assert.ok(Math.abs(x - 300) < 1 && Math.abs(y - 300) < 1);
   assert.equal(geoPath(p)({ type: 'Point', coordinates: [0, -60] }), null);
 });
+test('the polar views end at the equator', () => {
+  const n = makeProjection('polar-north', { width: 600, height: 600 });
+  const s = makeProjection('polar-south', { width: 600, height: 600 });
+  const pt = (lat) => ({ type: 'Point', coordinates: [40, lat] });
+  assert.notEqual(geoPath(n)(pt(1)), null);
+  assert.equal(geoPath(n)(pt(-1)), null);
+  assert.notEqual(geoPath(s)(pt(-1)), null);
+  assert.equal(geoPath(s)(pt(1)), null);
+});
 test('satellite view centres the subpoint and hides the far side', () => {
   const sat = { latDeg: 0, lonDeg: -75, altKm: 35786 };
   const p = makeProjection('satellite', { width: 600, height: 600, sat });

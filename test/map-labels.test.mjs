@@ -114,7 +114,7 @@ test('equirectangular graticule labels show 180° exactly once', () => {
   }
 });
 
-for (const [id, rimLat] of [['polar-north', -20], ['polar-south', 20]]) {
+for (const [id, rimLat] of [['polar-north', 0], ['polar-south', 0]]) {
   test(`${id} meridian labels sit on the rim`, () => {
     const width = 900;
     const height = 450;
@@ -307,4 +307,12 @@ test('phone: meridians blocked by a bottom control fall back to the top edge', (
   assert.ok(meridians.length >= 3, `only ${meridians.length} meridians labelled`);
   for (const l of meridians) assert.ok(!overlaps(graticuleBox(l), bottom), `${l.text} overlaps the control`);
   assertFits(labels.map((l) => ({ ...graticuleBox(l), text: l.text })), width, height, 'phone');
+});
+
+test('polar views do not label the equator, which is their rim', () => {
+  for (const id of ['polar-north', 'polar-south']) {
+    const labels = graticuleLabels(proj(id, 900, 900), { width: 900, height: 900, step: 30, projectionId: id });
+    assert.equal(labels.filter((l) => l.line === 'parallel' && l.text === '0°').length, 0, id);
+    assert.ok(labels.some((l) => l.line === 'parallel'), `${id} keeps its other parallels`);
+  }
 });
