@@ -43,7 +43,7 @@ These would count as failure even if everything else works:
 
 ## Constraints
 
-- **Library:** `maplibre-gl` 5.x, pinned to an exact version at least two weeks old. Globe projection needs v5.
+- **Library:** `maplibre-gl` 6.x, pinned to an exact version at least two weeks old (6.15.0 as of 2026-11-02). Globe projection has been in MapLibre since v5.
   - It is loaded with a dynamic `import()` inside the map component.
   - `test/bundle-split.test.mjs` gains a check that no entry chunk reaches `maplibre-gl` statically.
 - **Tile origin:** `https://tiles.openfreemap.org` serves the vector source (`/planet`), glyphs and sprites.
@@ -76,7 +76,7 @@ Our overlays sit above all basemap layers, from bottom to top in this order:
    - Recomputed every 60 s.
    - These regions contain a pole and can span the antimeridian. They must be valid GeoJSON that MapLibre fills correctly in both Mercator and globe; a raw `geoCircle` ring does not.
    - **Fix:** a new pure function in `geometry.mjs` turns a `geoCircle` ring into MapLibre-ready polygons. It cuts the ring at the antimeridian, closes it over a pole when the ring contains one, and orders the winding the way MapLibre expects.
-   - `nightBands` and `footprintFeature` both return its output.
+   - The overlay builders pass `nightBands` and `footprintFeature` output through it. Those two functions keep returning `geoCircle` rings until the canvas map is deleted.
    - d3-geo stays.
    - The `map-geometry` tests gain cases for a ring around a pole and a ring across 180°.
 2. **Footprint,** for the focus satellite only, using the `minElevDeg` pref:
