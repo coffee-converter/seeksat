@@ -215,3 +215,9 @@ test('applyMode keeps night vision when the mode or the system changes', () => {
   assert.equal('night' in d.documentElement.dataset, false);
   assert.equal(applyMode(d, 'auto', true, store(false)), 'dark');
 });
+
+test('themeControlHint explains the control only while night vision is on', async () => {
+  const { themeControlHint } = await import('../lib/ui/theme.mjs');
+  assert.equal(themeControlHint(true), 'Applies when Night vision is off');
+  assert.equal(themeControlHint(false), undefined);
+});

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MODES, applyMode, readMode, writeMode } from "@/lib/ui/theme.mjs";
+import { MODES, applyMode, readMode, readNight, themeControlHint, writeMode } from "@/lib/ui/theme.mjs";
 
 type Mode = "auto" | "light" | "dark";
 
@@ -22,6 +22,7 @@ function apply(mode: Mode) {
  */
 export default function ThemeToggle() {
   const [mode, setMode] = useState<Mode | null>(null);
+  const [night, setNight] = useState(false);
 
   const groupRef = useRef<HTMLDivElement>(null);
 
@@ -30,6 +31,11 @@ export default function ThemeToggle() {
     setMode(m);
     // Re-apply the saved mode (idempotent) and tell listeners the starting theme.
     apply(m);
+    setNight(readNight());
+    // NightToggle fires this after it changes the saved setting.
+    const onTheme = () => setNight(readNight());
+    window.addEventListener("seeksat:theme", onTheme);
+    return () => window.removeEventListener("seeksat:theme", onTheme);
   }, []);
 
   const choose = useCallback((next: Mode) => {
@@ -53,8 +59,8 @@ export default function ThemeToggle() {
   const next = MODES[(MODES.indexOf(current) + 1) % MODES.length] as Mode;
 
   return (
-    <div className="theme-toggle" data-ready={mode ? "true" : "false"}>
-      <div className="theme-toggle__group" role="radiogroup" aria-label="Theme" ref={groupRef} onKeyDown={onKeyDown}>
+    <div className="theme-toggle" data-ready={mode ? "true" : "false"} data-night={night ? "true" : "false"} title={themeControlHint(night)}>
+      <div className="theme-toggle__group" role="radiogroup" aria-label="Theme" aria-description={themeControlHint(night)} ref={groupRef} onKeyDown={onKeyDown}>
         {(MODES as Mode[]).map((m) => (
           <button
             key={m}
@@ -73,6 +79,7 @@ export default function ThemeToggle() {
         type="button"
         className="theme-toggle__cycle"
         aria-label={`Theme: ${LABEL[current]}. Switch to ${LABEL[next]}.`}
+        aria-description={themeControlHint(night)}
         onClick={() => choose(next)}
       >
         {LABEL[current]}
