@@ -52,3 +52,36 @@ test('nightSpans covers the night', () => {
   assert.ok(Math.abs(at(spans[0].x0) - Date.parse('2026-11-02T23:30:00Z')) < 30 * 60_000);
   assert.ok(Math.abs(at(spans[0].x1) - Date.parse('2026-11-03T12:00:00Z')) < 30 * 60_000);
 });
+
+test('hourTicks gives the same ticks for a non-Latin-digit locale', () => {
+  const a = hourTicks(NOW, 'America/Chicago', { locale: 'en-GB' });
+  const b = hourTicks(NOW, 'America/Chicago', { locale: 'ar-EG' });
+  assert.equal(b.length, a.length);
+  assert.deepEqual(b.map((t) => t.x), a.map((t) => t.x));
+  assert.deepEqual(b.map((t) => t.label), a.map((t) => t.label));
+});
+
+test('hourTicks in Asia/Kolkata lands on whole local hours that are multiples of 3', () => {
+  const ticks = hourTicks(NOW, 'Asia/Kolkata', { locale: 'en-GB' });
+  assert.ok(ticks.length >= 7);
+  for (const t of ticks) {
+    const ms = NOW + t.x * 24 * H;
+    const local = new Date(ms + 5.5 * H);
+    assert.equal(local.getUTCMinutes(), 0);
+    assert.equal(local.getUTCHours() % 3, 0);
+  }
+});
+
+test('hourTicks across a Chicago DST change keeps ticks on local multiples of 3', () => {
+  const now = Date.parse('2026-11-01T04:30:00Z'); // fall back at 07:00Z
+  const ticks = hourTicks(now, 'America/Chicago', { locale: 'en-GB' });
+  assert.ok(ticks.length >= 7);
+  assert.ok(ticks.every((t) => Number(t.label.slice(0, 2)) % 3 === 0));
+  assert.ok(ticks.every((t) => t.x >= 0 && t.x <= 1));
+});
+
+test('nightSpans at 80N is all night in December and none in June', () => {
+  const obs = { latDeg: 80, lonDeg: 0 };
+  assert.deepEqual(nightSpans(obs, Date.parse('2026-12-21T00:00:00Z')), [{ x0: 0, x1: 1 }]);
+  assert.deepEqual(nightSpans(obs, Date.parse('2026-06-21T00:00:00Z')), []);
+});
