@@ -265,3 +265,8 @@ test('tracks: false leaves out the track sources without reading the tracks', ()
   const all = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8 });
   for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(all[id].features.length > 0, id);
 });
+
+test('the footprint fill stays faint so the map shows through', () => {
+  const fill = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-fill');
+  assert.ok(fill.paint['fill-opacity'] <= 0.1, `fill-opacity ${fill.paint['fill-opacity']}`);
+});
