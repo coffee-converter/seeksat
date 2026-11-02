@@ -1385,5 +1385,6 @@ a.home-chip { display: inline-block; text-decoration: none; }
   .timeline__ticks { grid-column: 1; }
 }
 @media print {
-  .timeline { display: none; }
+  .timeline,
+  .cloud { display: none; }
 }

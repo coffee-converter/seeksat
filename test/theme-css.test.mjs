@@ -271,3 +271,27 @@ test('colour keywords appear only inside @media print', () => {
   }
   assert.deepEqual(found, [], `colour keywords outside @media print:\n${found.join('\n')}`);
 });
+
+// The timeline and the cloud badges are screen-only: neither prints.
+test('home.css print styles hide the timeline and the cloud badges', () => {
+  const css = stripComments(read('app/home.css'));
+  const blocks = [];
+  for (let at = css.indexOf('@media print'); at >= 0; at = css.indexOf('@media print', at + 1)) {
+    let depth = 0;
+    let i = css.indexOf('{', at);
+    const start = i;
+    for (; i < css.length; i++) {
+      if (css[i] === '{') depth++;
+      else if (css[i] === '}' && --depth === 0) break;
+    }
+    blocks.push(css.slice(start + 1, i));
+  }
+  const hidden = new Set();
+  for (const block of blocks) {
+    for (const m of block.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      if (!/display\s*:\s*none/.test(m[2])) continue;
+      for (const sel of m[1].split(',')) hidden.add(sel.trim());
+    }
+  }
+  for (const sel of ['.timeline', '.cloud']) assert.ok(hidden.has(sel), `${sel} is hidden in print`);
+});
