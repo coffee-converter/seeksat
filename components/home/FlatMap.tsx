@@ -1,24 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { MAP_PALETTES, drawMap, hitTest, tickLabelBoxes } from "@/lib/map/draw.mjs";
+// Types only: the library itself loads in an effect, in its own chunk.
+import type { LayerSpecification, Map as MlMap, MapMouseEvent, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
-import { loadLand, nightBands } from "@/lib/map/geometry.mjs";
-import { graticuleBox, graticuleLabels, graticuleStep, observerBox, pickPlaceLabels, satBoxes } from "@/lib/map/labels.mjs";
-import { createLabelLayers } from "@/lib/map/label-cache.mjs";
-import {
-  PROJECTIONS,
-  CENTRE_ON_FOCUS,
-  DEFAULT_PROJECTION,
-  centredPan,
-  clampZoom,
-  FILL_PROJECTIONS,
-  fillView,
-  makeProjection,
-  projectionAvailable,
-  worldSize,
-  wrapLon,
-} from "@/lib/map/projections.mjs";
+import { basemapStyle } from "@/lib/map/basemap.mjs";
+import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
+import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
+import { PROJECTIONS, homeCamera } from "@/lib/map/view.mjs";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -57,6 +46,7 @@ export interface SelectedSub {
 interface Props {
   sats: MapSat[];
   observer: MapObserver | null;
+  /** 'flat' or 'globe' (lib/map/view.mjs). */
   projectionId: string;
   onProjectionChange: (id: string) => void;
   /** The focused satellite. Entering a focus pans to centre it. */
@@ -66,86 +56,73 @@ interface Props {
   onSelect: (noradId: number) => void;
   /** Shown above the map, inside the full screen frame (the focus bar). */
   top?: React.ReactNode;
-  /** Laid over the top of the map, left of the projection menu (the chips). */
+  /** Laid over the top of the map, left of the view menu (the chips). */
   chips?: React.ReactNode;
-  /** Subpoint and altitude of the selected satellite, for the "From the satellite" view. */
+  /** Subpoint and altitude of the selected satellite. */
   selectedSub?: SelectedSub | null;
   /** Sized by its container (MapShell): docked full height on desktop, with the
    *  focus bar and a collapsible legend laid over the map. */
   fill?: boolean;
 }
 
-interface ProjectionOptions {
-  width: number;
-  height: number;
-  observer: MapObserver | null;
-  sat: SelectedSub | null;
-  zoom: number;
-  pan: [number, number];
-  /** World maps only: the longitude at the centre. */
-  rotLon?: number;
-}
-// The .mjs helpers infer narrow default-parameter types; these state the real ones.
-const project = makeProjection as (id: string, o: ProjectionOptions) => Projection;
-const isAvailable = projectionAvailable as (
-  id: string,
-  o: { observer: MapObserver | null; sat: SelectedSub | null },
-) => boolean;
-type Projection = ((p: [number, number]) => [number, number] | null) & object;
-type NightBands = { sunBelowDeg: number; feature: unknown }[];
-const draw = drawMap as unknown as (ctx: CanvasRenderingContext2D, o: Record<string, unknown>) => void;
-const hit = hitTest as (sats: MapSat[], p: Projection, x: number, y: number) => number | null;
+type View = "flat" | "globe";
+type LngLat = [number, number];
+type Camera = { center: LngLat; zoom: number };
 type LegendItem = { key: string; kind: string; label: string; color?: string };
 const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
-type Pt = { x: number; y: number };
-type Box = { x0: number; y0: number; x1: number; y1: number };
-type GratLabel = { text: string; x: number; y: number; align: string; baseline: string; line?: unknown };
-type PlaceData = { places: unknown; regions: unknown };
-type LabelSet = { places: unknown; graticule: GratLabel[] };
-type LabelOpts = {
-  width: number; height: number; zoom: number; projectionId: string; places: unknown; regions: unknown; sats: MapSat[];
-  observer: MapObserver | null;
-  /** Map controls laid over the canvas (zoom buttons, chips, menu, focus bar, legend). */
-  controls: Box[];
-};
-const gratLabels = graticuleLabels as unknown as (
-  p: Projection,
-  o: { width: number; height: number; step: number; projectionId: string; avoid: Box[] },
-) => GratLabel[];
-const observerBoxOf = observerBox as unknown as (p: Projection, o: MapObserver | null) => Box | null;
-const gratBox = graticuleBox as unknown as (l: GratLabel) => Box;
-const gratStep = graticuleStep as unknown as (zoom: number, width: number) => number;
-const tickBoxesOf = tickLabelBoxes as unknown as (s: MapSat, p: Projection) => Box[];
-const satBoxesOf = satBoxes as unknown as (p: Projection, sats: MapSat[], width: number) => Box[];
-type View = { zoom: number; pan: [number, number]; rotLon: number };
-const fillOf = fillView as (id: string, o: { width: number; height: number }, lonDeg: number) => View | null;
-const worldSizeOf = worldSize as (id: string, o: { width: number; height: number }) => { width: number; height: number };
-const wrap = wrapLon as (lon: number) => number;
-/** World maps wrap by rotation; discs pan. */
-const isWorld = (id: string) => (FILL_PROJECTIONS as string[]).includes(id);
-type LabelKeyOpts = {
-  projectionId: string; width: number; height: number; zoom: number; pan: [number, number];
-  observer: MapObserver | null; sub: SelectedSub | null; sats: MapSat[]; rotLon: number;
-  controls: string; data: string;
-};
-const labelLayers = createLabelLayers as unknown as (picks: {
-  graticule: (p: Projection, o: LabelOpts) => GratLabel[];
-  places: (p: Projection, o: LabelOpts, graticule: GratLabel[]) => unknown;
-}) => { get: (key: LabelKeyOpts, p: Projection, o: LabelOpts, flags?: { moving?: boolean }) => LabelSet };
-const panTo = centredPan as (
-  id: string,
-  o: { width: number; height: number; observer: MapObserver | null; sat: SelectedSub | null; zoom: number },
-  lonDeg: number,
-  latDeg: number,
-) => [number, number] | null;
+type SourceData = Record<string, unknown>;
+const buildData = overlayData as (o: {
+  sats?: MapSat[];
+  observer?: MapObserver | null;
+  nightDate?: Date | null;
+  shortTrackIds?: Set<number>;
+}) => SourceData;
+const home = homeCamera as (
+  view: View,
+  o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null; width: number; height: number },
+) => Camera;
+const addOverlays = addOverlaysTo as (
+  map: MlMap,
+  o: { images: unknown[]; layers: LayerSpecification[]; data: SourceData },
+) => void;
+type Theme = "dark" | "light";
 
-const TAP_SLOP_PX = 6;
-/** Labels keep this far clear of the controls laid over the map. */
-const CONTROL_PAD_PX = 4;
-const DOUBLE_TAP_MS = 300;
 const NIGHT_REFRESH_MS = 60_000;
 /** Where MapShell docks the map beside the panel (keep in step with home.css). */
 const DOCKED_QUERY = "(min-width: 1100px)";
+/** A tap this close to a dot (in px, either axis) selects it. */
+const HIT_PX = 22;
+/** The satellite dot layers (lib/map/overlays.mjs), focus on top. */
+const SAT_LAYERS = ["ss-sats", "ss-sats-focus"];
+/** A future track smaller than this on both axes gets no chevron or ticks. */
+const SHORT_TRACK_PX = 16;
+
+const viewOf = (id: string): View => (id === "globe" ? "globe" : "flat");
+const wrapLon = (d: number) => d - 360 * Math.round(d / 360);
+const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
+const reducedMotion = () =>
+  typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const focusOf = (sats: MapSat[]) => sats.find((s) => s.emphasis === "focus")?.position ?? null;
+
+/** Satellites whose future track spans under SHORT_TRACK_PX on screen (GEO). */
+function shortTracks(map: MlMap, sats: MapSat[]): Set<number> {
+  const out = new Set<number>();
+  for (const s of sats) {
+    const shape = s.trackFuture;
+    if (!shape || s.emphasis === "ghost" || s.emphasis === "hidden") continue;
+    const lines = (shape.type === "LineString" ? [shape.coordinates] : shape.coordinates) as LngLat[][];
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const line of lines ?? []) {
+      for (const pt of line) {
+        const p = map.project(pt);
+        x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x);
+        y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
+      }
+    }
+    if (x1 >= x0 && x1 - x0 < SHORT_TRACK_PX && y1 - y0 < SHORT_TRACK_PX) out.add(s.noradId);
+  }
+  return out;
+}
 
 export default function FlatMap({
   sats,
@@ -155,358 +132,221 @@ export default function FlatMap({
   selectedId,
   minElevDeg,
   onSelect,
-  selectedSub = null,
   top = null,
   chips = null,
   fill = false,
 }: Props) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const view = useRef<View>({ zoom: 1, pan: [0, 0], rotLon: 0 });
-  const size = useRef({ width: 0, height: 0, dpr: 1 });
-  const projection = useRef<Projection | null>(null);
-  const night = useRef<{ at: number; bands: NightBands } | null>(null);
-  const shellRef = useRef<HTMLDivElement>(null);
+  const view = viewOf(projectionId);
+  const glRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MlMap | null>(null);
+  // True between a style's load and the next setStyle: the overlay sources exist.
+  const styleReady = useRef(false);
   // Read after mount (the server and first render draw dark).
-  const themeRef = useRef<"dark" | "light">("dark");
-  // Place data arrives after mount, in its own chunk.
-  const placeData = useRef<PlaceData | null>(null);
-  // Lat/lon labels re-pick only when the view or the controls change; place
-  // names also re-pick as the satellites move (label-cache.mjs).
-  const labelCache = useRef(
-    labelLayers({
-      graticule: (proj, o) => gratLabels(proj, {
-        width: o.width, height: o.height, step: gratStep(o.zoom, o.width), projectionId: o.projectionId,
-        avoid: o.controls,
-      }),
-      places: (proj, o, graticule) => {
-        const obs = observerBoxOf(proj, o.observer);
-        return (pickPlaceLabels as unknown as (p: Projection, o: Record<string, unknown>) => unknown)(proj, {
-          width: o.width, height: o.height, zoom: o.zoom, places: o.places, regions: o.regions,
-          // Clear of the controls, the lat/lon labels, the observer marker and
-          // the satellites' dots and names.
-          avoid: [
-            ...o.controls, ...graticule.map(gratBox), ...(obs ? [obs] : []), ...satBoxesOf(proj, o.sats, o.width),
-            ...o.sats.flatMap((s) => tickBoxesOf(s, proj)),
-          ],
-        });
-      },
-    }),
-  );
-  // While a drag or pinch is in progress the last labels are reused; they are
-  // recomputed once when the gesture ends.
-  const gesturing = useRef(false);
-  const lastLabels = useRef<LabelSet | null>(null);
+  const themeRef = useRef<Theme>("dark");
+  const night = useRef<{ at: number; data: unknown } | null>(null);
+  const [noGl, setNoGl] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   const fullRef = useRef(false);
   fullRef.current = full;
   const nativeFull = useRef(false);
-  // View to restore on exit, and a flag to fit the map to the shell once it has resized.
-  const prevView = useRef<(View & { home: boolean }) | null>(null);
-  // True while the view is the home view (no zoom or pan by hand since), so a
-  // resize refits it. homeZoom is that view's zoom: above it the map owns touch.
+  // True while the camera is the home view (not moved by hand since), so a
+  // resize or a new observer refits it.
   const atHome = useRef(true);
-  const homeZoom = useRef(1);
-  const fitOnResize = useRef(false);
-  const wheelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Docked beside the panel the page never scrolls, so the map owns wheel and drag.
   const docked = useRef(false);
+  // Entering a focus moves once to centre it (the effect near the end).
+  const centreOn = useRef<number | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const legendId = useId();
-  // The controls laid over the canvas, measured after each render and on
-  // resize (never per frame), in canvas px: labels keep clear of them.
-  const zoomRef = useRef<HTMLDivElement>(null);
-  const topRef = useRef<HTMLDivElement>(null);
-  const headRef = useRef<HTMLDivElement>(null);
-  const legendBoxRef = useRef<HTMLDivElement>(null);
-  const controls = useRef<Box[]>([]);
-  const controlsKey = useRef("");
 
-  // A projection that is unavailable right now (no observer, no selected satellite)
-  // is shown and drawn as the default. The saved choice is left alone so it
-  // returns when it becomes available again.
-  const effectiveId = isAvailable(projectionId, { observer, sat: selectedSub })
-    ? projectionId
-    : DEFAULT_PROJECTION;
+  // Latest props, read by map event handlers without re-binding them.
+  const latest = useRef({ sats, observer, view, onSelect });
+  latest.current = { sats, observer, view, onSelect };
 
-  // Latest props, read by the draw loop and pointer handlers without re-binding them.
-  const latest = useRef({ sats, observer, projectionId: effectiveId, selectedSub, onSelect });
-  latest.current = { sats, observer, projectionId: effectiveId, selectedSub, onSelect };
-
-  const redraw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    const { width, height, dpr } = size.current;
-    if (!canvas || !ctx || !width) return;
-    const cur = latest.current;
-    const now = Date.now();
-    if (!night.current || now - night.current.at > NIGHT_REFRESH_MS) {
-      night.current = { at: now, bands: nightBands(new Date(now)) };
-    }
-    const proj = project(cur.projectionId, {
-      width,
-      height,
-      observer: cur.observer,
-      sat: cur.selectedSub,
-      zoom: view.current.zoom,
-      pan: view.current.pan,
-      rotLon: view.current.rotLon,
-    });
-    projection.current = proj;
-    // At zoom 1 the map leaves vertical scrolling to the page; zoomed in, it owns touch.
-    // Full screen and the docked desktop map have no page to scroll, so they always own it.
-    canvas.style.touchAction = view.current.zoom > homeZoom.current + 1e-6 || fullRef.current || docked.current
-      ? "none"
-      : "pan-y";
-    let labels = lastLabels.current;
-    {
-      const data = placeData.current;
-      const { zoom, pan, rotLon } = view.current;
-      labels = labelCache.current.get(
-        {
-          projectionId: cur.projectionId, width, height, zoom, pan,
-          observer: cur.observer, sub: cur.selectedSub, sats: cur.sats, rotLon,
-          controls: controlsKey.current,
-          data: data ? "p" : "g",
-        },
-        proj,
-        {
-          width, height, zoom, projectionId: cur.projectionId,
-          places: data?.places ?? [], regions: data?.regions ?? [], sats: cur.sats,
-          observer: cur.observer, controls: controls.current,
-        },
-        { moving: gesturing.current },
-      );
-      lastLabels.current = labels;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    // Clip to the map so zoomed or panned geometry stays inside the frame.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, width, height);
-    ctx.clip();
-    draw(ctx, {
-      projection: proj,
-      width,
-      height,
-      land: loadLand(),
-      nightBands: night.current.bands,
-      sats: cur.sats,
-      observer: cur.observer,
-      zoom: view.current.zoom,
-      labels: placeData.current ? labels : { places: [], graticule: labels.graticule },
-      palette: MAP_PALETTES[themeRef.current],
-    });
-    ctx.restore();
+  const homeView = useCallback((map: MlMap): Camera => {
+    const { sats: s, observer: o, view: v } = latest.current;
+    const el = map.getContainer();
+    return home(v, { observer: o, focus: focusOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
+  }, []);
+  const moveTo = useCallback((map: MlMap, cam: { center: LngLat; zoom: number }) => {
+    if (reducedMotion()) map.jumpTo(cam);
+    else map.easeTo(cam);
   }, []);
 
-  // Re-measure the overlaid controls; true when they moved. Each control's
-  // box counts only where it covers the canvas (the focus bar above a phone
-  // map and the legend below it do not).
-  const measureControls = useCallback((): boolean => {
-    const canvas = canvasRef.current;
-    if (!canvas) return false;
-    const c = canvas.getBoundingClientRect();
-    const els: Element[] = [];
-    for (const el of [zoomRef.current, headRef.current, legendBoxRef.current]) if (el) els.push(el);
-    // The chips and the menu, not the row between them (taps pass through it).
-    if (topRef.current) els.push(...Array.from(topRef.current.children));
-    const out: Box[] = [];
-    for (const el of els) {
-      const r = el.getBoundingClientRect();
-      if (!r.width || !r.height) continue;
-      if (r.right <= c.left || r.left >= c.right || r.bottom <= c.top || r.top >= c.bottom) continue;
-      out.push({
-        x0: r.left - c.left - CONTROL_PAD_PX,
-        y0: r.top - c.top - CONTROL_PAD_PX,
-        x1: r.right - c.left + CONTROL_PAD_PX,
-        y1: r.bottom - c.top + CONTROL_PAD_PX,
-      });
-    }
-    const key = out.map((b) => `${Math.round(b.x0)},${Math.round(b.y0)},${Math.round(b.x1)},${Math.round(b.y1)}`).join(";");
-    controls.current = out;
-    if (key === controlsKey.current) return false;
-    controlsKey.current = key;
+  /** Night bands, rebuilt at most every NIGHT_REFRESH_MS; true when rebuilt. */
+  const refreshNight = useCallback((): boolean => {
+    const now = Date.now();
+    if (night.current && now - night.current.at < NIGHT_REFRESH_MS) return false;
+    night.current = { at: now, data: buildData({ nightDate: new Date(now) })["ss-night"] };
     return true;
   }, []);
-  // After each render (chips, focus bar, legend or full screen changed). This
-  // runs before the prop-change redraw below, so that draw sees the new boxes.
-  useEffect(() => {
-    if (measureControls()) redraw();
-  });
-
-  // The home view: a world map turns to centre the focused satellite, else
-  // the observer, else lon 0, and in a frame taller than its aspect fills the
-  // frame's height. Discs are zoom 1, unpanned.
-  const homeView = useCallback((): View => {
-    const { width, height } = size.current;
-    const cur = latest.current;
-    if (!isWorld(cur.projectionId)) {
-      homeZoom.current = 1;
-      return { zoom: 1, pan: [0, 0], rotLon: 0 };
-    }
-    const focus = cur.sats.find((s) => s.emphasis === "focus");
-    const lon = wrap(focus?.position.lonDeg ?? cur.observer?.lonDeg ?? 0);
-    const fit = fillOf(cur.projectionId, { width, height }, lon);
-    homeZoom.current = fit?.zoom ?? 1;
-    return fit ?? { zoom: 1, pan: [0, 0], rotLon: lon };
+  const sourceData = useCallback((map: MlMap): SourceData => {
+    const { sats: s, observer: o } = latest.current;
+    return buildData({ sats: s, observer: o, shortTrackIds: shortTracks(map, s) });
   }, []);
-  // Degrees of longitude per screen px on a world map at this zoom.
-  const degPerPx = useCallback((zoom: number) => {
-    const { width, height } = size.current;
-    const w = worldSizeOf(latest.current.projectionId, { width, height }).width;
-    return w > 0 ? 360 / (w * zoom) : 0;
-  }, []);
-  // A world map's vertical pan: free above the home zoom, centred at or below it.
-  const worldPanY = useCallback((zoom: number, y: number) => (zoom > homeZoom.current + 1e-6 ? y : 0), []);
-  const goHome = useCallback(() => {
-    view.current = homeView();
-    atHome.current = true;
-  }, [homeView]);
-  const reset = useCallback(() => {
-    goHome();
-    redraw();
-  }, [goHome, redraw]);
-  // Zoom by factor k keeping the point (qx, qy) fixed on screen.
-  const zoomAt = useCallback((k: number, qx: number, qy: number) => {
-    atHome.current = false;
-    const { width, height } = size.current;
-    const z1 = view.current.zoom;
-    const z2 = clampZoom(z1 * k);
-    const kk = z2 / z1;
-    const cx = width / 2;
-    const cy = height / 2;
-    const [px, py] = view.current.pan;
-    const y = qy - cy - (qy - cy - py) * kk;
-    if (isWorld(latest.current.projectionId)) {
-      // The anchor's horizontal shift becomes a turn of the globe; pan[0] stays 0.
-      const turn = (qx - cx) * (1 / z1 - 1 / z2) * degPerPx(1);
-      view.current = { zoom: z2, pan: [0, worldPanY(z2, y)], rotLon: wrap(view.current.rotLon + turn) };
-    } else {
-      view.current = {
-        zoom: z2,
-        pan: z2 === 1 ? [0, 0] : [qx - cx - (qx - cx - px) * kk, y],
-        rotLon: 0,
-      };
-    }
-    redraw();
-  }, [redraw, degPerPx, worldPanY]);
-  const zoomBy = (k: number) => zoomAt(k, size.current.width / 2, size.current.height / 2);
 
-  // Fit the canvas backing store to the wrapper's CSS size (set in home.css)
-  // and re-fit only when that size or the pixel ratio actually changes.
+  // Push the latest props into the overlay sources.
+  const push = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !styleReady.current) return;
+    const data = sourceData(map);
+    if (refreshNight()) data["ss-night"] = night.current?.data;
+    else delete data["ss-night"];
+    setOverlayData(map, data);
+  }, [sourceData, refreshNight]);
+
+  const syncGestures = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    // Stacked under the panel the page scrolls past the map, so the map wants
+    // ctrl+wheel or two fingers; docked or full screen it takes plain gestures.
+    if (docked.current || fullRef.current) map.cooperativeGestures.disable();
+    else map.cooperativeGestures.enable();
+  }, []);
+
+  // The theme: read once on mount, then follow the toggle by swapping the
+  // style. style.load re-adds the overlays; the camera is untouched.
   useEffect(() => {
-    const wrap = wrapRef.current;
-    const canvas = canvasRef.current;
-    if (!wrap || !canvas) return;
-    const fit = () => {
-      const width = Math.round(wrap.clientWidth);
-      const height = Math.round(wrap.clientHeight);
-      if (!width || !height) return;
-      const dpr = window.devicePixelRatio || 1;
-      const cur = size.current;
-      if (cur.width === width && cur.height === height && cur.dpr === dpr) return;
-      size.current = { width, height, dpr };
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      measureControls();
-      // The home zoom follows the frame even when the view is not at home, so
-      // touch, wheel and vertical pan switch over at the right zoom after a
-      // rotation or leaving full screen.
-      const id = latest.current.projectionId;
-      homeZoom.current = isWorld(id) ? fillOf(id, { width, height }, view.current.rotLon)?.zoom ?? 1 : 1;
-      // A new size refits the home view (on load, on resize, and entering full
-      // screen); a view zoomed or panned by hand is kept.
-      if (fitOnResize.current || atHome.current) {
-        fitOnResize.current = false;
-        goHome();
+    themeRef.current = readTheme();
+    const onTheme = () => {
+      const next = readTheme();
+      if (next === themeRef.current) return;
+      themeRef.current = next;
+      const map = mapRef.current;
+      if (!map) return;
+      styleReady.current = false;
+      map.setStyle(basemapStyle(next) as StyleSpecification, { diff: false });
+    };
+    window.addEventListener("seeksat:theme", onTheme);
+    return () => window.removeEventListener("seeksat:theme", onTheme);
+  }, []);
+
+  // Load MapLibre and make the map. Until it arrives the frame shows the water colour.
+  useEffect(() => {
+    let alive = true;
+    let made: MlMap | null = null;
+    (async () => {
+      let gl: typeof import("maplibre-gl");
+      try {
+        [gl] = await Promise.all([import("maplibre-gl"), import("maplibre-gl/dist/maplibre-gl.css")]);
+      } catch {
+        return; // The chunk did not load (offline): the frame keeps its water colour.
       }
-      redraw();
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(wrap);
-    // Browser zoom changes the pixel ratio without resizing the wrapper.
-    window.addEventListener("resize", fit);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", fit);
-    };
-  }, [redraw, goHome, measureControls]);
-  // Controls that change size outside a render (fonts loading, the focus bar
-  // wrapping) re-measure too.
-  const hasTop = top != null;
-  useEffect(() => {
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => {
-      if (measureControls()) redraw();
-    });
-    for (const el of [zoomRef.current, headRef.current, legendBoxRef.current, topRef.current]) if (el) ro.observe(el);
-    for (const el of Array.from(topRef.current?.children ?? [])) ro.observe(el);
-    return () => ro.disconnect();
-  }, [fill, hasTop, measureControls, redraw]);
+      const el = glRef.current;
+      if (!alive || !el) return;
+      // The bundler rewrites import.meta.url inside the library, so it cannot
+      // find its worker by itself; this URL makes the build emit the file.
+      gl.setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).href);
+      if ((gl as unknown as { supported?: () => boolean }).supported?.() === false) {
+        setNoGl(true);
+        return;
+      }
+      const cam = home(latest.current.view, {
+        observer: latest.current.observer,
+        focus: focusOf(latest.current.sats),
+        width: el.clientWidth || 1,
+        height: el.clientHeight || 1,
+      });
+      let map: MlMap;
+      try {
+        map = new gl.Map({
+          container: el,
+          style: basemapStyle(themeRef.current) as StyleSpecification,
+          center: cam.center,
+          zoom: cam.zoom,
+          attributionControl: { compact: true },
+          renderWorldCopies: true,
+          dragRotate: false,
+          pitchWithRotate: false,
+          touchPitch: false,
+          maxZoom: 8,
+          cooperativeGestures: !(docked.current || fullRef.current),
+        });
+      } catch {
+        setNoGl(true);
+        return;
+      }
+      made = map;
+      mapRef.current = map;
+      map.touchZoomRotate.disableRotation();
+      map.keyboard.disableRotation();
+      const canvas = map.getCanvas();
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", "Map of followed satellites");
+      canvas.tabIndex = 0;
+      // The home camera already centres on a focus that exists now.
+      if (focusOf(latest.current.sats)) centreOn.current = null;
 
+      map.on("style.load", () => {
+        styleReady.current = true;
+        const colors = overlayColors(themeRef.current);
+        refreshNight();
+        const data = sourceData(map);
+        data["ss-night"] = night.current?.data;
+        addOverlays(map, {
+          images: overlayImages(colors),
+          layers: overlayLayers(colors) as LayerSpecification[],
+          data,
+        });
+        map.setProjection({ type: latest.current.view === "globe" ? "globe" : "mercator" });
+      });
+      // A tap on a dot (or its name) selects the nearest one; hidden satellites are not in the layers.
+      map.on("click", (e: MapMouseEvent) => {
+        if (!styleReady.current) return;
+        const { x, y } = e.point;
+        const hits = map.queryRenderedFeatures([[x - HIT_PX, y - HIT_PX], [x + HIT_PX, y + HIT_PX]], { layers: SAT_LAYERS });
+        let best: number | null = null;
+        let bestD = Infinity;
+        for (const f of hits) {
+          if (f.geometry.type !== "Point") continue;
+          const [lon, lat] = f.geometry.coordinates;
+          // The world copy nearest the tap.
+          const p = map.project([e.lngLat.lng + wrapLon(lon - e.lngLat.lng), lat]);
+          const d = Math.hypot(p.x - x, p.y - y);
+          if (d < bestD) {
+            bestD = d;
+            best = Number(f.properties?.noradId);
+          }
+        }
+        if (best != null && Number.isFinite(best)) latest.current.onSelect(best);
+      });
+      // Moves by hand leave the home view; ours carry no originalEvent.
+      map.on("movestart", (e: { originalEvent?: Event }) => {
+        if (e.originalEvent) atHome.current = false;
+      });
+      // Zooming changes which tracks are too short for direction marks.
+      map.on("moveend", push);
+      // MapLibre follows its container; an untouched home view refits to it.
+      map.on("resize", () => {
+        if (atHome.current) map.jumpTo(homeView(map));
+      });
+    })();
+    return () => {
+      alive = false;
+      styleReady.current = false;
+      mapRef.current = null;
+      made?.remove();
+    };
+    // Made once (the callbacks are stable); later props reach it through
+    // latest and the effects below.
+  }, [refreshNight, sourceData, push, homeView]);
+
+  // Docked or not: switches the gesture mode.
   useEffect(() => {
     if (!fill || typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia(DOCKED_QUERY);
     const sync = () => {
       docked.current = mq.matches;
-      measureControls();
-      redraw();
+      syncGestures();
     };
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
-  }, [fill, redraw, measureControls]);
-
-  // Place names are 35 KB; fetch them after mount so first paint stays light.
+  }, [fill, syncGestures]);
   useEffect(() => {
-    let alive = true;
-    Promise.all([import("@/lib/map/places.json"), import("@/lib/map/regions.mjs")]).then(
-      ([p, r]) => {
-        if (!alive) return;
-        placeData.current = {
-          places: (p as { default?: unknown }).default ?? p,
-          regions: (r as { REGIONS: unknown }).REGIONS,
-        };
-        redraw();
-      },
-      () => {},
-    );
-    return () => {
-      alive = false;
-    };
-  }, [redraw]);
-
-  // Entering full screen remembers the view; leaving restores it.
-  useEffect(() => {
-    if (full) {
-      prevView.current = {
-        zoom: view.current.zoom,
-        pan: [...view.current.pan] as [number, number],
-        rotLon: view.current.rotLon,
-        home: atHome.current,
-      };
-      fitOnResize.current = true;
-    } else {
-      fitOnResize.current = false;
-      if (prevView.current) {
-        const { zoom, pan, rotLon, home } = prevView.current;
-        prevView.current = null;
-        // A home view refits to the frame on the way out (its size changes back).
-        if (home) goHome();
-        else {
-          view.current = { zoom, pan, rotLon };
-          atHome.current = false;
-        }
-        redraw();
-      }
-    }
-  }, [full, redraw, goHome]);
-  useEffect(() => () => {
-    if (wheelTimer.current) clearTimeout(wheelTimer.current);
-  }, []);
+    syncGestures();
+  }, [full, syncGestures]);
 
   const toggleFull = useCallback(() => {
     const shell = shellRef.current;
@@ -562,215 +402,71 @@ export default function FlatMap({
       if (fallback) document.body.style.overflow = "";
     };
   }, [full]);
-  // Redraw when the theme changes (and once on mount, to pick up light).
-  useEffect(() => {
-    const onTheme = () => {
-      themeRef.current = document.documentElement.dataset.theme === "light" ? "light" : "dark";
-      redraw();
-    };
-    onTheme();
-    window.addEventListener("seeksat:theme", onTheme);
-    return () => window.removeEventListener("seeksat:theme", onTheme);
-  }, [redraw]);
-  // The wrapper changes size; the ResizeObserver refits, and the touch mode changes.
-  useEffect(() => {
-    redraw();
-  }, [full, redraw]);
 
-  // A new projection starts from its home view, and an untouched home view
-  // follows the observer (it arrives after mount, once prefs load).
+  // A new view starts from its home camera.
+  const shownView = useRef(view);
+  useEffect(() => {
+    if (shownView.current === view) return;
+    shownView.current = view;
+    const map = mapRef.current;
+    if (!map) return;
+    // Before the style loads, style.load applies the projection.
+    if (styleReady.current) map.setProjection({ type: view === "globe" ? "globe" : "mercator" });
+    atHome.current = true;
+    map.jumpTo(homeView(map));
+  }, [view, homeView]);
+
+  // An untouched home view follows the observer (it arrives after mount, once prefs load).
   const obsLon = observer?.lonDeg ?? null;
+  const obsLat = observer?.latDeg ?? null;
   useEffect(() => {
-    goHome();
-  }, [effectiveId, goHome]);
-  useEffect(() => {
-    if (atHome.current) goHome();
-  }, [obsLon, goHome]);
-  // Entering a focus pans once to centre it, keeping the zoom. It waits for the
-  // satellite to have a position, then leaves the view alone.
-  const centreOn = useRef<number | null>(null);
+    const map = mapRef.current;
+    if (map && atHome.current) map.jumpTo(homeView(map));
+  }, [obsLon, obsLat, homeView]);
+
+  // Entering a focus moves once to centre it, keeping the zoom. It waits for
+  // the satellite to have a position, then leaves the camera alone.
   useEffect(() => {
     centreOn.current = selectedId;
   }, [selectedId]);
-  // The parent's clock tick passes new props each second; redraw on any prop change.
+  // The parent's clock tick passes new props each second.
   useEffect(() => {
+    const map = mapRef.current;
     const id = centreOn.current;
-    const { width, height } = size.current;
-    if (id != null && width) {
-      const cur = latest.current;
-      const sat = cur.sats.find((s) => s.noradId === id && s.emphasis === "focus");
-      if (!CENTRE_ON_FOCUS.includes(cur.projectionId)) centreOn.current = null;
-      else if (sat) {
+    if (map && id != null) {
+      const sat = sats.find((s) => s.noradId === id && s.emphasis === "focus");
+      if (sat) {
         centreOn.current = null;
-        if (isWorld(cur.projectionId)) {
-          // World maps turn to put the satellite's longitude in the middle.
-          view.current = { ...view.current, rotLon: wrap(sat.position.lonDeg) };
-        } else {
-          const pan = panTo(cur.projectionId, {
-            width, height, observer: cur.observer, sat: cur.selectedSub, zoom: view.current.zoom,
-          }, sat.position.lonDeg, sat.position.latDeg);
-          if (pan) view.current = { ...view.current, pan };
-        }
+        moveTo(map, { center: [sat.position.lonDeg, sat.position.latDeg], zoom: map.getZoom() });
       }
     }
-    redraw();
-  }, [redraw, sats, observer, effectiveId, selectedSub, selectedId]);
+    push();
+  }, [sats, observer, selectedId, push, moveTo]);
 
-  // Zoom, pan, pinch and tap.
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const pointers = new Map<number, Pt>();
-    let moved = 0;
-    let multi = false;
-    let lastTap = { t: 0, x: 0, y: 0 };
-
-    const local = (e: { clientX: number; clientY: number }): Pt => {
-      const r = canvas.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top };
-    };
-    const spread = () => {
-      const [a, b] = [...pointers.values()];
-      return { dist: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
-    };
-
-    const onDown = (e: PointerEvent) => {
-      canvas.setPointerCapture(e.pointerId);
-      pointers.set(e.pointerId, local(e));
-      gesturing.current = true;
-      if (pointers.size === 1) { moved = 0; multi = false; }
-      else multi = true;
-    };
-    const onMove = (e: PointerEvent) => {
-      const prev = pointers.get(e.pointerId);
-      if (!prev) return;
-      const next = local(e);
-      if (pointers.size === 1) {
-        const dx = next.x - prev.x;
-        const dy = next.y - prev.y;
-        moved += Math.abs(dx) + Math.abs(dy);
-        const world = isWorld(latest.current.projectionId);
-        if (moved >= TAP_SLOP_PX && world) {
-          // Sideways turns the globe (it wraps for ever); up and down pans only above the home zoom.
-          const { zoom, pan, rotLon } = view.current;
-          view.current = {
-            zoom,
-            pan: [0, worldPanY(zoom, pan[1] + dy)],
-            rotLon: wrap(rotLon - dx * degPerPx(zoom)),
-          };
-          atHome.current = false;
-          redraw();
-        } else if (moved >= TAP_SLOP_PX && (view.current.zoom > 1 || fullRef.current || docked.current)) {
-          const [px, py] = view.current.pan;
-          view.current.pan = [px + dx, py + dy];
-          atHome.current = false;
-          redraw();
-        }
-        pointers.set(e.pointerId, next);
-      } else if (pointers.size === 2) {
-        const before = spread();
-        pointers.set(e.pointerId, next);
-        const after = spread();
-        if (before.dist > 0) zoomAt(after.dist / before.dist, after.mid.x, after.mid.y);
-        const mx = after.mid.x - before.mid.x;
-        const my = after.mid.y - before.mid.y;
-        if (isWorld(latest.current.projectionId)) {
-          const { zoom, pan, rotLon } = view.current;
-          atHome.current = false;
-          view.current = { zoom, pan: [0, worldPanY(zoom, pan[1] + my)], rotLon: wrap(rotLon - mx * degPerPx(zoom)) };
-          redraw();
-        } else if (view.current.zoom > 1 || fullRef.current || docked.current) {
-          const [px, py] = view.current.pan;
-          atHome.current = false;
-          view.current.pan = [px + mx, py + my];
-          redraw();
-        }
-      }
-    };
-    const onUp = (e: PointerEvent) => {
-      const wasOnly = pointers.size === 1;
-      const at = local(e);
-      pointers.delete(e.pointerId);
-      if (pointers.size === 0 && gesturing.current) {
-        gesturing.current = false;
-        redraw();
-      }
-      // One finger left after a pinch: let it pan straight away, but never tap.
-      if (pointers.size === 1) moved = TAP_SLOP_PX;
-      if (!wasOnly || multi || moved >= TAP_SLOP_PX) return;
-      // A tap: a second tap close in time and place resets the view, else it selects.
-      const now = e.timeStamp;
-      if (now - lastTap.t < DOUBLE_TAP_MS && Math.hypot(at.x - lastTap.x, at.y - lastTap.y) < 24) {
-        lastTap = { t: 0, x: 0, y: 0 };
-        reset();
-        return;
-      }
-      lastTap = { t: now, x: at.x, y: at.y };
-      const proj = projection.current;
-      if (!proj) return;
-      const found = hit(latest.current.sats, proj, at.x, at.y);
-      if (found != null) latest.current.onSelect(found);
-    };
-    const onCancel = (e: PointerEvent) => {
-      pointers.delete(e.pointerId);
-      if (pointers.size === 0 && gesturing.current) {
-        gesturing.current = false;
-        redraw();
-      }
-      if (pointers.size === 1) moved = TAP_SLOP_PX;
-    };
-    // Plain wheel scrolls the page at zoom 1; ctrl/meta (trackpad pinch), a zoomed map,
-    // full screen or the docked map captures it.
-    const onWheel = (e: WheelEvent) => {
-      const pinch = e.ctrlKey || e.metaKey;
-      if (!pinch && view.current.zoom <= homeZoom.current + 1e-6 && !fullRef.current && !docked.current) return;
-      e.preventDefault();
-      // Labels hold still while wheel events stream in, then catch up once.
-      gesturing.current = true;
-      if (wheelTimer.current) clearTimeout(wheelTimer.current);
-      wheelTimer.current = setTimeout(() => {
-        wheelTimer.current = null;
-        gesturing.current = false;
-        redraw();
-      }, 150);
-      const p = local(e);
-      zoomAt(Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002)), p.x, p.y);
-    };
-
-    canvas.addEventListener("pointerdown", onDown);
-    canvas.addEventListener("pointermove", onMove);
-    canvas.addEventListener("pointerup", onUp);
-    canvas.addEventListener("pointercancel", onCancel);
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    canvas.addEventListener("dblclick", reset);
-    return () => {
-      canvas.removeEventListener("pointerdown", onDown);
-      canvas.removeEventListener("pointermove", onMove);
-      canvas.removeEventListener("pointerup", onUp);
-      canvas.removeEventListener("pointercancel", onCancel);
-      canvas.removeEventListener("wheel", onWheel);
-      canvas.removeEventListener("dblclick", reset);
-    };
-  }, [redraw, zoomAt, reset, degPerPx, worldPanY]);
+  const reset = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    atHome.current = true;
+    moveTo(map, homeView(map));
+  };
+  const zoomBy = (delta: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    atHome.current = false;
+    map.zoomTo(map.getZoom() + delta, { animate: !reducedMotion() });
+  };
 
   const chipRow = (
-    <div className="flat-map__top" ref={topRef}>
+    <div className="flat-map__top">
       {chips}
       <select
         className="flat-map__menu"
-        aria-label="Map projection"
-        value={effectiveId}
+        aria-label="Map view"
+        value={view}
         onChange={(e) => onProjectionChange(e.target.value)}
       >
         {PROJECTIONS.map((p: { id: string; label: string }) => (
-          <option
-            key={p.id}
-            value={p.id}
-            disabled={!isAvailable(p.id, { observer, sat: selectedSub })}
-          >
-            {p.label}
-          </option>
+          <option key={p.id} value={p.id}>{p.label}</option>
         ))}
       </select>
     </div>
@@ -797,28 +493,25 @@ export default function FlatMap({
       // Docked (home.css, 1100 px and up) these lay over the top of the map;
       // narrower, the wrapper dissolves and the focus bar sits above the map.
       <div className="flat-map__over">
-        {top ? <div className="flat-map__head" ref={headRef}>{top}</div> : null}
+        {top ? <div className="flat-map__head">{top}</div> : null}
         {chipRow}
       </div>
     ) : top}
-    <div className="flat-map" ref={wrapRef}>
-      <canvas
-        ref={canvasRef}
-        className="flat-map__canvas"
-        role="img"
-        aria-label="Map of followed satellites"
-      />
+    <div className="flat-map">
+      {/* MapLibre owns this element and its children. */}
+      <div className="flat-map__gl" ref={glRef} />
+      {noGl ? <p className="flat-map__nogl">This browser can&apos;t draw the map. Passes and charts still work.</p> : null}
       {fill ? null : chipRow}
-      <div className="flat-map__zoom" ref={zoomRef}>
-        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.5)}>+</button>
-        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.5)}>{"\u2212"}</button>
+      <div className="flat-map__zoom">
+        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
+        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
         <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
         <button
           type="button"
           aria-label={full ? "Exit full screen" : "Full screen"}
           onClick={toggleFull}
         >
-          {"\u26F6"}
+          {"⛶"}
         </button>
       </div>
       <table className="sr-only">
@@ -843,7 +536,7 @@ export default function FlatMap({
     </div>
     {fill ? (
       // The toggle shows only when docked; narrower, the legend is always open below the map.
-      <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`} ref={legendBoxRef}>
+      <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
         <button
           type="button"
           className="map-legend__toggle"

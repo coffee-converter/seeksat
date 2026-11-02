@@ -14,16 +14,22 @@
   color: var(--map-text);
   font-family: system-ui, -apple-system, sans-serif;
 }
-.flat-map__canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: grab;
-  /* FlatMap switches this to none while zoomed in, so the page scrolls past an unzoomed map. */
-  touch-action: pan-y;
+/* Above maplibregl-map's own position: relative. */
+.flat-map > .flat-map__gl {
+  position: absolute;
+  inset: 0;
 }
-.flat-map__canvas:active { cursor: grabbing; }
-/* The chip strip and projection menu share a row over the top of the map.
+.flat-map__nogl {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+  color: var(--map-text);
+}
+/* The chip strip and view menu share a row over the top of the map.
    The row lets taps through to the canvas between its controls. */
 .flat-map__top {
   position: absolute;
@@ -47,10 +53,16 @@
   border-radius: 6px;
   font-size: 12px;
 }
-.flat-map__menu:focus-visible,
-.flat-map__canvas:focus-visible {
+.flat-map__menu:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
+}
+/* MapLibre's attribution sits above the zoom buttons, so opening it never covers them. */
+.flat-map .maplibregl-ctrl-bottom-right { bottom: 40px; }
+/* Inset: the map frame clips anything outside it. */
+.flat-map .maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 .flat-map__zoom {

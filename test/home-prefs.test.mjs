@@ -34,6 +34,13 @@ test('field-by-field validation', () => {
   assert.equal(p.mode, 'radio');
 });
 
+test('old projection prefs migrate', () => {
+  assert.equal(parsePrefs(JSON.stringify({ projection: 'polar-north' })).projection, 'globe');
+  assert.equal(parsePrefs(JSON.stringify({ projection: 'winkel3' })).projection, 'flat');
+  assert.equal(parsePrefs(JSON.stringify({ projection: 'globe' })).projection, 'globe');
+  assert.equal(defaultPrefs().projection, 'flat');
+});
+
 test('custom entries are validated and capped', () => {
   const good = { noradId: 25485, name: 'MOLNIYA', line1: MOLNIYA_LINE1, line2: MOLNIYA_LINE2 };
   const bad = { noradId: 1, name: 'BAD', line1: 'x', line2: 'y' };
