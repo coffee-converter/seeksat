@@ -96,3 +96,11 @@ test('a none card names the mode it was searched in', () => {
   assert.deepEqual([visual[0].kind, visual[0].mode], ['none', 'visual']);
   assert.equal(cardHeadline(visual[0], T0), 'ISS: no visible passes in the next 2 days');
 });
+
+test('nextUp keeps the passes within 24 h on each card', () => {
+  const cards = nextUp({ ...base, tracks: new Map([[iss.noradId, iss]]), nowMs: T0 });
+  const card = cards[0];
+  assert.ok(card.passes.length >= 1);
+  assert.ok(card.passes.every((p) => p.startMs < T0 + 24 * 3_600_000));
+  assert.equal(card.pass, card.passes[0]);
+});
