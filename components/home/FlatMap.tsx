@@ -168,7 +168,8 @@ export default function FlatMap({
   // Read after mount (the server and first render draw dark).
   const themeRef = useRef<Theme>("dark");
   const night = useRef<{ at: number; data: unknown } | null>(null);
-  const [noGl, setNoGl] = useState(false);
+  // Why there is no map: no WebGL, or the MapLibre chunk did not load (offline).
+  const [noMap, setNoMap] = useState<null | "gl" | "load">(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   const fullRef = useRef(false);
@@ -269,7 +270,9 @@ export default function FlatMap({
       try {
         [gl] = await Promise.all([import("maplibre-gl"), import("maplibre-gl/dist/maplibre-gl.css")]);
       } catch {
-        return; // The chunk did not load (offline): the frame keeps its water colour.
+        // The chunk did not load (offline): say so rather than leave a blank frame.
+        if (alive) setNoMap("load");
+        return;
       }
       const el = glRef.current;
       if (!alive || !el) return;
@@ -277,7 +280,7 @@ export default function FlatMap({
       // find its worker by itself; this URL makes the build emit the file.
       gl.setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).href);
       if ((gl as unknown as { supported?: () => boolean }).supported?.() === false) {
-        setNoGl(true);
+        setNoMap("gl");
         return;
       }
       const cam = home(latest.current.view, {
@@ -302,7 +305,7 @@ export default function FlatMap({
           cooperativeGestures: !(docked.current || fullRef.current),
         });
       } catch {
-        setNoGl(true);
+        setNoMap("gl");
         return;
       }
       made = map;
@@ -576,7 +579,11 @@ export default function FlatMap({
     <div className={`flat-map${view === "globe" ? " flat-map--globe" : ""}`}>
       {/* MapLibre owns this element and its children. */}
       <div className="flat-map__gl" ref={glRef} />
-      {noGl ? <p className="flat-map__nogl">This browser can&apos;t draw the map. Passes and charts still work.</p> : null}
+      {noMap ? (
+        <p className="flat-map__nogl">
+          {noMap === "gl" ? "This browser can't draw the map." : "The map couldn't load."} Passes and charts still work.
+        </p>
+      ) : null}
       {fill ? null : chipRow}
       {view === "globe" ? (
         <div className="flat-map__presets" role="group" aria-label="Globe camera">
