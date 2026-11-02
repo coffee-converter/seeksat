@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SAT_PALETTE, SAT_PALETTES, emphasisOf } from '../lib/map/palette.mjs';
-// Ocean colours stay in draw.mjs until the basemap replaces it.
-import { MAP_PALETTES } from '../lib/map/draw.mjs';
+import { basemapColors } from '../lib/map/basemap.mjs';
 
 test('SAT_PALETTE has the scene colours', () => {
   assert.equal(SAT_PALETTE.length, 8);
@@ -19,11 +18,15 @@ function ratio(a, b) {
   return (x + 0.05) / (y + 0.05);
 }
 
-test('every light satellite colour has 3:1 contrast on the light ocean', () => {
-  for (const c of SAT_PALETTES.light) {
-    assert.ok(ratio(c, MAP_PALETTES.light.ocean) >= 3, `${c} is ${ratio(c, MAP_PALETTES.light.ocean).toFixed(2)}`);
-  }
-});
+for (const theme of ['dark', 'light']) {
+  test(`every ${theme} satellite colour has 3:1 contrast on the ${theme} basemap water and land`, () => {
+    const { water, land } = basemapColors(theme);
+    for (const c of SAT_PALETTES[theme]) {
+      assert.ok(ratio(c, water) >= 3, `${c} on water ${water} is ${ratio(c, water).toFixed(2)}`);
+      assert.ok(ratio(c, land) >= 3, `${c} on land ${land} is ${ratio(c, land).toFixed(2)}`);
+    }
+  });
+}
 
 test('no two satellite colours are close, in either theme', () => {
   // OKLab distance x100, the same measure the palette was picked with.
