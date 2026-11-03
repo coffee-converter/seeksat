@@ -67,6 +67,8 @@ interface Props {
   fill?: boolean;
 }
 
+export type FlatMapProps = Props;
+
 type View = "flat" | "globe";
 type LngLat = [number, number];
 type Camera = { center: LngLat; zoom: number };
