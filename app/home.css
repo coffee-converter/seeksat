@@ -709,8 +709,7 @@
 .rating-pair .quality,
 .rating-pair .cloud { margin-left: 0; }
 /* In running text the pair keeps the badge's own left margin. */
-.best-pass__what .rating-pair,
-.sat-next__what .rating-pair { margin-left: 8px; }
+.best-pass__what .rating-pair { margin-left: 8px; }
 /* Where the elements came from: a quieter cue than "visible". */
 .pass-card__tag--elements {
   color: var(--map-muted);

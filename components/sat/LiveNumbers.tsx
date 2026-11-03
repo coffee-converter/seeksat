@@ -20,41 +20,36 @@ function Flashing({ value, className }: { value: string; className: string }) {
   return <span className={flash ? `${className} ${flash}` : className}>{value}</span>;
 }
 
-/** "v²r/GM 1.0012 vs 2 − r/a 1.0010, within 0.02%", with the numbers large. */
-export function VisVivaTile({ live }: { live: Live }) {
+/**
+ * "Orbit check": a sentence saying how closely the live speed and distance fit
+ * the orbit, then the vis-viva formulas set as code. It sits with the
+ * technical sections rather than the live tiles, as a check for those who
+ * want it.
+ */
+export function OrbitCheck({ live }: { live: Live }) {
   const a = formatNumber(live.v2rOverGM, 4);
   const b = formatNumber(live.visViva, 4);
   const diff = (Math.abs(live.v2rOverGM - live.visViva) / Math.abs(live.visViva)) * 100;
   // Enough digits that a close match never reads "0.00%".
-  const pct = diff < 0.001 ? "under 0.001" : formatNumber(diff, diff >= 1 ? 1 : diff >= 0.1 ? 2 : 3);
+  const within = diff < 0.001 ? "better than 0.001%" : `within ${formatNumber(diff, diff >= 1 ? 1 : diff >= 0.1 ? 2 : 3)}%`;
   return (
-    <div className="stat-tile stat-tile--wide">
-      <span className="stat-tile__label">Vis-viva check</span>
-      <span className="stat-tile__value vis-viva">
-        <span className="vis-viva__keep">
-          <span className="vis-viva__term">v²r/GM </span>
-          <Flashing className="stat-tile__num" value={a} />
-        </span>
-        {" "}
-        <span className="vis-viva__keep">
-          <span className="vis-viva__term">vs 2 − r/a </span>
-          <Flashing className="stat-tile__num" value={b} />
-          <span className="vis-viva__term">,</span>
-        </span>
-        {" "}
-        <span className="vis-viva__keep">
-          <span className="vis-viva__term">within </span>
-          <Flashing className="stat-tile__num vis-viva__pct" value={`${pct}%`} />
-        </span>
-      </span>
-      <span className="stat-tile__note">live speed and distance against the mean semi-major axis</span>
-    </div>
+    <section className="sat-orbit-check" aria-labelledby="sat-orbit-check-title">
+      <h2 id="sat-orbit-check-title" className="home-heading">Orbit check</h2>
+      <p className="sat-orbit-check__lead">
+        The live speed and distance fit this orbit to{" "}
+        <Flashing className="sat-orbit-check__pct" value={within} />.
+      </p>
+      <p className="sat-orbit-check__math">
+        Vis-viva: <code className="sat-formula">v²r/GM = <Flashing className="" value={a} /></code>
+        {" "}and <code className="sat-formula">2 − r/a = <Flashing className="" value={b} /></code>
+      </p>
+    </section>
   );
 }
 
 /**
- * The live tile grid: the seven live numbers, then the vis-viva check
- * across the remaining width. The next pass is the line under the title.
+ * The live tile grid: the seven live numbers. The next pass is the line
+ * under the title; the vis-viva check is the Orbit check section.
  */
 export default function DashboardTiles({ live, elements }: { live: Live; elements: Elements }) {
   const tiles = tilesOf(live, elements);
@@ -70,7 +65,6 @@ export default function DashboardTiles({ live, elements }: { live: Live; element
           note={t.note}
         />
       ))}
-      <VisVivaTile live={live} />
     </section>
   );
 }

@@ -8,7 +8,7 @@ import FocusBar from "@/components/home/FocusBar";
 import { SearchBar } from "@/components/home/SearchBar";
 import MapShell from "@/components/MapShell";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
-import DashboardTiles, { LiveNumbersFold } from "./LiveNumbers";
+import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
 import HowWeCompute from "./HowWeCompute";
 import LiveClock from "@/components/LiveClock";
@@ -381,6 +381,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
                 epochMs={epochMs}
               />
               <OrbitDiagram track={track} nowMs={nowMs} />
+              <OrbitCheck live={liveNow} />
             </>
           ) : null}
 

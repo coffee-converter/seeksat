@@ -8,7 +8,7 @@ const ORDER: Array<[keyof typeof HOW_WE_COMPUTE, string]> = [
   ["radius", "From Earth's center"],
   ["position", "Latitude and longitude"],
   ["sun", "Sunlight"],
-  ["visViva", "Vis-viva check"],
+  ["visViva", "Orbit check (vis-viva)"],
   ["elements", "Mean elements"],
   ["epoch", "Epoch"],
 ];

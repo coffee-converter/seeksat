@@ -28,17 +28,18 @@ export default function NextPassLine({ report, nowMs, mode, skyType, clouds, onC
   const rating = visual ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) }) : undefined;
   return (
     <div className="sat-next">
-      <p className="sat-next__text">
-        <span className="sat-next__label">Next pass:</span>{" "}
-        <span className="sat-next__what">
+      {/* The sentence, then the rating on its own line under it, flush left. */}
+      <div className="sat-next__main">
+        <p className="sat-next__text">
+          <span className="sat-next__label">Next pass:</span>{" "}
           {/* No-break space keeps "4:12 AM" together. */}
-          {`${text.replace(/ (AM|PM)\b/g, "\u00a0$1")} `}
-          <span className="rating-pair rating-pill">
-            <QualityBadge pass={pass} rating={rating} />
-            {visual && <>{" "}<CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} /></>}
-          </span>
+          <span className="sat-next__what">{text.replace(/ (AM|PM)\b/g, "\u00a0$1")}</span>
+        </p>
+        <span className="rating-pair rating-pill sat-next__rating">
+          <QualityBadge pass={pass} rating={rating} />
+          {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
         </span>
-      </p>
+      </div>
       <button type="button" className="home-chip" onClick={(e) => onChart(visual ? "sky" : "radio", pass, e)}>
         {visual ? "Sky chart" : "Radio chart"}
       </button>
