@@ -982,6 +982,77 @@
   /* A long downlink name would push the menu past the modal's edge. */
   .radio-freq-select { max-width: 100%; min-width: 0; flex: 1 1 auto; }
 }
+/* Radio chart on phones (RadioChartModalView): a phone-width chart with HTML
+   heading, tiles and a tune table, in place of the shrunken desktop image.
+   .is-phone is only set at 600 px or less. */
+.radio-phone {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 2px 2px 4px;
+  color: #cfe0ff;
+}
+.radio-phone-title { margin: 0; font-size: 16px; font-weight: 700; color: #e6eeff; }
+.radio-phone-sub { margin: -6px 0 0; font-size: 12px; color: #b8c4dc; }
+.radio-phone-tiles {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0;
+}
+.radio-phone-tiles div {
+  display: flex; flex-direction: column-reverse; gap: 1px;
+  padding: 6px 8px; border-radius: 6px;
+  background: rgba(126, 184, 255, 0.06);
+  border: 1px solid rgba(126, 184, 255, 0.18);
+}
+.radio-phone-tiles dt { font-size: 11px; color: #8aa0c8; }
+.radio-phone-tiles dd {
+  margin: 0; font-size: 15px; font-weight: 700; color: #e6eeff;
+  font-variant-numeric: tabular-nums;
+}
+.radio-tune {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.radio-tune caption {
+  text-align: left; padding-bottom: 4px;
+  font-size: 12px; font-weight: 600; color: #cfe0ff;
+}
+.radio-tune th,
+.radio-tune td {
+  padding: 4px 3px; text-align: right; white-space: nowrap;
+  border-top: 1px solid rgba(126, 184, 255, 0.12);
+}
+.radio-tune td { color: #e6eeff; }
+.radio-tune thead th { border-top: 0; font-size: 11px; font-weight: 500; color: #8aa0c8; }
+.radio-tune thead th:first-child,
+.radio-tune th[scope="row"] { text-align: left; font-weight: 500; color: #b8c4dc; }
+/* "Closest approach" may wrap, so the table fits a 360 px phone. */
+.radio-tune th[scope="row"] { white-space: normal; }
+.radio-phone-svg { display: block; width: 100%; height: auto; }
+.radio-phone-legend { margin: 0; font-size: 12px; line-height: 1.4; color: #8aa0c8; }
+.radio-phone-full {
+  align-self: flex-start;
+  min-height: 32px; padding: 4px 12px; border-radius: 6px;
+  background: transparent; border: 1px solid rgba(126, 184, 255, 0.35);
+  color: #cfe0ff; font: inherit; font-size: 12px; cursor: pointer;
+}
+.radio-phone-full:focus-visible { outline: 2px solid #8fb4e6; outline-offset: 1px; }
+.radio-modal-content.is-phone .radio-modal-png-link,
+.radio-modal-content.is-phone .radio-modal-hint { display: none; }
+/* Open full size: the desktop image at its natural width, to pan and zoom. */
+.radio-modal-content.is-full .radio-modal-png-link {
+  display: block; overflow: auto; max-height: 70vh; max-height: 70dvh;
+  /* A scrolling flex item would otherwise shrink to nothing in the column. */
+  flex: none;
+  margin-top: 8px; border-radius: 6px;
+}
+.radio-modal-content.is-full .radio-modal-png {
+  width: 900px; max-width: none; max-height: none;
+}
+.radio-modal-content.is-full .radio-modal-hint { display: block; }
+.radio-phone-about { margin-top: 8px; font-size: 12px; color: #8aa0c8; }
+.radio-phone-about summary {
+  display: flex; align-items: center; min-height: 32px;
+  color: #cfe0ff; cursor: pointer;
+}
+.radio-phone-about p { margin: 4px 0 0; line-height: 1.45; }
 /* chart-block:end */
 
 /* Focus bar, above the map while one satellite is focused. */

@@ -1,9 +1,39 @@
 "use client";
 
 import { useFocusTrap } from "./useFocusTrap";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
+import {
+  formatZoneAbbr, paintRadioChartCompact, radioChartCaption, radioChartHeading,
+  radioMethodsNote, statTiles, tuneRows,
+} from "@/lib/pass-finder/radio-chart.js";
 import { type ChartRenderResult } from "./SkyChartModalView";
+
+/** A painted radio chart, plus the series and chart options it was painted
+ *  from, so the phone layout can draw its own view without recomputing. */
+export interface RadioRenderResult extends ChartRenderResult {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  series?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta?: any;
+}
+
+/** Phones get a phone-width chart with HTML tiles instead of the shrunken
+ *  desktop image. Matches the modal's own 600 px breakpoint in home.css. */
+const PHONE_QUERY = "(max-width: 600px)";
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(PHONE_QUERY);
+    const sync = () => setPhone(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return phone;
+}
 
 export interface RadioChartModalViewProps {
   open: boolean;
@@ -16,7 +46,7 @@ export interface RadioChartModalViewProps {
    *  file name, or null when there is no series to chart (the modal then
    *  closes). A new function repaints; for the same subject the modal
    *  stays visible meanwhile (e.g. after a frequency change). */
-  render: (svgEl: SVGSVGElement) => Promise<ChartRenderResult | null>;
+  render: (svgEl: SVGSVGElement) => Promise<RadioRenderResult | null>;
   /** Build the CSV download, or null when there is nothing to export. */
   csv: () => { csv: string; filename: string } | null;
   /** The selected downlink frequency, or null for none. */
@@ -44,6 +74,12 @@ export default function RadioChartModalView({
   copy = copySvgPngToClipboard, onSkyChart, extraControls,
 }: RadioChartModalViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const phoneSvgRef = useRef<SVGSVGElement>(null);
+  const isPhone = useIsPhone();
+  // The series and options behind the painted chart, for the phone layout.
+  const [detail, setDetail] = useState<{ series: RadioRenderResult["series"]; meta: RadioRenderResult["meta"] } | null>(null);
+  // Phones: show the full desktop image in a scroll box instead of the phone view.
+  const [fullSize, setFullSize] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -72,6 +108,8 @@ export default function RadioChartModalView({
       }
       if (imgRef.current) imgRef.current.removeAttribute("src");
       setRenderedKey(null);
+      setDetail(null);
+      setFullSize(false);
       return;
     }
     let cancelled = false;
@@ -103,6 +141,7 @@ export default function RadioChartModalView({
           linkRef.current.href = result.blobUrl;
           linkRef.current.download = result.filename;
         }
+        setDetail(result.series && result.meta ? { series: result.series, meta: result.meta } : null);
         setRenderedKey(subjectKey);
       } catch (e) {
         if (!cancelled) console.warn("Radio modal render failed:", e);
@@ -117,6 +156,31 @@ export default function RadioChartModalView({
   }, [open, render, subjectKey]);
 
   const visible = open && renderedKey === subjectKey;
+  const phoneView = isPhone && detail != null;
+
+  // A new pass starts fitted to the screen.
+  useEffect(() => { setFullSize(false); }, [subjectKey]);
+
+  // Paint the phone chart once its <svg> is mounted, and again whenever the
+  // series changes (a new frequency).
+  useEffect(() => {
+    if (!phoneView || !detail || !phoneSvgRef.current) return;
+    paintRadioChartCompact(phoneSvgRef.current, detail.series, detail.meta);
+  }, [phoneView, detail]);
+
+  const phone = useMemo(() => {
+    if (!detail) return null;
+    const { series, meta } = detail;
+    const rows = tuneRows(series, meta);
+    return {
+      heading: radioChartHeading(series, meta),
+      tiles: statTiles(series, meta),
+      rows,
+      zone: rows.length ? formatZoneAbbr(Math.round(rows[0].tMs), meta.tz) ?? "UTC" : "UTC",
+      caption: radioChartCaption(series, meta),
+      methods: radioMethodsNote(series, meta),
+    };
+  }, [detail]);
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, visible);
 
@@ -185,7 +249,7 @@ export default function RadioChartModalView({
       hidden={!visible}
     >
       <div className="radio-modal-backdrop" onClick={onClose} />
-      <div className="radio-modal-content">
+      <div className={`radio-modal-content${phoneView ? " is-phone" : ""}${phoneView && fullSize ? " is-full" : ""}`}>
         <div className="radio-modal-actions">
           <button
             ref={closeBtnRef}
@@ -269,6 +333,61 @@ export default function RadioChartModalView({
           </label>
           {extraControls}
         </div>
+        {phoneView && phone && (
+          <div className="radio-phone">
+            <h2 className="radio-phone-title">{phone.heading.title}</h2>
+            <p className="radio-phone-sub">
+              {/* Non-breaking hyphens, so the date never splits across lines. */}
+              {phone.heading.sub.replace(/(\d{4})-(\d{2})-(\d{2})/, "$1\u2011$2\u2011$3")}
+            </p>
+            <dl className="radio-phone-tiles">
+              {phone.tiles.map((t) => (
+                <div key={t.label}>
+                  <dt>{t.label}</dt>
+                  <dd>{t.value}</dd>
+                </div>
+              ))}
+            </dl>
+            {phone.rows.length > 0 && (
+              <table className="radio-tune">
+                <caption>Tune at</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">When</th>
+                    <th scope="col">Time ({phone.zone})</th>
+                    <th scope="col">Tune (MHz)</th>
+                    <th scope="col">Doppler</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {phone.rows.map((r) => (
+                    <tr key={r.label}>
+                      <th scope="row">{r.label}</th>
+                      <td>{r.time}</td>
+                      <td>{r.tune}</td>
+                      <td>{r.offset}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <svg
+              ref={phoneSvgRef}
+              className="radio-phone-svg"
+              role="img"
+              aria-label={`${phone.heading.title}: Doppler, signal and angular rate over the pass`}
+            />
+            {phone.caption && <p className="radio-phone-legend">{phone.caption}</p>}
+            <button
+              type="button"
+              className="radio-phone-full"
+              aria-expanded={fullSize}
+              onClick={() => setFullSize((v) => !v)}
+            >
+              {fullSize ? "Fit to screen" : "Open full size"}
+            </button>
+          </div>
+        )}
         <svg
           ref={svgRef}
           className="radio-modal-svg"
@@ -288,6 +407,12 @@ export default function RadioChartModalView({
         >
           <img ref={imgRef} className="radio-modal-png" alt="Radio pass chart" />
         </a>
+        {phoneView && phone && (
+          <details className="radio-phone-about">
+            <summary>About this prediction</summary>
+            <p>{phone.methods}</p>
+          </details>
+        )}
         <p className="radio-modal-hint">
           <span className="chart-hint--mouse">Right-click the image to save · click outside or press Esc to close.</span>
           <span className="chart-hint--touch">Press and hold the image to save · tap outside to close.</span>

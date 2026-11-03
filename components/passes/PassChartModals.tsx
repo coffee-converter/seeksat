@@ -73,9 +73,12 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
     const r = buildRadio("chart");
     if (!r) return null;
     const { built, track, obs } = r;
-    paintRadioChart(svg, built.series, radioChartOptions(built, { track, obs }));
+    const meta = radioChartOptions(built, { track, obs });
+    paintRadioChart(svg, built.series, meta);
     const blob = await svgToPngBlob(svg);
     return {
+      series: built.series,
+      meta,
       blobUrl: URL.createObjectURL(blob as Blob),
       // tcaMs is interpolated, so fractional; round before it names a file.
       filename: passFileName(track, obs, Math.round(built.series.summary.tcaMs), "radio"),
