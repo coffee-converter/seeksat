@@ -8,6 +8,7 @@ import { buildCsp } from '../lib/site/csp.mjs';
 const ROOTS = [
   'components/home/HomeApp.tsx',
   'components/sat/SatApp.tsx',
+  'components/map/MapLayoutShell.tsx',
   'app/mcp/page.tsx',
 ];
 
