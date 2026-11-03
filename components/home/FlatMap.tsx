@@ -8,7 +8,7 @@ import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
-import { gridCovers, viewGrid } from "@/lib/map/grid.mjs";
+import { edgeCrossings, gridCovers, labelStep, viewGrid } from "@/lib/map/grid.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
 import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -165,6 +165,15 @@ const DOCKED_QUERY = "(min-width: 1100px)";
 const HIT_PX = 22;
 // How long a tap on the focused dot waits to see if it is a double-click.
 const DBLCLICK_MS = 300;
+// The lat/lon labels sit this far in from the map's left and bottom edges,
+// placed where lines cross those edges, sampled this often along them.
+const GRID_INSET_PX = 6;
+const GRID_SAMPLE_PX = 12;
+// What a label must not sit under: the map's buttons and panels.
+const GRID_BLOCKERS = "button, .map-legend-box, .flat-map__head, .maplibregl-ctrl-attrib";
+// A 9 px label's rough size, for the overlap test.
+const GRID_CHAR_PX = 5.6;
+const GRID_LINE_PX = 11;
 /** The satellite dot layer tapped through (lib/map/overlays.mjs). The focus
  *  layer draws nothing (the focus marker does), so the marker is tested apart. */
 const SAT_LAYERS = ["ss-sats"];
@@ -428,6 +437,64 @@ export default function FlatMap({
     gridBuilt.current = viewGrid(v);
     setOverlayData(map, { "ss-grid-view": gridBuilt.current.data });
   }, []);
+  // One label per line, where it meets the left edge (parallels) or the
+  // bottom (meridians), as on a printed map. Screen-placed, so they stay on
+  // the edges through every move; redone on each camera move.
+  const gridLabelsRef = useRef<HTMLDivElement>(null);
+  const layoutGridLabels = useCallback((map: MlMap) => {
+    const box = gridLabelsRef.current;
+    if (!box) return;
+    const gl = map.getContainer();
+    const w = gl.clientWidth;
+    const h = gl.clientHeight;
+    const b = map.getBounds();
+    const step = labelStep({ west: b.getWest(), east: b.getEast(), south: b.getSouth(), north: b.getNorth(), zoom: map.getZoom() });
+    // The edge point's longitude or latitude, or null where it misses the Earth.
+    const sample = (x: number, y: number, meridian: boolean) => {
+      const ll = map.unproject([x, y]);
+      const p = map.project(ll);
+      if (Math.hypot(p.x - x, p.y - y) > 1.5 || Math.abs(ll.lat) > 85) return null;
+      return meridian ? { px: x, deg: ll.lng } : { px: y, deg: ll.lat };
+    };
+    const bottom = h - GRID_INSET_PX;
+    const across: ({ px: number; deg: number } | null)[] = [];
+    for (let x = 0; x <= w; x += GRID_SAMPLE_PX) across.push(sample(x, bottom, true));
+    const down: ({ px: number; deg: number } | null)[] = [];
+    for (let y = 0; y <= h; y += GRID_SAMPLE_PX) down.push(sample(GRID_INSET_PX, y, false));
+    const origin = gl.getBoundingClientRect();
+    const blocks = [...(shellRef.current?.querySelectorAll(GRID_BLOCKERS) ?? [])]
+      .map((el) => el.getBoundingClientRect())
+      .filter((r) => r.width > 0)
+      .map((r) => ({ l: r.left - origin.left - 4, r: r.right - origin.left + 4, t: r.top - origin.top - 4, b: r.bottom - origin.top + 4 }));
+    // Each label's box: bottom ones centred above their point, left ones beside it.
+    const labels = [
+      ...(edgeCrossings(across, "meridian", step) as { px: number; label: string }[]).map((c) => {
+        const half = (c.label.length * GRID_CHAR_PX) / 2;
+        return { label: c.label, x: c.px, y: bottom, anchor: "translate(-50%, -100%)", l: c.px - half, r: c.px + half, t: bottom - GRID_LINE_PX, b: bottom };
+      }),
+      ...(edgeCrossings(down, "parallel", step) as { px: number; label: string }[]).map((c) => ({
+        label: c.label, x: GRID_INSET_PX, y: c.px, anchor: "translate(0, -50%)",
+        l: GRID_INSET_PX, r: GRID_INSET_PX + c.label.length * GRID_CHAR_PX, t: c.px - GRID_LINE_PX / 2, b: c.px + GRID_LINE_PX / 2,
+      })),
+    ].filter((g) => g.l >= 0 && g.r <= w && g.t >= 0 && g.b <= h
+      // Clear of the corner the two rows share, and of every button.
+      && !(g.l < 60 && g.b > bottom - GRID_LINE_PX - 4 && g.anchor.startsWith("translate(0"))
+      && !blocks.some((k) => g.l < k.r && g.r > k.l && g.t < k.b && g.b > k.t));
+    let n = 0;
+    for (const g of labels) {
+      let el = box.children[n] as HTMLElement | undefined;
+      if (!el) {
+        el = document.createElement("span");
+        el.className = "flat-map__grid-label";
+        box.appendChild(el);
+      }
+      if (el.textContent !== g.label) el.textContent = g.label;
+      el.style.transform = `translate(${g.x}px, ${g.y}px) ${g.anchor}`;
+      el.hidden = false;
+      n++;
+    }
+    for (; n < box.children.length; n++) (box.children[n] as HTMLElement).hidden = true;
+  }, []);
   // A pending leave from a tap on the focused dot; a double-click cancels it.
   const leaveTimer = useRef<number | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
@@ -650,6 +717,7 @@ export default function FlatMap({
         });
         map.setProjection({ type: PROJECTION_OF[latest.current.view] });
         syncGrid(map, true);
+        layoutGridLabels(map);
         fillHidden.current = false;
         syncFill();
         limitZoom(map);
@@ -791,6 +859,7 @@ export default function FlatMap({
       map.on("zoomend", () => {
         if (!selfJump.current) syncGestures();
       });
+      map.on("move", () => layoutGridLabels(map));
       // Past zoom 11 the globe flattens toward Mercator and the GeoJSON fill takes over.
       map.on("zoom", syncFill);
       // Zooming changes which tracks are too short for direction marks.
@@ -802,6 +871,7 @@ export default function FlatMap({
       map.on("resize", () => {
         limitZoom(map);
         if (atHome.current) map.jumpTo(homeView(map));
+        layoutGridLabels(map);
       });
     })();
     return () => {
@@ -1222,6 +1292,7 @@ export default function FlatMap({
     <div className={`flat-map${view !== "flat" ? " flat-map--globe" : ""}`}>
       {/* MapLibre owns this element and its children. */}
       <div className="flat-map__gl" ref={glRef} />
+      <div className="flat-map__grid-labels" ref={gridLabelsRef} aria-hidden="true" />
       {noMap ? (
         <p className="flat-map__nogl">
           {noMap === "gl" ? "This browser can't draw the map." : "The map couldn't load."} Passes and charts still work.

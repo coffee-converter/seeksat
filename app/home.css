@@ -21,6 +21,14 @@
   position: absolute;
   inset: 0;
 }
+/* The lat/lon values on the map's left and bottom edges (FlatMap places them). */
+.flat-map__grid-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.flat-map__grid-label {
+  position: absolute; left: 0; top: 0;
+  font-size: 9px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums;
+  color: var(--map-muted);
+  text-shadow: 0 0 2px var(--map-land), 0 0 2px var(--map-land);
+}
 /* The focused satellite's dot and name, a marker FlatMap moves every frame.
    It matches the map's focus symbol (lib/map/overlays.mjs): a 5 px dot with a
    2 px ring in the water colour, and an 11 px bold name 0.8 em right of the

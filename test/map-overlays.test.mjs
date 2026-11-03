@@ -163,7 +163,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-graticule-labels', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
