@@ -260,6 +260,12 @@ export default function PassSection({
   const rowCount = view?.kind === "rows"
     ? (showAll ? view.rows.length : (initialRowCount as (r: Row[], n: number, o: { sharedKey: string | null }) => number)(view.rows, bucketMs, { sharedKey }))
     : 0;
+  // Grouping formats each row's date, so it reruns per 15 s bucket, not per
+  // 1 s render.
+  const groups = useMemo(
+    () => (view?.kind === "rows" ? groupRows(view.rows.slice(0, rowCount), bucketMs, observer?.tz) : []),
+    [view, rowCount, bucketMs, observer?.tz],
+  );
   const zone = observer ? (zoneLabel as (tz: string | undefined, ms: number, locale?: string) => string)(observer.tz, bucketMs) : "UTC";
 
   // Scroll to the shared pass once, when the first rows arrive.
@@ -408,7 +414,7 @@ export default function PassSection({
               {view.kind === "rows" ? (
                 <>
                 <div className="sat-passlist">
-                  {groupRows(view.rows.slice(0, rowCount), bucketMs, observer?.tz).map((group) => (
+                  {groups.map((group) => (
                     <section key={group.heading} className="sat-day-group">
                       <h3 className="sat-day">{group.heading}</h3>
                       <ul className="sat-day__list">
