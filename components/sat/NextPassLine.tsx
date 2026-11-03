@@ -7,6 +7,13 @@ import type { NextPass, NextPassReport, PassSectionHandle } from "./PassSection"
 type LinePass = NextPass & RatedPass & { peakMs: number; startAzDeg: number; endAzDeg: number };
 const textOf = nextPassText as (pass: LinePass, nowMs: number, timeZone?: string, locale?: string) => string | null;
 
+/** The time words alone, "in 27 min" or "up now", for the drawer's title bar. */
+export function nextPassWhen(report: NextPassReport, nowMs: number): string | null {
+  if (report?.kind !== "pass") return null;
+  const text = textOf(report.pass as LinePass, nowMs, report.timeZone);
+  return text?.match(/^(up now|in [^,]+)/)?.[0] ?? null;
+}
+
 /**
  * "Next pass: Tomorrow 4:12 AM, SW to SE" and the rating pill, with a chart button that
  * follows the mode, right under the satellite page's title. Same day words,

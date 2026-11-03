@@ -14,7 +14,7 @@ import Downlinks from "./Downlinks";
 import ShareButton from "./ShareButton";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import PassSection, { type NextPassReport, type PassSectionHandle, type PassSettings } from "./PassSection";
-import NextPassLine from "./NextPassLine";
+import NextPassLine, { nextPassWhen } from "./NextPassLine";
 import RawElements from "./RawElements";
 import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
 import { focusDestination, satPageLayers } from "@/lib/home/focus.mjs";
@@ -259,9 +259,46 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     search: { onView: openOther, onClearFocus: onClose },
   });
 
+  // The title bar shows once the title block has scrolled out of view. It sits
+  // at the bar's own `top`, so the observer's top margin is read from the CSS.
+  const barRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLElement>(null);
+  const [barOn, setBarOn] = useState(false);
+  useEffect(() => {
+    const top = topRef.current;
+    const bar = barRef.current;
+    if (!top || !bar || typeof IntersectionObserver === "undefined") return;
+    let io: IntersectionObserver | null = null;
+    const watch = () => {
+      io?.disconnect();
+      const pinned = Math.max(0, parseFloat(getComputedStyle(bar).top) || 0);
+      io = new IntersectionObserver(
+        ([entry]) => setBarOn(!entry.isIntersecting),
+        { rootMargin: `-${pinned}px 0px 0px 0px` },
+      );
+      io.observe(top);
+    };
+    watch();
+    window.addEventListener("resize", watch);
+    return () => {
+      io?.disconnect();
+      window.removeEventListener("resize", watch);
+    };
+  }, []);
+  const barWhen = nextPassWhen(nextPass, nowMs);
+
   return (
     <>
-    <header className="sat-top">
+    <div className={`sat-bar${barOn ? " sat-bar--on" : ""}`} ref={barRef}>
+      <div className="sat-bar__in">
+        <button type="button" className="home-chip focus-bar__close" aria-label="Close details" onClick={onClose}>
+          {"\u00d7"}
+        </button>
+        <span className="sat-bar__name">{data.shortName}</span>
+        {barWhen ? <span className="sat-bar__when">{barWhen}</span> : null}
+      </div>
+    </div>
+    <header className="sat-top" ref={topRef}>
       {/* Back to the list, as Close does; a modified click still opens a tab. */}
       <Link
         className="home-link sat-back"

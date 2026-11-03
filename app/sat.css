@@ -75,6 +75,27 @@ p.sat-how { margin: 0 0 8px; }
 .sat-back { align-self: flex-start; display: inline-flex; align-items: center; font-size: 14px; text-decoration: none; }
 .sat-back:hover { text-decoration: underline; }
 
+/* Title bar: pinned over the content once .sat-top has scrolled away. The
+   wrapper has no height and cancels the panel's flex gap, so nothing shifts
+   when the bar shows. --sat-bar-top is the pinned header's height. */
+.sat-bar {
+  --sat-bar-top: 0px;
+  position: sticky; top: var(--sat-bar-top); z-index: 20;
+  height: 0; margin-bottom: -24px; visibility: hidden;
+}
+.sat-bar--on { visibility: visible; }
+.sat-bar__in {
+  position: absolute; left: -8px; right: -8px; top: 0;
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 6px 12px; background: var(--bg); border-bottom: 1px solid var(--map-border);
+}
+.sat-bar__name { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sat-bar__when { flex: 0 0 auto; color: var(--map-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 1099.98px) { .sat-bar { --sat-bar-top: 56px; } }
+@media (max-width: 699.98px) { .sat-bar { --sat-bar-top: 51px; } .sat-bar__in { left: -16px; right: -16px; } }
+/* Docked: the panel scrolls, and sticky measures inside its 18px top padding. */
+@media (min-width: 1100px) { .sat-bar { --sat-bar-top: -18px; } .sat-bar__in { left: -16px; right: -16px; } }
+
 /* The next pass, right under the title: when and where, the rating words,
    and a chart button that follows the mode. */
 .sat-next {
@@ -244,6 +265,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   }
   /* Keep only: title block, element age line, the pass list. */
   .map-shell.sat .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
+  .sat-bar { display: none !important; }
   .sat-top .sat-follow, .sat-top .home-button, .sat-top .sat-next, .sat-back { display: none !important; }
   .sat-top { margin-bottom: 6pt; }
   .sat-title { font-size: 16pt; margin: 0 0 2pt; }
