@@ -85,8 +85,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-// Structured data: what SeekSat is, that it's free, and who built it: the
-// Liftoff Labs studio, not a person.
+// Structured data: what SeekSat is, that it's free, and who built it,
+// named by the site aaronhanson.dev (as the footer credit is).
 const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
@@ -111,7 +111,7 @@ const JSON_LD = {
     {
       "@type": "Organization",
       "@id": `${SITE_URL}/#org`,
-      name: "Liftoff Labs",
+      name: "aaronhanson.dev",
       url: "https://aaronhanson.dev",
     },
   ],

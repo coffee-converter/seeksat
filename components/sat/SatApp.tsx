@@ -373,7 +373,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           <footer className="home-footer">
             <span>
               built by{" "}
-              <a href="https://aaronhanson.dev" target="_blank" rel="noopener">Liftoff Labs</a>
+              <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
             </span>
           </footer>
         </>
