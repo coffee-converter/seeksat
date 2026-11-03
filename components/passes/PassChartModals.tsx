@@ -12,6 +12,7 @@ import { svgToPngBlob } from "@/lib/pass-finder/polar-png.js";
 import { getClockSkewMs, hasClockSyncSample, trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import type { Track, HomeObserver, Pass } from "@/components/home/NextUpList";
+import { useBackCloses } from "@/lib/ui/use-back-closes";
 
 export interface ChartSubject {
   track: Track;
@@ -35,6 +36,8 @@ interface Props {
 // The sky chart, radio chart and live view for one pass. Loaded on first use, so
 // the painters stay out of the page's first bundle.
 export default function PassChartModals({ subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange }: Props) {
+  // Back closes an open chart instead of leaving the page.
+  useBackCloses(chart != null, onClose);
   const noradId = subject?.track.noradId ?? null;
   const initialFreq = (s: ChartSubject | null) =>
     s ? preferredFreqHz ?? defaultDownlink(s.track)?.hz ?? null : null;

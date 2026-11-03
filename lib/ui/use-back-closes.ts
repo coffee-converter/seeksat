@@ -1,0 +1,45 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
+/** Marks the history entry an open overlay pushed. */
+const KEY = "seeksatOverlay";
+
+const ours = () => Boolean((window.history.state as Record<string, unknown> | null)?.[KEY]);
+
+/**
+ * Makes the browser's Back button close an overlay (a chart that fills a
+ * phone screen) rather than leave the page. Opening pushes one history entry
+ * for the same URL; Back pops it and calls `close`. Closing any other way (the
+ * close button, Esc, a click outside) steps back over that entry, so it never
+ * lingers. The entry keeps the router's own history state alongside the mark.
+ * Leaving the page with the overlay open leaves the entry: stepping back from
+ * the next page then lands here with the overlay closed.
+ */
+export function useBackCloses(open: boolean, close: () => void) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  const pushed = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      if (pushed.current) {
+        pushed.current = false;
+        if (ours()) window.history.back();
+      }
+      return;
+    }
+    if (!pushed.current) {
+      const state = (window.history.state as Record<string, unknown> | null) ?? {};
+      window.history.pushState({ ...state, [KEY]: true }, "", window.location.href);
+      pushed.current = true;
+    }
+    const onPop = () => {
+      if (!pushed.current || ours()) return;
+      pushed.current = false;
+      closeRef.current();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [open]);
+}

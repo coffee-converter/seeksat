@@ -36,6 +36,7 @@ import { useClouds } from "@/lib/sky/use-clouds";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
+import { isMapAll, mapAllHref } from "@/lib/sat/map-param.mjs";
 import "@/app/home.css";
 import "@/app/sat.css";
 
@@ -98,7 +99,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const onSkyTypeChange = useCallback((skyType: string) => setPrefs({ skyType }), [setPrefs]);
   const leaveShared = () => {
     setShared(null);
-    router.replace(satPath(data.noradId));
+    router.replace(mapAllHref(satPath(data.noradId), "", focusId == null) as string);
   };
 
   // First render matches the server HTML; the clock starts after mount.
@@ -170,6 +171,22 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       void loadRecords();
     }
   }, [loadRecords]);
+  // Show all lives in ?map=all, so a refresh keeps it. The server render is
+  // focused, so the URL is read after mount; from then on the URL follows the
+  // focus, replacing the entry (Back still leaves the page in one step).
+  const firstUrlSync = useRef(true);
+  useEffect(() => {
+    if (isMapAll(window.location.search)) showAll();
+    // Once, on mount: showAll is stable for the page's life.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    // The first run sees the server's focus, before the read above lands.
+    if (firstUrlSync.current) { firstUrlSync.current = false; return; }
+    const { pathname, search } = window.location;
+    const href = mapAllHref(pathname, search, focusId == null) as string;
+    if (href !== pathname + search) window.history.replaceState(window.history.state, "", href);
+  }, [focusId]);
   useEffect(() => {
     if (focusId == null) return;
     const onKey = (e: KeyboardEvent) => {
