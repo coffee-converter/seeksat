@@ -216,3 +216,20 @@ test('every pass has finite start and end elevations; radio passes have time abo
   for (const p of r.passes) assert.ok(p.msAbove10 >= p.msAbove30 && p.msAbove30 >= 0);
   assert.ok(r.passes.some((p) => p.msAbove10 > 0));
 });
+test('a pass cut short by a propagation failure keeps real end bearings', () => {
+  const full = findPasses({ track: ISS, observers: [EN52VE], mode: 'radio', startMs: T0, endMs: T0 + DAY });
+  const p = full.passes[0];
+  const dieMs = Math.floor((p.peakMs + p.endMs) / 2000) * 1000;
+  const dying = { ...ISS, ecefAt: (d) => (d.getTime() >= dieMs ? null : ISS.ecefAt(d)) };
+  const r = findPasses({ track: dying, observers: [EN52VE], mode: 'radio', startMs: T0, endMs: T0 + DAY });
+  assert.equal(r.passes.length, 1);
+  const q = r.passes[0];
+  assert.equal(q.endMs, dieMs);
+  assert.ok(Number.isFinite(q.endAzDeg) && Number.isFinite(q.endElevDeg));
+  assert.ok(q.endElevDeg > 0);
+});
+test('pass edges do not move when the search starts a little later', () => {
+  const a = findPasses({ track: ISS, observers: [EN52VE], mode: 'radio', startMs: T0, endMs: T0 + DAY });
+  const b = findPasses({ track: ISS, observers: [EN52VE], mode: 'radio', startMs: T0 + 123_457, endMs: T0 + DAY });
+  assert.deepEqual(b.passes.map((p) => [p.startMs, p.endMs, p.peakMs]), a.passes.map((p) => [p.startMs, p.endMs, p.peakMs]));
+});
