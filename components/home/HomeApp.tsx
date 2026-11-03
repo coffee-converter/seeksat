@@ -406,10 +406,11 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         name={nameOf(focusId)}
         followed={prefs.following.includes(focusId)}
         blocked={followBlockedMessage(prefs.following, focusId) as string | null}
+        mode="home"
         total={showAll}
-        pageHref={allTracks.get(focusId)?.record?.source === "pasted" ? null : `/sat/${focusId}`}
         onToggleFollow={() => (prefs.following.includes(focusId) ? unfollow(focusId) : follow(focusId))}
         onShowAll={() => focusOn(null)}
+        onClose={() => focusOn(null)}
       />
     ),
     chips: hydrated && (

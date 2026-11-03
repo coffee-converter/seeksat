@@ -17,7 +17,7 @@ import PassSection, { type NextPassReport, type PassSectionHandle, type PassSett
 import NextPassLine from "./NextPassLine";
 import RawElements from "./RawElements";
 import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
-import { focusHref, satPageLayers, showAllCount } from "@/lib/home/focus.mjs";
+import { focusHref, satPageLayers } from "@/lib/home/focus.mjs";
 import { tracksFor } from "@/lib/home/records.mjs";
 import { followedTracks } from "@/lib/home/view.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -52,7 +52,6 @@ const bannerOf = sharedBannerText as (s: Shared) => string;
 const pageLayersOf = satPageLayers as (o: {
   followed: number[]; hidden: number[]; focusId: number | null; pageId: number;
 }) => Layer[];
-const countOf = showAllCount as (layers: Layer[]) => number;
 type HomeTrack = MapTrack & { record?: { source?: string } };
 const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, HomeTrack>;
 
@@ -217,9 +216,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const layers = useMemo(() => pageLayersOf({
     followed: prefs.following, hidden: prefs.hidden, focusId, pageId: data.noradId,
   }), [prefs.following, prefs.hidden, focusId, data.noradId]);
-  const showAllTotal = countOf(pageLayersOf({
-    followed: prefs.following, hidden: prefs.hidden, focusId: null, pageId: data.noradId,
-  }));
   const { sats, focusSub } = useMapSats({
     layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg,
   });
@@ -258,12 +254,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         name={focusName}
         followed={focusFollowed}
         blocked={followBlockedMessage(prefs.following, focusId) as string | null}
-        total={showAllTotal}
-        pageHref={focusId === data.noradId || mapTracks.get(focusId)?.record?.source === "pasted"
-          ? null
-          : `/sat/${focusId}`}
+        mode="page"
         onToggleFollow={() => (focusFollowed ? unfollow(focusId) : follow(focusId))}
-        onShowAll={showAll}
+        onClose={showAll}
       />
     ),
     // A search result opens that satellite's page; Esc in an empty search shows all.

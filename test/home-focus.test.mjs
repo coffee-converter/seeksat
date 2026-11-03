@@ -73,9 +73,15 @@ test('missing arguments default to empty', () => {
 });
 
 test('focusBarText gives the title and the show all count', () => {
-  assert.deepEqual(focusBarText('GOES 16', false, 4), { title: 'Viewing GOES 16', showAll: 'Show all (4)', follow: '☆ Follow' });
-  assert.deepEqual(focusBarText('ISS', true, 1), { title: 'Viewing ISS', showAll: 'Show all (1)', follow: '★ Following' });
+  assert.equal(focusBarText('GOES 16', false, 4).title, 'Viewing GOES 16');
+  assert.equal(focusBarText('GOES 16', false, 4).showAll, 'Show all (4)');
+  assert.equal(focusBarText('GOES 16', false, 4).follow, '☆ Follow');
+  assert.equal(focusBarText('ISS', true, 1).follow, '★ Following');
   assert.equal(focusBarText('X', true, 0).showAll, 'Show all (0)');
+});
+
+test('focusBarText gives the lock on copy', () => {
+  assert.deepEqual(focusBarText('ISS', true, 1).lock, { off: 'Lock on', on: 'Locked on' });
 });
 
 test('followLabel names the satellite for the star', () => {
@@ -85,7 +91,8 @@ test('followLabel names the satellite for the star', () => {
 
 test('no copy has an em dash', () => {
   const all = [
-    ...Object.values(focusBarText('A', true, 2)), ...Object.values(focusBarText('A', false, 2)),
+    ...Object.values(focusBarText('A', true, 2)).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))),
+    ...Object.values(focusBarText('A', false, 2)).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))),
     followLabel('A', true), followLabel('A', false),
   ];
   for (const s of all) assert.ok(!s.includes('—'), s);

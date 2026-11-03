@@ -1153,6 +1153,9 @@
 }
 .focus-bar__title { flex: 1 1 auto; min-width: 0; margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .focus-bar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.focus-bar__close { min-width: 36px; font-size: 18px; line-height: 1; }
+/* Details jumps to the drawer title, which only sits below the map under 1100 px. */
+@media (min-width: 1100px) { .focus-bar__details { display: none; } }
 .focus-bar__note { flex-basis: 100%; margin: 0; color: var(--map-muted); font-size: 13px; }
 
 /* Satellite chips over the top of the map. The strip scrolls sideways inside
@@ -1429,7 +1432,6 @@ a.home-chip { display: inline-block; text-decoration: none; }
   }
   .map-shell__map { padding: 8px 0 0; }
   .map-shell__map > :not(.flat-map-shell--fill),
-  .flat-map-shell--fill .flat-map__head,
   .flat-map-shell--fill .map-legend-box { margin-left: 16px; margin-right: 16px; }
   /* A full-width button keeps its 100%, so it gives back the margins. */
   .map-shell__map > .next-strip { width: calc(100% - 32px); }
@@ -1456,19 +1458,21 @@ a.home-chip { display: inline-block; text-decoration: none; }
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "head" "map" "legend";
 }
-.flat-map-shell--fill .flat-map__over { display: contents; }
-.flat-map-shell--fill .flat-map__head { grid-area: head; min-width: 0; }
-.flat-map-shell--fill .flat-map__top {
+.flat-map-shell--fill .flat-map__over {
   grid-area: map;
   align-self: start;
-  position: relative;
-  top: auto;
-  left: auto;
-  right: auto;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   min-width: 0;
-  margin: 8px;
+  padding: 8px;
+  pointer-events: none;
 }
+.flat-map-shell--fill .flat-map__head { align-self: stretch; min-width: 0; pointer-events: auto; }
+.flat-map-shell--fill .flat-map__head .focus-bar { margin: 0; box-shadow: 0 6px 20px var(--shadow-soft); }
+.flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
 .flat-map-shell--fill .flat-map {
   grid-area: map;
   height: max(260px, 60vh);

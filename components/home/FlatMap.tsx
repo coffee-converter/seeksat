@@ -812,11 +812,11 @@ export default function FlatMap({
   return (
     <div className={shellClass} ref={shellRef}>
     {fill ? (
-      // Docked (home.css, 1100 px and up) these lay over the top of the map;
-      // narrower, the wrapper dissolves and the focus bar sits above the map.
+      // These lay over the top of the map: the chips row first, the focus bar
+      // under it, so opening the focus bar never moves the chips.
       <div className="flat-map__over">
-        {top ? <div className="flat-map__head">{top}</div> : null}
         {chipRow}
+        {top ? <div className="flat-map__head">{top}</div> : null}
       </div>
     ) : top}
     {/* Both spherical views show space around the Earth. */}
