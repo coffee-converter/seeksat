@@ -9,7 +9,7 @@ const DARK_QUERY = "(prefers-color-scheme: dark)";
  * Night vision: turns the whole app dim red (the filter on html[data-night]
  * in app/globals.css) to keep dark adaptation outdoors. Separate from the
  * Auto / Light / Dark mode, which stays saved and comes back when this is
- * turned off. Under 480 px it is an icon button (styles in app/home.css).
+ * turned off. Under 700 px it is an icon button (styles in app/home.css).
  * Read after mount, like ThemeToggle, so server and client renders match.
  */
 export default function NightToggle() {

@@ -15,7 +15,7 @@ function apply(mode: Mode) {
 }
 
 /**
- * Auto / Light / Dark. A segmented radio group; under 480 px a single button
+ * Auto / Light / Dark. A segmented radio group; under 700 px a single button
  * that cycles through the three (styles in app/home.css). The mode is read
  * after mount, so the server and first client render match: until then the
  * same-size control is hidden.

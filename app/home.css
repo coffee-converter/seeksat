@@ -1323,7 +1323,8 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .map-shell__top .saved-age { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--map-muted); }
 .map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
 .map-shell__end { grid-area: clock; justify-self: end; display: flex; align-items: center; gap: 12px; }
-/* ThemeToggle (components/ThemeToggle.tsx): segmented from 480 px, one cycling button below. */
+/* ThemeToggle (components/ThemeToggle.tsx): segmented from 700 px, one cycling
+   button below, so the phone header row never crowds the wordmark. */
 .theme-toggle[data-ready="false"] { visibility: hidden; }
 .theme-toggle__group {
   display: inline-flex; padding: 2px;
@@ -1338,14 +1339,14 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .theme-toggle__opt[aria-checked="true"] { background: var(--seg-on); color: var(--seg-on-text); }
 .theme-toggle__opt:focus-visible, .theme-toggle__cycle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .theme-toggle__cycle { display: none; color: var(--map-text); border: 1px solid var(--btn-line); border-radius: 7px; min-width: 56px; min-height: 36px; }
-@media (max-width: 479px) {
+@media (max-width: 699.98px) {
   .theme-toggle__group { display: none; }
   .theme-toggle__cycle { display: inline-block; }
 }
 /* NightToggle (components/NightToggle.tsx): an outline toggle the height of
    the theme well; on, it takes the accent outline and accent text (the
    Following look), so it never reads as a fourth theme segment. Icon only
-   under 480 px. */
+   under 700 px. */
 .night-toggle {
   display: inline-flex; align-items: center; gap: 6px;
   font: inherit; font-size: 12.5px; font-weight: 500; line-height: 1; white-space: nowrap;
@@ -1357,7 +1358,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .night-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .night-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .night-toggle__icon { display: none; flex: none; }
-@media (max-width: 479px) {
+@media (max-width: 699.98px) {
   .night-toggle { justify-content: center; min-width: 36px; min-height: 36px; padding: 0; border-radius: 7px; }
   .night-toggle__icon { display: block; }
   .night-toggle__label { display: none; }
@@ -1403,16 +1404,31 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .map-shell.sat .map-shell__panel { gap: 24px; }
 
 /* Phones: two rows, wordmark and clock, then search. Only the first row
-   scrolls away (the negative top), so the search stays pinned. */
+   scrolls away (the negative top), so the search stays pinned. The wordmark
+   column never shrinks below the word, so the clock cannot slide over it.
+   The map runs edge to edge; everything else keeps a 16 px side margin. */
 @media (max-width: 699.98px) {
   .map-shell__top {
     top: -48px;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: 38px auto;
     grid-template-areas: "brand clock" "search search";
     gap: 4px 12px;
-    padding: 6px 8px 8px;
+    padding: 6px 16px 8px;
   }
+  .map-shell__map { padding: 8px 0 0; }
+  .map-shell__map > :not(.flat-map-shell--fill),
+  .flat-map-shell--fill .flat-map__head,
+  .flat-map-shell--fill .map-legend-box { margin-left: 16px; margin-right: 16px; }
+  /* A full-width button keeps its 100%, so it gives back the margins. */
+  .map-shell__map > .next-strip { width: calc(100% - 32px); }
+  .flat-map-shell--fill .flat-map { border-left: 0; border-right: 0; border-radius: 0; }
+  .map-shell__panel { padding: 16px 16px 24px; }
+}
+/* The smallest phones: the pulsing dot alone says live, so the clock row fits
+   beside the wordmark. */
+@media (max-width: 399.98px) {
+  .map-shell__top .live-clock__live { display: none; }
 }
 /* Small phones: tighter gaps so the wordmark, clock, theme and Night vision
    fit on one row at 360 px. */
