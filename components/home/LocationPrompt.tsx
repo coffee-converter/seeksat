@@ -177,7 +177,7 @@ export function PopularList({ names }: { names: ReadonlyMap<number, string> }) {
               <span>{name}</span>
               <button
                 type="button"
-                className="home-chip"
+                className={`home-button home-button--primary${on ? " home-chip--on" : ""}`}
                 aria-pressed={on}
                 aria-label={`Follow ${name}`}
                 disabled={!on && full}

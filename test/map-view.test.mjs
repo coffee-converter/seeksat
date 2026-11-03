@@ -50,6 +50,60 @@ test('homeCamera flat fills a tall frame between 60S and 75N', () => {
   assert.ok(Math.abs(bandPx - 800) < 1e-6, `band ${bandPx}`);
 });
 
+const across = (width) => Math.log2(width / 512);
+// How far a longitude sits east of the centre, -180 to 180.
+const offset = (lon, centre) => ((((lon - centre) % 360) + 540) % 360) - 180;
+// Half the view's width in degrees of longitude at a zoom.
+const halfWidthDeg = (width, zoom) => (180 * width) / (512 * 2 ** zoom);
+
+test('homeCamera flat centres on the circular mean of the observer and the points', () => {
+  const { center } = homeCamera('flat', { points: [{ lonDeg: -170, latDeg: 0 }, { lonDeg: 170, latDeg: 10 }], ...size });
+  assert.ok(Math.abs(Math.abs(center[0]) - 180) < 1e-6, `centre ${center[0]}`);
+  assert.equal(center[1], 20);
+  const withObs = homeCamera('flat', { observer: { latDeg: 41.9, lonDeg: -88 }, points: [{ lonDeg: -68, latDeg: 0 }], ...size });
+  assert.ok(Math.abs(withObs.center[0] - -78) < 1e-6, `centre ${withObs.center[0]}`);
+});
+
+test('homeCamera flat with no points behaves as before', () => {
+  const observer = { latDeg: 41.9, lonDeg: -88 };
+  for (const s of [size, { width: 400, height: 800 }]) {
+    assert.deepEqual(homeCamera('flat', { observer, points: [], ...s }), homeCamera('flat', { observer, ...s }));
+  }
+  assert.deepEqual(homeCamera('flat', { observer, points: [], ...size }).center, [-88, 20]);
+});
+
+test('homeCamera flat with a focus ignores the points', () => {
+  const observer = { latDeg: 41.9, lonDeg: -88 };
+  const focus = { latDeg: -10, lonDeg: 100 };
+  const points = [{ lonDeg: -170, latDeg: 0 }, { lonDeg: 170, latDeg: 0 }];
+  const tall = { width: 400, height: 800 };
+  assert.deepEqual(homeCamera('flat', { observer, focus, points, ...tall }), homeCamera('flat', { observer, focus, ...tall }));
+});
+
+test('homeCamera flat zooms out just enough to fit the points with a margin', () => {
+  const tall = { width: 400, height: 800 };
+  const observer = { latDeg: 41.9, lonDeg: -88 };
+  const base = homeCamera('flat', { observer, ...tall }).zoom;
+  const points = [{ lonDeg: -150, latDeg: 0 }, { lonDeg: -20, latDeg: 0 }];
+  const { center, zoom } = homeCamera('flat', { observer, points, ...tall });
+  assert.ok(zoom < base && zoom > across(400), `zoom ${zoom}`);
+  const half = halfWidthDeg(400, zoom);
+  const far = Math.max(...[observer, ...points].map((p) => Math.abs(offset(p.lonDeg, center[0]))));
+  // The furthest point sits exactly 5% of the width inside the edge.
+  assert.ok(Math.abs(far - half * 0.9) < 1e-6, `far ${far}, half ${half}`);
+  // Points that already fit keep the normal zoom.
+  assert.equal(homeCamera('flat', { observer, points: [{ lonDeg: -80, latDeg: 0 }], ...tall }).zoom, base);
+});
+
+test('homeCamera flat never zooms out past the whole world across', () => {
+  // Spread 300 degrees from -150 east round to 150: the mean sits at 180 and
+  // the point at 0 is on the far side.
+  const points = [{ lonDeg: -150, latDeg: 0 }, { lonDeg: 0, latDeg: 0 }, { lonDeg: 150, latDeg: 0 }];
+  for (const s of [size, { width: 400, height: 800 }]) {
+    assert.ok(Math.abs(homeCamera('flat', { points, ...s }).zoom - across(s.width)) < 1e-9);
+  }
+});
+
 test('homeCamera globe centres on the observer, then the focus', () => {
   const observer = { latDeg: 41.9, lonDeg: -88 };
   const focus = { latDeg: -10, lonDeg: 100 };

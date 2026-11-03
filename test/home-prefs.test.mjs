@@ -8,8 +8,14 @@ test('defaults', () => {
   const d = defaultPrefs();
   assert.equal(d.location, null);
   assert.deepEqual(d.following, POPULAR_IDS);
-  assert.equal(d.mode, 'radio');
+  assert.equal(d.mode, 'visual');
   assert.equal(d.minElevDeg, 0);
+});
+
+test('a saved mode is kept over the default', () => {
+  assert.equal(parsePrefs({ mode: 'radio' }).mode, 'radio');
+  assert.equal(parsePrefs(JSON.stringify({ mode: 'radio' })).mode, 'radio');
+  assert.equal(parsePrefs({ mode: 'visual' }).mode, 'visual');
 });
 
 test('garbage falls back to defaults', () => {
@@ -31,7 +37,7 @@ test('field-by-field validation', () => {
   assert.deepEqual(p.following.slice(0, 2), [1, 3]);
   assert.equal(p.minElevDeg, 0);
   assert.equal(p.projection, defaultPrefs().projection);
-  assert.equal(p.mode, 'radio');
+  assert.equal(p.mode, 'visual');
 });
 
 test('old projection prefs migrate', () => {

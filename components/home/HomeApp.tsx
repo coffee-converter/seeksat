@@ -345,6 +345,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   }, [records, seed]);
 
   const showPrompt = hydrated && (!location || changingLocation);
+  // Stacked (one column, under 1100 px) the map comes before the panel, so a
+  // first visit puts the location card above the map, in view without scrolling.
+  const stacked = useStacked();
+  const locationFirst = hydrated && !location && stacked;
 
   // Saved satellites say how old they are, even when the browser thinks it is
   // online (a captive portal); back online, they reload.
@@ -376,6 +380,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   return (
     <MapShell
+      className={hydrated && !location ? "home-first-visit" : undefined}
       offlineFromCache={fromCache}
       notice={savedAge && <p className="saved-age">{savedAge}</p>}
       top={(
@@ -393,6 +398,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       )}
       map={(
         <>
+          {locationFirst && <LocationPrompt />}
           <Suspense fallback={null}>
             <FocusParam />
           </Suspense>
@@ -459,10 +465,12 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
           {!hydrated ? null : showPrompt ? (
             <>
-              <LocationPrompt
-                onDone={() => setChangingLocation(false)}
-                onCancel={location ? () => setChangingLocation(false) : undefined}
-              />
+              {!locationFirst && (
+                <LocationPrompt
+                  onDone={() => setChangingLocation(false)}
+                  onCancel={location ? () => setChangingLocation(false) : undefined}
+                />
+              )}
               {!location && <PopularList names={popularNames} />}
             </>
           ) : observer && (
@@ -551,4 +559,19 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       )}
     />
   );
+}
+
+const STACKED_QUERY = "(max-width: 1099.98px)";
+
+/** True while the shell is one column (app/home.css), read after mount. */
+function useStacked(): boolean {
+  const [stacked, setStacked] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(STACKED_QUERY);
+    const sync = () => setStacked(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return stacked;
 }

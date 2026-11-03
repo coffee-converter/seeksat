@@ -102,7 +102,13 @@ function trackKey(sats: MapSat[], short: Set<number>, detail: number): string {
 }
 const home = homeCamera as (
   view: View,
-  o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null; width: number; height: number },
+  o: {
+    observer: MapObserver | null;
+    focus: { lonDeg: number; latDeg: number } | null;
+    width: number;
+    height: number;
+    points?: { lonDeg: number; latDeg: number }[];
+  },
 ) => Camera;
 const preset = presetCamera as (
   p: Preset,
@@ -158,6 +164,8 @@ const reducedMotion = () =>
 const discZoom = (view: View, zoom: number, lat: number) =>
   view === "globe" ? zoom - Math.log2(Math.cos((Math.min(Math.abs(lat), 85.05) * Math.PI) / 180)) : zoom;
 const focusOf = (sats: MapSat[]) => sats.find((s) => s.emphasis === "focus")?.position ?? null;
+/** Where the dots on the map are now, ghosts included. */
+const dotsOf = (sats: MapSat[]) => sats.filter((s) => s.emphasis !== "hidden").map((s) => s.position);
 
 /** Satellites whose future track spans under SHORT_TRACK_PX on screen (GEO). */
 function shortTracks(map: MlMap, sats: MapSat[]): Set<number> {
@@ -256,7 +264,7 @@ export default function FlatMap({
   const homeView = useCallback((map: MlMap): Camera => {
     const { sats: s, observer: o, view: v } = latest.current;
     const el = map.getContainer();
-    return home(v, { observer: o, focus: focusOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
+    return home(v, { observer: o, focus: focusOf(s), points: dotsOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
   }, []);
   /** Zoom out no further than the whole Earth: the floor follows the
    *  container. On the globe MapLibre adds its own latitude term, so the
@@ -359,6 +367,7 @@ export default function FlatMap({
       const cam = home(latest.current.view, {
         observer: latest.current.observer,
         focus: focusOf(latest.current.sats),
+        points: dotsOf(latest.current.sats),
         width: el.clientWidth || 1,
         height: el.clientHeight || 1,
       });
@@ -578,6 +587,13 @@ export default function FlatMap({
     const map = mapRef.current;
     if (map && atHome.current) map.jumpTo(homeView(map));
   }, [obsLon, obsLat, homeView]);
+  // An untouched flat home view refits when the dots first arrive or the set
+  // shown changes, so they are in view; not on every tick as they move.
+  const dotsKey = sats.filter((s) => s.emphasis !== "hidden").map((s) => s.noradId).join(",");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && atHome.current && view === "flat") map.jumpTo(homeView(map));
+  }, [dotsKey, view, homeView]);
 
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
