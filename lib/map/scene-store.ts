@@ -10,7 +10,7 @@ import type { FlatMapProps } from "../../components/home/FlatMap";
 
 export interface MapScene extends Pick<
   FlatMapProps,
-  "sats" | "observer" | "selectedSub" | "projectionId" | "onProjectionChange"
+  "sats" | "observer" | "projectionId" | "onProjectionChange"
   | "selectedId" | "minElevDeg" | "onSelect" | "top" | "chips"
 > {
   /** Content above the map, inside .map-shell__map. */

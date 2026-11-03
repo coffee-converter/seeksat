@@ -51,7 +51,6 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
             fill
             sats={scene?.sats ?? []}
             observer={scene?.observer ?? null}
-            selectedSub={scene?.selectedSub}
             projectionId={scene?.projectionId ?? projection}
             onProjectionChange={scene?.onProjectionChange ?? ((id) => setPrefs({ projection: id }))}
             selectedId={scene?.selectedId ?? null}

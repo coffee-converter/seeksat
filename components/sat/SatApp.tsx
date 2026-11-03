@@ -224,7 +224,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const layers = useMemo(() => pageLayersOf({
     followed: prefs.following, hidden: prefs.hidden, focusId, pageId: data.noradId,
   }), [prefs.following, prefs.hidden, focusId, data.noradId]);
-  const { sats, focusSub } = useMapSats({
+  const { sats } = useMapSats({
     layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg,
   });
   // One chip per followed satellite, as on the home page: tap to focus,
@@ -247,7 +247,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   usePublishMapScene({
     sats,
     observer: settings.observer,
-    selectedSub: focusSub,
     projectionId: prefs.projection,
     onProjectionChange: (id) => setPrefs({ projection: id }),
     selectedId: focusId,

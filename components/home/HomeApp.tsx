@@ -262,7 +262,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return m;
   }, [layers, allTracks]);
 
-  const { sats, focusSub } = useMapSats({
+  const { sats } = useMapSats({
     layers, tracks: allTracks, colors, nowMs, minElevDeg: prefs.minElevDeg,
   });
 
@@ -427,7 +427,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     ),
     sats,
     observer: location,
-    selectedSub: focusSub,
     projectionId: prefs.projection,
     onProjectionChange: (id) => setPrefs({ projection: id }),
     selectedId: focusId,

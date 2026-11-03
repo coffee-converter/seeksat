@@ -19,7 +19,6 @@ export default function NotFoundScene() {
   usePublishMapScene({
     sats: [],
     observer: null,
-    selectedSub: null,
     projectionId: projection,
     onProjectionChange: (id) => setPrefs({ projection: id }),
     selectedId: null,

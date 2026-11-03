@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 // Types only: the library itself loads in an effect, in its own chunk.
-import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, StyleSpecification } from "maplibre-gl";
+import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
@@ -64,8 +64,6 @@ interface Props {
   top?: React.ReactNode;
   /** Laid over the top of the map, left of the view toggle (the chips). */
   chips?: React.ReactNode;
-  /** Subpoint and altitude of the selected satellite. */
-  selectedSub?: SelectedSub | null;
   /** Sized by its container (MapShell): docked full height on desktop, with the
    *  focus bar and a collapsible legend laid over the map. */
   fill?: boolean;
@@ -147,6 +145,8 @@ const footprintOf = footprintFeature as (sub: SelectedSub, altKm: number, minEle
 /** The GeoJSON footprint fill, hidden while the globe layer draws it. */
 const FILL_LAYER = "ss-footprint-fill";
 type Theme = "dark" | "light";
+/** The focused satellite now, as the footprint and the follow jump need it. */
+type LiveFocus = SelectedSub & { color: string; footprint: boolean };
 
 const NIGHT_REFRESH_MS = 60_000;
 /** How often the dots, the focus footprint and a following camera move. */
@@ -214,7 +214,6 @@ export default function FlatMap({
   onSelect,
   top = null,
   chips = null,
-  selectedSub = null,
   fill = false,
 }: Props) {
   const view: View = projectionId === "flat" ? "flat" : "globe";
@@ -239,28 +238,33 @@ export default function FlatMap({
   const docked = useRef(false);
   // Entering a focus moves once to centre it (the effect near the end).
   const centreOn = useRef<number | null>(null);
-  // "On the satellite": the camera stays on the focus until a gesture, Reset
-  // view, another preset or a new focus stops it. A shared store, so other
-  // controls can show and toggle it; the dot loop reads it with getState.
+  // "On the satellite": the camera stays on the focus until a pan (zooms
+  // keep it), Reset view, another preset or a new focus stops it. A shared
+  // store, so other controls can show and toggle it; the dot loop reads it
+  // with getState.
   const followOn = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
   const [legendOpen, setLegendOpen] = useState(false);
   const legendId = useId();
 
   // Latest props, read by map event handlers without re-binding them.
-  const latest = useRef({ sats, observer, view, onSelect, selectedSub, minElevDeg });
-  latest.current = { sats, observer, view, onSelect, selectedSub, minElevDeg };
+  const latest = useRef({ sats, observer, view, onSelect, minElevDeg });
+  latest.current = { sats, observer, view, onSelect, minElevDeg };
 
   /** The satellites as of now: props arrive about once a second, so each dot
    *  and the focus footprint move to trueNow(). A satellite the track cannot
-   *  place now is left out. */
+   *  place now stays where the props put it, so a failed sample never drops
+   *  it (or changes the track key). */
   const liveSats = useCallback((): MapSat[] => {
     const { sats: s, minElevDeg: elev } = latest.current;
     const ms = trueNow();
     const out: MapSat[] = [];
     for (const x of s) {
       const sub = x.positionAt(ms);
-      if (!sub) continue;
+      if (!sub) {
+        out.push(x);
+        continue;
+      }
       out.push({
         ...x,
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
@@ -269,8 +273,9 @@ export default function FlatMap({
     }
     return out;
   }, []);
-  /** The focused satellite's sub-point now, or null. */
-  const liveFocus = useCallback((s: MapSat[]): (SelectedSub & { color: string; footprint: boolean }) | null => {
+  /** The focused satellite's sub-point now, or null. Worked out once per
+   *  update and shared by the footprint and the follow jump. */
+  const liveFocus = useCallback((s: MapSat[]): LiveFocus | null => {
     const f = s.find((x) => x.emphasis === "focus");
     const sub = f?.positionAt(trueNow());
     return f && sub ? { ...sub, color: f.color, footprint: f.footprint != null } : null;
@@ -292,12 +297,11 @@ export default function FlatMap({
     map.setLayoutProperty(FILL_LAYER, "visibility", hide ? "none" : "visible");
   }, []);
   /** The focus satellite's footprint for the globe layer, as overlayData draws it. */
-  const pushFootprint = useCallback(() => {
-    const f = liveFocus(latest.current.sats);
+  const pushFootprint = useCallback((f: LiveFocus | null) => {
     capLayer.current?.setFootprint(f?.footprint
       ? { center: [f.lonDeg, f.latDeg], radiusDeg: radiusFor(f.altKm, latest.current.minElevDeg), color: f.color }
       : null);
-  }, [liveFocus]);
+  }, []);
 
   const homeView = useCallback((map: MlMap): Camera => {
     const { sats: s, observer: o, view: v } = latest.current;
@@ -315,15 +319,38 @@ export default function FlatMap({
     if (reducedMotion()) map.jumpTo(cam);
     else map.easeTo(cam);
   }, []);
-  /** Following, jump to the focus now: no easing, and no originalEvent, so
-   *  movestart does not take it for a gesture. Waits for a running ease (a
-   *  preset's) to end. True when it jumped; its moveend pushes the overlays. */
-  const followJump = useCallback((map: MlMap): boolean => {
-    const f = liveFocus(latest.current.sats);
-    if (!f || map.isMoving() || !useFollow.getState().following) return false;
-    map.jumpTo({ center: [f.lonDeg, f.latDeg] });
-    return true;
-  }, [liveFocus]);
+  /** While following, wheel and pinch zoom about the centre (the satellite)
+   *  and double-click zoom is ours (the dblclick handler); otherwise they zoom
+   *  about the pointer. The +/- buttons and keys always zoom about the centre. */
+  const syncZoomAround = useCallback((map: MlMap, centre: boolean) => {
+    const opts = centre ? { around: "center" as const } : undefined;
+    // enable() keeps the old options while enabled, so turn it off first.
+    map.scrollZoom.disable();
+    map.scrollZoom.enable(opts);
+    map.touchZoomRotate.enable(opts);
+    if (centre) map.doubleClickZoom.disable();
+    else map.doubleClickZoom.enable();
+  }, []);
+  // True while a mouse button or a finger is down on the map. A jump then
+  // would stop MapLibre's handlers and lose a drag that has not yet moved
+  // far enough to start.
+  const handHeld = useRef(false);
+  // True while followJump's own jumpTo runs (it fires its events at once), so
+  // moveend and zoomend skip the work a hand move needs: the caller pushes.
+  const selfJump = useRef(false);
+  /** Following, jump to the focus f: no easing, and no originalEvent, so
+   *  movestart does not take it for a gesture. Waits for a running ease or
+   *  gesture (a preset's, a zoom, a held pointer) to end. The caller pushes
+   *  the overlays. */
+  const followJump = useCallback((map: MlMap, f: LiveFocus | null) => {
+    if (!f || handHeld.current || map.isMoving() || !useFollow.getState().following) return;
+    selfJump.current = true;
+    try {
+      map.jumpTo({ center: [f.lonDeg, f.latDeg] });
+    } finally {
+      selfJump.current = false;
+    }
+  }, []);
 
   /** Night bands, rebuilt at most every NIGHT_REFRESH_MS; true when rebuilt. */
   const refreshNight = useCallback((): boolean => {
@@ -394,6 +421,12 @@ export default function FlatMap({
   useEffect(() => {
     let alive = true;
     let made: MlMap | null = null;
+    // A mouse button can come up off the map (MapLibre's drag listens on the window too).
+    const letGo = () => {
+      handHeld.current = false;
+    };
+    window.addEventListener("mouseup", letGo);
+    window.addEventListener("blur", letGo);
     (async () => {
       let gl: typeof import("maplibre-gl");
       try {
@@ -450,9 +483,10 @@ export default function FlatMap({
           queueMicrotask(syncFill);
         },
       });
-      pushFootprint();
+      pushFootprint(liveFocus(latest.current.sats));
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
+      syncZoomAround(map, useFollow.getState().following);
       syncGestures();
       const canvas = map.getCanvas();
       canvas.setAttribute("role", "img");
@@ -509,20 +543,71 @@ export default function FlatMap({
         }
         if (best != null && Number.isFinite(best)) latest.current.onSelect(best);
       });
-      // Moves by hand (drag, wheel, touch, keys) leave the home view and stop
-      // following the satellite; ours carry no originalEvent. A single wheel
-      // tick starts its move without one, so the wheel handler is asked too.
+      // Moves by hand (drag, wheel, touch, keys) leave the home view; ours
+      // carry no originalEvent. A single wheel tick starts its move without
+      // one, so the wheel handler is asked too.
+      const release = () => {
+        if (useFollow.getState().following) setFollowing(false);
+      };
       map.on("movestart", (e: { originalEvent?: Event }) => {
         if (!e.originalEvent && !map.scrollZoom.isActive()) return;
         atHome.current = false;
-        if (useFollow.getState().following) setFollowing(false);
+        // Only a pan lets go of Lock on: zooms keep the satellite centred.
+        // Keyboard panning (the arrows) arrives as an ease, not a drag.
+        const ev = e.originalEvent;
+        if (ev instanceof KeyboardEvent && ev.key.startsWith("Arrow")) release();
+      });
+      // A mouse or one-finger drag is a pan. Two fingers may be a pinch, whose
+      // centre drifts a little, so that touch decides when the last finger
+      // lifts: a pan unless it zoomed.
+      // (A touch's inertia can zoom after the lift; it belongs to no gesture.)
+      const touch = { down: false, panned: false, zoomed: false };
+      const isTouch = (ev?: Event): ev is TouchEvent => typeof TouchEvent !== "undefined" && ev instanceof TouchEvent;
+      map.on("touchstart", (e: MapTouchEvent) => {
+        const t = e.originalEvent;
+        if (t.touches.length === t.changedTouches.length) Object.assign(touch, { down: true, panned: false, zoomed: false });
+        handHeld.current = true;
+      });
+      map.on("dragstart", (e: { originalEvent?: Event }) => {
+        const ev = e.originalEvent;
+        if (isTouch(ev) && ev.touches.length > 1) touch.panned = true;
+        else release();
+      });
+      map.on("zoomstart", (e: { originalEvent?: Event }) => {
+        if (touch.down && isTouch(e.originalEvent)) touch.zoomed = true;
+      });
+      const lift = (e: MapTouchEvent) => {
+        if (e.originalEvent.touches.length > 0) return;
+        handHeld.current = false;
+        if (!touch.down) return;
+        touch.down = false;
+        if (e.type === "touchend" && touch.panned && !touch.zoomed) release();
+      };
+      map.on("touchend", lift);
+      map.on("touchcancel", lift);
+      map.on("mousedown", () => {
+        handHeld.current = true;
+      });
+      // MapLibre's double-click zoom centres on the pointer, so while
+      // following it is off (syncZoomAround) and this zooms about the centre.
+      // It starts after MapLibre's own handling of the event, which stops any
+      // camera move begun inside a listener while a handler is active.
+      map.on("dblclick", (e: MapMouseEvent) => {
+        if (!useFollow.getState().following) return;
+        const ev = e.originalEvent;
+        queueMicrotask(() => map.zoomTo(map.getZoom() + (ev.shiftKey ? -1 : 1), { animate: !reducedMotion() }, { originalEvent: ev }));
       });
       // Zoomed in past home, a stacked map takes one-finger and wheel gestures.
-      map.on("zoomend", syncGestures);
+      // A follow jump keeps the Earth's size, so it skips this and the push.
+      map.on("zoomend", () => {
+        if (!selfJump.current) syncGestures();
+      });
       // Past zoom 11 the globe flattens toward Mercator and the GeoJSON fill takes over.
       map.on("zoom", syncFill);
       // Zooming changes which tracks are too short for direction marks.
-      map.on("moveend", push);
+      map.on("moveend", () => {
+        if (!selfJump.current) push();
+      });
       // MapLibre follows its container; an untouched home view refits to it.
       map.on("resize", () => {
         limitZoom(map);
@@ -531,6 +616,8 @@ export default function FlatMap({
     })();
     return () => {
       alive = false;
+      window.removeEventListener("mouseup", letGo);
+      window.removeEventListener("blur", letGo);
       styleReady.current = false;
       mapRef.current = null;
       capLayer.current = null;
@@ -538,7 +625,7 @@ export default function FlatMap({
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom, syncFill, pushFootprint]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {
@@ -555,6 +642,11 @@ export default function FlatMap({
   useEffect(() => {
     syncGestures();
   }, [full, syncGestures]);
+  // Lock on keeps zooms about the satellite; off, they follow the pointer again.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) syncZoomAround(map, followOn);
+  }, [followOn, syncZoomAround]);
 
   const toggleFull = useCallback(() => {
     const shell = shellRef.current;
@@ -654,7 +746,8 @@ export default function FlatMap({
   }, [selectedId, setFollowing]);
   // The parent's clock tick passes new props each second.
   useEffect(() => {
-    pushFootprint();
+    const f = liveFocus(latest.current.sats);
+    pushFootprint(f);
     const map = mapRef.current;
     const id = centreOn.current;
     if (map && id != null) {
@@ -670,10 +763,9 @@ export default function FlatMap({
       }
     }
     // Following jumps without easing; a preset's own ease runs to its end first.
-    // The jump's moveend pushes the overlays.
-    if (map && followJump(map)) return;
+    if (map) followJump(map, f);
     push();
-  }, [sats, observer, selectedId, selectedSub, minElevDeg, push, pushFootprint, moveTo, followJump]);
+  }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, followJump, liveFocus]);
 
   // Between props, move the dots, the focus footprint and a following camera
   // every DOT_MS. Nothing here sets React state. It stops while the tab is hidden.
@@ -682,12 +774,17 @@ export default function FlatMap({
     const tick = () => {
       const map = mapRef.current;
       if (!map || !styleReady.current) return;
-      pushFootprint();
-      if (followJump(map)) return;
-      const data = buildData({ sats: liveSats(), observer: latest.current.observer, tracks: false });
-      // Night bands are not dots: push() refreshes them once a minute.
-      delete data["ss-night"];
-      setOverlayData(map, data);
+      const f = liveFocus(latest.current.sats);
+      pushFootprint(f);
+      followJump(map, f);
+      // Only what moves: the dots, and the focus footprint while there is one.
+      // The observer, night bands and an emptied footprint go with push().
+      const data = buildData({ sats: liveSats(), tracks: false });
+      const footprint = data["ss-footprint"] as { features: unknown[] };
+      setOverlayData(map, {
+        "ss-sats": data["ss-sats"],
+        ...(footprint.features.length > 0 && { "ss-footprint": footprint }),
+      });
     };
     const stop = () => {
       if (id !== undefined) window.clearInterval(id);
@@ -703,7 +800,7 @@ export default function FlatMap({
       document.removeEventListener("visibilitychange", start);
       stop();
     };
-  }, [pushFootprint, followJump, liveSats]);
+  }, [pushFootprint, followJump, liveSats, liveFocus]);
 
   const reset = () => {
     const map = mapRef.current;
