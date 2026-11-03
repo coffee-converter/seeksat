@@ -1268,6 +1268,8 @@
 }
 .map-legend__swatch--ghost { width: 6px; height: 6px; margin: 0 8px; border-radius: 50%; background: var(--map-text); opacity: 0.35; }
 .map-legend__swatch--night { background: var(--map-night); border: 1px solid var(--map-border); }
+.map-legend__swatch--note { display: none; }
+.map-legend li:has(> .map-legend__swatch--note) { flex-basis: 100%; }
 .map-legend__swatch--observer { display: inline-flex; align-items: center; justify-content: center; height: 18px; color: var(--map-accent); }
 .map-legend__swatch--observer svg { display: block; }
 

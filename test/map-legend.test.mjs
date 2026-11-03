@@ -13,7 +13,7 @@ const MIXED = `${PREFIX}with ticks every 10 min on low orbits, every hour on hig
 
 test('full legend, in order', () => {
   const items = legendItems({ sats: [iss, goes], observer: obs, minElevDeg: 10 });
-  assert.deepEqual(items.map((i) => i.kind), ['sat', 'sat', 'track', 'footprint', 'night', 'observer']);
+  assert.deepEqual(items.map((i) => i.kind), ['sat', 'sat', 'track', 'footprint', 'night', 'observer', 'note']);
   assert.deepEqual(items[0], { key: 'sat-25544', kind: 'sat', label: 'ISS', color: '#ff9b54' });
   assert.equal(items[2].label, MIXED);
   assert.equal(items[3].label, 'Circle: where ISS is at least 10° up');
@@ -22,7 +22,7 @@ test('full legend, in order', () => {
 });
 test('no selection or observer drops footprint and observer', () => {
   const items = legendItems({ sats: [{ ...iss, selected: false }], observer: null, minElevDeg: 10 });
-  assert.deepEqual(items.map((i) => i.kind), ['sat', 'track', 'night']);
+  assert.deepEqual(items.map((i) => i.kind), ['sat', 'track', 'night', 'note']);
 });
 test('tick copy follows each satellite\'s tick step, not its orbit class', () => {
   const track = (sats) => legendItems({ sats, observer: null, minElevDeg: 5 }).find((i) => i.kind === 'track').label;
@@ -45,7 +45,7 @@ test('ghost and hidden satellites are not listed; ghosts get one faint-dot line'
     observer: null,
     minElevDeg: 10,
   });
-  assert.deepEqual(items.map((i) => i.kind), ['sat', 'ghost', 'track', 'footprint', 'night']);
+  assert.deepEqual(items.map((i) => i.kind), ['sat', 'ghost', 'track', 'footprint', 'night', 'note']);
   assert.equal(items[1].label, 'Faint dots: the other satellites you follow');
 });
 
@@ -62,4 +62,12 @@ test('at 0 degrees the circle line says above the horizon', () => {
 test('the circle swatch takes the focused satellite\'s colour, as the map draws it', () => {
   const items = legendItems({ sats: [iss], observer: null, minElevDeg: 0 });
   assert.equal(items.find((i) => i.kind === 'footprint').color, iss.color);
+});
+
+test('the legend ends by saying dots are ground positions, not places in space', () => {
+  const items = legendItems({ sats: [iss], observer: null, minElevDeg: 0 });
+  const note = items.at(-1);
+  assert.equal(note.kind, 'note');
+  assert.match(note.label, /ground positions: the point on Earth straight below each satellite/);
+  assert.match(note.label, /thousands of km apart in height/);
 });

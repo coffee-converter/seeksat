@@ -11,6 +11,7 @@ const ORDER: Array<[keyof typeof HOW_WE_COMPUTE, string]> = [
   ["visViva", "Orbit check (vis-viva)"],
   ["elements", "Mean elements"],
   ["epoch", "Epoch"],
+  ["accuracy", "How accurate is this?"],
 ];
 
 export default function HowWeCompute() {
@@ -19,7 +20,7 @@ export default function HowWeCompute() {
       <h2 id="sat-how-title" className="home-heading">How we compute these</h2>
       <dl className="sat-how-list">
         {ORDER.map(([key, term]) => (
-          <div key={key} className="sat-how-list__row">
+          <div key={key} id={`how-${key}`} className="sat-how-list__row">
             <dt>{term}</dt>
             <dd>{HOW_WE_COMPUTE[key]}</dd>
           </div>
