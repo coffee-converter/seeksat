@@ -169,6 +169,13 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   useEffect(() => {
     openedAt.current = Date.now();
   }, [data.noradId]);
+  // Opening a satellite shows it again: selected means on the map. Once per
+  // page, after the saved prefs load, so the eye still hides it here.
+  useEffect(() => {
+    if (!hydrated) return;
+    const st = useHomeStore.getState();
+    if (st.prefs.hidden.includes(data.noradId)) st.toggleHidden(data.noradId);
+  }, [hydrated, data.noradId]);
   const onChipFocus = useCallback((id: number | null) => {
     if (id != null) openOther(id);
     else if (Date.now() - openedAt.current >= 600) onClose();

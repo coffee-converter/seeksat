@@ -182,6 +182,11 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     toggleHidden(id);
     if (hiding && st.focusId === id) focusOn(null);
   }, [toggleHidden, focusOn]);
+  // Choosing a hidden chip shows it again: selected means on the map.
+  const focusChip = useCallback((id: number | null) => {
+    if (id != null && useHomeStore.getState().prefs.hidden.includes(id)) toggleHidden(id);
+    focusOn(id);
+  }, [toggleHidden, focusOn]);
   // A focus that is not followed (from search, or a shared link) needs its record.
   useEffect(() => {
     if (hydrated && focusId != null && !prefs.following.includes(focusId)) void loadViewing(focusId);
@@ -425,7 +430,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       />
     ),
     chips: hydrated && (
-      <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={hideChip} />
+      <SatChips chips={chips} focusId={focusId} onFocus={focusChip} onToggleHidden={hideChip} />
     ),
     search: { onView: focusOn, onClearFocus: () => focusOn(null) },
     notice: savedAge && <p className="saved-age">{savedAge}</p>,
