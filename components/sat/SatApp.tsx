@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePublishMapScene } from "@/lib/map/scene-store";
+import { HEADER_PINNED_EVENT } from "@/components/HeaderPinned";
 import FocusBar from "@/components/home/FocusBar";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
@@ -280,11 +281,34 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     };
     watch();
     window.addEventListener("resize", watch);
+    window.addEventListener(HEADER_PINNED_EVENT, watch);
     return () => {
       io?.disconnect();
       window.removeEventListener("resize", watch);
+      window.removeEventListener(HEADER_PINNED_EVENT, watch);
     };
   }, []);
+  // While the bar shows, anchor and focus scrolls stop below it.
+  useEffect(() => {
+    if (!barOn) return;
+    const bar = barRef.current;
+    const inner = bar?.firstElementChild as HTMLElement | null;
+    const docked = window.matchMedia("(min-width: 1100px)").matches;
+    const el = docked ? document.querySelector<HTMLElement>(".map-shell__panel") : document.documentElement;
+    if (!bar || !inner || !el) return;
+    const set = () => {
+      const pinned = docked ? 0 : Math.max(0, parseFloat(getComputedStyle(bar).top) || 0);
+      el.style.scrollPaddingTop = `${pinned + inner.offsetHeight}px`;
+    };
+    set();
+    window.addEventListener("resize", set);
+    window.addEventListener(HEADER_PINNED_EVENT, set);
+    return () => {
+      window.removeEventListener("resize", set);
+      window.removeEventListener(HEADER_PINNED_EVENT, set);
+      el.style.scrollPaddingTop = "";
+    };
+  }, [barOn]);
   const barWhen = nextPassWhen(nextPass, nowMs);
 
   return (

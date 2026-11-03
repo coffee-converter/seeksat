@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import AlertRunner from "@/components/AlertRunner";
+import HeaderPinned from "@/components/HeaderPinned";
 import OfflineBanner from "@/components/OfflineBanner";
 
 interface Props {
@@ -34,6 +35,7 @@ export default function MapShell({ top, map, panel, notice, offlineFromCache = f
       </header>
       <div className="map-shell__map">{map}</div>
       <main className="map-shell__panel">{panel}</main>
+      <HeaderPinned />
       <AlertRunner />
     </div>
   );
