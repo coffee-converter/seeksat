@@ -5,17 +5,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SearchBar } from "@/components/home/SearchBar";
 import LiveClock from "@/components/LiveClock";
 import NightToggle from "@/components/NightToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { isHomePath } from "@/lib/map/shell-route.mjs";
+import { satPath } from "@/lib/sat/page-data.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
 
 export default function SiteHeader() {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   const search = useMapScene((s) => s.scene?.search);
   const [nowMs, setNowMs] = useState<number | null>(null);
 
@@ -56,7 +58,7 @@ export default function SiteHeader() {
       )}
       <div className="map-shell__search">
         <SearchBar
-          onView={(id) => search?.onView(id)}
+          onView={(id) => (search ? search.onView(id) : router.push(satPath(id) as string))}
           onClearFocus={() => search?.onClearFocus()}
         />
       </div>

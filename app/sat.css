@@ -226,23 +226,24 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 /* print: a clean black-on-white pass sheet. Colours are the keywords black
    and white (not tokens), so the sheet is the same whatever the theme. */
 @media print {
+  /* Scoped to .map-shell.sat so printing home is unaffected. */
   @page { margin: 14mm; }
   html, body { height: auto !important; overflow: visible !important; background: white !important; }
-  .map-shell, .map-shell.sat {
+  .map-shell.sat {
     display: block; height: auto; min-height: 0; overflow: visible;
     background: white; font-size: 10.5pt;
   }
-  .map-shell *, .map-shell *::before, .map-shell *::after {
+  .map-shell.sat *, .map-shell.sat *::before, .map-shell.sat *::after {
     color: black !important; background: transparent !important;
     box-shadow: none !important; text-shadow: none !important;
   }
-  .map-shell__top, .map-shell__map { display: none !important; }
-  .map-shell__panel {
+  .map-shell.sat .map-shell__top, .map-shell.sat .map-shell__map { display: none !important; }
+  .map-shell.sat .map-shell__panel {
     display: block; height: auto; overflow: visible; padding: 0;
     border: 0; background: white;
   }
   /* Keep only: title block, element age line, the pass list. */
-  .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
+  .map-shell.sat .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
   .sat-top .sat-follow, .sat-top .home-button, .sat-top .sat-next, .sat-back { display: none !important; }
   .sat-top { margin-bottom: 6pt; }
   .sat-title { font-size: 16pt; margin: 0 0 2pt; }

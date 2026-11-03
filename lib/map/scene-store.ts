@@ -32,10 +32,12 @@ export const useMapScene = create<MapSceneState>((set) => ({
   setScene: (s) => set({ scene: s }),
 }));
 
-/** Publishes the scene on every render. Never clears it on unmount. */
-export function usePublishMapScene(scene: MapScene): void {
+/** Publishes the scene on every render. Never clears it on unmount.
+ *  While `ready` is false the previous scene stays, so a page whose state
+ *  is still syncing from the URL does not flash a stale scene. */
+export function usePublishMapScene(scene: MapScene, ready = true): void {
   const setScene = useMapScene((s) => s.setScene);
   useEffect(() => {
-    setScene(scene);
+    if (ready) setScene(scene);
   });
 }

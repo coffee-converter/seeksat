@@ -42,12 +42,13 @@ const countOf = showAllCount as (layers: Layer[]) => number;
 /** Reads ?focus= into the store. Alone inside Suspense, so / stays static.
  *  It reads the live URL when the param changes, so a stale render left
  *  behind by two quick focus changes never flips the store back. */
-function FocusParam() {
+function FocusParam({ onSynced }: { onSynced: () => void }) {
   const raw = useSearchParams().get("focus");
   const setFocusId = useHomeStore((s) => s.setFocusId);
   useEffect(() => {
     setFocusId(parseFocus(new URLSearchParams(window.location.search).get("focus")) as number | null);
-  }, [raw, setFocusId]);
+    onSynced();
+  }, [raw, setFocusId, onSynced]);
   return null;
 }
 
@@ -75,6 +76,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const fromCache = useHomeStore((s) => s.fromCache);
   const generatedAtMs = useHomeStore((s) => s.generatedAtMs);
   const hydrate = useHomeStore((s) => s.hydrate);
+  // The scene waits until ?focus= is in the store, so a remount never
+  // publishes the store's stale focus for one commit.
+  const [focusSynced, setFocusSynced] = useState(false);
+  const onFocusSynced = useCallback(() => setFocusSynced(true), []);
   const loadRecords = useHomeStore((s) => s.loadRecords);
   const loadViewing = useHomeStore((s) => s.loadViewing);
   const setPrefs = useHomeStore((s) => s.setPrefs);
@@ -414,12 +419,12 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     notice: savedAge && <p className="saved-age">{savedAge}</p>,
     offlineFromCache: fromCache,
     shellClass: hydrated && !location ? "home-first-visit" : undefined,
-  });
+  }, focusSynced);
 
   return (
     <>
       <Suspense fallback={null}>
-        <FocusParam />
+        <FocusParam onSynced={onFocusSynced} />
       </Suspense>
       <ClockSkewBanner />
       <HomeControls
