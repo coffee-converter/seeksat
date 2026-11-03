@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { TIMELINE_HOURS } from "@/lib/home/next-up.mjs";
-import { barSpan, clockLabel, hourTicks, nightSpans, timelineRows } from "@/lib/home/timeline.mjs";
+import { barSpan, hourTicks, nightSpans, timelineRows } from "@/lib/home/timeline.mjs";
+import { passTime } from "@/components/passes/PassStats";
 import { passQuality } from "@/lib/passes/quality.mjs";
 import type { CloudBadge } from "@/lib/sky/cloud-badge.mjs";
 import { peakMagText, ratingText, visualRating } from "@/components/passes/QualityBadge";
@@ -34,7 +35,6 @@ const spanOf = barSpan as (pass: Pass, nowMs: number, hours: number) => Span | n
 const ticksOf = hourTicks as (nowMs: number, timeZone: string | undefined, o: { every: number; hours: number }) => Tick[];
 const nightOf = nightSpans as (observer: HomeObserver, nowMs: number, o: { hours: number }) => Span[];
 const qualityOf = passQuality as (pass: Pass) => Quality;
-const clockOf = clockLabel as (ms: number, timeZone: string | undefined) => string;
 
 const HOURS = TIMELINE_HOURS as number;
 const W = 1000;
@@ -96,7 +96,7 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
                   const cloud = clouds?.(pass) ?? null;
                   const q = visual ? visualRating(pass, { skyType, cloud }) : qualityOf(pass);
                   const mag = visual ? peakMagText(pass) : null;
-                  const label = `${row.name}, ${clockOf(pass.startMs, tz)} to ${clockOf(pass.endMs, tz)}, `
+                  const label = `${row.name}, ${passTime(pass.startMs, tz)} to ${passTime(pass.endMs, tz)}, `
                     + `max ${Math.round(pass.maxElevDeg)}°, ${ratingText(q, pass, visual)}${cloud ? `, ${cloud.label}` : ""}${mag ? `, ${mag}` : ""}`;
                   return (
                     <button
@@ -128,7 +128,10 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
           ))}
         </div>
       </div>
-      {leftOut > 0 && <p className="timeline__note">{othersLine(leftOut)}</p>}
+      <p className="timeline__note">
+        {"Each bar is a pass; tap one for its chart. Darker: night."}
+        {leftOut > 0 && ` ${othersLine(leftOut)}`}
+      </p>
     </section>
   );
 }

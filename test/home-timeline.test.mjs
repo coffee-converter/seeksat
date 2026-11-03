@@ -54,7 +54,8 @@ test('nightSpans covers the night', () => {
 });
 
 test('hourTicks gives the same ticks for a non-Latin-digit locale', () => {
-  const a = hourTicks(NOW, 'America/Chicago', { locale: 'en-GB' });
+  // ar-EG uses a 12-hour clock, like en-US; the labels stay in Latin digits.
+  const a = hourTicks(NOW, 'America/Chicago', { locale: 'en-US' });
   const b = hourTicks(NOW, 'America/Chicago', { locale: 'ar-EG' });
   assert.equal(b.length, a.length);
   assert.deepEqual(b.map((t) => t.x), a.map((t) => t.x));
@@ -98,4 +99,12 @@ test('clockLabel is a fixed 24-hour HH:MM in the observer zone, in any locale', 
 
 test('clockLabel falls back to UTC for an unknown zone', () => {
   assert.equal(clockLabel(Date.parse('2026-11-02T03:07:00Z'), 'Not/AZone'), '03:07');
+});
+
+test('hourTicks labels follow the clock the cards use: "3 PM" for 12-hour locales', () => {
+  const tokyo = hourTicks(NOW, 'Asia/Tokyo', { locale: 'en-US' });
+  assert.equal(tokyo[0].label, '3 PM');
+  const chi = hourTicks(NOW, 'America/Chicago', { locale: 'en-US' });
+  assert.deepEqual(chi.slice(0, 5).map((t) => t.label), ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM']);
+  assert.equal(hourTicks(NOW, 'America/Chicago', { locale: 'en-GB' })[1].label, '03:00');
 });
