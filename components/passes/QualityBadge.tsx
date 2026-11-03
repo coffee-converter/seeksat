@@ -26,12 +26,17 @@ export function peakMagText(pass: RatedPass): string | null {
 
 const shortOf = ratingShort as (q: Quality, pass: { maxElevDeg?: number }, o: { mode: string }) => string | null;
 
+/** "Low: faint" or "Good": the badge's words, for a bar's tooltip and label. */
+export function ratingText(q: Pick<Quality, "level" | "label" | "cause">, pass: { maxElevDeg?: number }, visual: boolean): string {
+  const short = shortOf(q as Quality, pass, { mode: visual ? "visual" : "radio" });
+  return short ? `${q.label}: ${short}` : q.label;
+}
+
 /** Good, OK or Low for a pass: always a word, the colour only backs it up.
  *  Below Good it says why in a few words ("Low: cloudy", "OK: 24° up"); the
  *  tooltip keeps the full reason. `rating` (visual mode) replaces the
  *  elevation-only rating. */
 export default function QualityBadge({ pass, rating }: { pass: { maxElevDeg?: number }; rating?: Quality }) {
   const q = rating ?? (passQuality as (p: { maxElevDeg?: number }) => Quality)(pass);
-  const short = shortOf(q, pass, { mode: rating ? "visual" : "radio" });
-  return <span className={`quality quality--${q.level}`} title={q.reason}>{short ? `${q.label}: ${short}` : q.label}</span>;
+  return <span className={`quality quality--${q.level}`} title={q.reason}>{ratingText(q, pass, !!rating)}</span>;
 }

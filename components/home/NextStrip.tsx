@@ -30,8 +30,10 @@ export default function NextStrip({ summary, rating, cloud = null, onFocus }: {
     <button type="button" className="next-strip" onClick={go}>
       <span className="next-strip__label">Next:</span>
       <span className="next-strip__text">{summary.text}</span>
-      <QualityBadge pass={summary.pass} rating={rating} />
-      {cloud && <span className={`cloud cloud--${cloud.level}`} title={cloud.title}>{cloud.label}</span>}
+      <span className="rating-pair">
+        <QualityBadge pass={summary.pass} rating={rating} />
+        {cloud && <span className={`cloud cloud--${cloud.level}`} title={cloud.title}>{cloud.label}</span>}
+      </span>
     </button>
   );
 }

@@ -422,8 +422,10 @@ export default function PassSection({
                             >
                               <p className="sat-pass__line1">
                                 <span className="sat-pass__times">{row.timesLabel}</span>
-                                <QualityBadge pass={rated} rating={rating} />
-                                {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
+                                <span className="rating-pair">
+                                  <QualityBadge pass={rated} rating={rating} />
+                                  {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
+                                </span>
                                 <span className="sat-pass__max">{`max ${row.maxElevLabel}`}</span>
                                 {mag && <span className="pass-mag sat-pass__mag">{mag}</span>}
                               </p>

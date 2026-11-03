@@ -255,8 +255,10 @@ function PassCard({
         </p>
         <p className="pass-card__meta">
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
-          <QualityBadge pass={pass} rating={rating} />
-          {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
+          <span className="rating-pair">
+            <QualityBadge pass={pass} rating={rating} />
+            {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
+          </span>
           {/* Every pass listed in visual mode is visible, so only radio says so. */}
           {!visual && pass.visible && <span className="pass-card__tag">visible</span>}
           {above && <span className="pass-card__fact">{above}</span>}
@@ -377,7 +379,7 @@ export default function NextUpList({
   return (
     <>
     {best && bestTrack && (
-      <BestPassLine best={best} visual={mode === "visual"} clouds={clouds} track={bestTrack} observer={observer} nowMs={nowMs} onOpen={(e) => open("sky", bestTrack, best.pass, e)} />
+      <BestPassLine best={best} visual={mode === "visual"} clouds={clouds} track={bestTrack} observer={observer} nowMs={nowMs} onOpen={(e) => open(mode === "visual" ? "sky" : "radio", bestTrack, best.pass, e)} />
     )}
     <section className="next-up" aria-labelledby="next-up-title">
       <h2 id="next-up-title" className="home-heading">Next up</h2>
@@ -443,7 +445,7 @@ function dayTime(ms: number, nowMs: number, timeZone?: string): string {
 }
 
 /** "Best in the next 24 hours: ISS 09:41 PM, Good, max 64°": a button that
- *  opens that pass's sky chart. Shown only when it is not the soonest pass. */
+ *  opens that pass's chart for the mode (sky in visual, radio in radio). Shown only when it is not the soonest pass. */
 function BestPassLine({ best, visual, clouds, track, observer, nowMs, onOpen }: {
   best: Best;
   visual: boolean;
@@ -456,12 +458,14 @@ function BestPassLine({ best, visual, clouds, track, observer, nowMs, onOpen }: 
 }) {
   const { pass, rating } = best;
   return (
-    <button type="button" className="best-pass" title="Open the sky chart for this pass" onClick={onOpen}>
+    <button type="button" className="best-pass" title={visual ? "Open the sky chart for this pass" : "Open the radio chart for this pass"} onClick={onOpen}>
       <span className="best-pass__label">Best in the next 24 hours:</span>{" "}
       <span className="best-pass__what">
         {`${track.shortName ?? best.name} ${dayTime(pass.startMs, nowMs, observer.tz)}, `}
-        <QualityBadge pass={pass} rating={visual ? rating : undefined} />
-        {visual && <>{" "}<CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} /></>}
+        <span className="rating-pair">
+          <QualityBadge pass={pass} rating={visual ? rating : undefined} />
+          {visual && <>{" "}<CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} /></>}
+        </span>
         {`, max ${Math.round(pass.maxElevDeg)}°`}
       </span>
     </button>

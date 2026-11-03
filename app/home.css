@@ -668,6 +668,13 @@
 .cloud--some { color: var(--warn-text); }
 .cloud,
 .quality { white-space: nowrap; }
+/* The quality and cloud badges stay together on one line. */
+.rating-pair { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.rating-pair .quality,
+.rating-pair .cloud { margin-left: 0; }
+/* In running text the pair keeps the badge's own left margin. */
+.best-pass__what .rating-pair,
+.sat-next__what .rating-pair { margin-left: 8px; }
 /* Where the elements came from: a quieter cue than "visible". */
 .pass-card__tag--elements {
   color: var(--map-muted);

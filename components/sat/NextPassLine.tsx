@@ -32,8 +32,10 @@ export default function NextPassLine({ report, nowMs, mode, skyType, clouds, onC
         <span className="sat-next__label">Next pass:</span>{" "}
         <span className="sat-next__what">
           {`${text}, `}
-          <QualityBadge pass={pass} rating={rating} />
-          {visual && <>{" "}<CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} /></>}
+          <span className="rating-pair">
+            <QualityBadge pass={pass} rating={rating} />
+            {visual && <>{" "}<CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} /></>}
+          </span>
         </span>
       </p>
       <button type="button" className="home-chip" onClick={(e) => onChart(visual ? "sky" : "radio", pass, e)}>

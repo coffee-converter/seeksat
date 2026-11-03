@@ -5,7 +5,7 @@ import { TIMELINE_HOURS } from "@/lib/home/next-up.mjs";
 import { barSpan, clockLabel, hourTicks, nightSpans, timelineRows } from "@/lib/home/timeline.mjs";
 import { passQuality } from "@/lib/passes/quality.mjs";
 import type { CloudBadge } from "@/lib/sky/cloud-badge.mjs";
-import { peakMagText, visualRating } from "@/components/passes/QualityBadge";
+import { peakMagText, ratingText, visualRating } from "@/components/passes/QualityBadge";
 import type { Card, HomeObserver, Pass, Track } from "./NextUpList";
 
 interface Props {
@@ -97,7 +97,7 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
                   const q = visual ? visualRating(pass, { skyType, cloud }) : qualityOf(pass);
                   const mag = visual ? peakMagText(pass) : null;
                   const label = `${row.name}, ${clockOf(pass.startMs, tz)} to ${clockOf(pass.endMs, tz)}, `
-                    + `max ${Math.round(pass.maxElevDeg)}°, ${q.label}${cloud ? `, ${cloud.label}` : ""}${mag ? `, ${mag}` : ""}`;
+                    + `max ${Math.round(pass.maxElevDeg)}°, ${ratingText(q, pass, visual)}${cloud ? `, ${cloud.label}` : ""}${mag ? `, ${mag}` : ""}`;
                   return (
                     <button
                       // startMs shifts a fraction of a second on each card
