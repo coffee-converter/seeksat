@@ -931,7 +931,10 @@ export default function FlatMap({
         // No zoom: on the globe MapLibre then keeps the Earth the same size as
         // the centre's latitude changes; passing the current zoom number
         // shrank it far out when the focus was nearer the equator.
-        moveTo(map, { center: [sat.position.lonDeg, sat.position.latDeg] });
+        // The live position, not the props one: a satellite page's first
+        // props come from its cached render time, up to an hour old.
+        const at = sat.positionAt(trueNow()) ?? sat.position;
+        moveTo(map, { center: [at.lonDeg, at.latDeg] });
       }
     }
     push();
