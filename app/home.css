@@ -1350,7 +1350,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
   min-height: 56px;
   padding: 6px 12px;
   background: var(--bg);
-  border-bottom: 1px solid var(--map-border);
+  border-bottom: 1px solid var(--map-edge);
 }
 /* OfflineBanner (components/OfflineBanner.tsx): a full-width row under the top bar's contents. */
 .map-shell__top .offline-banner {
@@ -1578,7 +1578,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
     overscroll-behavior: contain;
     padding: 18px 16px 24px;
     background: var(--bg);
-    border-left: 1px solid var(--map-border);
+    border-left: 1px solid var(--map-edge);
     scrollbar-width: thin;
     scrollbar-color: var(--btn-line) transparent;
   }
