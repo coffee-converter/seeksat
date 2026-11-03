@@ -144,3 +144,13 @@ test('every dark map fill and line is dark', () => {
 test('Satellite\'s view uses the vertical-perspective projection', () => {
   assert.deepEqual(basemapStyle('dark', 'satview').projection, { type: 'vertical-perspective' });
 });
+
+// A thin atmosphere at the edge of the Earth on the globe views, so the globe
+// stands apart from the space behind it; none on the flat map.
+test('the globe views carry a faint atmosphere and the flat map none', () => {
+  for (const view of ['globe', 'satview']) {
+    const sky = basemapStyle('dark', view).sky;
+    assert.ok(sky && sky['atmosphere-blend'] !== undefined, view);
+  }
+  assert.equal(basemapStyle('dark', 'flat').sky, undefined);
+});

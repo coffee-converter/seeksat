@@ -79,7 +79,8 @@
   --map-ocean: #0e1116;
   --map-land: #1b1e24;
   /* Behind the globe: apart from the water, so the globe's edge shows. */
-  --map-space: #181d25;
+  /* Space behind the globe: darker than night-side land, so the Earth's edge shows. */
+  --map-space: #07090d;
   --map-night: rgba(3, 5, 12, 0.24);
   --map-footprint: rgba(143, 180, 230, 0.16);
   /* The timeline strip: daylight lifted, night sunk, clearly apart. */
@@ -153,7 +154,7 @@
   --flash-text: #0b1220;
   --map-ocean: #c2c8ca;
   --map-land: #f2f3f0;
-  --map-space: #e4e8ee;
+  --map-space: #b4bfcf;
   --map-night: rgba(20, 30, 60, 0.1);
   --map-footprint: rgba(44, 90, 153, 0.14);
   --timeline-day: #e4e8ee;
