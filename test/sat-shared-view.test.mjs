@@ -143,3 +143,9 @@ test('sharedBannerText: names the sender and counts the other places', () => {
   assert.equal(sharedBannerText(two), "You're looking at a shared view from Chicago and 1 other place.");
   assert.equal(sharedBannerText(many), "You're looking at a shared view from Chicago and 3 other places.");
 });
+
+test('sharedSettings clamps minElevDeg to the stepper range', () => {
+  assert.equal(sharedSettings(decoded({ minElevDeg: 60 })).minElevDeg, 45);
+  assert.equal(sharedSettings(decoded({ minElevDeg: -5 })).minElevDeg, 0);
+  assert.equal(sharedSettings(decoded({ minElevDeg: undefined })).minElevDeg, 0);
+});
