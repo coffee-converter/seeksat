@@ -19,7 +19,7 @@ import NextPassLine, { nextPassWhen } from "./NextPassLine";
 import RawElements from "./RawElements";
 import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
 import { focusDestination, satPageLayers } from "@/lib/home/focus.mjs";
-import { clearFromList, closeTarget, fromList } from "@/lib/home/list-origin.mjs";
+import { clearFromList, closeTargetFor, fromList, markFromList } from "@/lib/home/list-origin.mjs";
 import { tracksFor } from "@/lib/home/records.mjs";
 import { followedTracks } from "@/lib/home/view.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -96,7 +96,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const onSkyTypeChange = useCallback((skyType: string) => setPrefs({ skyType }), [setPrefs]);
   const leaveShared = () => {
     setShared(null);
-    router.replace(satPath(data.noradId) as string);
+    // Same page, new URL: keep the entry's state so its list origin survives.
+    window.history.replaceState(window.history.state, "", satPath(data.noradId) as string);
   };
 
   // First render matches the server HTML; the clock starts after mount.
@@ -163,11 +164,17 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
 
   // The map is always focused on this satellite; the other followed ones ghost.
   const focusId = data.noradId;
-  // Close: back to the list when it opened this page, else home.
-  const onClose = useCallback(() => {
-    if (closeTarget(fromList()) === "back") router.back();
-    else router.push("/");
+  // The list hands its origin over through the module flag; this page's own
+  // history entry then carries it, so Back and Forward keep it.
+  useEffect(() => {
+    if (!fromList()) return;
+    window.history.replaceState({ ...window.history.state, seeksatFromList: true }, "", window.location.href);
     clearFromList();
+  }, [data.noradId]);
+  // Close: back to the list when this entry came from it, else home.
+  const onClose = useCallback(() => {
+    if (closeTargetFor(window.history.state) === "back") router.back();
+    else router.push("/");
   }, [router]);
   // Another satellite from the map, a chip or search: a catalog one replaces
   // this page, so the list stays one step back; a pasted one has no page and
@@ -175,8 +182,11 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const openOther = useCallback((id: number | null) => {
     if (id == null || id === data.noradId) return;
     const dest = focusDestination(id, useHomeStore.getState().prefs.custom.map((c) => c.noradId)) as string | null;
-    if (dest) router.replace(dest);
-    else router.push(`/?focus=${id}`);
+    if (dest) {
+      // The hop replaces this entry, so the new page re-marks its own.
+      if (closeTargetFor(window.history.state) === "back") markFromList();
+      router.replace(dest);
+    } else router.push(`/?focus=${id}`);
   }, [data.noradId, router]);
   // Old Show all links carried ?map=all; drop it from the URL.
   useEffect(() => {
