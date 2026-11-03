@@ -149,6 +149,10 @@ type Theme = "dark" | "light";
 type LiveFocus = SelectedSub & { name: string; color: string; footprint: boolean };
 /** The focused satellite's dot and name: a marker the frame loop moves. */
 type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; shown: boolean; label: string; color: string };
+/** A Lock on zoom, eased by the frame loop's jump: from and to zoom, start (ms) and length. */
+type ZoomGoal = { from: number; to: number; t0: number; dur: number };
+/** The frame loop's controls while a satellite is focused (the frame effect). */
+type Frames = { running: () => boolean; wake: () => void; tick: () => void; measure: () => void };
 
 const NIGHT_REFRESH_MS = 60_000;
 /** How often the other dots and the GeoJSON footprint move; the focus moves every frame. */
@@ -172,6 +176,15 @@ const PRESETS: { id: Preset; label: string }[] = [
 ];
 /** Zoom slack before the map counts as zoomed in past its home view. */
 const ZOOM_EPS = 0.01;
+/** How long a Lock on zoom (buttons, keys, double-click, wheel) eases. */
+const LOCK_ZOOM_MS = 250;
+/** Not following, the focus moves every frame only when it moves more than
+ *  this (px) per DOT_MS; slower, the DOT_MS tick places it. */
+const FRAME_PX = 1;
+/** MapLibre's mouse wheel step and zoom rates (scroll_zoom.ts), for Lock on's wheel. */
+const WHEEL_STEP = 4.000244140625;
+const WHEEL_RATE = 1 / 450;
+const TRACKPAD_RATE = 1 / 100;
 
 const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number }) => number;
 const easeZoom = easeZoomOf as (current: number, target: number) => number;
@@ -180,6 +193,20 @@ const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(n
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 const reducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** A wheel event's zoom change, as MapLibre's scroll zoom works it out. */
+function wheelZoom(e: WheelEvent): number {
+  let d = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 40 : e.deltaY;
+  if (e.shiftKey) d /= 4;
+  if (!d) return 0;
+  const wheel = Math.abs(d) > WHEEL_STEP && (d % WHEEL_STEP === 0 || Math.abs(d) >= 50);
+  const scale = 2 / (1 + Math.exp(-Math.abs(d * (wheel ? WHEEL_RATE : TRACKPAD_RATE))));
+  return d < 0 ? Math.log2(scale) : -Math.log2(scale);
+}
+/** A Lock on zoom at a time: the zoom, and whether it has arrived. */
+function goalAt(g: ZoomGoal, now: number): { zoom: number; done: boolean } {
+  const t = g.dur > 0 ? Math.min(1, Math.max(0, (now - g.t0) / g.dur)) : 1;
+  return { zoom: g.from + (g.to - g.from) * (1 - (1 - t) ** 3), done: t >= 1 };
+}
 /** A zoom comparable across centres: at a fixed zoom the globe's disc grows
  *  by 1 / cos(centre latitude), clamped where MapLibre clamps it. */
 const discZoom = (view: View, zoom: number, lat: number) =>
@@ -335,14 +362,14 @@ export default function FlatMap({
     if (reducedMotion()) map.jumpTo(cam);
     else map.easeTo(cam);
   }, []);
-  /** While following, wheel and pinch zoom about the centre (the satellite)
-   *  and double-click zoom is ours (the dblclick handler); otherwise they zoom
-   *  about the pointer. The +/- buttons and keys always zoom about the centre. */
+  /** While following, the wheel, double-click and +/- keys are ours (the
+   *  handlers in the map effect, eased in the frame loop's jump) and pinch
+   *  zooms about the centre (the satellite); otherwise MapLibre's zoom about
+   *  the pointer. The +/- buttons always zoom about the centre. */
   const syncZoomAround = useCallback((map: MlMap, centre: boolean) => {
     const opts = centre ? { around: "center" as const } : undefined;
-    // enable() keeps the old options while enabled, so turn it off first.
-    map.scrollZoom.disable();
-    map.scrollZoom.enable(opts);
+    if (centre) map.scrollZoom.disable();
+    else map.scrollZoom.enable();
     map.touchZoomRotate.enable(opts);
     if (centre) map.doubleClickZoom.disable();
     else map.doubleClickZoom.enable();
@@ -354,14 +381,29 @@ export default function FlatMap({
   // True while followJump's own jumpTo runs (it fires its events at once), so
   // moveend and zoomend skip the work a hand move needs.
   const selfJump = useRef(false);
-  /** Following, jump to the focus f: no easing, and no originalEvent, so
-   *  movestart does not take it for a gesture. Waits for a running ease or
-   *  gesture (a preset's, a zoom, a held pointer) to end. True when it jumped. */
-  const followJump = useCallback((map: MlMap, f: LiveFocus | null): boolean => {
+  // Lock on's zoom in progress: the frame loop eases it in its follow jump, so
+  // the satellite stays centred through the zoom.
+  const zoomGoal = useRef<ZoomGoal | null>(null);
+  const frames = useRef<Frames | null>(null);
+  /** Following, zoom by dz through the frame loop rather than a MapLibre ease
+   *  (followJump waits out an ease, so the satellite would drift off centre). */
+  const lockZoomBy = useCallback((map: MlMap, dz: number) => {
+    const g = zoomGoal.current;
+    const to = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), (g?.to ?? map.getZoom()) + dz));
+    atHome.current = false;
+    zoomGoal.current = { from: map.getZoom(), to, t0: performance.now(), dur: reducedMotion() ? 0 : LOCK_ZOOM_MS };
+    frames.current?.wake();
+  }, []);
+  /** Following, jump to the focus f (and to zoom, when given): no easing, and
+   *  no originalEvent, so movestart does not take it for a gesture. Waits for a
+   *  running ease or gesture (a preset's, a held pointer or pinch) to end, so a
+   *  pinch still lets the satellite drift until the fingers lift. True when it jumped. */
+  const followJump = useCallback((map: MlMap, f: LiveFocus | null, zoom?: number): boolean => {
     if (!f || handHeld.current || map.isMoving() || !useFollow.getState().following) return false;
     selfJump.current = true;
     try {
-      map.jumpTo({ center: [f.lonDeg, f.latDeg] });
+      const center: LngLat = [f.lonDeg, f.latDeg];
+      map.jumpTo(zoom === undefined ? { center } : { center, zoom });
     } finally {
       selfJump.current = false;
     }
@@ -465,6 +507,7 @@ export default function FlatMap({
   useEffect(() => {
     let alive = true;
     let made: MlMap | null = null;
+    let detach: (() => void) | null = null;
     // A mouse button can come up off the map (MapLibre's drag listens on the
     // window too). A context menu can swallow the mouseup, so it lets go too,
     // as does any move with no button down.
@@ -687,9 +730,37 @@ export default function FlatMap({
       // camera move begun inside a listener while a handler is active.
       map.on("dblclick", (e: MapMouseEvent) => {
         if (!useFollow.getState().following) return;
-        const ev = e.originalEvent;
-        queueMicrotask(() => map.zoomTo(map.getZoom() + (ev.shiftKey ? -1 : 1), { animate: !reducedMotion() }, { originalEvent: ev }));
+        lockZoomBy(map, e.originalEvent.shiftKey ? -1 : 1);
       });
+      // Following, the wheel and the +/- keys zoom through the frame loop too
+      // (MapLibre's scroll zoom is off then; its keyboard handler is skipped).
+      const box = map.getCanvasContainer();
+      const onWheel = (e: WheelEvent) => {
+        if (!useFollow.getState().following) return;
+        // Cooperative gestures: a plain wheel scrolls the page, as MapLibre's does.
+        const coop = map.cooperativeGestures;
+        if (coop.isEnabled() && !e.ctrlKey && !coop.isBypassed(e)) {
+          coop.notifyGestureBlocked("wheel_zoom", e);
+          return;
+        }
+        e.preventDefault();
+        const dz = wheelZoom(e);
+        if (dz) lockZoomBy(map, dz);
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (!useFollow.getState().following || e.altKey || e.ctrlKey || e.metaKey) return;
+        const dir = e.key === "+" || e.key === "=" ? 1 : e.key === "-" || e.key === "_" ? -1 : 0;
+        if (!dir) return;
+        e.preventDefault();
+        e.stopPropagation();
+        lockZoomBy(map, dir * (e.shiftKey ? 2 : 1));
+      };
+      box.addEventListener("wheel", onWheel, { passive: false });
+      box.addEventListener("keydown", onKey, { capture: true });
+      detach = () => {
+        box.removeEventListener("wheel", onWheel);
+        box.removeEventListener("keydown", onKey, { capture: true });
+      };
       // Zoomed in past home, a stacked map takes one-finger and wheel gestures.
       // A follow jump keeps the Earth's size, so it skips this and the push.
       map.on("zoomend", () => {
@@ -713,6 +784,7 @@ export default function FlatMap({
       window.removeEventListener("blur", letGo);
       window.removeEventListener("contextmenu", letGo);
       window.removeEventListener("mousemove", onMove);
+      detach?.();
       styleReady.current = false;
       mapRef.current = null;
       capLayer.current = null;
@@ -723,7 +795,7 @@ export default function FlatMap({
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {
@@ -742,8 +814,10 @@ export default function FlatMap({
   }, [full, syncGestures]);
   // Lock on keeps zooms about the satellite; off, they follow the pointer again.
   useEffect(() => {
+    if (!followOn) zoomGoal.current = null;
     const map = mapRef.current;
     if (map) syncZoomAround(map, followOn);
+    frames.current?.wake();
   }, [followOn, syncZoomAround]);
 
   const toggleFull = useCallback(() => {
@@ -842,10 +916,10 @@ export default function FlatMap({
     centreOn.current = selectedId;
     setFollowing(false);
   }, [selectedId, setFollowing]);
-  // The parent's clock tick passes new props each second.
+  // The parent's clock tick passes new props each second. The frame loop
+  // moves the cap while it runs; paused, or with no focus, this does.
   useEffect(() => {
-    const f = liveFocus(latest.current.sats);
-    pushFootprint(f);
+    if (!frames.current?.running()) pushFootprint(liveFocus(latest.current.sats));
     const map = mapRef.current;
     const id = centreOn.current;
     if (map && id != null) {
@@ -864,10 +938,14 @@ export default function FlatMap({
   }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, liveFocus]);
 
   // Between props, move the other dots and the GeoJSON footprint every
-  // DOT_MS. Nothing here sets React state. It stops while the tab is hidden.
+  // DOT_MS, and the focus while the frame loop idles. The footprint outline
+  // (ss-footprint-line) steps here against the per-frame globe cap; at most
+  // DOT_MS apart, it is left so. Nothing here sets React state. It stops
+  // while the tab is hidden.
   useEffect(() => {
     let id: number | undefined;
     const tick = () => {
+      frames.current?.tick();
       const map = mapRef.current;
       if (!map || !styleReady.current) return;
       // Only what moves: the dots, and the focus footprint while there is one.
@@ -895,38 +973,107 @@ export default function FlatMap({
     };
   }, [liveSats]);
 
-  // Every frame while a satellite is focused, the map is made and the tab
-  // shows: place the focus once at the frame's time, and from it the marker, the
-  // globe cap and a following camera. A jump draws the map at once, so the
-  // canvas and the marker show the same instant. Nothing here sets React state.
+  // Every frame while a satellite is focused, the map is made and in view, the
+  // tab shows, and the dot moves visibly per frame (or Lock on is on): place
+  // the focus once at the frame's time, and from it the marker, the globe cap
+  // and a following camera, with Lock on's zoom. A jump draws the map at once,
+  // so the canvas and the marker show the same instant. Otherwise the DOT_MS
+  // tick places the focus. Nothing here sets React state.
   const hasFocus = sats.some((s) => s.emphasis === "focus");
   useEffect(() => {
     const map = mapRef.current;
     if (!hasFocus || !mapReady || !map) return;
     let id: number | undefined;
+    // On phones the stacked map scrolls away: no frames then.
+    let inView = true;
+    // Whether the dot moves over FRAME_PX per DOT_MS at this camera.
+    let fast = true;
+    const measure = () => {
+      const f = latest.current.sats.find((x) => x.emphasis === "focus");
+      const ms = trueNow();
+      const a = f?.positionAt(ms);
+      const b = f?.positionAt(ms + DOT_MS);
+      if (!a || !b) {
+        fast = false;
+        return;
+      }
+      const pa = map.project([a.lonDeg, a.latDeg]);
+      const pb = map.project([a.lonDeg + wrapLon(b.lonDeg - a.lonDeg), b.latDeg]);
+      fast = Math.hypot(pb.x - pa.x, pb.y - pa.y) > FRAME_PX;
+    };
     const frame = (at?: number) => {
       // Asked first, so next frame this runs ahead of the map's own render.
       id = requestAnimationFrame(frame);
       // The frame's own time rather than the moment this runs, which wanders
       // by a few ms: the dot then steps evenly.
-      const ms = at === undefined ? trueNow() : trueNow() + at - performance.now();
+      const now = performance.now();
+      const ms = at === undefined ? trueNow() : trueNow() + at - now;
       const f = liveFocus(latest.current.sats, ms);
       pushFootprint(f);
       placeMark(map, f);
-      if (followJump(map, f)) map.redraw();
+      if (zoomGoal.current && !useFollow.getState().following) zoomGoal.current = null;
+      const z = zoomGoal.current ? goalAt(zoomGoal.current, at ?? now) : null;
+      if (followJump(map, f, z?.zoom)) {
+        map.redraw();
+        if (z?.done) {
+          // Its own jumps skip zoomend's and moveend's work: do it once, at the end.
+          zoomGoal.current = null;
+          syncGestures();
+          push();
+          measure();
+        }
+      }
     };
     const stop = () => {
       if (id !== undefined) cancelAnimationFrame(id);
       id = undefined;
     };
-    const start = () => {
-      stop();
-      if (!document.hidden) frame();
+    /** Place the focus now, as a frame would. */
+    const place = () => {
+      const f = liveFocus(latest.current.sats);
+      pushFootprint(f);
+      placeMark(map, f);
     };
-    start();
-    document.addEventListener("visibilitychange", start);
+    const wanted = () =>
+      !document.hidden && inView && (fast || useFollow.getState().following || zoomGoal.current != null);
+    const sync = () => {
+      if (!wanted()) {
+        if (id !== undefined) {
+          stop();
+          place();
+        }
+      } else if (id === undefined) frame();
+    };
+    const remeasure = () => {
+      measure();
+      sync();
+    };
+    frames.current = {
+      running: () => id !== undefined,
+      wake: sync,
+      measure: remeasure,
+      tick: () => {
+        remeasure();
+        if (id === undefined) place();
+      },
+    };
+    measure();
+    if (wanted()) frame();
+    else place();
+    const io = typeof IntersectionObserver === "function"
+      ? new IntersectionObserver((entries) => {
+        inView = entries[entries.length - 1].isIntersecting;
+        sync();
+      })
+      : null;
+    io?.observe(map.getContainer());
+    map.on("zoomend", remeasure);
+    document.addEventListener("visibilitychange", sync);
     return () => {
-      document.removeEventListener("visibilitychange", start);
+      document.removeEventListener("visibilitychange", sync);
+      map.off("zoomend", remeasure);
+      io?.disconnect();
+      frames.current = null;
       stop();
       const mark = focusMark.current;
       if (mark?.shown) {
@@ -934,7 +1081,12 @@ export default function FlatMap({
         mark.shown = false;
       }
     };
-  }, [hasFocus, mapReady, liveFocus, pushFootprint, placeMark, followJump]);
+  }, [hasFocus, mapReady, liveFocus, pushFootprint, placeMark, followJump, syncGestures, push]);
+  // A new focus moves at its own speed.
+  const focusKey = sats.find((s) => s.emphasis === "focus")?.noradId ?? null;
+  useEffect(() => {
+    frames.current?.measure();
+  }, [focusKey]);
 
   const reset = () => {
     const map = mapRef.current;
@@ -963,6 +1115,10 @@ export default function FlatMap({
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
+    if (useFollow.getState().following) {
+      lockZoomBy(map, delta);
+      return;
+    }
     atHome.current = false;
     map.zoomTo(map.getZoom() + delta, { animate: !reducedMotion() });
   };
