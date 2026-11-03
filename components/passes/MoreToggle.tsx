@@ -12,21 +12,23 @@ interface Props {
   children: ReactNode;
 }
 
-// A More/Less button and the less-used actions it reveals. The accessible
-// name starts with the visible word (WCAG 2.5.3) and says which pass it is for.
+// A "⋯" button and the less-used actions it reveals. It is outlined like the
+// buttons beside it, so it reads as one; its accessible name says More or
+// Less and which pass it is for, and the tooltip says what it does.
 export default function MoreToggle({ id, open, onToggle, label, children }: Props) {
   const word = open ? "Less" : "More";
   return (
     <>
       <button
         type="button"
-        className="home-chip more-toggle"
+        className={`home-chip more-toggle${open ? " home-chip--on" : ""}`}
         aria-expanded={open}
         aria-controls={id}
         aria-label={`${word} actions for ${label}`}
+        title={`${word} actions`}
         onClick={onToggle}
       >
-        {word}
+        <span aria-hidden="true">⋯</span>
       </button>
       <div id={id} className="more-panel" hidden={!open}>
         {children}

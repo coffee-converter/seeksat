@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cloudBadge } from '../lib/sky/cloud-badge.mjs';
+import { cloudBadge, sharedCloudNote } from '../lib/sky/cloud-badge.mjs';
 import { roundCoord } from '../lib/sky/round-coords.mjs';
 
 test('cloudBadge grades on the raw forecast cloud percent', () => {
@@ -45,4 +45,15 @@ test('cloudBadge title gives percent and age', () => {
 test('roundCoord rounds to 1 decimal', () => {
   assert.equal(roundCoord(41.8781), 41.9);
   assert.equal(roundCoord(-87.6298), -87.6);
+});
+
+test('sharedCloudNote: one line when every pass has the same cloud', () => {
+  const b = (level) => ({ level, label: '', title: '' });
+  assert.equal(sharedCloudNote([b('cloudy'), b('cloudy')]), 'Cloudy forecast for every pass below.');
+  assert.equal(sharedCloudNote([b('some'), b('some'), b('some')]), 'Some cloud forecast for every pass below.');
+  assert.equal(sharedCloudNote([b('clear'), b('clear')]), 'Clear skies forecast for every pass below.');
+  assert.equal(sharedCloudNote([b('cloudy'), b('some')]), null);
+  assert.equal(sharedCloudNote([b('cloudy'), null]), null);
+  assert.equal(sharedCloudNote([b('cloudy')]), null);
+  assert.equal(sharedCloudNote([]), null);
 });

@@ -113,3 +113,28 @@ test('visualQuality reports the cause of a reduced level', () => {
   assert.equal(visualQuality({ maxElevDeg: 60, peakSunAltDeg: -3 }).cause, 'twilight');
   assert.equal(visualQuality({ maxElevDeg: 5, peakSunAltDeg: -20 }).cause, 'low');
 });
+
+test('visualQuality gives 1 to 5 bars by headroom, inside its level', () => {
+  const bars = (m, o = city) => visualQuality(known(m), o).bars;
+  assert.equal(bars(-1.0), 5);
+  assert.equal(bars(-0.99), 4);
+  assert.equal(bars(0.5), 4);
+  assert.equal(bars(0.51), 3);
+  assert.equal(bars(2.0), 3);
+  assert.equal(bars(2.01), 2);
+  assert.equal(bars(3.0), 2);
+  assert.equal(bars(3.01), 1);
+});
+
+test('cloud and twilight keep the bars inside the reduced level', () => {
+  const c = (level) => ({ skyType: 'city', cloud: { level } });
+  assert.equal(visualQuality(known(-1.8), c('cloudy')).bars, 1);
+  assert.equal(visualQuality(known(-1.8), c('some')).bars, 3);
+  assert.equal(visualQuality(known(2.0), c('some')).bars, 2);
+  assert.equal(visualQuality(known(2.5), c('some')).bars, 2);
+  const p = (maxElevDeg, peakSunAltDeg) => ({ peakMag: null, maxElevDeg, peakSunAltDeg });
+  assert.equal(visualQuality(p(65, -15), city).bars, 5);
+  assert.equal(visualQuality(p(65, -8), city).bars, 3);
+  assert.equal(visualQuality(p(25, -8), city).bars, 2);
+  assert.equal(visualQuality(p(5, -15), city).bars, 1);
+});

@@ -41,3 +41,11 @@ test('under a day heading the countdown can leave out the weekday', () => {
   const p = pass({ startMs: NOW + 26 * 3_600_000, endMs: NOW + 26 * 3_600_000 + 224_000 });
   assert.equal(passStats(p, NOW, { timeZone: TZ, clock, weekday: false }).first.sub, 'in 1 day 2 h');
 });
+
+test('ten hours or more away, the countdown drops the minutes so it fits one line', () => {
+  const at = (h, m) => pass({ startMs: NOW + (h * 60 + m) * 60_000, endMs: NOW + (h * 60 + m) * 60_000 + 224_000 });
+  assert.equal(passStats(at(9, 59), NOW, { timeZone: TZ, clock }).first.sub, 'in 9 h 59 min');
+  assert.equal(passStats(at(10, 0), NOW, { timeZone: TZ, clock }).first.sub, 'in 10 h');
+  assert.equal(passStats(at(18, 22), NOW, { timeZone: TZ, clock }).first.sub, 'in 18 h');
+  assert.equal(passStats(at(23, 40), NOW, { timeZone: TZ, clock }).first.sub, 'Wed, in 23 h');
+});

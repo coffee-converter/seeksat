@@ -95,7 +95,7 @@ test('paintPassCard fills the arc, markers and horizon, and hides the dot outsid
   for (const m of markers) {
     const [[x0, y0], [x1, y1]] = m.getAttribute('d').match(/-?[\d.]+,-?[\d.]+/g)
       .map((pt) => pt.split(',').map(Number));
-    assert.ok(Math.abs(x1 - x0 - 2.8) < 0.02 && Math.abs(y1 - y0 - 2.8) < 0.02);
+    assert.ok(Math.abs(x1 - x0 - 4.2) < 0.02 && Math.abs(y1 - y0 - 4.2) < 0.02);
   }
   // The sky shade for the sun at the pass peak (the engine's peak) goes out
   // as a custom property; the stylesheet decides whether the theme uses it.

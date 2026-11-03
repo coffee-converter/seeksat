@@ -443,10 +443,10 @@
   color: var(--accent);
 }
 .home-button--primary.home-chip--on:hover:not(:disabled) { background: var(--btn-hover); }
-.home-chip--quiet,
-.more-toggle { color: var(--map-muted); border-color: transparent; }
-.home-chip--quiet:hover:not(:disabled),
-.more-toggle:hover:not(:disabled) { color: var(--map-text); }
+.home-chip--quiet { color: var(--map-muted); border-color: transparent; }
+.home-chip--quiet:hover:not(:disabled) { color: var(--map-text); }
+/* The "⋯" toggle is outlined like its neighbours; the glyph is set larger. */
+.more-toggle { min-width: 40px; font-size: 18px; font-weight: 700; line-height: 1; }
 .home-input {
   flex: 1;
   min-width: 0;
@@ -606,6 +606,8 @@
 .popular__item:first-child { border-top: 0; }
 
 /* Next up cards. */
+/* One cloud line for the list when every pass shares the forecast. */
+.next-up__note { margin: -4px 0 8px; color: var(--map-muted); font-size: 13px; }
 .next-up__list {
   display: flex;
   flex-direction: column;
@@ -661,7 +663,7 @@
   font-weight: 600;
 }
 /* Pass quality and cloud cover: quiet text, a coloured word. The word carries
-   it, the colour backs it up; Good adds a small dot. */
+   it, the colour backs it up; the quality word follows its signal bars. */
 .quality,
 .cloud {
   display: inline-block;
@@ -671,18 +673,33 @@
   line-height: 1.5;
   color: var(--muted);
 }
-.quality--good { color: var(--ok); }
-.quality--good::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: currentColor;
-  vertical-align: 1px;
+/* The word and its signal bars take the bar count's colour, red to green. */
+.quality--b1 { color: var(--q1); }
+.quality--b2 { color: var(--q2); }
+.quality--b3 { color: var(--q3); }
+.quality--b4 { color: var(--q4); }
+.quality--b5 { color: var(--q5); }
+/* Five rising bars, like a phone's signal meter; the unlit ones stay faint. */
+.qbars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 1.05em;
+  margin-right: 6px;
+  vertical-align: -0.15em;
 }
-.quality--ok { color: var(--warn-text); }
+.qbars i {
+  display: block;
+  width: 3.5px;
+  border-radius: 1px;
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+.qbars i.on { background: currentColor; }
+.qbars i:nth-child(1) { height: 20%; }
+.qbars i:nth-child(2) { height: 40%; }
+.qbars i:nth-child(3) { height: 60%; }
+.qbars i:nth-child(4) { height: 80%; }
+.qbars i:nth-child(5) { height: 100%; }
 .cloud--clear { color: var(--ok); }
 .cloud--some { color: var(--warn-text); }
 .cloud,
@@ -754,16 +771,6 @@
   background: color-mix(in srgb, currentColor 15%, transparent);
   font-size: 12px;
 }
-.rating-pill .quality::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  vertical-align: 1px;
-}
 /* "Best in the next 24 hours": one quiet tile-like button above Next up. */
 .best-pass {
   display: block;
@@ -816,7 +823,7 @@
 }
 .pass-card__plot .polar-plot .cardinal {
   fill: #cfe0ff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -833,13 +840,13 @@
 .pass-card__plot .polar-plot .arc line,
 .pass-card__plot .polar-plot .arc polyline {
   fill: none;
-  stroke-width: 2px;
+  stroke-width: 3px;
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-opacity: 1;
 }
-.pass-card__plot .polar-plot .arc polyline { stroke-opacity: 0.6; stroke-linecap: butt; }
+.pass-card__plot .polar-plot .arc polyline { stroke-opacity: 0.8; stroke-linecap: butt; }
 .pass-card__plot .polar-plot .iss-dot {
   fill: #ffffff;
   stroke: #000;
@@ -1219,7 +1226,13 @@
 .pass-card__focus:hover { text-decoration: underline; text-underline-offset: 3px; }
 .pass-card__focus:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
 .pass-card--focus { border-color: var(--btn-line); border-left-color: var(--sat-color, var(--map-muted)); box-shadow: 0 0 0 1px var(--btn-line); }
-.pass-card--dim { opacity: 0.55; }
+/* Another satellite is focused: the text stays readable, and the plot, rating
+   and colour stripe step back. */
+.pass-card--dim { border-left-color: var(--map-border); }
+.pass-card--dim .pass-card__plot,
+.pass-card--dim .pass-card__rating { opacity: 0.6; }
+.pass-card--dim .pass-card__headline,
+.pass-card--dim .pass-card__stat-value { color: var(--map-text); }
 
 /* Map legend. */
 .map-legend {

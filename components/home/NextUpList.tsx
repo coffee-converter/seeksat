@@ -19,6 +19,7 @@ import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import QualityBadge, { peakMagText, visualRating, type Quality } from "@/components/passes/QualityBadge";
 import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
+import { sharedCloudNote, type CloudBadge as CloudLevel } from "@/lib/sky/cloud-badge.mjs";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
@@ -142,6 +143,8 @@ interface PassCardProps {
   onToggleMore: () => void;
   /** The cloud forecast, shown as a badge in visual mode. */
   clouds: Forecast | null;
+  /** False when one note above the list already gives every pass's cloud. */
+  cloudShown: boolean;
   /** The sky type the visual rating uses. */
   skyType: string;
 }
@@ -190,7 +193,7 @@ function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; o
 
 function PassCard({
   card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onLive, onUnfollow, focus, onFocus, viewing,
-  moreOpen, onToggleMore, clouds, skyType,
+  moreOpen, onToggleMore, clouds, cloudShown, skyType,
 }: PassCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
@@ -243,8 +246,8 @@ function PassCard({
           <Headline text={card.name} focus={focus} onFocus={onFocus} />
         </p>
         <span className="rating-pair rating-pill pass-card__rating">
-          <QualityBadge pass={pass} rating={rating} />
-          {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
+          <QualityBadge pass={pass} rating={rating} maxShown />
+          {visual && cloudShown && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
         </span>
       </div>
       <div className="pass-card__plot">
@@ -370,6 +373,12 @@ export default function NextUpList({
     ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) })
     : elevRating(pass));
   const best = bestOf(followedCards, { rate, nowMs, hours: 24 });
+  // When every card has the same cloud, say it once above them.
+  const cloudNote = mode === "visual"
+    ? (sharedCloudNote as (b: (CloudLevel | null)[]) => string | null)(cards
+      .filter((c): c is Extract<Card, { kind: "pass" }> => c.kind === "pass" && tracks.has(c.noradId))
+      .map((c) => passCloud(clouds, c.pass, nowMs)))
+    : null;
   const bestTrack = best ? tracks.get(best.noradId) : undefined;
 
   return (
@@ -379,6 +388,7 @@ export default function NextUpList({
     )}
     <section className="next-up" aria-labelledby="next-up-title">
       <h2 id="next-up-title" className="home-heading">Next up</h2>
+      {cloudNote && <p className="next-up__note">{cloudNote}</p>}
       <ul className="next-up__list">
         {cards.map((card) => {
           const track = tracks.get(card.noradId);
@@ -404,6 +414,7 @@ export default function NextUpList({
                 moreOpen={openMore.has(card.noradId)}
                 onToggleMore={() => toggleMore(card.noradId)}
                 clouds={clouds}
+                cloudShown={!cloudNote}
                 skyType={skyType}
               />
             );

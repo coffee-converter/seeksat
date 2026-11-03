@@ -49,6 +49,13 @@
   --danger-rgb: 248, 113, 113;
   --danger-text: #ff9a9a;
   --danger-soft-text: #ffc4c4;
+  /* Pass rating bars, 1 (red) to 5 (green). The bar count carries the
+     rating; the colour backs it up. Each passes 4.5:1 on the panel. */
+  --q1: #f87171;
+  --q2: #fb923c;
+  --q3: #facc15;
+  --q4: #a3e635;
+  --q5: #4ade80;
   --teal: #7fe5d1;
   --teal-rgb: 127, 229, 209;
   --badge-old-text: #fde68a;
@@ -124,6 +131,11 @@
   --danger-rgb: 220, 38, 38;
   --danger-text: #b42318;
   --danger-soft-text: #8f1d1d;
+  --q1: #c42b2b;
+  --q2: #b45309;
+  --q3: #8a6500;
+  --q4: #4d7c0f;
+  --q5: #137a3a;
   --teal: #0f766e;
   --teal-rgb: 15, 118, 110;
   --badge-old-text: #7a4806;

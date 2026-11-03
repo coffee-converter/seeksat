@@ -142,3 +142,12 @@ test('passWords: startTime false leaves the start time to the Starts column', ()
     'Rises NW · peaks 26° SW 6:29 PM · sets SE 6:31 PM');
   assert.match(passWords(base, { ...z, mode: 'radio', minElevDeg: 10 }), /^Rises above 10° NW · /);
 });
+
+test('passWords: startTime false says a pass that appears at its peak does so, not the Max column again', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  const z = { timeZone: 'America/Chicago', clock, mode: 'visual' };
+  const atPeak = { ...base, startElevDeg: 35, maxElevDeg: 35, peakMs: base.startMs, peakAzDeg: 135, startAzDeg: 135 };
+  assert.equal(passWords(atPeak, { ...z, startTime: false }), 'Appears at its peak · fades in the SE 6:31 PM');
+  // With its start time (the satellite page's old rows), it keeps the full clause.
+  assert.equal(passWords(atPeak, z), 'Appears 35° SE 6:27 PM · fades in the SE 6:31 PM');
+});

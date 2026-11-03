@@ -431,7 +431,7 @@ export default function PassSection({
                               <div className="sat-pass__head">
                                 <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={mag} weekday={false} className="sat-pass__stats" />
                                 <span className="rating-pair rating-pill sat-pass__rating">
-                                  <QualityBadge pass={rated} rating={rating} />
+                                  <QualityBadge pass={rated} rating={rating} maxShown />
                                   {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
                                 </span>
                               </div>
