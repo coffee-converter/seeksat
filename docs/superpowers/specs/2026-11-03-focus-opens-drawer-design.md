@@ -33,10 +33,26 @@ With the map shared, switching the drawer no longer rebuilds the map, so focus c
    - `/sat/<id>?map=all` drops the query and shows the satellite page.
 7. **Following** stays on the focus bar as today.
 
+## Map motion and views (agreed add-ons, same plan)
+
+8. **Smooth dots.** The map moves the satellite dots and the focused satellite's circle about five times a second (every 200 ms), computed from each satellite's orbit on the map side. The page's own one-second clock (the drawer, the cards) is unchanged. Ground tracks still rebuild once a minute. The fast updates pause while the tab is hidden.
+9. **Follow.** The focus bar has a Follow toggle in both views.
+   - While on, the camera stays centred on the focused satellite on every map update.
+   - Dragging or zooming the map turns it off, and the button shows that.
+   - Focusing another satellite turns it off.
+   - The globe's "On the satellite" button turns it on.
+   - It is off when a page loads.
+10. **Satellite's view.** A third entry in the view menu, after Globe and Mercator. The camera sits above the focused satellite at its real height, looking straight down, so the visible Earth is what the satellite can see. It follows the satellite as it moves.
+    - It uses MapLibre's vertical-perspective projection.
+    - The zoom comes from the altitude, clamped to the map's minimum zoom for very high orbits.
+    - Dragging is off in this view.
+    - With no focused satellite it shows the globe. The choice is saved like the other views.
+11. **Night side.** A globe camera preset beside the North and South pole buttons. It centres on the point opposite the Sun (the middle of the night side) at the globe's whole-Earth zoom.
+
 ## Removed
 
 - **Home focus:** `?focus=` as home state for catalog satellites (it stays for pasted ones).
-- **Show all on satellite pages:** `?map=all` and its chips, and the focus bar's Show all there.
+- **Show all on satellite pages:** `?map=all` and the focus bar's Show all there. The chips stay on every page: a chip opens that satellite's page, and the eye still hides or shows it.
 - **"Open page":** on the focus bar.
 
 ## Unchanged
