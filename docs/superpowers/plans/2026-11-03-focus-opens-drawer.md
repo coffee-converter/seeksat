@@ -205,6 +205,7 @@ test('focusDestination opens catalog satellites and keeps pasted ones home', () 
 - `Open page` and `pageHref` are removed.
 - `focusBarText(name, isFollowed, total)` keeps its fields and gains `lock: { off: 'Lock on', on: 'Locked on' }`.
 
+- **Order over the map (Aaron's request).** The chips row is always the top row over the map, and the focus bar sits under it. Opening the focus bar must never move the chips down. In FlatMap the `chips` slot renders before the `top` slot, in both the docked and stacked layouts. The browser check compares the chips' `getBoundingClientRect().top` before and after focusing a satellite: they must be equal.
 - [ ] **Step 1: Write the failing test** for `focusBarText(...).lock`, run it (FAIL), implement it, and run it again (PASS).
 - [ ] **Step 2: Implement** FocusBar and its CSS. The Close button is a `home-chip` with an × glyph, and the camera toggle is a `home-chip`, with `home-chip--on` when pressed. Update the two callers (HomeApp and SatApp) to the new props, still with today's behaviour. SatApp passes `mode: "page"`, with `onClose` doing its current Show all for now (Task 5 changes it).
 - [ ] **Step 3: Run** `npx tsc --noEmit && npm test && npm run build`. Expected: clean. Then the browser check: at 390 px on `/sat/25544` the focus bar shows Lock on, Details and Close, with no overflow, and Details scrolls the drawer title into view. At 1440 px there is no Details.
