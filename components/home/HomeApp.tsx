@@ -2,11 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import FlatMap from "./FlatMap";
 import FocusBar from "./FocusBar";
 import SatChips, { type Chip } from "./SatChips";
 import { useMapSats, type Layer } from "./useMapSats";
-import { SearchBar } from "./SearchBar";
 import HomeControls from "./HomeControls";
 import LocationPrompt, { PopularList } from "./LocationPrompt";
 import UpNow from "./UpNow";
@@ -30,12 +28,8 @@ import { useClouds } from "@/lib/sky/use-clouds";
 import { passCloud } from "@/components/passes/CloudBadge";
 import { visualRating } from "@/components/passes/QualityBadge";
 import AboutSection from "./AboutSection";
-import LiveClock from "@/components/LiveClock";
-import NightToggle from "@/components/NightToggle";
-import ThemeToggle from "@/components/ThemeToggle";
+import { usePublishMapScene } from "@/lib/map/scene-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
-import MapShell from "@/components/MapShell";
-import "@/app/home.css";
 
 const CARD_REFRESH_MS = 10 * 60_000;
 
@@ -378,186 +372,170 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     [clouds, nowMs],
   );
 
+  usePublishMapScene({
+    above: (
+      <>
+        {locationFirst && <LocationPrompt />}
+        {nowMs != null && (
+          <NextStrip
+            summary={nextSummary}
+            rating={nextSummary && prefs.mode === "visual"
+              ? visualRating(nextSummary.pass, { skyType: prefs.skyType, cloud: cloudFor(nextSummary.pass as Pass) })
+              : undefined}
+            cloud={nextSummary && prefs.mode === "visual" ? cloudFor(nextSummary.pass as Pass) : null}
+            onFocus={focusOn}
+          />
+        )}
+      </>
+    ),
+    sats,
+    observer: location,
+    selectedSub: focusSub,
+    projectionId: prefs.projection,
+    onProjectionChange: (id) => setPrefs({ projection: id }),
+    selectedId: focusId,
+    minElevDeg: prefs.minElevDeg,
+    onSelect: focusOn,
+    top: focusId != null && (
+      <FocusBar
+        name={nameOf(focusId)}
+        followed={prefs.following.includes(focusId)}
+        blocked={followBlockedMessage(prefs.following, focusId) as string | null}
+        total={showAll}
+        pageHref={allTracks.get(focusId)?.record?.source === "pasted" ? null : `/sat/${focusId}`}
+        onToggleFollow={() => (prefs.following.includes(focusId) ? unfollow(focusId) : follow(focusId))}
+        onShowAll={() => focusOn(null)}
+      />
+    ),
+    chips: hydrated && (
+      <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={toggleHidden} />
+    ),
+    search: { onView: focusOn, onClearFocus: () => focusOn(null) },
+    notice: savedAge && <p className="saved-age">{savedAge}</p>,
+    offlineFromCache: fromCache,
+    shellClass: hydrated && !location ? "home-first-visit" : undefined,
+  });
+
   return (
-    <MapShell
-      className={hydrated && !location ? "home-first-visit" : undefined}
-      offlineFromCache={fromCache}
-      notice={savedAge && <p className="saved-age">{savedAge}</p>}
-      top={(
-        <>
-          <h1 className="home-wordmark">SeekSat</h1>
-          <div className="map-shell__search">
-            <SearchBar onView={focusOn} onClearFocus={() => focusOn(null)} />
-          </div>
-          <div className="map-shell__end">
-            <LiveClock nowMs={nowMs} compact />
-            <ThemeToggle />
-            <NightToggle />
-          </div>
-        </>
+    <>
+      <Suspense fallback={null}>
+        <FocusParam />
+      </Suspense>
+      <ClockSkewBanner />
+      <HomeControls
+        ready={hydrated}
+        mode={prefs.mode}
+        minElevDeg={prefs.minElevDeg}
+        skyType={prefs.skyType}
+        locationName={location && !changingLocation ? location.name : null}
+        onModeChange={(mode) => setPrefs({ mode })}
+        onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
+        onSkyTypeChange={(skyType) => setPrefs({ skyType })}
+        onChangeLocation={() => setChangingLocation(true)}
+      />
+
+      {status === "error" && (
+        <div className="home-banner" role="alert">
+          <span>{error ?? "Something went wrong loading satellites."}</span>
+          <button type="button" className="home-button" onClick={() => void loadRecords()}>
+            Try again
+          </button>
+        </div>
       )}
-      map={(
+
+      {!hydrated ? null : showPrompt ? (
         <>
-          {locationFirst && <LocationPrompt />}
-          <Suspense fallback={null}>
-            <FocusParam />
-          </Suspense>
-          {nowMs != null && (
-            <NextStrip
-              summary={nextSummary}
-              rating={nextSummary && prefs.mode === "visual"
-                ? visualRating(nextSummary.pass, { skyType: prefs.skyType, cloud: cloudFor(nextSummary.pass as Pass) })
-                : undefined}
-              cloud={nextSummary && prefs.mode === "visual" ? cloudFor(nextSummary.pass as Pass) : null}
-              onFocus={focusOn}
+          {!locationFirst && (
+            <LocationPrompt
+              onDone={() => setChangingLocation(false)}
+              onCancel={location ? () => setChangingLocation(false) : undefined}
             />
           )}
-          <FlatMap
-            fill
-            sats={sats}
-            observer={location}
-            selectedSub={focusSub}
-            projectionId={prefs.projection}
-            onProjectionChange={(id) => setPrefs({ projection: id })}
-            selectedId={focusId}
-            minElevDeg={prefs.minElevDeg}
-            onSelect={focusOn}
-            top={focusId != null && (
-              <FocusBar
-                name={nameOf(focusId)}
-                followed={prefs.following.includes(focusId)}
-                blocked={followBlockedMessage(prefs.following, focusId) as string | null}
-                total={showAll}
-                pageHref={allTracks.get(focusId)?.record?.source === "pasted" ? null : `/sat/${focusId}`}
-                onToggleFollow={() => (prefs.following.includes(focusId) ? unfollow(focusId) : follow(focusId))}
-                onShowAll={() => focusOn(null)}
-              />
-            )}
-            chips={hydrated && (
-              <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={toggleHidden} />
-            )}
-          />
+          {!location && <PopularList names={popularNames} />}
         </>
-      )}
-      panel={(
+      ) : observer && (
         <>
-          <ClockSkewBanner />
-          <HomeControls
-            ready={hydrated}
-            mode={prefs.mode}
-            minElevDeg={prefs.minElevDeg}
-            skyType={prefs.skyType}
-            locationName={location && !changingLocation ? location.name : null}
-            onModeChange={(mode) => setPrefs({ mode })}
-            onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
-            onSkyTypeChange={(skyType) => setPrefs({ skyType })}
-            onChangeLocation={() => setChangingLocation(true)}
-          />
-
-          {status === "error" && (
-            <div className="home-banner" role="alert">
-              <span>{error ?? "Something went wrong loading satellites."}</span>
-              <button type="button" className="home-button" onClick={() => void loadRecords()}>
-                Try again
-              </button>
-            </div>
+          {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
+            <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} />
           )}
-
-          {!hydrated ? null : showPrompt ? (
+          {nowMs != null && prefs.following.length > 0 && shownCards && (
+            <Timeline
+              cards={shownCards}
+              tracks={allTracks}
+              colors={colors}
+              observer={observer}
+              mode={prefs.mode}
+              nowMs={nowMs}
+              onOpenPass={openTimelinePass}
+              cloudFor={cloudFor}
+              skyType={prefs.skyType}
+            />
+          )}
+          {prefs.following.length === 0 ? (
             <>
-              {!locationFirst && (
-                <LocationPrompt
-                  onDone={() => setChangingLocation(false)}
-                  onCancel={location ? () => setChangingLocation(false) : undefined}
-                />
-              )}
-              {!location && <PopularList names={popularNames} />}
-            </>
-          ) : observer && (
-            <>
-              {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
-                <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} />
-              )}
-              {nowMs != null && prefs.following.length > 0 && shownCards && (
-                <Timeline
-                  cards={shownCards}
+              <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
+              {viewingCard && nowMs != null && (
+                <NextUpList
+                  cards={[]}
+                  viewingCard={viewingCard}
                   tracks={allTracks}
                   colors={colors}
                   observer={observer}
                   mode={prefs.mode}
+                  minElevDeg={prefs.minElevDeg}
                   nowMs={nowMs}
-                  onOpenPass={openTimelinePass}
-                  cloudFor={cloudFor}
+                  onUnfollow={unfollow}
+                  onFollow={follow}
+                  followBlocked={null}
+                  focusId={focusId}
+                  onFocus={focusOn}
+                  openChart={openChart}
+                  clouds={clouds}
                   skyType={prefs.skyType}
                 />
               )}
-              {prefs.following.length === 0 ? (
-                <>
-                  <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
-                  {viewingCard && nowMs != null && (
-                    <NextUpList
-                      cards={[]}
-                      viewingCard={viewingCard}
-                      tracks={allTracks}
-                      colors={colors}
-                      observer={observer}
-                      mode={prefs.mode}
-                      minElevDeg={prefs.minElevDeg}
-                      nowMs={nowMs}
-                      onUnfollow={unfollow}
-                      onFollow={follow}
-                      followBlocked={null}
-                      focusId={focusId}
-                      onFocus={focusOn}
-                      openChart={openChart}
-                      clouds={clouds}
-                      skyType={prefs.skyType}
-                    />
-                  )}
-                  <PopularList names={popularNames} />
-                </>
-              ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
-                <p className="home-note">Loading satellites...</p>
-              ) : cardState.key !== cardKey ? (
-                <p className="home-note" role="status">Finding passes...</p>
-              ) : (
-                nowMs != null && (
-                  <NextUpList
-                    cards={cardState.cards}
-                    viewingCard={viewingCard}
-                    tracks={allTracks}
-                    colors={colors}
-                    observer={observer}
-                    mode={prefs.mode}
-                    minElevDeg={prefs.minElevDeg}
-                    nowMs={nowMs}
-                    onUnfollow={unfollow}
-                    onFollow={follow}
-                    followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
-                    focusId={focusId}
-                    onFocus={focusOn}
-                    openChart={openChart}
-                    clouds={clouds}
-                    skyType={prefs.skyType}
-                  />
-                )
-              )}
+              <PopularList names={popularNames} />
             </>
+          ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
+            <p className="home-note">Loading satellites...</p>
+          ) : cardState.key !== cardKey ? (
+            <p className="home-note" role="status">Finding passes...</p>
+          ) : (
+            nowMs != null && (
+              <NextUpList
+                cards={cardState.cards}
+                viewingCard={viewingCard}
+                tracks={allTracks}
+                colors={colors}
+                observer={observer}
+                mode={prefs.mode}
+                minElevDeg={prefs.minElevDeg}
+                nowMs={nowMs}
+                onUnfollow={unfollow}
+                onFollow={follow}
+                followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
+                focusId={focusId}
+                onFocus={focusOn}
+                openChart={openChart}
+                clouds={clouds}
+                skyType={prefs.skyType}
+              />
+            )
           )}
-
-          {chartModals}
-
-          <AboutSection />
-
-          <footer className="home-footer">
-            <span>
-              built by{" "}
-              <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
-            </span>
-          </footer>
         </>
       )}
-    />
+
+      {chartModals}
+
+      <AboutSection />
+
+      <footer className="home-footer">
+        <span>
+          built by{" "}
+          <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
+        </span>
+      </footer>
+    </>
   );
 }
 
