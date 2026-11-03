@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 // Types only: the library itself loads in an effect, in its own chunk.
-import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, StyleSpecification } from "maplibre-gl";
+import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
@@ -145,18 +145,21 @@ const footprintOf = footprintFeature as (sub: SelectedSub, altKm: number, minEle
 /** The GeoJSON footprint fill, hidden while the globe layer draws it. */
 const FILL_LAYER = "ss-footprint-fill";
 type Theme = "dark" | "light";
-/** The focused satellite now, as the footprint and the follow jump need it. */
-type LiveFocus = SelectedSub & { color: string; footprint: boolean };
+/** The focused satellite now, as its dot, the footprint and the follow jump need it. */
+type LiveFocus = SelectedSub & { name: string; color: string; footprint: boolean };
+/** The focused satellite's dot and name: a marker the frame loop moves. */
+type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; shown: boolean; label: string; color: string };
 
 const NIGHT_REFRESH_MS = 60_000;
-/** How often the dots, the focus footprint and a following camera move. */
+/** How often the other dots and the GeoJSON footprint move; the focus moves every frame. */
 const DOT_MS = 200;
 /** Where MapShell docks the map beside the panel (keep in step with home.css). */
 const DOCKED_QUERY = "(min-width: 1100px)";
 /** A tap this close to a dot (in px, either axis) selects it. */
 const HIT_PX = 22;
-/** The satellite dot layers (lib/map/overlays.mjs), focus on top. */
-const SAT_LAYERS = ["ss-sats", "ss-sats-focus"];
+/** The satellite dot layer tapped through (lib/map/overlays.mjs). The focus
+ *  layer draws nothing (the focus marker does), so the marker is tested apart. */
+const SAT_LAYERS = ["ss-sats"];
 /** A future track smaller than this on both axes gets no chevron or ticks. */
 const SHORT_TRACK_PX = 16;
 /** The globe camera buttons, in order. */
@@ -276,20 +279,20 @@ export default function FlatMap({
   }, []);
   // The focus's last placed sample, kept for a sample that fails.
   const lastFocus = useRef<{ noradId: number; focus: LiveFocus } | null>(null);
-  /** The focused satellite's sub-point now, or null. Worked out once per
-   *  update and shared by the footprint and the follow jump. A sample the
-   *  track cannot place keeps the last one, as liveSats keeps the dot, so
-   *  the globe cap does not blink off for it. */
-  const liveFocus = useCallback((s: MapSat[]): LiveFocus | null => {
+  /** The focused satellite's sub-point at ms (now by default), or null.
+   *  Worked out once per update and shared by the dot, the footprint and the
+   *  follow jump. A sample the track cannot place keeps the last one, as
+   *  liveSats keeps the dot, so the dot and the globe cap do not blink off. */
+  const liveFocus = useCallback((s: MapSat[], ms = trueNow()): LiveFocus | null => {
     const f = s.find((x) => x.emphasis === "focus");
     if (!f) {
       lastFocus.current = null;
       return null;
     }
-    const sub = f.positionAt(trueNow());
+    const sub = f.positionAt(ms);
     const last = lastFocus.current;
     if (!sub) return last && last.noradId === f.noradId ? last.focus : null;
-    const focus = { ...sub, color: f.color, footprint: f.footprint != null };
+    const focus = { ...sub, name: f.name, color: f.color, footprint: f.footprint != null };
     lastFocus.current = { noradId: f.noradId, focus };
     return focus;
   }, []);
@@ -349,19 +352,47 @@ export default function FlatMap({
   // far enough to start.
   const handHeld = useRef(false);
   // True while followJump's own jumpTo runs (it fires its events at once), so
-  // moveend and zoomend skip the work a hand move needs: the caller pushes.
+  // moveend and zoomend skip the work a hand move needs.
   const selfJump = useRef(false);
   /** Following, jump to the focus f: no easing, and no originalEvent, so
    *  movestart does not take it for a gesture. Waits for a running ease or
-   *  gesture (a preset's, a zoom, a held pointer) to end. The caller pushes
-   *  the overlays. */
-  const followJump = useCallback((map: MlMap, f: LiveFocus | null) => {
-    if (!f || handHeld.current || map.isMoving() || !useFollow.getState().following) return;
+   *  gesture (a preset's, a zoom, a held pointer) to end. True when it jumped. */
+  const followJump = useCallback((map: MlMap, f: LiveFocus | null): boolean => {
+    if (!f || handHeld.current || map.isMoving() || !useFollow.getState().following) return false;
     selfJump.current = true;
     try {
       map.jumpTo({ center: [f.lonDeg, f.latDeg] });
     } finally {
       selfJump.current = false;
+    }
+    return true;
+  }, []);
+  // The focused dot and name, made with the map. A DOM marker moves at once
+  // when told (and on every camera move), so it lands in the same frame as a
+  // follow jump; a GeoJSON source re-tiles in the worker and lands later.
+  const focusMark = useRef<FocusMark | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  /** Put the focus marker at f, or hide it when the track cannot place it. */
+  const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
+    const mark = focusMark.current;
+    if (!mark) return;
+    if (!f) {
+      mark.el.style.visibility = "hidden";
+      return;
+    }
+    mark.el.style.visibility = "";
+    if (f.color !== mark.color) {
+      mark.color = f.color;
+      mark.el.style.setProperty("--focus-color", f.color);
+    }
+    if (f.name !== mark.label) {
+      mark.label = f.name;
+      mark.name.textContent = f.name;
+    }
+    mark.marker.setLngLat([f.lonDeg, f.latDeg]);
+    if (!mark.shown) {
+      mark.marker.addTo(map);
+      mark.shown = true;
     }
   }, []);
 
@@ -496,6 +527,25 @@ export default function FlatMap({
       }
       made = map;
       mapRef.current = map;
+      // The focused dot and name (app/home.css .flat-map__focus). Hidden, not
+      // faded, on the globe's far side; taps reach the canvas through it.
+      const markEl = document.createElement("div");
+      markEl.className = "flat-map__focus";
+      markEl.setAttribute("aria-hidden", "true");
+      const markDot = document.createElement("span");
+      markDot.className = "flat-map__focus-dot";
+      const markName = document.createElement("span");
+      markName.className = "flat-map__focus-name";
+      markEl.append(markDot, markName);
+      focusMark.current = {
+        marker: new gl.Marker({ element: markEl, subpixelPositioning: true, opacityWhenCovered: "0" }),
+        el: markEl,
+        name: markName,
+        shown: false,
+        label: "",
+        color: "",
+      };
+      setMapReady(true);
       capLayer.current = makeFootprintLayer({
         // It fails inside a frame: change the style after it.
         onFail: () => {
@@ -550,15 +600,35 @@ export default function FlatMap({
         const hits = map.queryRenderedFeatures([[x - HIT_PX, y - HIT_PX], [x + HIT_PX, y + HIT_PX]], { layers: SAT_LAYERS });
         let best: number | null = null;
         let bestD = Infinity;
+        // The world copy nearest the tap.
+        const nearest = (lon: number, lat: number) => map.project([e.lngLat.lng + wrapLon(lon - e.lngLat.lng), lat]);
         for (const f of hits) {
           if (f.geometry.type !== "Point") continue;
           const [lon, lat] = f.geometry.coordinates;
-          // The world copy nearest the tap.
-          const p = map.project([e.lngLat.lng + wrapLon(lon - e.lngLat.lng), lat]);
+          const p = nearest(lon, lat);
           const d = Math.hypot(p.x - x, p.y - y);
           if (d < bestD) {
             bestD = d;
             best = Number(f.properties?.noradId);
+          }
+        }
+        // The focus marker, as the layers count a dot: the tap box reaching
+        // its dot or its name. Not on the far side of the globe.
+        const mark = focusMark.current;
+        const focusId = latest.current.sats.find((s) => s.emphasis === "focus")?.noradId;
+        if (mark?.shown && focusId != null && mark.el.style.visibility !== "hidden" && !mark.el.classList.contains("maplibregl-marker-covered")) {
+          const ll = mark.marker.getLngLat();
+          const p = nearest(ll.lng, ll.lat);
+          const c = map.getCanvas().getBoundingClientRect();
+          const r = mark.name.getBoundingClientRect();
+          const onDot = Math.abs(p.x - x) <= HIT_PX && Math.abs(p.y - y) <= HIT_PX;
+          const onName = r.width > 0
+            && x + HIT_PX >= r.left - c.left && x - HIT_PX <= r.right - c.left
+            && y + HIT_PX >= r.top - c.top && y - HIT_PX <= r.bottom - c.top;
+          const d = Math.hypot(p.x - x, p.y - y);
+          if ((onDot || onName) && d < bestD) {
+            bestD = d;
+            best = focusId;
           }
         }
         if (best != null && Number.isFinite(best)) latest.current.onSelect(best);
@@ -646,6 +716,9 @@ export default function FlatMap({
       styleReady.current = false;
       mapRef.current = null;
       capLayer.current = null;
+      focusMark.current?.marker.remove();
+      focusMark.current = null;
+      setMapReady(false);
       made?.remove();
     };
     // Made once (the callbacks are stable); later props reach it through
@@ -787,21 +860,16 @@ export default function FlatMap({
         moveTo(map, { center: [sat.position.lonDeg, sat.position.latDeg] });
       }
     }
-    // Following jumps without easing; a preset's own ease runs to its end first.
-    if (map) followJump(map, f);
     push();
-  }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, followJump, liveFocus]);
+  }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, liveFocus]);
 
-  // Between props, move the dots, the focus footprint and a following camera
-  // every DOT_MS. Nothing here sets React state. It stops while the tab is hidden.
+  // Between props, move the other dots and the GeoJSON footprint every
+  // DOT_MS. Nothing here sets React state. It stops while the tab is hidden.
   useEffect(() => {
     let id: number | undefined;
     const tick = () => {
       const map = mapRef.current;
       if (!map || !styleReady.current) return;
-      const f = liveFocus(latest.current.sats);
-      pushFootprint(f);
-      followJump(map, f);
       // Only what moves: the dots, and the focus footprint while there is one.
       // The observer, night bands and an emptied footprint go with push().
       const data = buildData({ sats: liveSats(), tracks: false });
@@ -825,7 +893,48 @@ export default function FlatMap({
       document.removeEventListener("visibilitychange", start);
       stop();
     };
-  }, [pushFootprint, followJump, liveSats, liveFocus]);
+  }, [liveSats]);
+
+  // Every frame while a satellite is focused, the map is made and the tab
+  // shows: place the focus once at the frame's time, and from it the marker, the
+  // globe cap and a following camera. A jump draws the map at once, so the
+  // canvas and the marker show the same instant. Nothing here sets React state.
+  const hasFocus = sats.some((s) => s.emphasis === "focus");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!hasFocus || !mapReady || !map) return;
+    let id: number | undefined;
+    const frame = (at?: number) => {
+      // Asked first, so next frame this runs ahead of the map's own render.
+      id = requestAnimationFrame(frame);
+      // The frame's own time rather than the moment this runs, which wanders
+      // by a few ms: the dot then steps evenly.
+      const ms = at === undefined ? trueNow() : trueNow() + at - performance.now();
+      const f = liveFocus(latest.current.sats, ms);
+      pushFootprint(f);
+      placeMark(map, f);
+      if (followJump(map, f)) map.redraw();
+    };
+    const stop = () => {
+      if (id !== undefined) cancelAnimationFrame(id);
+      id = undefined;
+    };
+    const start = () => {
+      stop();
+      if (!document.hidden) frame();
+    };
+    start();
+    document.addEventListener("visibilitychange", start);
+    return () => {
+      document.removeEventListener("visibilitychange", start);
+      stop();
+      const mark = focusMark.current;
+      if (mark?.shown) {
+        mark.marker.remove();
+        mark.shown = false;
+      }
+    };
+  }, [hasFocus, mapReady, liveFocus, pushFootprint, placeMark, followJump]);
 
   const reset = () => {
     const map = mapRef.current;

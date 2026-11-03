@@ -21,6 +21,37 @@
   position: absolute;
   inset: 0;
 }
+/* The focused satellite's dot and name, a marker FlatMap moves every frame.
+   It matches the map's focus symbol (lib/map/overlays.mjs): a 5 px dot with a
+   2 px ring in the water colour, and an 11 px bold name 0.8 em right of the
+   centre with a 1.5 px halo. --focus-color is the satellite's colour, set by
+   FlatMap. Taps go through to the canvas, which tests the marker itself. */
+.flat-map__focus {
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.flat-map__focus.maplibregl-marker-covered { visibility: hidden; }
+.flat-map__focus-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--focus-color, var(--map-accent));
+  box-shadow: 0 0 0 2px var(--map-ocean);
+}
+.flat-map__focus-name {
+  position: absolute;
+  left: calc(50% + 0.8em);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--focus-color, var(--map-accent));
+  -webkit-text-stroke: 3px var(--map-ocean);
+  paint-order: stroke fill;
+}
 .flat-map__nogl {
   position: absolute;
   inset: 0;

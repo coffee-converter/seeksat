@@ -189,9 +189,14 @@ test('overlayLayers keeps the overlay order', () => {
     assert.equal(l.paint['text-halo-color'], COLORS.water);
     assert.equal(l.paint['icon-halo-color'], COLORS.water);
   }
-  // The focus is drawn last, on its own layer; ss-sats has everything else.
+  // The focus is placed first, on its own layer; ss-sats has everything else.
   assert.deepEqual(focus.filter, ['==', ['get', 'emphasis'], 'focus']);
   assert.deepEqual(sats.filter, ['!=', ['get', 'emphasis'], 'focus']);
+  // FlatMap draws the focus itself, so its layer only holds the place.
+  assert.equal(focus.paint['icon-opacity'], 0);
+  assert.equal(focus.paint['text-opacity'], 0);
+  assert.notEqual(sats.paint['icon-opacity'], 0);
+  assert.equal(sats.paint['text-opacity'], 1);
 });
 
 function iconNames(expr) {
