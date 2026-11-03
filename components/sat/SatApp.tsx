@@ -18,7 +18,8 @@ import PassSection, { type NextPassReport, type PassSectionHandle, type PassSett
 import NextPassLine, { nextPassWhen } from "./NextPassLine";
 import RawElements from "./RawElements";
 import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
-import { focusDestination, satPageLayers } from "@/lib/home/focus.mjs";
+import { focusDestinationFor } from "@/lib/home/focus-nav";
+import { focusHref, satPageLayers } from "@/lib/home/focus.mjs";
 import { clearFromList, closeTargetFor, fromList, markFromList } from "@/lib/home/list-origin.mjs";
 import { tracksFor } from "@/lib/home/records.mjs";
 import { followedTracks } from "@/lib/home/view.mjs";
@@ -28,7 +29,7 @@ import { makeTrack } from "@/lib/sat/track.mjs";
 import { elementAge, liveNumbers, orbitElements, relativeTime } from "@/lib/sat/numbers.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
-import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { useTrueNow } from "@/lib/ui/use-true-now";
 import { useClouds } from "@/lib/sky/use-clouds";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
@@ -51,7 +52,7 @@ const effectiveOf = effectiveSettings as (prefs: unknown, shared: Shared | null)
 const bannerOf = sharedBannerText as (s: Shared) => string;
 
 const pageLayersOf = satPageLayers as (o: {
-  followed: number[]; hidden: number[]; focusId: number | null; pageId: number;
+  followed: number[]; hidden: number[]; pageId: number;
 }) => Layer[];
 type HomeTrack = MapTrack & { record?: { source?: string } };
 const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, HomeTrack>;
@@ -101,42 +102,13 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   };
 
   // First render matches the server HTML; the clock starts after mount.
-  const [nowMs, setNowMs] = useState(data.renderedAtMs);
+  const nowMs = useTrueNow(1000, data.renderedAtMs) ?? data.renderedAtMs;
 
   // The followed satellites' records, so the others can ghost on the map.
   useEffect(() => {
     hydrate();
     void loadRecords();
   }, [hydrate, loadRecords]);
-  useEffect(() => {
-    // Ticks land on whole seconds of the displayed (skew-corrected) clock:
-    // one timeout to the next boundary, then a 1 s interval.
-    let first: number | undefined;
-    let id: number | undefined;
-    const stop = () => {
-      if (first !== undefined) window.clearTimeout(first);
-      if (id !== undefined) window.clearInterval(id);
-      first = undefined;
-      id = undefined;
-    };
-    const start = () => {
-      stop();
-      setNowMs(trueNow());
-      first = window.setTimeout(() => {
-        first = undefined;
-        setNowMs(trueNow());
-        id = window.setInterval(() => setNowMs(trueNow()), 1000);
-      }, 1000 - (trueNow() % 1000));
-    };
-    const onVisibility = () => (document.hidden ? stop() : start());
-    if (document.hidden) setNowMs(trueNow());
-    else start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      stop();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
 
   const track = useMemo(() => {
     try {
@@ -181,12 +153,12 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   // opens on home.
   const openOther = useCallback((id: number | null) => {
     if (id == null || id === data.noradId) return;
-    const dest = focusDestination(id, useHomeStore.getState().prefs.custom.map((c) => c.noradId)) as string | null;
+    const dest = focusDestinationFor(id);
     if (dest) {
       // The hop replaces this entry, so the new page re-marks its own.
       if (closeTargetFor(window.history.state) === "back") markFromList();
       router.replace(dest);
-    } else router.push(`/?focus=${id}`);
+    } else router.push(focusHref("/", "", id) as string);
   }, [data.noradId, router]);
   // Old Show all links carried ?map=all; drop it from the URL.
   useEffect(() => {
@@ -222,8 +194,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     return out;
   }, [prefs.following, data.noradId, theme]);
   const layers = useMemo(() => pageLayersOf({
-    followed: prefs.following, hidden: prefs.hidden, focusId, pageId: data.noradId,
-  }), [prefs.following, prefs.hidden, focusId, data.noradId]);
+    followed: prefs.following, hidden: prefs.hidden, pageId: data.noradId,
+  }), [prefs.following, prefs.hidden, data.noradId]);
   const { sats } = useMapSats({
     layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg,
   });
@@ -297,15 +269,21 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       window.removeEventListener(HEADER_PINNED_EVENT, watch);
     };
   }, []);
-  // While the bar shows, anchor and focus scrolls stop below it.
+  // While the bar shows, anchor and focus scrolls stop below it. Which
+  // scroller that is (the panel when docked, else the window) is read again on
+  // every resize, so crossing 1100 px moves the padding to the right one.
   useEffect(() => {
     if (!barOn) return;
     const bar = barRef.current;
     const inner = bar?.firstElementChild as HTMLElement | null;
-    const docked = window.matchMedia("(min-width: 1100px)").matches;
-    const el = docked ? document.querySelector<HTMLElement>(".map-shell__panel") : document.documentElement;
-    if (!bar || !inner || !el) return;
+    if (!bar || !inner) return;
+    let applied: HTMLElement | null = null;
     const set = () => {
+      const docked = window.matchMedia("(min-width: 1100px)").matches;
+      const el = docked ? document.querySelector<HTMLElement>(".map-shell__panel") : document.documentElement;
+      if (applied && applied !== el) applied.style.scrollPaddingTop = "";
+      applied = el;
+      if (!el) return;
       const pinned = docked ? 0 : Math.max(0, parseFloat(getComputedStyle(bar).top) || 0);
       el.style.scrollPaddingTop = `${pinned + inner.offsetHeight}px`;
     };
@@ -315,127 +293,127 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     return () => {
       window.removeEventListener("resize", set);
       window.removeEventListener(HEADER_PINNED_EVENT, set);
-      el.style.scrollPaddingTop = "";
+      if (applied) applied.style.scrollPaddingTop = "";
     };
   }, [barOn]);
   const barWhen = nextPassWhen(nextPass, nowMs);
 
   return (
     <>
-    <div className={`sat-bar${barOn ? " sat-bar--on" : ""}`} ref={barRef}>
-      <div className="sat-bar__in">
-        <button type="button" className="home-chip focus-bar__close" aria-label="Close details" onClick={onClose}>
-          {"\u00d7"}
-        </button>
-        <span className="sat-bar__name">{data.shortName}</span>
-        {barWhen ? <span className="sat-bar__when">{barWhen}</span> : null}
+      <div className={`sat-bar${barOn ? " sat-bar--on" : ""}`} ref={barRef}>
+        <div className="sat-bar__in">
+          <button type="button" className="home-chip focus-bar__close" aria-label="Close details" onClick={onClose}>
+            {"\u00d7"}
+          </button>
+          <span className="sat-bar__name">{data.shortName}</span>
+          {barWhen ? <span className="sat-bar__when">{barWhen}</span> : null}
+        </div>
       </div>
-    </div>
-    <header className="sat-top" ref={topRef}>
-      {/* Back to the list, as Close does; a modified click still opens a tab. */}
-      <Link
-        className="home-link sat-back"
-        href="/"
-        onClick={(e) => {
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-          e.preventDefault();
-          onClose();
-        }}
-      >
-        {"← Your satellites"}
-      </Link>
-      <h1 className="sat-title">{data.name}</h1>
-      <p className="home-note">
-        {`NORAD ${data.noradId}`}
-        {data.intlDesignator ? ` · ${data.intlDesignator}` : ""}
-      </p>
-      {data.note ? <p className="home-note">{data.note}</p> : null}
-      <div className="sat-follow">
-        <button
-          type="button"
-          className={`home-button home-button--primary${following ? " home-chip--on" : ""}`}
-          disabled={!following && Boolean(blocked)}
-          onClick={toggleFollow}
+      <header className="sat-top" ref={topRef}>
+        {/* Back to the list, as Close does; a modified click still opens a tab. */}
+        <Link
+          className="home-link sat-back"
+          href="/"
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            e.preventDefault();
+            onClose();
+          }}
         >
-          {following ? "Following" : "Follow"}
-        </button>
-        {settings.observer && (
-          <ShareButton url={headerLink} title={data.name} size="button" />
-        )}
-      </div>
-      {!following && blocked ? <p className="home-note">{blocked}</p> : null}
-      <NextPassLine
-        report={nextPass}
-        nowMs={nowMs}
-        mode={settings.mode}
-        skyType={prefs.skyType}
-        clouds={clouds}
-        onChart={(kind, pass, e) => passes.current?.openChart(kind, pass, e)}
-      />
-    </header>
-
-    {shared ? (
-      <div className="sat-shared" role="status">
-        <p className="sat-shared__text">{bannerOf(shared)}</p>
-        <button type="button" className="home-button" onClick={leaveShared}>
-          Use my location and settings
-        </button>
-      </div>
-    ) : null}
-
-    {usable && liveNow && elementsNow ? (
-      <LiveNumbersFold>
-        <DashboardTiles live={liveNow} elements={elementsNow} />
-      </LiveNumbersFold>
-    ) : (
-      <>
-        <AgeLine age={age} source={data.source} fetchedText={fetchedText} />
-        <p className="home-note">These elements can&apos;t be used to compute a position.</p>
-      </>
-    )}
-
-    <PassSection
-      ref={passes}
-      track={usable ? track : null}
-      record={data.record}
-      epochMs={epochMs}
-      nowMs={nowMs}
-      settings={settings}
-      onModeChange={onModeChange}
-      onMinElevChange={onMinElevChange}
-      skyType={prefs.skyType}
-      onSkyTypeChange={onSkyTypeChange}
-      sharedPassMs={shared?.passTimeMs ?? null}
-      preferredFreqHz={shared?.freqHz ?? null}
-      onFreqPicked={(hz) => { pickedFreq.current = hz; }}
-      onNextPass={setNextPass}
-      clouds={clouds}
-    />
-
-    {usable && liveNow && elementsNow ? (
-      <>
-        <ElementsTable
-          elements={elementsNow}
-          age={age}
-          source={data.source}
-          fetchedText={fetchedText}
-          epochMs={epochMs}
+          {"← Your satellites"}
+        </Link>
+        <h1 className="sat-title">{data.name}</h1>
+        <p className="home-note">
+          {`NORAD ${data.noradId}`}
+          {data.intlDesignator ? ` · ${data.intlDesignator}` : ""}
+        </p>
+        {data.note ? <p className="home-note">{data.note}</p> : null}
+        <div className="sat-follow">
+          <button
+            type="button"
+            className={`home-button home-button--primary${following ? " home-chip--on" : ""}`}
+            disabled={!following && Boolean(blocked)}
+            onClick={toggleFollow}
+          >
+            {following ? "Following" : "Follow"}
+          </button>
+          {settings.observer && (
+            <ShareButton url={headerLink} title={data.name} size="button" />
+          )}
+        </div>
+        {!following && blocked ? <p className="home-note">{blocked}</p> : null}
+        <NextPassLine
+          report={nextPass}
+          nowMs={nowMs}
+          mode={settings.mode}
+          skyType={prefs.skyType}
+          clouds={clouds}
+          onChart={(kind, pass, e) => passes.current?.openChart(kind, pass, e)}
         />
-        <OrbitDiagram track={track} nowMs={nowMs} />
-        <OrbitCheck live={liveNow} />
-      </>
-    ) : null}
+      </header>
 
-    <Downlinks downlinks={data.downlinks} />
-    <RawElements raw={data.raw} />
-    {usable ? <HowWeCompute /> : null}
+      {shared ? (
+        <div className="sat-shared" role="status">
+          <p className="sat-shared__text">{bannerOf(shared)}</p>
+          <button type="button" className="home-button" onClick={leaveShared}>
+            Use my location and settings
+          </button>
+        </div>
+      ) : null}
 
-    <footer className="home-footer">
-      <span>
-        built by{" "}
-        <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
-      </span>
-    </footer>
+      {usable && liveNow && elementsNow ? (
+        <LiveNumbersFold>
+          <DashboardTiles live={liveNow} elements={elementsNow} />
+        </LiveNumbersFold>
+      ) : (
+        <>
+          <AgeLine age={age} source={data.source} fetchedText={fetchedText} />
+          <p className="home-note">These elements can&apos;t be used to compute a position.</p>
+        </>
+      )}
+
+      <PassSection
+        ref={passes}
+        track={usable ? track : null}
+        record={data.record}
+        epochMs={epochMs}
+        nowMs={nowMs}
+        settings={settings}
+        onModeChange={onModeChange}
+        onMinElevChange={onMinElevChange}
+        skyType={prefs.skyType}
+        onSkyTypeChange={onSkyTypeChange}
+        sharedPassMs={shared?.passTimeMs ?? null}
+        preferredFreqHz={shared?.freqHz ?? null}
+        onFreqPicked={(hz) => { pickedFreq.current = hz; }}
+        onNextPass={setNextPass}
+        clouds={clouds}
+      />
+
+      {usable && liveNow && elementsNow ? (
+        <>
+          <ElementsTable
+            elements={elementsNow}
+            age={age}
+            source={data.source}
+            fetchedText={fetchedText}
+            epochMs={epochMs}
+          />
+          <OrbitDiagram track={track} nowMs={nowMs} />
+          <OrbitCheck live={liveNow} />
+        </>
+      ) : null}
+
+      <Downlinks downlinks={data.downlinks} />
+      <RawElements raw={data.raw} />
+      {usable ? <HowWeCompute /> : null}
+
+      <footer className="home-footer">
+        <span>
+          built by{" "}
+          <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
+        </span>
+      </footer>
     </>
   );
 }

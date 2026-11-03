@@ -2,6 +2,7 @@
 .sat-title { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.15; color: var(--text-strong); }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; margin-top: 6px; }
 .sat-age { line-height: 1.6; }
+.sat-age__how { margin-left: 8px; font-size: 12px; white-space: nowrap; }
 .sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
 .sat-badge--old { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
 .sat-badge--stale { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
@@ -277,6 +278,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   .sat-title { font-size: 16pt; margin: 0 0 2pt; }
   .sat-elements > *:not(.sat-age) { display: none !important; }
   .sat-elements .sat-age, .sat-age { display: block; margin: 0 0 8pt; font-size: 10pt; }
+  .sat-age__how { display: none; }
   .sat-badge { border: 1px solid black !important; border-radius: 0; padding: 0 4pt; font-size: 9pt; }
 
   #passes > *:not(.sat-passes__head):not(.print-only) { display: none !important; }

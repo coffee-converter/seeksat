@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay, isRowOpen, directionText, nextPassText, rowAccuracyNote } from '../lib/sat/pass-rows.mjs';
+import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay, isRowOpen, directionText, nextPassText, nextPassWhen, rowAccuracyNote } from '../lib/sat/pass-rows.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -203,4 +203,13 @@ test('rowAccuracyNote puts one note on the first pass whose elements are old', (
     text: 'From this pass on, the elements are over 3 days old, so times may be off by a minute or more.',
   });
   assert.equal(rowAccuracyNote(rows.slice(0, 1)), null);
+});
+
+test('nextPassWhen: the short time words, from the pass itself', () => {
+  const startMs = Date.parse('2026-11-02T03:41:00Z');
+  const p = { startMs, endMs: startMs + 300_000, startAzDeg: 225, endAzDeg: 135 };
+  assert.equal(nextPassWhen(p, startMs - 41 * 60_000), 'in 41 min');
+  assert.equal(nextPassWhen(p, startMs - (7 * 60 + 12) * 60_000), 'in 7 h 12 min');
+  assert.equal(nextPassWhen(p, startMs + 60_000), 'up now');
+  assert.equal(nextPassWhen(p, p.endMs), null);
 });

@@ -15,6 +15,7 @@ export function AgeLine({ age, source, fetchedText }: { age: Age; source: string
       {age.level === "stale" ? (
         <span className="sat-badge sat-badge--stale">stale elements: positions may be far off</span>
       ) : null}
+      <a className="home-link sat-age__how" href="#how-accuracy">How accurate is this?</a>
     </p>
   );
 }

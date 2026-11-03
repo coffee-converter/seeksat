@@ -44,6 +44,10 @@ test('focused on a non-followed viewing satellite: it is focus, every followed o
   assert.deepEqual(mapLayers({ followed: [1, 2], hidden: [], focusId: 9, viewing: 9 }), [
     layer(1, 'ghost'), layer(2, 'ghost'), layer(9, 'focus'),
   ]);
+  // Followed (even hidden): it keeps its place, as the focus.
+  assert.deepEqual(satPageLayers({ followed: [1, 9], hidden: [9], pageId: 9 }), [
+    layer(1, 'ghost'), layer(9, 'focus'),
+  ]);
 });
 
 test('focused on a followed satellite while another is viewing: the viewing one is not shown', () => {
@@ -127,34 +131,17 @@ test('focusNavMethod: push to enter, replace to switch, back or replace to clear
 });
 
 test('satPageLayers: focused on the page satellite, not followed', () => {
-  assert.deepEqual(satPageLayers({ followed: [1, 2], hidden: [], focusId: 9, pageId: 9 }), [
+  assert.deepEqual(satPageLayers({ followed: [1, 2], hidden: [], pageId: 9 }), [
     layer(1, 'ghost'), layer(2, 'ghost'), layer(9, 'focus'),
   ]);
-});
-
-test('satPageLayers: show all draws the followed ones plus the page satellite', () => {
-  assert.deepEqual(satPageLayers({ followed: [1, 2], hidden: [2], focusId: null, pageId: 9 }), [
-    layer(1, 'normal'), layer(2, 'hidden'), layer(9, 'normal'),
-  ]);
-  // A followed, hidden page satellite still shows on its own page.
-  assert.deepEqual(satPageLayers({ followed: [1, 9], hidden: [9], focusId: null, pageId: 9 }), [
-    layer(1, 'normal'), layer(9, 'normal'),
-  ]);
-});
-
-test('satPageLayers: focused on another satellite, the page one ghosts', () => {
-  assert.deepEqual(satPageLayers({ followed: [1, 2], hidden: [], focusId: 1, pageId: 9 }), [
-    layer(1, 'focus'), layer(2, 'ghost'), layer(9, 'ghost'),
-  ]);
-  assert.deepEqual(satPageLayers({ followed: [1, 9], hidden: [], focusId: 1, pageId: 9 }), [
-    layer(1, 'focus'), layer(9, 'ghost'),
+  // Followed (even hidden): it keeps its place, as the focus.
+  assert.deepEqual(satPageLayers({ followed: [1, 9], hidden: [9], pageId: 9 }), [
+    layer(1, 'ghost'), layer(9, 'focus'),
   ]);
 });
 
 test('showAllCount counts what Show all draws', () => {
   assert.equal(showAllCount(mapLayers({ followed: [1, 2, 3], hidden: [2], focusId: null })), 2);
-  assert.equal(showAllCount(satPageLayers({ followed: [1, 2], hidden: [], focusId: null, pageId: 9 })), 3);
-  assert.equal(showAllCount(satPageLayers({ followed: [1, 9], hidden: [9], focusId: null, pageId: 9 })), 2);
 });
 
 test('focusDestination opens catalog satellites and keeps pasted ones home', () => {

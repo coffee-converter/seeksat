@@ -3,14 +3,14 @@
 // The header shared by every map page. It lives in the layout shell, so it
 // stays mounted (with its own clock) while the page underneath changes.
 
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SearchBar } from "@/components/home/SearchBar";
 import LiveClock from "@/components/LiveClock";
 import NightToggle from "@/components/NightToggle";
 import ThemeToggle from "@/components/ThemeToggle";
-import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { useTrueNow } from "@/lib/ui/use-true-now";
 import { isHomePath } from "@/lib/map/shell-route.mjs";
 import { satPath } from "@/lib/sat/page-data.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
@@ -18,36 +18,15 @@ import { useMapScene } from "@/lib/map/scene-store";
 export default function SiteHeader() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
-  const search = useMapScene((s) => s.scene?.search);
-  const [nowMs, setNowMs] = useState<number | null>(null);
-
-  // Starts after mount so server render and hydration agree; stops while hidden.
-  useEffect(() => {
-    let first: number | undefined;
-    let id: number | undefined;
-    const stop = () => {
-      if (first !== undefined) window.clearTimeout(first);
-      if (id !== undefined) window.clearInterval(id);
-      first = undefined;
-      id = undefined;
-    };
-    const start = () => {
-      stop();
-      setNowMs(trueNow());
-      first = window.setTimeout(() => {
-        setNowMs(trueNow());
-        id = window.setInterval(() => setNowMs(trueNow()), 1000);
-      }, 1000 - (trueNow() % 1000));
-    };
-    const onVisibility = () => (document.hidden ? stop() : start());
-    if (document.hidden) setNowMs(trueNow());
-    else start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      stop();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
+  const nowMs = useTrueNow();
+  // The page's search handlers are read when called, so a scene publish
+  // never re-renders the header.
+  const onView = useCallback((id: number) => {
+    const search = useMapScene.getState().scene?.search;
+    if (search) search.onView(id);
+    else router.push(satPath(id) as string);
+  }, [router]);
+  const onClearFocus = useCallback(() => useMapScene.getState().scene?.search?.onClearFocus(), []);
 
   return (
     <>
@@ -58,8 +37,8 @@ export default function SiteHeader() {
       )}
       <div className="map-shell__search">
         <SearchBar
-          onView={(id) => (search ? search.onView(id) : router.push(satPath(id) as string))}
-          onClearFocus={() => search?.onClearFocus()}
+          onView={onView}
+          onClearFocus={onClearFocus}
         />
       </div>
       <div className="map-shell__end">

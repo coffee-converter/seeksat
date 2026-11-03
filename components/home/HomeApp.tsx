@@ -18,13 +18,15 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { savedAgeNotice, shouldRefreshCards } from "@/lib/home/view.mjs";
-import { focusDestination, focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
+import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
 import { clearFromList, markFromList } from "@/lib/home/list-origin.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { CATALOG } from "@/lib/catalog.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { focusDestinationFor } from "@/lib/home/focus-nav";
+import { useTrueNow } from "@/lib/ui/use-true-now";
 import { useClouds } from "@/lib/sky/use-clouds";
 import { passCloud } from "@/components/passes/CloudBadge";
 import { visualRating } from "@/components/passes/QualityBadge";
@@ -40,10 +42,6 @@ const layersOf = mapLayers as (o: {
 }) => Layer[];
 const countOf = showAllCount as (layers: Layer[]) => number;
 
-/** The page a focus opens, or null for a pasted satellite (it stays on home). */
-const destinationOf = (id: number) =>
-  focusDestination(id, useHomeStore.getState().prefs.custom.map((c) => c.noradId)) as string | null;
-
 /** Reads ?focus= into the store. Alone inside Suspense, so / stays static.
  *  It reads the live URL when the param changes, so a stale render left
  *  behind by two quick focus changes never flips the store back. An old
@@ -58,7 +56,7 @@ function FocusParam({ onSynced }: { onSynced: () => void }) {
     const id = parseFocus(new URLSearchParams(window.location.search).get("focus")) as number | null;
     if (id != null) {
       if (!hydrated) return;
-      const dest = destinationOf(id);
+      const dest = focusDestinationFor(id);
       if (dest) {
         router.replace(dest);
         return;
@@ -105,7 +103,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const unfollow = useHomeStore((s) => s.unfollow);
   const toggleHidden = useHomeStore((s) => s.toggleHidden);
 
-  const [nowMs, setNowMs] = useState<number | null>(null);
   const [changingLocation, setChangingLocation] = useState(false);
 
   useEffect(() => {
@@ -116,38 +113,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   useEffect(() => clearFromList(), []);
   useEffect(() => watchVisibility(), []);
   // The one-second clock that drives the map and cards, on server time once a
-  // response has measured the skew (as the banner promises). Starts after mount so
-  // the server render and hydration agree, and stops while the tab is hidden.
-  useEffect(() => {
-    // Ticks land on whole seconds of the displayed (skew-corrected) clock:
-    // one timeout to the next boundary, then a 1 s interval.
-    let first: number | undefined;
-    let id: number | undefined;
-    const stop = () => {
-      if (first !== undefined) window.clearTimeout(first);
-      if (id !== undefined) window.clearInterval(id);
-      first = undefined;
-      id = undefined;
-    };
-    const start = () => {
-      stop();
-      setNowMs(trueNow());
-      first = window.setTimeout(() => {
-        first = undefined;
-        setNowMs(trueNow());
-        id = window.setInterval(() => setNowMs(trueNow()), 1000);
-      }, 1000 - (trueNow() % 1000));
-    };
-    const onVisibility = () => (document.hidden ? stop() : start());
-    if (document.hidden) setNowMs(trueNow());
-    else start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      stop();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
-
+  // response has measured the skew (as the banner promises).
+  const nowMs = useTrueNow();
   // The server's snapshot records stand in until the first load lands.
   const seed = useMemo(
     () => new Map(initialRecords.map((r) => [r.noradId as number, r])),
@@ -181,9 +148,14 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // always leaves focus.
   const router = useRouter();
   // True when it opened a satellite page, so callers skip scrolling home's list.
+  const lastNav = useRef<{ dest: string; at: number } | null>(null);
   const focusOn = useCallback((id: number | null): boolean => {
-    const dest = id != null ? destinationOf(id) : null;
+    const dest = id != null ? focusDestinationFor(id) : null;
     if (dest) {
+      // A double tap would push the same page twice: ignore the second.
+      const at = Date.now();
+      if (lastNav.current?.dest === dest && at - lastNav.current.at < 600) return true;
+      lastNav.current = { dest, at };
       markFromList();
       router.push(dest);
       return true;
