@@ -86,3 +86,28 @@
   - the header clock ticks;
   - search from the header still works on both pages;
   - a fast double click on a home chip adds one history entry.
+
+### Task 4: Per-frame motion for the focused satellite and Lock on
+
+Added at Aaron's request: the focused satellite and Lock on look jumpy, especially at high zoom.
+
+**Files:** `components/home/FlatMap.tsx`, plus a small new layer module if needed (for example `lib/map/focus-dot-layer.mjs`, following how `lib/map/footprint-layer.mjs` builds the globe cap custom layer).
+
+**Causes:**
+1. The 200 ms steps are too coarse at high zoom.
+2. The camera `jumpTo` is synchronous, but the GeoJSON `setData` that moves the dots is asynchronous (the worker re-tiles), so with Lock on the dot and the camera land on different frames and the dot twitches.
+
+**Behaviour:**
+- **The frame loop.** A `requestAnimationFrame` loop runs while a satellite is focused, the tab is visible and the map is mounted. It stops otherwise, and on unmount. Each frame:
+  - `t = trueNow()` and the focused position is `positionAt(t)`;
+  - with Lock on, or in Satellite's view, the camera `jumpTo`s that sub-point (satview also sets its zoom) in the same frame;
+  - the focused satellite's dot and name label are drawn by a layer the map renders synchronously in that frame: a custom WebGL layer, or MapLibre `Marker` DOM elements if they stay correct on the globe (hidden on the far side) and in vertical-perspective. Check both and choose; report the choice and why.
+- **No doubles.** The focused satellite is removed from the GeoJSON `ss-sats` data, so it is never drawn twice. Its hit-testing for taps keeps working, either through the new layer or by keeping an invisible GeoJSON point.
+- **Other satellites.** They stay on the 200 ms GeoJSON updates.
+- **The focus cap and footprint** move with the frame loop only if that stays cheap (the globe cap custom layer can take a new centre per frame). Otherwise they stay on 200 ms.
+- **No per-frame React state.** Frame work runs only while needed.
+- **Browser checks:**
+  - at zoom 12 on the ISS with Lock on, sample the dot's screen position over 2 s from screenshots or the layer's projected point: it stays within 1 px of the centre;
+  - without Lock on, consecutive frames move the dot by small, even steps;
+  - a far-side satellite on the globe is not drawn through the Earth;
+  - there are no page errors, and the HomeApp render count is still about one per second.
