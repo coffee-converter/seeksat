@@ -243,3 +243,29 @@ test('focusDestination opens catalog satellites and keeps pasted ones home', () 
   6. **Old map=all links:** `/sat/25544?map=all` loads as `/sat/25544`.
   7. **Esc** on a satellite page goes to the list.
 - [ ] **Step 4: Commit.** `feat: Open a satellite's page when it is focused, and close back to the list`
+
+### Task 6: A sticky title bar in the satellite drawer
+
+Added at Aaron's request: the satellite drawer is long, and getting back to the top to go back is tedious.
+
+**Files:** `components/sat/SatApp.tsx` (the `.sat-top` block), `app/sat.css`
+
+**Behaviour:**
+- **The bar.** Once the drawer's title block scrolls out of view, a slim bar sticks to the top of the drawer. It holds:
+  - the Close control from Task 5 (×, `aria-label="Close details"`), with the same behaviour;
+  - the satellite's name, one line with an ellipsis;
+  - the next pass in short form (the Next pass line's time words, for example "in 27 min"), if any.
+
+  The bar is hidden while the full title block is on screen: an `IntersectionObserver` on `.sat-top` toggles a class, and the bar never duplicates the title in view.
+- **Desktop** (1100 px and up): it sticks to the top of the scrolling panel, `.map-shell__panel`.
+- **Phones:** the window scrolls. The bar sticks under the pinned search row of the header, so its `top` equals the sticky header's visible height (use the existing header height, or a CSS custom property set by MapShell if one exists; check before adding one).
+- **Print:** hidden.
+- **Styles:** theme tokens only, and no layout shift when it appears (it is positioned over the content, or reserves no space).
+
+- [ ] **Step 1: Implement.** Run `npx tsc --noEmit && npm test && npm run build`.
+- [ ] **Step 2: Browser check** at 1440 and 390 on `/sat/48274`:
+  - the bar is absent at the top;
+  - after scrolling the drawer 800 px, the bar is visible at the drawer's top and shows "Tiangong";
+  - its Close does what Task 5's Close does;
+  - there is no horizontal overflow.
+- [ ] **Step 3: Commit.** `feat: Keep a slim title bar at the top of the satellite drawer`
