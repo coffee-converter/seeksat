@@ -17,7 +17,8 @@ import PassSection, { type NextPassReport, type PassSectionHandle, type PassSett
 import NextPassLine from "./NextPassLine";
 import RawElements from "./RawElements";
 import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
-import { focusHref, satPageLayers } from "@/lib/home/focus.mjs";
+import { focusDestination, satPageLayers } from "@/lib/home/focus.mjs";
+import { clearFromList, closeTarget, fromList } from "@/lib/home/list-origin.mjs";
 import { tracksFor } from "@/lib/home/records.mjs";
 import { followedTracks } from "@/lib/home/view.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
@@ -31,7 +32,6 @@ import { useClouds } from "@/lib/sky/use-clouds";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
-import { isMapAll, mapAllHref } from "@/lib/sat/map-param.mjs";
 import SatChips, { type Chip } from "@/components/home/SatChips";
 import { CATALOG } from "@/lib/catalog.mjs";
 
@@ -58,6 +58,7 @@ const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: un
 export default function SatApp({ data, shared: sharedIn = null }: { data: SatPageData; shared?: SharedBlob | null }) {
   const router = useRouter();
   const prefs = useHomeStore((s) => s.prefs);
+  const hydrated = useHomeStore((s) => s.hydrated);
   const hydrate = useHomeStore((s) => s.hydrate);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
@@ -94,13 +95,17 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const onSkyTypeChange = useCallback((skyType: string) => setPrefs({ skyType }), [setPrefs]);
   const leaveShared = () => {
     setShared(null);
-    router.replace(mapAllHref(satPath(data.noradId), "", focusId == null) as string);
+    router.replace(satPath(data.noradId) as string);
   };
 
   // First render matches the server HTML; the clock starts after mount.
   const [nowMs, setNowMs] = useState(data.renderedAtMs);
 
-  useEffect(() => { hydrate(); }, [hydrate]);
+  // The followed satellites' records, so the others can ghost on the map.
+  useEffect(() => {
+    hydrate();
+    void loadRecords();
+  }, [hydrate, loadRecords]);
   useEffect(() => {
     // Ticks land on whole seconds of the displayed (skew-corrected) clock:
     // one timeout to the next boundary, then a 1 s interval.
@@ -155,48 +160,40 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const epochMs = data.elementEpochMs;
   const age = useMemo(() => elementAge(epochMs, nowMs), [epochMs, nowMs]);
 
-  // The map starts focused on this satellite. Show all draws the followed
-  // ones too, without navigating; their records load on the first Show all.
-  const [focusId, setFocusId] = useState<number | null>(data.noradId);
-  const loadedOthers = useRef(false);
-  // The chips appear with the first Show all, once the followed satellites
-  // are on the map to pick from, and stay for the page's life.
-  const [othersShown, setOthersShown] = useState(false);
-  const showAll = useCallback(() => {
-    setFocusId(null);
-    setOthersShown(true);
-    if (!loadedOthers.current) {
-      loadedOthers.current = true;
-      void loadRecords();
-    }
-  }, [loadRecords]);
-  // Show all lives in ?map=all, so a refresh keeps it. The server render is
-  // focused, so the URL is read after mount; from then on the URL follows the
-  // focus, replacing the entry (Back still leaves the page in one step).
-  const firstUrlSync = useRef(true);
+  // The map is always focused on this satellite; the other followed ones ghost.
+  const focusId = data.noradId;
+  // Close: back to the list when it opened this page, else home.
+  const onClose = useCallback(() => {
+    if (closeTarget(fromList()) === "back") router.back();
+    else router.push("/");
+    clearFromList();
+  }, [router]);
+  // Another satellite from the map, a chip or search: a catalog one replaces
+  // this page, so the list stays one step back; a pasted one has no page and
+  // opens on home.
+  const openOther = useCallback((id: number | null) => {
+    if (id == null || id === data.noradId) return;
+    const dest = focusDestination(id, useHomeStore.getState().prefs.custom.map((c) => c.noradId)) as string | null;
+    if (dest) router.replace(dest);
+    else router.push(`/?focus=${id}`);
+  }, [data.noradId, router]);
+  // Old Show all links carried ?map=all; drop it from the URL.
   useEffect(() => {
-    if (isMapAll(window.location.search)) showAll();
-    // Once, on mount: showAll is stable for the page's life.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("map")) return;
+    url.searchParams.delete("map");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
   }, []);
   useEffect(() => {
-    // The first run sees the server's focus, before the read above lands.
-    if (firstUrlSync.current) { firstUrlSync.current = false; return; }
-    const { pathname, search } = window.location;
-    const href = mapAllHref(pathname, search, focusId == null) as string;
-    if (href !== pathname + search) window.history.replaceState(window.history.state, "", href);
-  }, [focusId]);
-  useEffect(() => {
-    if (focusId == null) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       const el = e.target as HTMLElement | null;
       if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-      showAll();
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focusId, showAll]);
+  }, [onClose]);
 
   const mapTracks = useMemo(() => {
     const out = new Map<number, HomeTrack>(
@@ -227,8 +224,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     color: colors.get(id) ?? SAT_PALETTES[theme][0],
     hidden: prefs.hidden.includes(id),
   })), [prefs.following, prefs.hidden, mapTracks, colors, theme]);
-  const focusName = focusId === data.noradId ? data.shortName : focusId != null ? mapTracks.get(focusId)?.shortName ?? `NORAD ${focusId}` : "";
-  const focusFollowed = focusId != null && prefs.following.includes(focusId);
 
   const [nextPass, setNextPass] = useState<NextPassReport>(undefined);
   const passes = useRef<PassSectionHandle>(null);
@@ -236,6 +231,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
 
   const following = prefs.following.includes(data.noradId);
   const blocked = followBlockedMessage(prefs.following, data.noradId) as string | null;
+  const toggleFollow = () => (following ? unfollow(data.noradId) : follow(data.noradId));
 
   usePublishMapScene({
     sats,
@@ -245,29 +241,37 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     onProjectionChange: (id) => setPrefs({ projection: id }),
     selectedId: focusId,
     minElevDeg: settings.minElevDeg,
-    onSelect: setFocusId,
-    chips: othersShown && (
-      <SatChips chips={chips} focusId={focusId} onFocus={(id) => (id == null ? showAll() : setFocusId(id))} onToggleHidden={toggleHidden} />
+    onSelect: openOther,
+    chips: hydrated && (
+      <SatChips chips={chips} focusId={focusId} onFocus={openOther} onToggleHidden={toggleHidden} />
     ),
-    top: usable && focusId != null && (
+    top: usable && (
       <FocusBar
-        name={focusName}
-        followed={focusFollowed}
-        blocked={followBlockedMessage(prefs.following, focusId) as string | null}
+        name={data.shortName}
+        followed={following}
+        blocked={blocked}
         mode="page"
-        onToggleFollow={() => (focusFollowed ? unfollow(focusId) : follow(focusId))}
-        onClose={showAll}
+        onToggleFollow={toggleFollow}
+        onClose={onClose}
       />
     ),
-    // A search result opens that satellite's page; Esc in an empty search shows all.
-    search: { onView: (id) => router.push(satPath(id)), onClearFocus: showAll },
+    // A search result opens that satellite's page; Esc in an empty search closes.
+    search: { onView: openOther, onClearFocus: onClose },
   });
 
   return (
     <>
     <header className="sat-top">
-      {/* Home, with this satellite still focused on the map. */}
-      <Link className="home-link sat-back" href={focusHref("/", "", data.noradId)}>
+      {/* Back to the list, as Close does; a modified click still opens a tab. */}
+      <Link
+        className="home-link sat-back"
+        href="/"
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          onClose();
+        }}
+      >
         {"← Your satellites"}
       </Link>
       <h1 className="sat-title">{data.name}</h1>
@@ -281,7 +285,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           type="button"
           className={`home-button home-button--primary${following ? " home-chip--on" : ""}`}
           disabled={!following && Boolean(blocked)}
-          onClick={() => (following ? unfollow(data.noradId) : follow(data.noradId))}
+          onClick={toggleFollow}
         >
           {following ? "Following" : "Follow"}
         </button>

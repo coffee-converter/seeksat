@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import FocusBar from "./FocusBar";
 import SatChips, { type Chip } from "./SatChips";
 import { useMapSats, type Layer } from "./useMapSats";
@@ -18,7 +18,8 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { savedAgeNotice, shouldRefreshCards } from "@/lib/home/view.mjs";
-import { focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
+import { focusDestination, focusHref, focusNavMethod, mapLayers, parseFocus, showAllCount } from "@/lib/home/focus.mjs";
+import { clearFromList, markFromList } from "@/lib/home/list-origin.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
@@ -39,16 +40,33 @@ const layersOf = mapLayers as (o: {
 }) => Layer[];
 const countOf = showAllCount as (layers: Layer[]) => number;
 
+/** The page a focus opens, or null for a pasted satellite (it stays on home). */
+const destinationOf = (id: number) =>
+  focusDestination(id, useHomeStore.getState().prefs.custom.map((c) => c.noradId)) as string | null;
+
 /** Reads ?focus= into the store. Alone inside Suspense, so / stays static.
  *  It reads the live URL when the param changes, so a stale render left
- *  behind by two quick focus changes never flips the store back. */
+ *  behind by two quick focus changes never flips the store back. An old
+ *  link to a catalog satellite is replaced with its page, once the prefs
+ *  have loaded and say whether the id is a pasted one. */
 function FocusParam({ onSynced }: { onSynced: () => void }) {
+  const router = useRouter();
   const raw = useSearchParams().get("focus");
+  const hydrated = useHomeStore((s) => s.hydrated);
   const setFocusId = useHomeStore((s) => s.setFocusId);
   useEffect(() => {
-    setFocusId(parseFocus(new URLSearchParams(window.location.search).get("focus")) as number | null);
+    const id = parseFocus(new URLSearchParams(window.location.search).get("focus")) as number | null;
+    if (id != null) {
+      if (!hydrated) return;
+      const dest = destinationOf(id);
+      if (dest) {
+        router.replace(dest);
+        return;
+      }
+    }
+    setFocusId(id);
     onSynced();
-  }, [raw, setFocusId, onSynced]);
+  }, [raw, hydrated, router, setFocusId, onSynced]);
   return null;
 }
 
@@ -94,6 +112,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     hydrate();
     void loadRecords();
   }, [hydrate, loadRecords]);
+  // Back on the list, so a satellite page opened later starts fresh.
+  useEffect(() => clearFromList(), []);
   useEffect(() => watchVisibility(), []);
   // The one-second clock that drives the map and cards, on server time once a
   // response has measured the skew (as the banner promises). Starts after mount so
@@ -152,11 +172,21 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return out;
   }, [prefs.following, focusId, theme]);
 
-  // Focus lives in ?focus=, changed through the History API (Next keeps
-  // useSearchParams in step, with no server round trip). Entering a focus
-  // pushes, switching replaces, and clearing steps back over the entry we
-  // pushed (else replaces), so Back always leaves focus.
+  // Focusing a catalog satellite opens its page, noting that it came from the
+  // list so Close can step back here.
+  // A pasted satellite has no page, so its focus lives in ?focus=, changed
+  // through the History API (Next keeps useSearchParams in step, with no
+  // server round trip). Entering a focus pushes, switching replaces, and
+  // clearing steps back over the entry we pushed (else replaces), so Back
+  // always leaves focus.
+  const router = useRouter();
   const focusOn = useCallback((id: number | null) => {
+    const dest = id != null ? destinationOf(id) : null;
+    if (dest) {
+      markFromList();
+      router.push(dest);
+      return;
+    }
     const pushed = pushedHere();
     const method = focusNavMethod(useHomeStore.getState().focusId, id, pushed) as "push" | "replace" | "back" | null;
     if (!method) return;
@@ -169,7 +199,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     // A fresh object (no Next internals): Next copies its own state across.
     if (method === "push") window.history.pushState({ [PUSHED_KEY]: true }, "", href);
     else window.history.replaceState({ [PUSHED_KEY]: id != null && pushed }, "", href);
-  }, []);
+  }, [router]);
   // A focus that is not followed (from search, or a shared link) needs its record.
   useEffect(() => {
     if (hydrated && focusId != null && !prefs.following.includes(focusId)) void loadViewing(focusId);

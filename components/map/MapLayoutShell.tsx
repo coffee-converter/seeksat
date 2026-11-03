@@ -12,6 +12,7 @@ import MapShell from "@/components/MapShell";
 import { shellClassFor } from "@/lib/map/shell-route.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
 import { useHomeStore } from "@/lib/home/store";
+import { useFollow } from "@/lib/map/follow-store";
 import SiteHeader from "./SiteHeader";
 
 const noop = () => {};
@@ -21,6 +22,11 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
   const scene = useMapScene((s) => s.scene);
   const projection = useHomeStore((s) => s.prefs.projection);
   const setPrefs = useHomeStore((s) => s.setPrefs);
+
+  // Lock on is off whenever a page loads, including a hop between satellites.
+  useEffect(() => {
+    useFollow.getState().setFollowing(false);
+  }, [pathname]);
 
   // A new page starts at the top of the panel, but the first render does not.
   const first = useRef(true);
