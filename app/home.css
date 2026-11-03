@@ -1652,6 +1652,8 @@ a.home-chip { display: inline-block; text-decoration: none; }
   .flat-map-shell--fill .map-legend {
     flex-direction: column;
     gap: 6px;
+    /* The ground-position note wraps rather than stretching the box. */
+    max-width: 34em;
     margin: 0;
     padding: 10px 12px;
     background: var(--map-panel);
