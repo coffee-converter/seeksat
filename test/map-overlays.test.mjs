@@ -319,3 +319,26 @@ test('the footprint edge is solid: MapLibre dashes change length between tiles',
   const edge = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-line');
   assert.equal(edge.paint['line-dasharray'], undefined);
 });
+
+// A highly elliptical orbit gets extra track points where it moves fast, so
+// the fade is cut by time, not by point count: each chunk is an eighth of it.
+import { splitTrack } from '../lib/map/geometry.mjs';
+import { makeTrack } from '../lib/sat/track.mjs';
+import { MOLNIYA_LINE1, MOLNIYA_LINE2, recordFrom as molRecord } from './fixtures/orbits.mjs';
+test('the future fade is cut by time on a highly elliptical track', () => {
+  const now = Date.parse('2023-06-27T12:00:00Z');
+  const split = splitTrack(makeTrack(molRecord(MOLNIYA_LINE1, MOLNIYA_LINE2, 'Molniya')), now);
+  const sat = { noradId: 7, name: 'M', color: '#ffffff', emphasis: 'normal', sub: { latDeg: 0, lonDeg: 0 },
+    trackPast: split.past, trackFuture: split.future, trackTicks: [] };
+  const chunks = overlayData({ sats: [sat] })['ss-track-future'].features;
+  assert.equal(chunks.length, 8);
+  // Each chunk starts at the time an eighth further on, give or take one step.
+  const timeOf = new Map();
+  split.future.coordinates.forEach((line, k) => line.forEach((p, i) => timeOf.set(p.join(), split.future.times[k][i])));
+  const t0 = split.future.times[0][0];
+  const span = split.future.times.at(-1).at(-1) - t0;
+  chunks.forEach((c, i) => {
+    const start = timeOf.get(c.geometry.coordinates[0][0].join());
+    assert.ok(Math.abs(start - t0 - (i * span) / 8) <= span / 192 + 1, `chunk ${i} starts ${((start - t0) / span).toFixed(3)}`);
+  });
+});

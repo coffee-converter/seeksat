@@ -276,3 +276,49 @@ test('ringLine leaves a footprint well clear of the poles in one piece', () => {
   const line = edge.coordinates[0];
   assert.deepEqual(line[0], line[line.length - 1]);
 });
+
+// Highly elliptical orbits (Molniya, SMILE) race over the ground near perigee,
+// so evenly timed samples leave long gaps there, and a curve through them bent
+// sharply at every sample.
+import { MOLNIYA_LINE1, MOLNIYA_LINE2 } from './fixtures/orbits.mjs';
+const RADD = Math.PI / 180;
+const unit = ([lon, lat]) => [Math.cos(lat * RADD) * Math.cos(lon * RADD), Math.cos(lat * RADD) * Math.sin(lon * RADD), Math.sin(lat * RADD)];
+const arcDeg = (a, b) => {
+  const p = unit(a), q = unit(b);
+  return Math.acos(Math.min(1, p[0] * q[0] + p[1] * q[1] + p[2] * q[2])) / RADD;
+};
+const molniya = () => makeTrack(recordFrom(MOLNIYA_LINE1, MOLNIYA_LINE2, 'Molniya'));
+const MOL_NOW = Date.parse('2023-06-27T12:00:00Z');
+
+test('a highly elliptical track gets extra samples where it moves fast', () => {
+  const { past, future } = splitTrack(molniya(), MOL_NOW);
+  for (const shape of [past, future]) {
+    for (const line of shape.coordinates) {
+      for (let i = 1; i < line.length; i++) assert.ok(arcDeg(line[i - 1], line[i]) <= 2.5, `step ${arcDeg(line[i - 1], line[i]).toFixed(2)}°`);
+    }
+  }
+});
+
+test('every track point keeps its time, in order', () => {
+  const { future } = splitTrack(molniya(), MOL_NOW);
+  assert.equal(future.times.length, future.coordinates.length);
+  future.coordinates.forEach((line, k) => {
+    assert.equal(future.times[k].length, line.length);
+    for (let i = 1; i < line.length; i++) assert.ok(future.times[k][i] >= future.times[k][i - 1]);
+  });
+  assert.equal(future.times[0][0], MOL_NOW);
+});
+
+test('an ISS track needs no extra samples', () => {
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const { future } = splitTrack(iss, Date.parse('2026-03-01T12:00:00Z'));
+  const n = future.coordinates.reduce((s, l) => s + l.length, 0);
+  // 192 even steps plus the date-line cuts.
+  assert.ok(n <= 200, `${n} points`);
+});
+
+test('densifyLine never doubles back on unevenly spaced samples', () => {
+  const line = [[0, 0], [1, 0.5], [2, 1], [40, 20], [41, 20.5], [42, 21]];
+  const d = densifyLine(line, 8);
+  for (let i = 1; i < d.length; i++) assert.ok(d[i][0] >= d[i - 1][0] - 1e-9, `backtracks at ${i}`);
+});
