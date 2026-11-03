@@ -216,3 +216,30 @@ test('without a frequency the range rate panel keeps its plain axis and no end l
   assert.equal(svg.querySelector('[data-layer="dopplerHz"]'), null);
   assert.equal(svg.querySelectorAll('.rc-end').length, 0);
 });
+
+test('the saved full chart carries the SeekSat watermark in its bottom-right corner, clear of the text', () => {
+  const svg = newSvgRoot('0 0 320 250');
+  paintRadioChart(svg, series(437.8e6), { ...BASE, freqHz: 437.8e6 });
+  const [, , vw, vh] = svg.getAttribute('viewBox').split(' ').map(Number);
+  const mark = svg.querySelector('.brand-wordmark');
+  const url = svg.querySelector('.brand-url');
+  assert.equal(mark.textContent, 'SeekSat');
+  assert.equal(url.textContent, 'seeksat.com');
+  assert.equal(svg.lastChild, url);
+  assert.ok(svg.querySelector('style').textContent.includes("font-family: 'Exo 2'"));
+  const x = Number(mark.getAttribute('x'));
+  assert.ok(x <= vw && x > vw - 8, `x ${x} of ${vw}`);
+  assert.ok(Number(url.getAttribute('y')) < vh && Number(url.getAttribute('y')) > vh - 8);
+  // Every methods line ends left of the wordmark.
+  const left = x - 'SeekSat'.length * 8 * 0.6;
+  const wordTop = Number(mark.getAttribute('y')) - 8;
+  for (const t of svg.querySelectorAll('.rc-meth, .rc-tick, .rc-axis')) {
+    const ty = Number(t.getAttribute('y'));
+    if (ty < wordTop) continue;
+    const px = t.getAttribute('class').includes('rc-meth') ? 2.6 : 2.6;
+    const tx = Number(t.getAttribute('x'));
+    const anchor = t.getAttribute('text-anchor') ?? 'start';
+    const right = anchor === 'end' ? tx : anchor === 'middle' ? tx + t.textContent.length * px * 0.3 : tx + t.textContent.length * px * 0.6;
+    assert.ok(right < left, `${t.textContent} runs into the watermark`);
+  }
+});

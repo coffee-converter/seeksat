@@ -13,7 +13,7 @@ const ROOTS = [
 
 // Origins that appear in client source only as links or text, never fetched.
 const NOT_FETCHED = new Set([
-  'https://liftofflabs.io', // footer credit link
+  'https://aaronhanson.dev', // footer credit link
   'https://seeksat.com', // canonical site URL in copy and links
   'https://claude.ai', // MCP docs: link to connect the server
   'https://api.open-meteo.com', // server-only, via the MCP route
