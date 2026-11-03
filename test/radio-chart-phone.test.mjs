@@ -53,7 +53,7 @@ test('the caption helper says what the full chart says', () => {
   const s = series(437.8e6);
   const meta = { ...BASE, freqHz: 437.8e6, jointStartMs: T0 - 60000, jointEndMs: T0 + 45000 };
   assert.equal(radioChartCaption(s, meta),
-    'Swing is horizon-to-horizon. Shaded: above 10°. Brighter: every observer can hear it. Dots: Doppler at 10° and 30° up.');
+    'Swing is horizon-to-horizon. Shaded: above 10°. Brighter: every observer can hear it. Dots: Doppler at 10° and 30° up. Coloured on the left: the frequency at rise and set.');
   const svg = newSvgRoot('0 0 320 250');
   paintRadioChart(svg, s, meta);
   assert.ok(texts(svg).replace(/ \| /g, ' ').includes(radioChartCaption(s, meta)));
@@ -165,4 +165,54 @@ test('the heading helper gives the full chart title and subtitle', () => {
   assert.equal(h.title, 'ISS · 437.800 MHz');
   assert.equal(h.sub, 'FM cross-band repeater (on-demand) · My location · 2026-09-07');
   assert.equal(radioChartHeading(series(null), { ...BASE, freqHz: null, downlinkLabel: undefined }).title, 'ISS');
+});
+
+// The Doppler panel reads in MHz on the left, the axis people read first,
+// with the kHz shift on the right; the rise and set frequencies sit on the
+// left axis in the curve's colours, and no plain tick crowds them.
+const dopTexts = (svg) => [...svg.querySelector('[data-layer="dopplerHz"]').querySelectorAll('text')];
+for (const [name, paint, px, svgBox] of [
+  ['full', paintRadioChart, 2.6, '0 0 320 250'],
+  ['phone', paintRadioChartCompact, COMPACT_FONT_PX['rc-tick'], '0 0 100 100'],
+]) {
+  test(`${name} chart: Doppler panel in MHz on the left, kHz shift on the right`, () => {
+    const svg = newSvgRoot(svgBox);
+    paint(svg, series(437.8e6), { ...BASE, freqHz: 437.8e6 });
+    const t = dopTexts(svg);
+    const plot = svg.querySelector('[data-layer="dopplerHz"] .rc-bg');
+    const x0 = Number(plot.getAttribute('x'));
+    const left = t.filter((e) => e.getAttribute('class') === 'rc-tick' && Number(e.getAttribute('x')) < x0);
+    const right = t.filter((e) => e.getAttribute('class') === 'rc-tick' && Number(e.getAttribute('x')) > x0);
+    assert.ok(left.length >= 1 && left.every((e) => /^437\.\d{3,4}$/.test(e.textContent)), left.map((e) => e.textContent).join());
+    assert.ok(right.length >= 1 && right.every((e) => /^([+-]\d+(\.\d+)?|0)$/.test(e.textContent)), right.map((e) => e.textContent).join());
+    assert.ok(t.some((e) => e.textContent === 'Tune (MHz)' && e.getAttribute('class') === 'rc-panel'));
+    assert.ok(t.some((e) => e.textContent === 'Doppler (kHz)' && e.getAttribute('class') === 'rc-axis'));
+  });
+
+  test(`${name} chart: the rise and set frequencies on the left axis, clear of the ticks`, () => {
+    const s = series(437.8e6);
+    const svg = newSvgRoot(svgBox);
+    paint(svg, s, { ...BASE, freqHz: 437.8e6 });
+    const t = dopTexts(svg);
+    const ends = t.filter((e) => (e.getAttribute('class') ?? '').includes('rc-end'));
+    const first = s.samples[0].dopplerHz / 1000, last = s.samples[s.samples.length - 1].dopplerHz / 1000;
+    const sign = (v) => (v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1));
+    assert.deepEqual(ends.map((e) => e.textContent),
+      [tuneLabel(437.8e6, first), sign(first), tuneLabel(437.8e6, last), sign(last)]);
+    for (const e of ends) assert.match(e.getAttribute('style'), /fill: #/);
+    const ticks = t.filter((e) => e.getAttribute('class') === 'rc-tick');
+    for (const end of ends) {
+      for (const tick of ticks) {
+        assert.ok(Math.abs(Number(end.getAttribute('y')) - Number(tick.getAttribute('y'))) >= px * 1.2,
+          `${tick.textContent} crowds ${end.textContent}`);
+      }
+    }
+  });
+}
+
+test('without a frequency the range rate panel keeps its plain axis and no end labels', () => {
+  const svg = newSvgRoot('0 0 320 250');
+  paintRadioChart(svg, series(null), { ...BASE, freqHz: null, downlinkLabel: undefined });
+  assert.equal(svg.querySelector('[data-layer="dopplerHz"]'), null);
+  assert.equal(svg.querySelectorAll('.rc-end').length, 0);
 });
