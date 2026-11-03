@@ -26,7 +26,13 @@ test('ratingShort: cloud, low elevation, Good', () => {
   const twi = visualQuality({ maxElevDeg: 60, peakSunAltDeg: -3 });
   assert.equal(ratingShort(twi, {}, { mode: 'visual' }), 'twilight');
   const low = passQuality({ maxElevDeg: 3.4 });
-  assert.equal(ratingShort(low, { maxElevDeg: 3.4 }, { mode: 'radio' }), '3° up');
+  // Radio cards already print the max elevation, so a radio badge is just Low.
+  assert.equal(ratingShort(low, { maxElevDeg: 3.4 }, { mode: 'radio' }), null);
+  assert.equal(ratingShort(passQuality({ maxElevDeg: 20 }), { maxElevDeg: 20 }, { mode: 'radio' }), null);
+  // A visual pass that is low in the sky still says how high.
+  const lowVis = visualQuality({ maxElevDeg: 5, peakSunAltDeg: -30 });
+  assert.equal(lowVis.cause, 'low');
+  assert.equal(ratingShort(lowVis, { maxElevDeg: 5 }, { mode: 'visual' }), '5° up');
   const good = visualQuality({ peakMag: -3, peakMagSunAltDeg: -20 });
   assert.equal(good.cause, null);
   assert.equal(ratingShort(good, {}, { mode: 'visual' }), null);
@@ -53,8 +59,8 @@ test('passWords: a visual pass that starts mid-sky appears there', () => {
   const z = { timeZone: 'America/Chicago', clock };
   assert.equal(passWords({ ...base, startElevDeg: 14.6 }, { ...z, mode: 'visual' }),
     'Appears 15° NW 6:27 PM · peaks 26° SW 6:29 PM · fades in the SE 6:31 PM');
-  // Within 1° of the minimum elevation it still rises; radio always rises.
-  assert.match(passWords({ ...base, startElevDeg: 10.8 }, { ...z, mode: 'visual', minElevDeg: 10 }), /^Rises NW 6:27 PM · /);
+  // Within 1° of the minimum elevation it still rises (above it); radio always rises.
+  assert.match(passWords({ ...base, startElevDeg: 10.8 }, { ...z, mode: 'visual', minElevDeg: 10 }), /^Rises above 10° NW 6:27 PM · /);
   assert.match(passWords({ ...base, startElevDeg: 14.6 }, { ...z, mode: 'radio' }), /^Rises NW 6:27 PM · /);
 });
 test('passWords: no "peaks" clause when the peak is the start', () => {
@@ -70,13 +76,30 @@ test('passWords: no "peaks" clause when the peak is the start', () => {
 test('passWords: a pass already up leads with "Up now"', () => {
   const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
   const z = { timeZone: 'America/Chicago', clock };
+  // The card's meta line already says "Up now, until 6:31 PM", so the words
+  // skip the lead and the end time.
   assert.equal(passWords({ ...base, inProgress: true, startElevDeg: 12 }, { ...z, mode: 'visual' }),
-    'Up now · peaks 26° SW 6:29 PM · fades in the SE 6:31 PM');
+    'peaks 26° SW 6:29 PM · fades in the SE');
   assert.equal(passWords({ ...base, inProgress: true, startElevDeg: 12, endElevDeg: 0 }, { ...z, mode: 'radio' }),
-    'Up now · peaks 26° SW 6:29 PM · sets SE 6:31 PM');
+    'peaks 26° SW 6:29 PM · sets SE');
+  assert.equal(passWords({ ...base, inProgress: true, startElevDeg: 12, endElevDeg: 5 }, { ...z, mode: 'radio', minElevDeg: 10 }),
+    'peaks 26° SW 6:29 PM · drops below 10° SE');
   // Past the peak, the engine's peak is the clamped start: no peak clause.
   assert.equal(passWords({ ...base, inProgress: true, startElevDeg: 25.6, peakMs: base.startMs, endElevDeg: 0 }, { ...z, mode: 'radio' }),
-    'Up now · sets SE 6:31 PM');
+    'sets SE');
+});
+test('passWords: a minimum elevation start is the cutoff, not the horizon', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  const z = { timeZone: 'America/Chicago', clock };
+  assert.equal(passWords({ ...base, endElevDeg: 10 }, { ...z, mode: 'radio', minElevDeg: 10 }),
+    'Rises above 10° NW 6:27 PM · peaks 26° SW 6:29 PM · drops below 10° SE 6:31 PM');
+  assert.match(passWords(base, { ...z, mode: 'radio', minElevDeg: 0 }), /^Rises NW /);
+});
+test('passWords: no "peaks" clause when the peak is the end', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  const z = { timeZone: 'America/Chicago', clock, mode: 'radio' };
+  assert.equal(passWords({ ...base, peakMs: base.endMs - 20_000 }, z), 'Rises NW 6:27 PM · sets SE 6:31 PM');
+  assert.match(passWords({ ...base, peakMs: base.endMs - 60_000 }, z), /peaks/);
 });
 test('passWords: a pass that rises from the horizon is unchanged', () => {
   const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
@@ -99,6 +122,8 @@ test('bestPass: level then elevation, null when soonest', () => {
   assert.equal(bestPass(ok, { rate }).pass.startMs, 5000);
   assert.equal(bestPass([card(1, [p(1000, 80), p(2000, 30)])], { rate }), null);
   assert.equal(bestPass([], { rate }), null);
+  // A best pass that still rates Low is not worth pointing at.
+  assert.equal(bestPass([card(1, [p(1000, 5), p(5000, 8)])], { rate }), null);
 });
 
 test('riseDopplerHz: positive for a rising ISS pass, under 12 kHz at 437.8 MHz', () => {
