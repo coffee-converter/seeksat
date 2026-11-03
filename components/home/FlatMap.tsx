@@ -941,10 +941,8 @@ export default function FlatMap({
   }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, liveFocus]);
 
   // Between props, move the other dots and the GeoJSON footprint every
-  // DOT_MS, and the focus while the frame loop idles. The footprint outline
-  // (ss-footprint-line) steps here against the per-frame globe cap; at most
-  // DOT_MS apart, it is left so. Nothing here sets React state. It stops
-  // while the tab is hidden.
+  // DOT_MS, and the focus while the frame loop idles. Nothing here sets
+  // React state. It stops while the tab is hidden.
   useEffect(() => {
     let id: number | undefined;
     const tick = () => {

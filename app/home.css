@@ -1297,11 +1297,10 @@
     repeating-linear-gradient(90deg, var(--map-text) 0 2px, transparent 2px 4px) left / 40% 100% no-repeat,
     linear-gradient(90deg, var(--map-text), transparent) right / 60% 100% no-repeat;
 }
-/* The focused satellite's circle: a thin solid edge and a faint fill, in its colour. */
+/* The focused satellite's circle: a faint fill in its colour, no outline. */
 .map-legend__swatch--footprint {
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--swatch, var(--map-accent)) 70%, transparent);
-  background: color-mix(in srgb, var(--swatch, var(--map-accent)) 12%, transparent);
+  background: color-mix(in srgb, var(--swatch, var(--map-accent)) 30%, transparent);
 }
 .map-legend__swatch--ghost { width: 6px; height: 6px; margin: 0 8px; border-radius: 50%; background: var(--map-text); opacity: 0.35; }
 .map-legend__swatch--night { background: var(--map-night); border: 1px solid var(--map-border); }

@@ -154,23 +154,16 @@ test('night and footprint run on past the date line in one piece', () => {
     }
   }
   assert.ok(data['ss-night'].features.every((f) => f.geometry.type === 'MultiPolygon' && f.geometry.coordinates.length === 1));
-  // The footprint centred on 179E crosses the date line: one area and one
-  // edge line, both running on past 180 rather than cut there.
+  // The footprint centred on 179E crosses the date line: one area, running
+  // on past 180 rather than cut there.
   const area = data['ss-footprint'].features.find((f) => f.properties.part === 'area');
   assert.equal(area.geometry.coordinates.length, 1);
   assert.ok(Math.max(...lons(area.geometry.coordinates)) > 180);
-  const edge = data['ss-footprint'].features.find((f) => f.properties.part === 'edge');
-  // One line (the edge is cut only near the poles, at the tile limit).
-  assert.equal(edge.geometry.type, 'MultiLineString');
-  assert.equal(edge.geometry.coordinates.length, 1);
-  const line = edge.geometry.coordinates[0];
-  assert.ok(Math.max(...lons(line)) > 180);
-  assert.deepEqual(line.at(-1), line[0], 'the edge closes on itself');
 });
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-night', 'ss-footprint-fill', 'ss-footprint-line', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -267,18 +260,17 @@ test('tracks: false leaves out the track sources without reading the tracks', ()
   assert.equal(reads, 0);
   for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(!(id in data), id);
   assert.equal(data['ss-sats'].features.length, 3);
-  assert.equal(data['ss-footprint'].features.length, 2);
+  assert.equal(data['ss-footprint'].features.length, 1);
   assert.equal(data['ss-observer'].features.length, 1);
   // The default still builds them.
   const all = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8 });
   for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(all[id].features.length > 0, id);
 });
 
-test('the footprint fill stays faint so the map shows through', () => {
+test('the footprint is a faint fill with no outline, so it is not read as a track', () => {
   const fill = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-fill');
-  assert.ok(fill.paint['fill-opacity'] <= 0.06, `fill-opacity ${fill.paint['fill-opacity']}`);
-  const edge = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-line');
-  assert.ok(edge.paint['line-opacity'] <= 0.5, `edge opacity ${edge.paint['line-opacity']}`);
+  assert.ok(fill.paint['fill-opacity'] <= 0.1, `fill-opacity ${fill.paint['fill-opacity']}`);
+  assert.ok(!overlayLayers(COLORS).some((l) => l.source === 'ss-footprint' && l.type === 'line'));
 });
 
 test('the lat/lon grid is static and only built on request', () => {
@@ -320,10 +312,6 @@ test('the grid sits under everything, faint, coarser when zoomed out', () => {
   }
 });
 
-test('the footprint edge is solid: MapLibre dashes change length between tiles', () => {
-  const edge = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-line');
-  assert.equal(edge.paint['line-dasharray'], undefined);
-});
 
 // A highly elliptical orbit gets extra track points where it moves fast, so
 // the fade is cut by time, not by point count: each chunk is an eighth of it.
