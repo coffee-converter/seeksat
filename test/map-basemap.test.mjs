@@ -140,3 +140,7 @@ test('every dark map fill and line is dark', () => {
     }
   }
 });
+
+test('Satellite\'s view uses the vertical-perspective projection', () => {
+  assert.deepEqual(basemapStyle('dark', 'satview').projection, { type: 'vertical-perspective' });
+});

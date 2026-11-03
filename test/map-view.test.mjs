@@ -1,10 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
+import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, effectiveView, zoomForAltitude, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
 
-test('the view list is flat and globe, flat by default', () => {
-  assert.deepEqual(PROJECTIONS, [{ id: 'globe', label: 'Globe' }, { id: 'flat', label: 'Mercator' }]);
+test('the view list is globe, flat and satellite view, flat by default', () => {
+  assert.deepEqual(PROJECTIONS, [
+    { id: 'globe', label: 'Globe' },
+    { id: 'flat', label: 'Mercator' },
+    { id: 'satview', label: "Satellite's view" },
+  ]);
   assert.equal(DEFAULT_PROJECTION, 'flat');
+});
+
+test('Satellite\'s view is the third view, and falls back to the globe without a focus', () => {
+  assert.deepEqual(PROJECTIONS.map((p) => p.id), ['globe', 'flat', 'satview']);
+  assert.equal(PROJECTIONS[2].label, "Satellite's view");
+  assert.equal(migrateProjection('satview'), 'satview');
+  assert.equal(effectiveView('satview', true), 'satview');
+  assert.equal(effectiveView('satview', false), 'globe');
+  assert.equal(effectiveView('flat', true), 'flat');
+});
+
+test('zoomForAltitude puts the camera at the satellite\'s height', () => {
+  const z = zoomForAltitude(420, 900);
+  // 900 px tall, 36.87 degree field: 1350 px to centre; 1350 * C / (420e3 * 512) = 251.6
+  // 36.87 degrees is 1350 px rounded, so allow for that rounding.
+  assert.ok(Math.abs(z - Math.log2(1350 * 40075016.686 / (420e3 * 512))) < 1e-5);
+  assert.ok(zoomForAltitude(35786, 900) < zoomForAltitude(420, 900));
+  assert.ok(Number.isFinite(zoomForAltitude(120000, 900)));
+});
+
+test('the Night side preset centres opposite the Sun', () => {
+  const date = new Date('2026-06-21T12:00:00Z');
+  const cam = presetCamera('night', { date, width: 1000, height: 800 });
+  // subsolar is about (0.46 E, 23.44 N) then: antisolar about (-179.5, -23.44)
+  assert.ok(Math.abs(cam.center[1] + 23.44) < 0.2);
+  assert.ok(Math.abs(Math.abs(cam.center[0]) - 179.5) < 0.6);
+  // The whole-Earth zoom at the preset's own centre, as the other presets use.
+  assert.equal(cam.zoom, homeCamera('globe', { observer: { lonDeg: cam.center[0], latDeg: cam.center[1] }, width: 1000, height: 800 }).zoom);
 });
 
 test('migrateProjection maps every old value', () => {

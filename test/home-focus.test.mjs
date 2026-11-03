@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  mapLayers, focusBarText, followLabel, parseFocus, focusHref, focusNavMethod, satPageLayers, showAllCount,
+  mapLayers, focusBarText, followLabel, parseFocus, focusHref, focusNavMethod, satPageLayers, showAllCount, focusDestination,
 } from '../lib/home/focus.mjs';
 
 const layer = (noradId, emphasis) => ({ noradId, emphasis });
@@ -148,4 +148,10 @@ test('showAllCount counts what Show all draws', () => {
   assert.equal(showAllCount(mapLayers({ followed: [1, 2, 3], hidden: [2], focusId: null })), 2);
   assert.equal(showAllCount(satPageLayers({ followed: [1, 2], hidden: [], focusId: null, pageId: 9 })), 3);
   assert.equal(showAllCount(satPageLayers({ followed: [1, 9], hidden: [9], focusId: null, pageId: 9 })), 2);
+});
+
+test('focusDestination opens catalog satellites and keeps pasted ones home', () => {
+  assert.equal(focusDestination(25544, []), '/sat/25544');
+  assert.equal(focusDestination(90001, [90001]), null);
+  assert.equal(focusDestination(90001, new Set([90001])), null);
 });
