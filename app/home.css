@@ -478,16 +478,21 @@
 }
 
 /* Settings row under the map. */
+/* One settings group: the location on top, then the controls in a row. */
 .home-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--map-border);
+  border-radius: 10px;
 }
 .home-controls__mode,
 .home-controls__elev { display: flex; align-items: center; }
 /* What the elevation setting does, on its own line under the controls. */
-.home-controls__hint { flex: 1 0 100%; margin: -4px 0 0; color: var(--map-muted); font-size: 12px; }
+.home-controls__hint { flex: 1 0 100%; margin: 0; color: var(--map-muted); font-size: 12px; }
 .home-controls__mode {
   padding: 2px;
   background: var(--input-bg);
@@ -510,6 +515,13 @@
   font-variant-numeric: tabular-nums;
 }
 .home-controls__pending { visibility: hidden; }
+/* Narrow phones: just enough tighter that mode and elevation share a line. */
+@media (max-width: 379.98px) {
+  .home-controls { padding: 10px; gap: 8px; }
+  .home-controls__mode .home-chip { padding: 4px 10px; }
+  .home-controls__elev .home-chip { min-width: 28px; padding: 0 6px; }
+  .home-controls__value { padding: 0 6px; }
+}
 /* Sky type (visual mode): the input tier, the same height as the elevation stepper. */
 .home-controls__sky {
   appearance: none;
@@ -535,12 +547,19 @@
   .home-controls__sky { font-size: 16px; }
 }
 .home-controls__place {
+  flex: 1 0 100%;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 8px;
   min-width: 0;
   max-width: 100%;
+  font-weight: 600;
+  color: var(--text-strong);
 }
+.home-controls__label { color: var(--map-muted); font-size: 12px; font-weight: 400; }
+.home-controls__place .home-link { font-weight: 400; }
+.home-controls__place .home-controls__sky { margin-left: auto; align-self: center; font-weight: 400; }
 .home-controls__name {
   min-width: 0;
   overflow: hidden;

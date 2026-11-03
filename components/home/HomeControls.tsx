@@ -20,13 +20,41 @@ interface Props {
   onChangeLocation: () => void;
 }
 
-// The settings row under the map: pass mode, minimum elevation, the sky type
-// (visual mode) and the location the cards are computed from.
+// The settings under the map, as one group: the location the passes are for
+// with its sky type (visual mode), then pass mode and minimum elevation.
 export default function HomeControls({
   ready, mode, minElevDeg, skyType, locationName, onModeChange, onMinElevChange, onSkyTypeChange, onChangeLocation,
 }: Props) {
+  // How dark the sky is where you watch: it belongs with the location.
+  const skySelect = mode === "visual" ? (
+    <select
+      className="home-controls__sky"
+      aria-label="Sky type"
+      title="Sky type"
+      value={skyType}
+      disabled={!ready}
+      onChange={(e) => onSkyTypeChange(e.target.value)}
+    >
+      {skyTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+    </select>
+  ) : null;
+
   return (
     <div className="home-controls">
+      {/* Where the passes are for comes first: everything below depends on it. */}
+      {locationName != null && (
+        <div className="home-controls__place">
+          <span className="home-controls__label">Location</span>
+          <span className="home-controls__name" title={locationName}>
+            {locationName || "Your location"}
+          </span>
+          <button type="button" className="home-link" onClick={onChangeLocation}>
+            Change
+          </button>
+          {skySelect}
+        </div>
+      )}
+
       <div className="home-controls__mode" role="group" aria-label="Pass mode">
         {(["radio", "visual"] as const).map((m) => (
           <button
@@ -66,32 +94,11 @@ export default function HomeControls({
         </button>
       </div>
 
-      {/* The hint sits right under the elevation stepper it explains. */}
-      <p className="home-controls__hint">Hides lower passes and sizes the footprint circle.</p>
+      {locationName == null && skySelect}
 
-      {mode === "visual" && (
-        <select
-          className="home-controls__sky"
-          aria-label="Sky type"
-          title="Sky type"
-          value={skyType}
-          disabled={!ready}
-          onChange={(e) => onSkyTypeChange(e.target.value)}
-        >
-          {skyTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-      )}
+      {/* What the elevation setting does, under the row of controls. */}
+      <p className="home-controls__hint">Min elevation hides lower passes and sizes the footprint circle.</p>
 
-      {locationName != null && (
-        <div className="home-controls__place">
-          <span className="home-controls__name" title={locationName}>
-            {locationName || "Your location"}
-          </span>
-          <button type="button" className="home-link" onClick={onChangeLocation}>
-            Change
-          </button>
-        </div>
-      )}
     </div>
   );
 }
