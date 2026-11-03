@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { basemapStyle, basemapColors, OPENFREEMAP } from '../lib/map/basemap.mjs';
+import { basemapStyle, basemapColors, basemapHex, OPENFREEMAP } from '../lib/map/basemap.mjs';
 // The icon names in the OpenFreeMap sprite the styles name (sprites/ofm_f384/ofm.json).
 import SPRITE_NAMES from './fixtures/ofm-sprite-names.json' with { type: 'json' };
 
@@ -103,5 +103,40 @@ test('the --map-ocean and --map-land tokens match the basemap', async () => {
     const { water, land } = basemapColors(theme);
     assert.equal(token(body, '--map-ocean'), water, `${theme} --map-ocean`);
     assert.equal(token(body, '--map-land'), land, `${theme} --map-land`);
+  }
+});
+
+// The dark map is the light map recoloured, so both show the same labels at
+// the same zooms (the old dark style labelled every city from zoom 0).
+test('the dark map has the light map\'s layers, labels and zooms', () => {
+  const light = basemapStyle('light');
+  const dark = basemapStyle('dark');
+  assert.deepEqual(dark.layers.map((l) => l.id), light.layers.map((l) => l.id));
+  dark.layers.forEach((d, i) => {
+    const l = light.layers[i];
+    assert.deepEqual(
+      { type: d.type, layout: d.layout, filter: d.filter, minzoom: d.minzoom, maxzoom: d.maxzoom, source: d.source },
+      { type: l.type, layout: l.layout, filter: l.filter, minzoom: l.minzoom, maxzoom: l.maxzoom, source: l.source },
+      d.id,
+    );
+  });
+});
+
+test('dark map labels are light text on dark halos', () => {
+  const hex = (c) => basemapHex(c);
+  for (const layer of basemapStyle('dark').layers) {
+    if (layer.type !== 'symbol') continue;
+    const { 'text-color': text, 'text-halo-color': halo } = layer.paint ?? {};
+    if (typeof text === 'string') assert.ok(luminance(hex(text)) > 0.12, `${layer.id} text ${text}`);
+    if (typeof halo === 'string') assert.ok(luminance(hex(halo)) < 0.02, `${layer.id} halo ${halo}`);
+  }
+});
+
+test('every dark map fill and line is dark', () => {
+  for (const layer of basemapStyle('dark').layers) {
+    for (const prop of ['fill-color', 'line-color', 'background-color', 'fill-outline-color']) {
+      const c = layer.paint?.[prop];
+      if (typeof c === 'string') assert.ok(luminance(basemapHex(c)) < 0.06, `${layer.id} ${prop} ${c}`);
+    }
   }
 });
