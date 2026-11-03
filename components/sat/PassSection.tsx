@@ -29,9 +29,9 @@ import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 const PassChartModals = dynamic(() => import("@/components/passes/PassChartModals"), { ssr: false });
 
 type Pass = { startMs: number; endMs: number; [k: string]: unknown };
-/** The first listed pass, as the page's "Next pass" tile reads it. */
+/** The first listed pass, as the page's next pass line reads it. */
 export type NextPass = Pass & { peakMs?: number; maxElevDeg?: number };
-/** What the search found, for the "Next pass" tile. undefined while searching. */
+/** What the search found, for the next pass line. undefined while searching. */
 export type NextPassReport =
   | undefined
   | { kind: "pass"; pass: NextPass; timeZone?: string }
@@ -219,7 +219,7 @@ export default function PassSection({
     });
   }, [result, failed, observer, epochMs, bucketMs, minElevDeg, mode, names]);
 
-  // Report the first row, or why there is none, to the "Next pass" tile.
+  // Report the first row, or why there is none, to the next pass line.
   // Read from the raw result so a stationary or failed search says so.
   const firstPass = view && view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
   const nextReport = useMemo<NextPassReport>(() => {

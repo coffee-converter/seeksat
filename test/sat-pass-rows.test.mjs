@@ -166,16 +166,16 @@ test('directionText names rise and set bearings', () => {
   );
 });
 
-test('nextPassText: day, start in the rows clock, and from-to bearings', () => {
+test('nextPassText: countdown, day, start in the rows clock, and from-to bearings', () => {
   const now = Date.parse('2026-11-02T03:00:00Z'); // 21:00 on 1 Nov in Chicago
   const tz = 'America/Chicago';
   const pass = (startIso, mins = 6) => {
     const startMs = Date.parse(startIso);
     return { startMs, endMs: startMs + mins * 60_000, startAzDeg: 225, endAzDeg: 135 };
   };
-  assert.equal(nextPassText(pass('2026-11-02T03:41:00Z'), now, tz, 'en-GB'), 'Today 21:41, SW to SE');
-  assert.equal(nextPassText(pass('2026-11-02T10:12:00Z'), now, tz, 'en-GB'), 'Tomorrow 04:12, SW to SE');
-  assert.equal(nextPassText(pass('2026-11-03T18:00:00Z'), now, tz, 'en-GB'), 'Tue 3 Nov 12:00, SW to SE');
+  assert.equal(nextPassText(pass('2026-11-02T03:41:00Z'), now, tz, 'en-GB'), 'in 41 min, Today 21:41, SW to SE');
+  assert.equal(nextPassText(pass('2026-11-02T10:12:00Z'), now, tz, 'en-GB'), 'in 7 h 12 min, Tomorrow 04:12, SW to SE');
+  assert.equal(nextPassText(pass('2026-11-03T18:00:00Z'), now, tz, 'en-GB'), 'in 1 day 15 h, Tue 3 Nov 12:00, SW to SE');
 });
 
 test('nextPassText: a pass already up says until when, and an ended one gives null', () => {
@@ -189,5 +189,5 @@ test('nextPassText: a pass already up says until when, and an ended one gives nu
 test('nextPassText falls back to UTC for a zone the runtime does not know', () => {
   const startMs = Date.parse('2026-11-02T10:12:00Z');
   const p = { startMs, endMs: startMs + 60_000, startAzDeg: 0, endAzDeg: 180 };
-  assert.equal(nextPassText(p, startMs - 3_600_000, 'Not/AZone', 'en-GB'), 'Today 10:12, N to S');
+  assert.equal(nextPassText(p, startMs - 3_600_000, 'Not/AZone', 'en-GB'), 'in 1 h, Today 10:12, N to S');
 });

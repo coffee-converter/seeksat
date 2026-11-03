@@ -52,29 +52,14 @@ export function VisVivaTile({ live }: { live: Live }) {
   );
 }
 
-export interface NextPassTile {
-  value: string;
-  note?: string;
-}
-
 /**
- * The live tile grid: the next pass, the seven live numbers, then the
- * vis-viva check across the remaining width.
+ * The live tile grid: the seven live numbers, then the vis-viva check
+ * across the remaining width. The next pass is the line under the title.
  */
-export default function DashboardTiles({
-  live, elements, nextPass,
-}: { live: Live; elements: Elements; nextPass: NextPassTile }) {
+export default function DashboardTiles({ live, elements }: { live: Live; elements: Elements }) {
   const tiles = tilesOf(live, elements);
   return (
     <section className="sat-dash" aria-label="Right now">
-      <StatTile
-        className="sat-dash__next"
-        size="lg"
-        label="Next pass"
-        value={nextPass.value}
-        note={nextPass.note}
-        href="#passes"
-      />
       {tiles.map((t) => (
         <StatTile
           key={t.key}

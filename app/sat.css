@@ -72,10 +72,10 @@ p.sat-how { margin: 0 0 8px; }
    and a chart button that follows the mode. */
 .sat-next {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
-  margin-top: 8px; padding: 8px 12px;
+  margin-top: 6px; padding: 6px 12px;
   background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: 10px;
 }
-.sat-next__text { flex: 1 1 14em; margin: 0; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.sat-next__text { flex: 1 1 14em; margin: 0; line-height: 1.4; font-variant-numeric: tabular-nums; }
 .sat-next__label { color: var(--map-muted); }
 .sat-next__what { color: var(--text-strong); font-weight: 600; }
 .sat-next .quality,
@@ -107,22 +107,23 @@ p.sat-how { margin: 0 0 8px; }
 }
 
 /* The live tile grid: one instrument panel split by hairlines, not loose cards.
-   2 columns under 480 px, 3 from 480, 4 from 720. */
+   2 columns under 480 px, 3 from 480, 4 from 720. Seven tiles, then the
+   vis-viva check: Sunlight widens so every row fills. */
 .sat-dash {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
   background: var(--map-border); border: 1px solid var(--map-border); border-radius: 10px; overflow: hidden;
 }
-.sat-dash__next { grid-column: span 2; }
 .sat-dash .stat-tile--wide { grid-column: 1 / -1; }
 @media (max-width: 479.98px) {
   .sat-dash__sun { grid-column: span 2; }
 }
 @media (min-width: 480px) {
   .sat-dash { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sat-dash__sun { grid-column: 1 / -1; }
 }
 @media (min-width: 720px) {
   .sat-dash { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .sat-dash .stat-tile--wide { grid-column: span 3; }
+  .sat-dash__sun { grid-column: span 2; }
 }
 
 .stat-tile {

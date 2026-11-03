@@ -1288,6 +1288,31 @@ a.home-chip { display: inline-block; text-decoration: none; }
   }
 }
 
+/* Satellite page on phones: a shorter map and a folded legend, so the title
+   and the next pass line are on the first screen. */
+@media (max-width: 699.98px) {
+  .map-shell.sat .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
+    height: max(220px, 45vh);
+    height: max(220px, 45svh);
+  }
+  .map-shell.sat .flat-map-shell--fill .map-legend__toggle {
+    display: block;
+    min-height: 32px;
+    margin-top: 6px;
+    padding: 0 12px;
+    background: var(--map-panel);
+    color: var(--map-text);
+    border: 1px solid var(--chip-border);
+    border-radius: 7px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .map-shell.sat .flat-map-shell--fill .map-legend__toggle[aria-expanded="true"] { border-color: var(--btn-line); }
+  .map-shell.sat .flat-map-shell--fill .map-legend__toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+  .map-shell.sat .flat-map-shell--fill .map-legend-box:not(.map-legend-box--open) .map-legend { display: none; }
+}
+
 /* Docked: the map fills the window under the top bar, beside the panel. */
 @media (min-width: 1100px) {
   .map-shell {

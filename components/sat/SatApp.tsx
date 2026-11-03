@@ -8,7 +8,7 @@ import FocusBar from "@/components/home/FocusBar";
 import { SearchBar } from "@/components/home/SearchBar";
 import MapShell from "@/components/MapShell";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
-import DashboardTiles, { LiveNumbersFold, type NextPassTile } from "./LiveNumbers";
+import DashboardTiles, { LiveNumbersFold } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
 import HowWeCompute from "./HowWeCompute";
 import LiveClock from "@/components/LiveClock";
@@ -33,7 +33,6 @@ import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { useClouds } from "@/lib/sky/use-clouds";
-import { nextPassTile } from "@/lib/sat/next-pass-tile.mjs";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
@@ -60,15 +59,11 @@ const pageLayersOf = satPageLayers as (o: {
 const countOf = showAllCount as (layers: Layer[]) => number;
 type HomeTrack = MapTrack & { record?: { source?: string } };
 const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, HomeTrack>;
-const tileOf = nextPassTile as (next: NextPassReport, o: {
-  nowMs: number; located: boolean; hydrated: boolean; mode: string; minElevDeg: number;
-}) => NextPassTile;
 
 export default function SatApp({ data, shared: sharedIn = null }: { data: SatPageData; shared?: SharedBlob | null }) {
   const router = useRouter();
   const prefs = useHomeStore((s) => s.prefs);
   const hydrate = useHomeStore((s) => s.hydrate);
-  const hydrated = useHomeStore((s) => s.hydrated);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const setPrefs = useHomeStore((s) => s.setPrefs);
@@ -216,13 +211,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
 
   const [nextPass, setNextPass] = useState<NextPassReport>(undefined);
   const passes = useRef<PassSectionHandle>(null);
-  const nextTile = tileOf(nextPass, {
-    nowMs,
-    located: Boolean(settings.observer),
-    hydrated: hydrated || Boolean(shared),
-    mode: settings.mode,
-    minElevDeg: settings.minElevDeg,
-  });
   const fetchedText = data.fetchedAtMs != null ? `fetched ${relativeTime(data.fetchedAtMs, nowMs)}` : null;
 
   const following = prefs.following.includes(data.noradId);
@@ -321,7 +309,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
 
           {usable && liveNow && elementsNow ? (
             <LiveNumbersFold>
-              <DashboardTiles live={liveNow} elements={elementsNow} nextPass={nextTile} />
+              <DashboardTiles live={liveNow} elements={elementsNow} />
             </LiveNumbersFold>
           ) : (
             <>
