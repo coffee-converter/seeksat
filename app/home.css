@@ -369,7 +369,10 @@
 .live-clock p { margin: 0; }
 .live-clock__utc { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
 .live-clock__dot {
-  align-self: center; flex: none; width: 8px; height: 8px; border-radius: 50%;
+  /* On the baseline, as LIVE's capitals are: an empty box sits its bottom
+     there, so its middle meets theirs (centring it on the row lined it up
+     with the bigger time instead). */
+  align-self: baseline; flex: none; width: 8px; height: 8px; border-radius: 50%;
   background: var(--ok); animation: live-pulse 2s ease-out infinite;
 }
 .live-clock__live { color: var(--ok); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -1475,6 +1478,8 @@ a.home-chip { display: inline-block; text-decoration: none; }
    beside the wordmark. */
 @media (max-width: 399.98px) {
   .map-shell__top .live-clock__live { display: none; }
+  /* Alone beside the time, it centres on the digits. */
+  .map-shell__top .live-clock__dot { align-self: center; }
 }
 /* Small phones: tighter gaps so the wordmark, clock, theme and Night vision
    fit on one row at 360 px. */
