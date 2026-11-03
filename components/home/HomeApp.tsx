@@ -402,6 +402,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               rating={nextSummary && prefs.mode === "visual"
                 ? visualRating(nextSummary.pass, { skyType: prefs.skyType, cloud: cloudFor(nextSummary.pass as Pass) })
                 : undefined}
+              cloud={nextSummary && prefs.mode === "visual" ? cloudFor(nextSummary.pass as Pass) : null}
               onFocus={focusOn}
             />
           )}

@@ -377,7 +377,7 @@ export default function NextUpList({
   return (
     <>
     {best && bestTrack && (
-      <BestPassLine best={best} visual={mode === "visual"} track={bestTrack} observer={observer} nowMs={nowMs} onOpen={(e) => open("sky", bestTrack, best.pass, e)} />
+      <BestPassLine best={best} visual={mode === "visual"} clouds={clouds} track={bestTrack} observer={observer} nowMs={nowMs} onOpen={(e) => open("sky", bestTrack, best.pass, e)} />
     )}
     <section className="next-up" aria-labelledby="next-up-title">
       <h2 id="next-up-title" className="home-heading">Next up</h2>
@@ -444,9 +444,11 @@ function dayTime(ms: number, nowMs: number, timeZone?: string): string {
 
 /** "Best in the next 24 hours: ISS 09:41 PM, Good, max 64°": a button that
  *  opens that pass's sky chart. Shown only when it is not the soonest pass. */
-function BestPassLine({ best, visual, track, observer, nowMs, onOpen }: {
+function BestPassLine({ best, visual, clouds, track, observer, nowMs, onOpen }: {
   best: Best;
   visual: boolean;
+  /** Visual mode: the cloud word sits beside the rating, as on the cards. */
+  clouds: Forecast | null;
   track: Track;
   observer: HomeObserver;
   nowMs: number;
@@ -454,11 +456,12 @@ function BestPassLine({ best, visual, track, observer, nowMs, onOpen }: {
 }) {
   const { pass, rating } = best;
   return (
-    <button type="button" className="best-pass" onClick={onOpen}>
+    <button type="button" className="best-pass" title="Open the sky chart for this pass" onClick={onOpen}>
       <span className="best-pass__label">Best in the next 24 hours:</span>{" "}
       <span className="best-pass__what">
         {`${track.shortName ?? best.name} ${dayTime(pass.startMs, nowMs, observer.tz)}, `}
         <QualityBadge pass={pass} rating={visual ? rating : undefined} />
+        {visual && <>{" "}<CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} /></>}
         {`, max ${Math.round(pass.maxElevDeg)}°`}
       </span>
     </button>

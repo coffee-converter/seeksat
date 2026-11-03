@@ -697,7 +697,8 @@
 .best-pass:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .best-pass__label { color: var(--map-muted); }
 .best-pass__what { color: var(--text-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
-.best-pass .quality { margin-left: 0; }
+.best-pass .quality,
+.best-pass .cloud { margin-left: 0; }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .more-panel { display: contents; }
 .more-panel[hidden] { display: none; }
@@ -1413,7 +1414,8 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .next-strip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .next-strip__label { font-weight: 700; color: var(--text-heading); }
 .next-strip__text { flex: 1 1 auto; min-width: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
-.next-strip .quality { margin-left: 0; flex: none; }
+.next-strip .quality,
+.next-strip .cloud { margin-left: 0; flex: none; }
 @media (min-width: 1100px) {
   .next-strip { display: none; }
 }

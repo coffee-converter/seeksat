@@ -13,12 +13,14 @@ const ISS = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
 const T0 = Date.parse('2026-03-01T12:00:00Z');
 const DAY = 86_400_000;
 
-test('ratingShort: cloudy cap, low elevation, Good', () => {
+test('ratingShort: cloud, low elevation, Good', () => {
+  // Cloud is left to the cloud badge beside it, so the card says it once.
   const cloudy = visualQuality({ peakMag: -3, peakMagSunAltDeg: -20, maxElevDeg: 60 }, { cloud: { level: 'cloudy' } });
   assert.equal(cloudy.cause, 'cloudy');
-  assert.equal(ratingShort(cloudy, { maxElevDeg: 60 }, { mode: 'visual' }), 'cloudy');
+  assert.equal(ratingShort(cloudy, { maxElevDeg: 60 }, { mode: 'visual' }), null);
   const some = visualQuality({ peakMag: -3, peakMagSunAltDeg: -20 }, { cloud: { level: 'some' } });
-  assert.equal(ratingShort(some, {}, { mode: 'visual' }), 'some cloud');
+  assert.equal(some.cause, 'some-cloud');
+  assert.equal(ratingShort(some, {}, { mode: 'visual' }), null);
   const faint = visualQuality({ peakMag: 3, peakMagSunAltDeg: -20 });
   assert.equal(ratingShort(faint, {}, { mode: 'visual' }), 'faint');
   const twi = visualQuality({ maxElevDeg: 60, peakSunAltDeg: -3 });
@@ -45,6 +47,41 @@ test('passWords: fades, sets and drops below', () => {
   assert.match(passWords({ ...base, endElevDeg: 20 }, { ...z, mode: 'radio' }), /· sets SE/);
   assert.match(passWords({ ...base, endElevDeg: 10 }, { ...z, mode: 'radio', minElevDeg: 10 }), /· drops below 10° SE 6:31 PM$/);
   assert.match(passWords({ ...base, runsPastEnd: true }, { ...z, mode: 'visual' }), /· sets SE/);
+});
+test('passWords: a visual pass that starts mid-sky appears there', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  const z = { timeZone: 'America/Chicago', clock };
+  assert.equal(passWords({ ...base, startElevDeg: 14.6 }, { ...z, mode: 'visual' }),
+    'Appears 15° NW 6:27 PM · peaks 26° SW 6:29 PM · fades in the SE 6:31 PM');
+  // Within 1° of the minimum elevation it still rises; radio always rises.
+  assert.match(passWords({ ...base, startElevDeg: 10.8 }, { ...z, mode: 'visual', minElevDeg: 10 }), /^Rises NW 6:27 PM · /);
+  assert.match(passWords({ ...base, startElevDeg: 14.6 }, { ...z, mode: 'radio' }), /^Rises NW 6:27 PM · /);
+});
+test('passWords: no "peaks" clause when the peak is the start', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  const z = { timeZone: 'America/Chicago', clock, mode: 'visual' };
+  // Brightest at shadow exit: the peak time is the start.
+  assert.equal(passWords({ ...base, startElevDeg: 25.6, peakMs: base.startMs + 20_000 }, z),
+    'Appears 26° NW 6:27 PM · fades in the SE 6:31 PM');
+  // Or the peak elevation is within 1° of the start elevation.
+  assert.equal(passWords({ ...base, startElevDeg: 25 }, z),
+    'Appears 25° NW 6:27 PM · fades in the SE 6:31 PM');
+});
+test('passWords: a pass already up leads with "Up now"', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  const z = { timeZone: 'America/Chicago', clock };
+  assert.equal(passWords({ ...base, inProgress: true, startElevDeg: 12 }, { ...z, mode: 'visual' }),
+    'Up now · peaks 26° SW 6:29 PM · fades in the SE 6:31 PM');
+  assert.equal(passWords({ ...base, inProgress: true, startElevDeg: 12, endElevDeg: 0 }, { ...z, mode: 'radio' }),
+    'Up now · peaks 26° SW 6:29 PM · sets SE 6:31 PM');
+  // Past the peak, the engine's peak is the clamped start: no peak clause.
+  assert.equal(passWords({ ...base, inProgress: true, startElevDeg: 25.6, peakMs: base.startMs, endElevDeg: 0 }, { ...z, mode: 'radio' }),
+    'Up now · sets SE 6:31 PM');
+});
+test('passWords: a pass that rises from the horizon is unchanged', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  assert.equal(passWords({ ...base, endElevDeg: 0 }, { timeZone: 'America/Chicago', clock, mode: 'radio' }),
+    'Rises NW 6:27 PM · peaks 26° SW 6:29 PM · sets SE 6:31 PM');
 });
 test('passWords default clock matches the home cards', () => {
   const out = passWords(base, { timeZone: 'America/Chicago', locale: 'en-US' });
