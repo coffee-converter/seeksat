@@ -552,7 +552,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           <footer className="home-footer">
             <span>
               built by{" "}
-              <a href="https://aaronhanson.dev" target="_blank" rel="noopener">Aaron Hanson</a>
+              <a href="https://liftofflabs.io" target="_blank" rel="noopener">Liftoff Labs</a>
             </span>
           </footer>
         </>

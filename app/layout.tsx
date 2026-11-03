@@ -85,8 +85,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-// Structured data: what SeekSat is, that it's free, and who built it. The
-// Person's url + sameAs consolidate the "Aaron Hanson" entity across sites.
+// Structured data: what SeekSat is, that it's free, and who built it: the
+// Liftoff Labs studio, not a person.
 const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
@@ -96,7 +96,7 @@ const JSON_LD = {
       url: `${SITE_URL}/`,
       name: SITE_NAME,
       description: SITE_DESCRIPTION,
-      publisher: { "@id": `${SITE_URL}/#person` },
+      publisher: { "@id": `${SITE_URL}/#org` },
     },
     {
       "@type": "WebApplication",
@@ -106,18 +106,13 @@ const JSON_LD = {
       operatingSystem: "Web",
       description: SITE_DESCRIPTION,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-      creator: { "@id": `${SITE_URL}/#person` },
+      creator: { "@id": `${SITE_URL}/#org` },
     },
     {
-      "@type": "Person",
-      "@id": `${SITE_URL}/#person`,
-      name: "Aaron Hanson",
-      url: "https://aaronhanson.dev",
-      sameAs: [
-        "https://aaronhanson.dev",
-        "https://github.com/coffee-converter",
-        "https://www.linkedin.com/in/ildiscgolfer",
-      ],
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#org`,
+      name: "Liftoff Labs",
+      url: "https://liftofflabs.io",
     },
   ],
 };
