@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { markFromList, fromList, clearFromList, closeTarget, closeTargetFor } from '../lib/home/list-origin.mjs';
+import { markFromList, fromList, clearFromList, closeTargetFor } from '../lib/home/list-origin.mjs';
 
-test('Close goes back only when the page was opened from the list', () => {
+test('the list origin flag is set and cleared', () => {
   clearFromList();
   assert.equal(fromList(), false);
-  assert.equal(closeTarget(fromList()), 'home');
   markFromList();
-  assert.equal(closeTarget(fromList()), 'back');
+  assert.equal(fromList(), true);
   clearFromList();
   assert.equal(fromList(), false);
 });

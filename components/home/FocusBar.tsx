@@ -29,7 +29,6 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
   const text = textOf(name, followed, total);
   const following = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
-  const locked = following;
   return (
     <div className="focus-bar" role="region" aria-label="Focused satellite">
       <p className="focus-bar__title">{text.title}</p>
@@ -46,11 +45,11 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
           <>
             <button
               type="button"
-              className={`home-chip${locked ? " home-chip--on" : ""}`}
-              aria-pressed={locked}
+              className={`home-chip${following ? " home-chip--on" : ""}`}
+              aria-pressed={following}
               onClick={() => setFollowing(!following)}
             >
-              {locked ? text.lock.on : text.lock.off}
+              {following ? text.lock.on : text.lock.off}
             </button>
             <button
               type="button"

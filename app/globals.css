@@ -78,7 +78,6 @@
      basemapColors). */
   --map-ocean: #0e1116;
   --map-land: #1b1e24;
-  /* Behind the globe: apart from the water, so the globe's edge shows. */
   /* Space behind the globe: darker than night-side land, so the Earth's edge shows. */
   --map-space: #000000;
   --map-night: rgba(3, 5, 12, 0.24);

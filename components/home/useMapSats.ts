@@ -36,7 +36,7 @@ export function useMapSats({
   colors: ReadonlyMap<number, string>;
   nowMs: number | null;
   minElevDeg: number;
-}): { sats: MapSat[]; focusSub: Sub | null } {
+}): { sats: MapSat[] } {
   // Ground tracks are the costly part: once a minute, and only for the
   // satellites that draw one (not ghosts or hidden ones).
   const trackMinute = nowMs == null ? null : Math.floor(nowMs / TRACK_REFRESH_MS);
@@ -63,8 +63,7 @@ export function useMapSats({
   // Positions every second.
   return useMemo(() => {
     const sats: MapSat[] = [];
-    let focusSub: Sub | null = null;
-    if (nowMs == null) return { sats, focusSub };
+    if (nowMs == null) return { sats };
     const at = new Date(nowMs);
     for (const { noradId, emphasis } of layers) {
       if (emphasis === "hidden") continue;
@@ -73,7 +72,6 @@ export function useMapSats({
       if (!t || !ecef) continue;
       const sub = subOf(ecef);
       const focus = emphasis === "focus";
-      if (focus) focusSub = sub;
       sats.push({
         noradId,
         name: t.shortName,
@@ -91,6 +89,6 @@ export function useMapSats({
         tickMin: tickStepMin(t.periodMs),
       });
     }
-    return { sats, focusSub };
+    return { sats };
   }, [nowMs, layers, tracks, ground, colors, minElevDeg]);
 }
