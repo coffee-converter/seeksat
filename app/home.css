@@ -686,6 +686,64 @@
 .pass-card__fact { white-space: nowrap; }
 /* Where to look, in words. It may wrap on a phone; a time never breaks. */
 .pass-card__words { margin: 0; color: var(--map-text); font-size: 13px; font-variant-numeric: tabular-nums; }
+/* A pass card: the name and rating on top, the plot beside three stat
+   columns (Starts, Max, Lasts) that sit in the same place on every card,
+   then where to look, the facts and the buttons. */
+.pass-card--pass {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-areas: "top top" "plot stats" "body body";
+  column-gap: 12px;
+  row-gap: 8px;
+  align-items: center;
+}
+.pass-card--pass .pass-card__top {
+  grid-area: top;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.pass-card--pass .pass-card__plot { grid-area: plot; padding: 0; }
+.pass-card--pass .pass-card__body { grid-area: body; gap: 6px; }
+.pass-card__stats {
+  grid-area: stats;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.pass-card__stat { min-width: 0; }
+.pass-card__stat dt { font-size: 12px; color: var(--map-muted); }
+.pass-card__stat dd { margin: 0; }
+.pass-card__stat-value {
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pass-card__stat-sub { color: var(--map-muted); font-size: 12px; }
+.pass-card__stat-sub--live { color: var(--map-accent); font-weight: 600; }
+/* The rating as a pill, so it reads at a glance; the cloud word sits beside it. */
+.pass-card__rating .quality {
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  font-size: 12px;
+}
+.pass-card__rating .quality::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
 /* "Best in the next 24 hours": one quiet tile-like button above Next up. */
 .best-pass {
   display: block;

@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
-import { elementTags, passMetaLabel, timeFormat } from "@/lib/home/view.mjs";
+import { elementTags, passStats, timeFormat } from "@/lib/home/view.mjs";
 import { bestPass, passWords, riseDopplerHz } from "@/lib/passes/pass-words.mjs";
 import { passQuality } from "@/lib/passes/quality.mjs";
 import { formatPassDuration } from "@/lib/passes/format.mjs";
@@ -79,6 +79,10 @@ const IDLE_PAINT_MS = 30_000;
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
+type Stat = { label: string; value: string; sub?: string | null };
+const statsOf = passStats as (pass: Pass, nowMs: number, o: {
+  timeZone?: string; clock: (ms: number, tz?: string) => string;
+}) => { first: Stat; max: Stat; last: Stat };
 const wordsOf = passWords as (pass: Pass, o: {
   timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string;
 }) => string;
@@ -188,6 +192,22 @@ function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onU
 type FocusState = "none" | "focus" | "dim";
 const focusClass = (f: FocusState) => (f === "none" ? "" : ` pass-card--${f}`);
 
+/** One stat column on a pass card: a small label, the value, and a quieter
+ *  line under it. The countdown flashes as it ticks. */
+function StatCell({ stat, live = false }: { stat: Stat; live?: boolean }) {
+  return (
+    <div className="pass-card__stat">
+      <dt>{stat.label}</dt>
+      <dd className="pass-card__stat-value">{stat.value}</dd>
+      {stat.sub && (
+        <dd className={`pass-card__stat-sub${live ? " pass-card__stat-sub--live" : ""}`}>
+          <FlashText value={stat.sub} />
+        </dd>
+      )}
+    </div>
+  );
+}
+
 /** The headline, as a button that focuses the satellite on the map. */
 function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; onFocus: () => void }) {
   return (
@@ -211,6 +231,9 @@ function PassCard({
   const words = wordsOf(pass, { timeZone: observer.tz, mode, minElevDeg, clock: cardTime });
   const above = visual ? null : timeAboveText(pass);
   const tune = useMemo(() => (visual ? null : riseDopplerText(track, observer, pass)), [visual, track, observer, pass]);
+  const stats = statsOf(pass, nowMs, { timeZone: observer.tz, clock: cardTime });
+  const hasMeta = (!visual && pass.visible) || above != null || tune != null || viewing != null ||
+    (elementTags(track, nowMs) as string[]).length > 0;
 
   // Paints with the clock of the render that changed paintKey.
   useEffect(() => {
@@ -243,30 +266,36 @@ function PassCard({
   const radioButton = <button type="button" className="home-chip" onClick={onRadioChart}>Radio chart</button>;
 
   return (
-    <li className={`pass-card${focusClass(focus)}`} style={{ "--sat-color": color } as React.CSSProperties}>
+    <li className={`pass-card pass-card--pass${focusClass(focus)}`} style={{ "--sat-color": color } as React.CSSProperties}>
+      <div className="pass-card__top">
+        <p className="pass-card__headline">
+          <Headline text={card.name} focus={focus} onFocus={onFocus} />
+        </p>
+        <span className="rating-pair pass-card__rating">
+          <QualityBadge pass={pass} rating={rating} />
+          {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
+        </span>
+      </div>
       <div className="pass-card__plot">
         <PolarPlotSvg ref={svgRef} />
       </div>
+      <dl className="pass-card__stats">
+        <StatCell stat={stats.first} live={stats.first.label === "Ends"} />
+        <StatCell stat={stats.max} />
+        <StatCell stat={{ ...stats.last, sub: mag }} />
+      </dl>
       <div className="pass-card__body">
-        <p className="pass-card__headline">
-          <Headline text={headline(card, nowMs)} focus={focus} onFocus={onFocus} />
-          {/* A space, not a margin, so a wrapped "mag" line starts flush left. */}
-          {mag && <>{" "}<span className="pass-mag pass-card__mag">{mag}</span></>}
-        </p>
-        <p className="pass-card__meta">
-          {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
-          <span className="rating-pair">
-            <QualityBadge pass={pass} rating={rating} />
-            {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
-          </span>
-          {/* Every pass listed in visual mode is visible, so only radio says so. */}
-          {!visual && pass.visible && <span className="pass-card__tag">visible</span>}
-          {above && <span className="pass-card__fact">{above}</span>}
-          {tune && <span className="pass-card__fact">{tune}</span>}
-          <ElementTags track={track} nowMs={nowMs} />
-          <ViewingTag viewing={viewing} />
-        </p>
         <p className="pass-card__words">{words}</p>
+        {hasMeta && (
+          <p className="pass-card__meta">
+            {/* Every pass listed in visual mode is visible, so only radio says so. */}
+            {!visual && pass.visible && <span className="pass-card__tag">visible</span>}
+            {above && <span className="pass-card__fact">{above}</span>}
+            {tune && <span className="pass-card__fact">{tune}</span>}
+            <ElementTags track={track} nowMs={nowMs} />
+            <ViewingTag viewing={viewing} />
+          </p>
+        )}
         <div className="pass-card__actions">
           {liveOk(pass, nowMs) && <button type="button" className="home-chip home-chip--live" onClick={onLive}>Live</button>}
           {/* The chart for the mode leads; the other waits under More. */}
