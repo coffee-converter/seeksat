@@ -59,7 +59,8 @@ interface Props {
   selectedId: number | null;
   minElevDeg: number;
   /** A tap on a dot, ghosts included. */
-  onSelect: (noradId: number) => void;
+  /** A tap on a dot; null when the tap was on the focused one (leave it). */
+  onSelect: (noradId: number | null) => void;
   /** Shown above the map, inside the full screen frame (the focus bar). */
   top?: React.ReactNode;
   /** Laid over the top of the map, left of the view toggle (the chips). */
@@ -161,6 +162,8 @@ const DOT_MS = 200;
 const DOCKED_QUERY = "(min-width: 1100px)";
 /** A tap this close to a dot (in px, either axis) selects it. */
 const HIT_PX = 22;
+// How long a tap on the focused dot waits to see if it is a double-click.
+const DBLCLICK_MS = 300;
 /** The satellite dot layer tapped through (lib/map/overlays.mjs). The focus
  *  layer draws nothing (the focus marker does), so the marker is tested apart. */
 const SAT_LAYERS = ["ss-sats"];
@@ -413,6 +416,8 @@ export default function FlatMap({
   // when told (and on every camera move), so it lands in the same frame as a
   // follow jump; a GeoJSON source re-tiles in the worker and lands later.
   const focusMark = useRef<FocusMark | null>(null);
+  // A pending leave from a tap on the focused dot; a double-click cancels it.
+  const leaveTimer = useRef<number | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
   /** Put the focus marker at f, or hide it when the track cannot place it. */
   const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
@@ -674,8 +679,15 @@ export default function FlatMap({
             best = focusId;
           }
         }
-        if (best != null && Number.isFinite(best)) latest.current.onSelect(best);
+        if (best == null || !Number.isFinite(best)) return;
+        // A tap on the focused satellite leaves it, unless it was the first
+        // click of a double-click (a zoom): MapLibre sends a click for each.
+        if (best === focusId) {
+          window.clearTimeout(leaveTimer.current);
+          leaveTimer.current = window.setTimeout(() => latest.current.onSelect(null), DBLCLICK_MS);
+        } else latest.current.onSelect(best);
       });
+      map.on("dblclick", () => window.clearTimeout(leaveTimer.current));
       // Moves by hand (drag, wheel, touch, keys) leave the home view; ours
       // carry no originalEvent. A single wheel tick starts its move without
       // one, so the wheel handler is asked too.
