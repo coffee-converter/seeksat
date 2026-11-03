@@ -294,7 +294,7 @@ test('the lat/lon grid is static and only built on request', () => {
   assert.equal(build({ graticule: true })['ss-graticule'], build({ graticule: true })['ss-graticule']);
 });
 
-test('the grid sits under everything, faint, coarser when zoomed out', () => {
+test('the static grid sits under everything, faint, at globe level', () => {
   const grid = overlayLayers(COLORS).find((l) => l.id === 'ss-graticule');
   assert.equal(grid.source, 'ss-graticule');
   assert.equal(grid.paint['line-color'], COLORS.graticule);
@@ -305,7 +305,7 @@ test('the grid sits under everything, faint, coarser when zoomed out', () => {
     if (Array.isArray(e)) { if (e[0] === 'match') matches.push(e); e.forEach(walk); } else if (e && typeof e === 'object') Object.values(e).forEach(walk);
   };
   walk(grid.paint);
-  assert.ok(matches.length >= 2, 'found the match expressions');
+  assert.ok(matches.length >= 1, 'found the match expressions');
   for (const m of matches) {
     const labels = m.slice(2, -1).filter((_, i) => i % 2 === 0);
     assert.equal(new Set(labels.map((l) => typeof l)).size, 1, `mixed match labels: ${JSON.stringify(labels)}`);

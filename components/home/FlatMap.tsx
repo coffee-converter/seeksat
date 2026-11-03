@@ -8,7 +8,7 @@ import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
-import { edgeCrossings, gridCovers, labelStep, viewGrid } from "@/lib/map/grid.mjs";
+import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
 import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -426,7 +426,7 @@ export default function FlatMap({
   // when told (and on every camera move), so it lands in the same frame as a
   // follow jump; a GeoJSON source re-tiles in the worker and lands later.
   const focusMark = useRef<FocusMark | null>(null);
-  // The lat/lon lines finer than the static grid, and the line labels, built
+  // The lat/lon lines past globe level, built
   // over an area around the view; rebuilt once the view leaves it or wants
   // other steps. Cheap to check, so on every move (Lock on moves each frame).
   const gridBuilt = useRef<ReturnType<typeof viewGrid> | null>(null);
@@ -448,7 +448,7 @@ export default function FlatMap({
     const w = gl.clientWidth;
     const h = gl.clientHeight;
     const b = map.getBounds();
-    const step = labelStep({ west: b.getWest(), east: b.getEast(), south: b.getSouth(), north: b.getNorth(), zoom: map.getZoom() });
+    const step = labelSteps({ west: b.getWest(), east: b.getEast(), south: b.getSouth(), north: b.getNorth(), zoom: map.getZoom() });
     // The edge point's longitude or latitude, or null where it misses the Earth.
     const sample = (x: number, y: number, meridian: boolean) => {
       const ll = map.unproject([x, y]);
@@ -468,11 +468,11 @@ export default function FlatMap({
       .map((r) => ({ l: r.left - origin.left - 4, r: r.right - origin.left + 4, t: r.top - origin.top - 4, b: r.bottom - origin.top + 4 }));
     // Each label's box: bottom ones centred above their point, left ones beside it.
     const labels = [
-      ...(edgeCrossings(across, "meridian", step) as { px: number; label: string }[]).map((c) => {
+      ...(edgeCrossings(across, "meridian", step.lon) as { px: number; label: string }[]).map((c) => {
         const half = (c.label.length * GRID_CHAR_PX) / 2;
         return { label: c.label, x: c.px, y: bottom, anchor: "translate(-50%, -100%)", l: c.px - half, r: c.px + half, t: bottom - GRID_LINE_PX, b: bottom };
       }),
-      ...(edgeCrossings(down, "parallel", step) as { px: number; label: string }[]).map((c) => ({
+      ...(edgeCrossings(down, "parallel", step.lat) as { px: number; label: string }[]).map((c) => ({
         label: c.label, x: GRID_INSET_PX, y: c.px, anchor: "translate(0, -50%)",
         l: GRID_INSET_PX, r: GRID_INSET_PX + c.label.length * GRID_CHAR_PX, t: c.px - GRID_LINE_PX / 2, b: c.px + GRID_LINE_PX / 2,
       })),
