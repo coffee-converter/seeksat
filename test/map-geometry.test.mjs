@@ -288,12 +288,30 @@ test('every track point keeps its time, in order', () => {
   assert.equal(future.times[0][0], MOL_NOW);
 });
 
-test('an ISS track needs no extra samples', () => {
+test('an ISS track needs no extra samples away from the dot', () => {
   const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
-  const { future } = splitTrack(iss, Date.parse('2026-03-01T12:00:00Z'));
-  const n = future.coordinates.reduce((s, l) => s + l.length, 0);
-  // 192 even steps plus the date-line cuts.
-  assert.ok(n <= 200, `${n} points`);
+  const now = Date.parse('2026-03-01T12:00:00Z');
+  const { future } = splitTrack(iss, now);
+  const times = future.times.flat();
+  // 192 even steps plus the date-line cuts, past the two fine minutes ahead.
+  const far = times.filter((t) => t > now + 120_000).length;
+  assert.ok(far <= 200, `${far} points`);
+  // Halving 30 s steps to under 0.1 degree adds about 130 in those minutes.
+  assert.ok(times.length <= 350, `${times.length} points in all`);
+});
+
+test('the track is sampled finely enough near the dot to pass under it', () => {
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const now = Date.parse('2026-03-01T12:00:00Z');
+  const { future } = splitTrack(iss, now);
+  const pts = future.coordinates.flat();
+  const times = future.times.flat();
+  for (let i = 1; i < pts.length; i++) {
+    if (times[i] > now + 120_000) break;
+    const dLon = Math.abs(pts[i][0] - pts[i - 1][0]) % 360;
+    const step = Math.hypot(Math.min(dLon, 360 - dLon) * Math.cos((pts[i][1] * Math.PI) / 180), pts[i][1] - pts[i - 1][1]);
+    assert.ok(step <= 0.11, `step ${step} at ${i}`);
+  }
 });
 
 test('densifyLine never doubles back on unevenly spaced samples', () => {
