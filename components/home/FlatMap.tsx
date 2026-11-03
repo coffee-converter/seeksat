@@ -9,7 +9,7 @@ import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
-import { PROJECTIONS, MAX_ZOOM, effectiveView as effectiveViewOf, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf, satviewZoom as satviewZoomOf } from "@/lib/map/view.mjs";
+import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { useFollow } from "@/lib/map/follow-store";
 
@@ -52,7 +52,7 @@ export interface SelectedSub {
 interface Props {
   sats: MapSat[];
   observer: MapObserver | null;
-  /** 'flat', 'globe' or 'satview' (lib/map/view.mjs). */
+  /** 'flat' or 'globe' (lib/map/view.mjs). */
   projectionId: string;
   onProjectionChange: (id: string) => void;
   /** The focused satellite. Entering a focus pans to centre it. */
@@ -62,7 +62,7 @@ interface Props {
   onSelect: (noradId: number) => void;
   /** Shown above the map, inside the full screen frame (the focus bar). */
   top?: React.ReactNode;
-  /** Laid over the top of the map, left of the view menu (the chips). */
+  /** Laid over the top of the map, left of the view toggle (the chips). */
   chips?: React.ReactNode;
   /** Subpoint and altitude of the selected satellite. */
   selectedSub?: SelectedSub | null;
@@ -73,9 +73,9 @@ interface Props {
 
 export type FlatMapProps = Props;
 
-type View = "flat" | "globe" | "satview";
+type View = "flat" | "globe";
 /** The MapLibre projection each view draws with (as basemapStyle names it). */
-const PROJECTION_OF = { flat: "mercator", globe: "globe", satview: "vertical-perspective" } as const;
+const PROJECTION_OF = { flat: "mercator", globe: "globe" } as const;
 type LngLat = [number, number];
 type Camera = { center: LngLat; zoom: number };
 /** A camera move; no zoom keeps the current zoom. */
@@ -144,8 +144,6 @@ const makeFootprintLayer = createFootprintLayer as (o: { onFail?: () => void }) 
 const capShown = drawsGlobeCap as (o: { view: View; zoom: number; failed?: boolean }) => boolean;
 const radiusFor = footprintRadiusDeg as (altKm: number, minElevDeg: number) => number;
 const footprintOf = footprintFeature as (sub: SelectedSub, altKm: number, minElevDeg: number) => GeoShape;
-const effectiveView = effectiveViewOf as (projection: string, hasFocus: boolean) => View;
-const satviewZoom = satviewZoomOf as (altKm: number, latDeg: number, heightPx: number) => number;
 /** The GeoJSON footprint fill, hidden while the globe layer draws it. */
 const FILL_LAYER = "ss-footprint-fill";
 type Theme = "dark" | "light";
@@ -219,8 +217,7 @@ export default function FlatMap({
   selectedSub = null,
   fill = false,
 }: Props) {
-  // Satellite's view needs a focused satellite on the map; without one it is the globe.
-  const view = effectiveView(projectionId, selectedId != null && sats.some((s) => s.noradId === selectedId && s.emphasis === "focus"));
+  const view: View = projectionId === "flat" ? "flat" : "globe";
   const glRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   // True between a style's load and the next setStyle: the overlay sources exist.
@@ -308,39 +305,23 @@ export default function FlatMap({
     return home(v, { observer: o, focus: focusOf(s), points: dotsOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
   }, []);
   /** Zoom out no further than the whole Earth: the floor follows the
-   *  container. On the globe (and Satellite's view, which keeps the globe's
-   *  floor) MapLibre adds its own latitude term, so the floor holds through moves. */
+   *  container. On the globe MapLibre adds its own latitude term, so the floor holds through moves. */
   const limitZoom = useCallback((map: MlMap) => {
     const el = map.getContainer();
     const v = latest.current.view;
-    map.setMinZoom(zoomFloor(v === "satview" ? "globe" : v, { width: el.clientWidth || 1, height: el.clientHeight || 1 }));
+    map.setMinZoom(zoomFloor(v, { width: el.clientWidth || 1, height: el.clientHeight || 1 }));
   }, []);
   const moveTo = useCallback((map: MlMap, cam: Move) => {
     if (reducedMotion()) map.jumpTo(cam);
     else map.easeTo(cam);
   }, []);
-  /** Following (or in Satellite's view), jump to the focus now: no easing, and
-   *  no originalEvent, so movestart does not take it for a gesture. Waits for a
-   *  running ease (a preset's) to end. True when it jumped; its moveend pushes
-   *  the overlays. */
+  /** Following, jump to the focus now: no easing, and no originalEvent, so
+   *  movestart does not take it for a gesture. Waits for a running ease (a
+   *  preset's) to end. True when it jumped; its moveend pushes the overlays. */
   const followJump = useCallback((map: MlMap): boolean => {
-    const { sats: s, view: v } = latest.current;
-    const f = liveFocus(s);
-    if (!f || map.isMoving()) return false;
-    const satview = v === "satview";
-    if (!satview && !useFollow.getState().following) return false;
-    const cam: Move = { center: [f.lonDeg, f.latDeg] };
-    if (satview) {
-      // Frame the satellite's horizon cap, no further out than the whole Earth
-      // (the globe presets' zoom at this latitude).
-      const el = map.getContainer();
-      const width = el.clientWidth || 1;
-      const height = el.clientHeight || 1;
-      const floor = home("globe", { observer: { name: "", latDeg: f.latDeg, lonDeg: f.lonDeg }, focus: null, width, height }).zoom;
-      // The shorter side, so a tall narrow frame keeps the cap's sides in.
-      cam.zoom = Math.min(map.getMaxZoom(), Math.max(floor, satviewZoom(f.altKm, f.latDeg, Math.min(width, height))));
-    }
-    map.jumpTo(cam);
+    const f = liveFocus(latest.current.sats);
+    if (!f || map.isMoving() || !useFollow.getState().following) return false;
+    map.jumpTo({ center: [f.lonDeg, f.latDeg] });
     return true;
   }, [liveFocus]);
 
@@ -380,22 +361,11 @@ export default function FlatMap({
   const syncGestures = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    // In Satellite's view the camera rides the satellite and the loop owns the
-    // zoom: no pan or zoom gestures (rotate and pitch stay off in every view;
-    // the handlers keep their rotation off through enable). Leaving gives them back.
-    const satview = latest.current.view === "satview";
-    const handlers = [map.dragPan, map.scrollZoom, map.touchZoomRotate, map.doubleClickZoom, map.boxZoom, map.keyboard];
-    for (const h of handlers) {
-      if (satview) h.disable();
-      else h.enable();
-    }
     // Stacked under the panel the page scrolls past the map, so the map wants
     // ctrl+wheel or two fingers; docked, full screen or zoomed in past the
-    // home view it takes plain gestures. Satellite's view sets its own zoom,
-    // so it never counts as zoomed in.
+    // home view it takes plain gestures.
     const homeCam = homeView(map);
     const zoomedIn =
-      !satview &&
       discZoom(latest.current.view, map.getZoom(), map.getCenter().lat) >
         discZoom(latest.current.view, homeCam.zoom, homeCam.center[1]) + ZOOM_EPS;
     if (docked.current || fullRef.current || zoomedIn) map.cooperativeGestures.disable();
@@ -483,7 +453,6 @@ export default function FlatMap({
       pushFootprint();
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
-      // The view may already be Satellite's view (a reload on a focused page).
       syncGestures();
       const canvas = map.getCanvas();
       canvas.setAttribute("role", "img");
@@ -642,14 +611,7 @@ export default function FlatMap({
     };
   }, [full]);
 
-  // The focus bar reads whether Satellite's view (which always follows) is shown.
-  useEffect(() => {
-    useFollow.getState().setSatview(view === "satview");
-    return () => useFollow.getState().setSatview(false);
-  }, [view]);
-
-  // A new view starts from its home camera. Satellite's view puts the camera
-  // on the satellite; leaving it keeps the camera where it is.
+  // A new view starts from its home camera.
   const shownView = useRef(view);
   useEffect(() => {
     const prev = shownView.current;
@@ -662,14 +624,12 @@ export default function FlatMap({
     if (styleReady.current) map.setProjection({ type: PROJECTION_OF[view] });
     // The old view's floor could hold the new camera back.
     map.setMinZoom(null);
-    const keep = prev === "satview" || view === "satview";
-    atHome.current = !keep;
-    if (!keep) map.jumpTo(homeView(map));
+    atHome.current = true;
+    map.jumpTo(homeView(map));
     limitZoom(map);
     syncFill();
     syncGestures();
-    if (view === "satview") followJump(map);
-  }, [view, homeView, setFollowing, limitZoom, syncFill, syncGestures, followJump]);
+  }, [view, homeView, setFollowing, limitZoom, syncFill, syncGestures]);
 
   // An untouched home view follows the observer (it arrives after mount, once prefs load).
   const obsLon = observer?.lonDeg ?? null;
@@ -779,16 +739,34 @@ export default function FlatMap({
   const chipRow = (
     <div className="flat-map__top">
       {chips}
-      <select
-        className="flat-map__menu"
+      <div
+        className="flat-map__views"
+        role="radiogroup"
         aria-label="Map view"
-        value={projectionId}
-        onChange={(e) => onProjectionChange(e.target.value)}
+        onKeyDown={(e) => {
+          const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+          if (!step) return;
+          e.preventDefault();
+          const next = PROJECTIONS[(PROJECTIONS.findIndex((p: { id: string }) => p.id === view) + step + PROJECTIONS.length) % PROJECTIONS.length];
+          onProjectionChange(next.id);
+          e.currentTarget.querySelector<HTMLButtonElement>(`[data-view="${next.id}"]`)?.focus();
+        }}
       >
         {PROJECTIONS.map((p: { id: string; label: string }) => (
-          <option key={p.id} value={p.id}>{p.label}</option>
+          <button
+            key={p.id}
+            type="button"
+            role="radio"
+            data-view={p.id}
+            aria-checked={view === p.id}
+            tabIndex={view === p.id ? 0 : -1}
+            className="flat-map__view"
+            onClick={() => onProjectionChange(p.id)}
+          >
+            {p.label}
+          </button>
         ))}
-      </select>
+      </div>
     </div>
   );
   const legendList = (
@@ -852,14 +830,9 @@ export default function FlatMap({
         </div>
       ) : null}
       <div className="flat-map__zoom">
-        {/* Satellite's view sets its own camera: no zoom or reset there. */}
-        {view === "satview" ? null : (
-          <>
-            <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
-            <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
-            <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
-          </>
-        )}
+        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
+        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
+        <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
         <button
           type="button"
           aria-label={full ? "Exit full screen" : "Full screen"}

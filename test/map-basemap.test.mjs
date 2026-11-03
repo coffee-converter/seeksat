@@ -141,14 +141,8 @@ test('every dark map fill and line is dark', () => {
   }
 });
 
-test('Satellite\'s view uses the vertical-perspective projection', () => {
-  assert.deepEqual(basemapStyle('dark', 'satview').projection, { type: 'vertical-perspective' });
-});
-
-// No atmosphere: MapLibre lights it from a fixed screen direction, not the
-// Sun, so it would contradict the night shading.
 test('no view draws a sky or atmosphere', () => {
   for (const theme of ['dark', 'light']) {
-    for (const view of ['flat', 'globe', 'satview']) assert.equal(basemapStyle(theme, view).sky, undefined, `${theme} ${view}`);
+    for (const view of ['flat', 'globe']) assert.equal(basemapStyle(theme, view).sky, undefined, `${theme} ${view}`);
   }
 });

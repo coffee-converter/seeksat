@@ -44,28 +44,31 @@
   pointer-events: none;
 }
 .flat-map__top > * { pointer-events: auto; }
-.flat-map__menu {
+.flat-map__views {
   flex: none;
   margin-left: auto;
-  max-width: 50%;
-  /* Our own chevron, inset from the edge (the native arrow sits against it). */
-  appearance: none;
-  -webkit-appearance: none;
-  padding: 6px 28px 6px 10px;
-  background-color: var(--input-bg);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--map-muted) 50%),
-    linear-gradient(135deg, var(--map-muted) 50%, transparent 50%);
-  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
-  color: var(--map-text);
+  display: inline-flex;
+  padding: 2px;
+  background: var(--input-bg);
   border: 1px solid var(--input-border);
-  border-radius: 7px;
+  border-radius: 8px;
+}
+.flat-map__view {
+  font: inherit;
   font-size: 12px;
   font-weight: 500;
+  line-height: 1;
+  color: var(--map-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 6px 10px;
+  min-height: 28px;
+  border-radius: 6px;
 }
-.flat-map__menu:focus-visible {
+.flat-map__view:hover { color: var(--map-text); }
+.flat-map__view[aria-checked="true"] { background: var(--seg-on); color: var(--seg-on-text); }
+.flat-map__view:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
@@ -1209,9 +1212,9 @@
 .sat-chip--hidden { opacity: 0.5; }
 .sat-chip--hidden .sat-chip__name { text-decoration: line-through; }
 
-/* iOS zooms into any form control under 16px when it gets focus. */
+/* Bigger tap targets on touch screens. */
 @media (pointer: coarse) {
-  .flat-map__menu { font-size: 16px; }
+  .flat-map__view { min-height: 36px; padding: 6px 12px; }
 }
 
 /* Cards: the headline focuses the satellite; a focus dims the other cards. */
