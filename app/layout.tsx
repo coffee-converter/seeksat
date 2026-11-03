@@ -112,7 +112,7 @@ const JSON_LD = {
       "@type": "Organization",
       "@id": `${SITE_URL}/#org`,
       name: "Liftoff Labs",
-      url: "https://liftofflabs.io",
+      url: "https://aaronhanson.dev",
     },
   ],
 };
