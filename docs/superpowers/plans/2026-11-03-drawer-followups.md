@@ -111,3 +111,22 @@ Added at Aaron's request: the focused satellite and Lock on look jumpy, especial
   - without Lock on, consecutive frames move the dot by small, even steps;
   - a far-side satellite on the globe is not drawn through the Earth;
   - there are no page errors, and the HomeApp render count is still about one per second.
+
+### Task 5 (runs before Task 2): Cut Satellite's view, and make the view a Globe | Mercator toggle
+
+Added at Aaron's request: Satellite's view looks odd, so it goes for now. With two views left, the view menu becomes a two-button toggle.
+
+**Files:** `lib/map/view.mjs`, `lib/map/basemap.mjs`, `components/home/FlatMap.tsx`, `lib/map/follow-store.ts`, `components/home/FocusBar.tsx`, `lib/map/footprint-layer.mjs`, CSS in `app/home.css`, and the tests for each (`test/map-view.test.mjs`, `test/map-basemap.test.mjs`, `test/map-footprint-layer.test.mjs`, `test/home-focus.test.mjs` as needed).
+
+**Changes:**
+- **`PROJECTIONS`** is `[{ id: 'globe', label: 'Globe' }, { id: 'flat', label: 'Mercator' }]` again. `migrateProjection('satview')` returns `'globe'`, so a saved Satellite's view loads as the globe.
+- **Remove** `satviewZoom`, `effectiveView`'s satview branch (or `effectiveView` itself if it becomes the identity) and `basemapStyle`'s vertical-perspective mapping. In FlatMap, remove the satview gesture lock, the hidden zoom and Reset controls, the satview camera in the loop, and the `satview` flag in the follow store with its FocusBar use ("Locked on" disabled). In `footprint-layer.mjs`, remove the satview branch of `drawsGlobeCap`. Delete their tests, or change them to the two-view behaviour.
+- **The toggle.** The view `<select>` becomes a two-button segmented toggle, Globe then Mercator: a `role="radiogroup"` with `aria-label="Map view"`, two `role="radio"` buttons with `aria-checked`, styled like the header's Auto/Light/Dark segmented control (`.theme-toggle__group` / `__opt`) but sized for the map overlay. It sits where the select was, top right of the map. Arrow keys move between the two, as in a radio group. It keeps saving through `onProjectionChange`.
+- **Plan text.** Tasks 2 and 4 no longer apply to Satellite's view. Skip their satview bullets.
+- **Browser check** at 1440 and 390:
+  - the toggle shows Globe and Mercator with the current one pressed;
+  - clicking switches the view;
+  - a saved `projection: 'satview'` loads as Globe;
+  - nothing on the page mentions Satellite's view;
+  - there is no horizontal overflow at 360 px with the chips row;
+  - there are no page errors.
