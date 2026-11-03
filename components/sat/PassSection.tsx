@@ -12,7 +12,7 @@ import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows, printAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen, directionText } from "@/lib/sat/pass-rows.mjs";
+import { passRows, printAccuracyNote, rowAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen, directionText } from "@/lib/sat/pass-rows.mjs";
 import QualityBadge, { peakMagText, visualRating, type RatedPass } from "@/components/passes/QualityBadge";
 import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
@@ -225,6 +225,8 @@ export default function PassSection({
   // Report the first row, or why there is none, to the next pass line.
   // Read from the raw result so a stationary or failed search says so.
   const firstPass = view && view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
+  // One "elements are old" note, on the first pass it applies to.
+  const oldNote = view && view.kind === "rows" ? (rowAccuracyNote as (rows: Row[]) => { key: string; text: string } | null)(view.rows) : null;
   const nextReport = useMemo<NextPassReport>(() => {
     if (!track) return { kind: "unavailable" };
     if (!observer) return undefined;
@@ -439,7 +441,7 @@ export default function PassSection({
                                 {!visual && row.visible && <span className="pass-card__tag">visible</span>}
                                 {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
                               </p>
-                              {row.accuracy && <p className="sat-how">{row.accuracy}</p>}
+                              {row.key === oldNote?.key && <p className="sat-how">{oldNote.text}</p>}
                               <div className="pass-card__actions">
                                 {liveOk(row.pass, bucketMs) && (
                                   <button type="button" className="home-chip home-chip--live" onClick={(e) => openChart("live", row.pass, e)}>Live</button>

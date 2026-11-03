@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay, isRowOpen, directionText, nextPassText } from '../lib/sat/pass-rows.mjs';
+import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay, isRowOpen, directionText, nextPassText, rowAccuracyNote } from '../lib/sat/pass-rows.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -190,4 +190,17 @@ test('nextPassText falls back to UTC for a zone the runtime does not know', () =
   const startMs = Date.parse('2026-11-02T10:12:00Z');
   const p = { startMs, endMs: startMs + 60_000, startAzDeg: 0, endAzDeg: 180 };
   assert.equal(nextPassText(p, startMs - 3_600_000, 'Not/AZone', 'en-GB'), 'in 1 h, Today 10:12, N to S');
+});
+
+test('rowAccuracyNote puts one note on the first pass whose elements are old', () => {
+  const rows = [
+    { key: 'a', accuracy: null },
+    { key: 'b', accuracy: 'Elements are 3.1 days old at this pass, so times may be off by a minute or more.' },
+    { key: 'c', accuracy: 'Elements are 3.2 days old at this pass, so times may be off by a minute or more.' },
+  ];
+  assert.deepEqual(rowAccuracyNote(rows), {
+    key: 'b',
+    text: 'From this pass on, the elements are over 3 days old, so times may be off by a minute or more.',
+  });
+  assert.equal(rowAccuracyNote(rows.slice(0, 1)), null);
 });
