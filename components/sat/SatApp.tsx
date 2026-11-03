@@ -162,6 +162,22 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       router.replace(dest);
     } else router.push(focusHref("/", "", id) as string);
   }, [data.noradId, router]);
+  // Tapping this page's own chip, or hiding it, closes the details (hidden,
+  // it is off the list's map). The second tap of a double tap that opened
+  // this page lands here; ignore it.
+  const openedAt = useRef(0);
+  useEffect(() => {
+    openedAt.current = Date.now();
+  }, [data.noradId]);
+  const onChipFocus = useCallback((id: number | null) => {
+    if (id != null) openOther(id);
+    else if (Date.now() - openedAt.current >= 600) onClose();
+  }, [openOther, onClose]);
+  const onChipHide = useCallback((id: number) => {
+    const hiding = !useHomeStore.getState().prefs.hidden.includes(id);
+    toggleHidden(id);
+    if (id === data.noradId && hiding) onClose();
+  }, [toggleHidden, data.noradId, onClose]);
   // Old Show all links carried ?map=all; drop it from the URL.
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -227,7 +243,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     minElevDeg: settings.minElevDeg,
     onSelect: openOther,
     chips: hydrated && (
-      <SatChips chips={chips} focusId={focusId} onFocus={openOther} onToggleHidden={toggleHidden} />
+      <SatChips chips={chips} focusId={focusId} onFocus={onChipFocus} onToggleHidden={onChipHide} />
     ),
     top: usable && (
       <FocusBar

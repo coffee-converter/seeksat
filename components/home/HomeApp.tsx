@@ -174,6 +174,14 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     else window.history.replaceState({ [PUSHED_KEY]: id != null && pushed }, "", href);
     return false;
   }, [router]);
+  // Hiding the focused satellite (a pasted one; catalog ones focus on their
+  // page) also leaves focus, as on a satellite page, so the tap shows.
+  const hideChip = useCallback((id: number) => {
+    const st = useHomeStore.getState();
+    const hiding = !st.prefs.hidden.includes(id);
+    toggleHidden(id);
+    if (hiding && st.focusId === id) focusOn(null);
+  }, [toggleHidden, focusOn]);
   // A focus that is not followed (from search, or a shared link) needs its record.
   useEffect(() => {
     if (hydrated && focusId != null && !prefs.following.includes(focusId)) void loadViewing(focusId);
@@ -417,7 +425,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       />
     ),
     chips: hydrated && (
-      <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={toggleHidden} />
+      <SatChips chips={chips} focusId={focusId} onFocus={focusOn} onToggleHidden={hideChip} />
     ),
     search: { onView: focusOn, onClearFocus: () => focusOn(null) },
     notice: savedAge && <p className="saved-age">{savedAge}</p>,
