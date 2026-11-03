@@ -36,3 +36,8 @@ test('a pass already up shows when it ends and how long is left', () => {
 test('without a peak azimuth the max has no direction', () => {
   assert.equal(passStats(pass({ peakAzDeg: null }), NOW, { timeZone: TZ, clock }).max.sub, null);
 });
+
+test('under a day heading the countdown can leave out the weekday', () => {
+  const p = pass({ startMs: NOW + 26 * 3_600_000, endMs: NOW + 26 * 3_600_000 + 224_000 });
+  assert.equal(passStats(p, NOW, { timeZone: TZ, clock, weekday: false }).first.sub, 'in 1 day 2 h');
+});

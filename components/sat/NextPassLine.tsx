@@ -8,7 +8,7 @@ type LinePass = NextPass & RatedPass & { peakMs: number; startAzDeg: number; end
 const textOf = nextPassText as (pass: LinePass, nowMs: number, timeZone?: string, locale?: string) => string | null;
 
 /**
- * "Next pass: Tomorrow 04:12, SW to SE, Low Cloudy" with a chart button that
+ * "Next pass: Tomorrow 4:12 AM, SW to SE" and the rating pill, with a chart button that
  * follows the mode, right under the satellite page's title. Same day words,
  * clock and badges as the pass rows. Hidden when there is no upcoming pass.
  */
@@ -31,8 +31,9 @@ export default function NextPassLine({ report, nowMs, mode, skyType, clouds, onC
       <p className="sat-next__text">
         <span className="sat-next__label">Next pass:</span>{" "}
         <span className="sat-next__what">
-          {`${text}, `}
-          <span className="rating-pair">
+          {/* No-break space keeps "4:12 AM" together. */}
+          {`${text.replace(/ (AM|PM)\b/g, "\u00a0$1")} `}
+          <span className="rating-pair rating-pill">
             <QualityBadge pass={pass} rating={rating} />
             {visual && <>{" "}<CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} /></>}
           </span>

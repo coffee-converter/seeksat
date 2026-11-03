@@ -6,7 +6,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
-import { elementTags, passStats, timeFormat } from "@/lib/home/view.mjs";
+import { elementTags } from "@/lib/home/view.mjs";
+import PassStats, { FlashText, passTime as cardTime } from "@/components/passes/PassStats";
 import { bestPass, passWords, riseDopplerHz } from "@/lib/passes/pass-words.mjs";
 import { passQuality } from "@/lib/passes/quality.mjs";
 import { formatPassDuration } from "@/lib/passes/format.mjs";
@@ -22,7 +23,6 @@ import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
 import MoreToggle from "@/components/passes/MoreToggle";
-import { useFlash } from "@/lib/ui/use-flash";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
 export type Track = ReturnType<typeof makeTrack>;
@@ -79,16 +79,9 @@ const IDLE_PAINT_MS = 30_000;
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
-type Stat = { label: string; value: string; sub?: string | null };
-const statsOf = passStats as (pass: Pass, nowMs: number, o: {
-  timeZone?: string; clock: (ms: number, tz?: string) => string;
-}) => { first: Stat; max: Stat; last: Stat };
 const wordsOf = passWords as (pass: Pass, o: {
-  timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string;
+  timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string; startTime?: boolean;
 }) => string;
-/** The cards' clock, with no-break spaces so "06:27 PM" never wraps apart. */
-const cardTime = (ms: number, timeZone?: string) =>
-  (timeFormat as (l: undefined, tz?: string) => Intl.DateTimeFormat)(undefined, timeZone).format(ms).replace(/\s/g, "\u00a0");
 const dopplerAt = riseDopplerHz as (track: Track, obs: HomeObserver, pass: Pass, hz: number) => number | null;
 const downlinkOf = defaultDownlink as (track: Track) => { hz: number } | null;
 const elevRating = passQuality as (pass: Pass) => Quality;
@@ -115,12 +108,6 @@ function riseDopplerText(track: Track, observer: HomeObserver, pass: Pass): stri
   const khz = Math.abs(hz / 1000).toFixed(1);
   const sign = hz < 0 && khz !== "0.0" ? "−" : "+";
   return `${(link.hz / 1e6).toFixed(3)} MHz, ${sign}${khz} kHz at rise`;
-}
-
-/** Text that flashes when it changes, such as a countdown ticking down. */
-function FlashText({ value }: { value: string }) {
-  const flash = useFlash(value);
-  return <span className={flash ? `flash-text ${flash}` : "flash-text"}>{value}</span>;
 }
 
 function ElementTags({ track, nowMs }: { track: Track | undefined; nowMs: number }) {
@@ -192,22 +179,6 @@ function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onU
 type FocusState = "none" | "focus" | "dim";
 const focusClass = (f: FocusState) => (f === "none" ? "" : ` pass-card--${f}`);
 
-/** One stat column on a pass card: a small label, the value, and a quieter
- *  line under it. The countdown flashes as it ticks. */
-function StatCell({ stat, live = false }: { stat: Stat; live?: boolean }) {
-  return (
-    <div className="pass-card__stat">
-      <dt>{stat.label}</dt>
-      <dd className="pass-card__stat-value">{stat.value}</dd>
-      {stat.sub && (
-        <dd className={`pass-card__stat-sub${live ? " pass-card__stat-sub--live" : ""}`}>
-          <FlashText value={stat.sub} />
-        </dd>
-      )}
-    </div>
-  );
-}
-
 /** The headline, as a button that focuses the satellite on the map. */
 function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; onFocus: () => void }) {
   return (
@@ -228,10 +199,10 @@ function PassCard({
   const visual = mode === "visual";
   const rating = visual ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) }) : undefined;
   const mag = visual ? peakMagText(pass) : null;
-  const words = wordsOf(pass, { timeZone: observer.tz, mode, minElevDeg, clock: cardTime });
+  // The Starts column shows the start time, so the words line leaves it out.
+  const words = wordsOf(pass, { timeZone: observer.tz, mode, minElevDeg, clock: cardTime, startTime: false });
   const above = visual ? null : timeAboveText(pass);
   const tune = useMemo(() => (visual ? null : riseDopplerText(track, observer, pass)), [visual, track, observer, pass]);
-  const stats = statsOf(pass, nowMs, { timeZone: observer.tz, clock: cardTime });
   const hasMeta = (!visual && pass.visible) || above != null || tune != null || viewing != null ||
     (elementTags(track, nowMs) as string[]).length > 0;
 
@@ -271,7 +242,7 @@ function PassCard({
         <p className="pass-card__headline">
           <Headline text={card.name} focus={focus} onFocus={onFocus} />
         </p>
-        <span className="rating-pair pass-card__rating">
+        <span className="rating-pair rating-pill pass-card__rating">
           <QualityBadge pass={pass} rating={rating} />
           {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
         </span>
@@ -279,11 +250,7 @@ function PassCard({
       <div className="pass-card__plot">
         <PolarPlotSvg ref={svgRef} />
       </div>
-      <dl className="pass-card__stats">
-        <StatCell stat={stats.first} live={stats.first.label === "Ends"} />
-        <StatCell stat={stats.max} />
-        <StatCell stat={{ ...stats.last, sub: mag }} />
-      </dl>
+      <PassStats pass={pass} nowMs={nowMs} timeZone={observer.tz} mag={mag} />
       <div className="pass-card__body">
         <p className="pass-card__words">{words}</p>
         {hasMeta && (

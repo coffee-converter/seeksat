@@ -22,6 +22,8 @@ import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
 import MoreToggle from "@/components/passes/MoreToggle";
+import PassStats, { passTime } from "@/components/passes/PassStats";
+import { passWords } from "@/lib/passes/pass-words.mjs";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 
@@ -53,6 +55,7 @@ const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) =
 const bearings = directionText as (pass: { startAzDeg: number; endAzDeg: number }) => string;
 const rowOpen = isRowOpen as (key: string, sharedKey: string | null, toggled: ReadonlySet<string>) => boolean;
 const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
+const wordsOf = passWords as (pass: object, o: { timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string; startTime?: boolean }) => string;
 const groupRows = (rows: Row[], nowMs: number, timeZone?: string) =>
   (groupRowsByDay as (r: Row[], n: number, tz?: string, l?: string) => Array<{ heading: string; rows: Row[] }>)(rows, nowMs, timeZone);
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
@@ -414,23 +417,24 @@ export default function PassSection({
                           const visual = mode === "visual";
                           const rating = visual ? visualRating(rated, { skyType, cloud: passCloud(clouds, rated, bucketMs) }) : undefined;
                           const mag = visual ? peakMagText(rated) : null;
+                          // The pass as of now, so a pass already up reads Ends and Left.
+                          const statPass = { ...(row.pass as NextPass & { peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number }), inProgress: row.inProgress };
+                          const words = wordsOf(statPass, { timeZone: observer?.tz, mode, minElevDeg, clock: passTime, startTime: false });
                           return (
                             <li
                               key={row.key}
                               ref={row.key === sharedKey ? sharedRow : undefined}
                               className={row.key === sharedKey ? "sat-pass pass-row--shared" : "sat-pass"}
                             >
-                              <p className="sat-pass__line1">
-                                <span className="sat-pass__times">{row.timesLabel}</span>
-                                <span className="rating-pair">
+                              <div className="sat-pass__head">
+                                <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={mag} weekday={false} className="sat-pass__stats" />
+                                <span className="rating-pair rating-pill sat-pass__rating">
                                   <QualityBadge pass={rated} rating={rating} />
                                   {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
                                 </span>
-                                <span className="sat-pass__max">{`max ${row.maxElevLabel}`}</span>
-                                {mag && <span className="pass-mag sat-pass__mag">{mag}</span>}
-                              </p>
+                              </div>
                               <p className="sat-pass__line2">
-                                <span title={row.azLabel}>{`${row.durationLabel} · ${row.fromLabel} → ${row.toLabel}`}</span>
+                                <span title={row.azLabel}>{words}</span>
                                 {row.key === sharedKey && <span className="pass-card__tag">shared pass</span>}
                                 {!visual && row.visible && <span className="pass-card__tag">visible</span>}
                                 {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}

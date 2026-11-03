@@ -727,14 +727,15 @@
 }
 .pass-card__stat-sub { color: var(--map-muted); font-size: 12px; }
 .pass-card__stat-sub--live { color: var(--map-accent); font-weight: 600; }
-/* The rating as a pill, so it reads at a glance; the cloud word sits beside it. */
-.pass-card__rating .quality {
+/* The rating as a pill, so it reads at a glance; the cloud word sits beside it.
+   Home cards, satellite page rows and the next pass line all use it. */
+.rating-pill .quality {
   padding: 1px 9px;
   border-radius: 999px;
   background: color-mix(in srgb, currentColor 15%, transparent);
   font-size: 12px;
 }
-.pass-card__rating .quality::before {
+.rating-pill .quality::before {
   content: "";
   display: inline-block;
   width: 6px;

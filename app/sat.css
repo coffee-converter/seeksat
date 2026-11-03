@@ -24,8 +24,8 @@ p.sat-how { margin: 0 0 8px; }
 .sat-show-all { margin-top: 10px; }
 .sat-zone { margin: 4px 0 8px; }
 .sat-pass { padding: 8px 0; border-bottom: 1px solid var(--map-border); }
-/* Passes under day headings: times, rating and height on one line, then
-   length and direction quieter below. */
+/* Passes under day headings: the same Starts, Max and Lasts columns and
+   rating pill as the home cards, then where to look below. */
 .sat-day-group + .sat-day-group { margin-top: 16px; }
 .sat-day {
   margin: 0;
@@ -36,16 +36,23 @@ p.sat-how { margin: 0 0 8px; }
   border-bottom: 1px solid var(--map-border);
 }
 .sat-day__list { list-style: none; margin: 0; padding: 0; }
-.sat-pass__line1 {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px;
-  margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums;
+.sat-pass__head {
+  display: grid;
+  grid-template-columns: minmax(0, 26em) auto;
+  grid-template-areas: "stats rating";
+  justify-content: space-between;
+  align-items: start;
+  gap: 6px 12px;
 }
-.sat-pass__times { font-size: 16px; font-weight: 700; color: var(--text-strong); }
-.sat-pass__line1 .quality,
-.sat-pass__line1 .cloud { margin-left: 0; }
-.sat-pass__max,
-.sat-pass__mag { color: var(--map-text); }
-.sat-pass__line2 { margin: 2px 0 6px; color: var(--map-muted); font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.5; }
+.sat-pass__stats { grid-area: stats; }
+.sat-pass__rating { grid-area: rating; justify-self: end; }
+.sat-pass__rating .quality,
+.sat-pass__rating .cloud { margin-left: 0; }
+@media (max-width: 600px) {
+  .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
+  .sat-pass__rating { justify-self: start; }
+}
+.sat-pass__line2 { margin: 6px 0 6px; color: var(--map-muted); font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.5; }
 .sat-pass .pass-card__tag { margin-left: 8px; }
 .sat-observers { margin: 12px 0; }
 .sat-observers__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--text-heading); }

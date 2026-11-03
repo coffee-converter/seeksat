@@ -132,3 +132,13 @@ test('riseDopplerHz: positive for a rising ISS pass, under 12 kHz at 437.8 MHz',
   const hz = riseDopplerHz(ISS, EN52VE, pass, 437.8e6);
   assert.ok(hz > 0 && hz < 12_000, String(hz));
 });
+
+test('passWords: startTime false leaves the start time to the Starts column', () => {
+  const clock = (ms, tz) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(ms);
+  const z = { timeZone: 'America/Chicago', clock, startTime: false };
+  assert.equal(passWords({ ...base, startElevDeg: 15 }, { ...z, mode: 'visual' }),
+    'Appears 15° NW · peaks 26° SW 6:29 PM · fades in the SE 6:31 PM');
+  assert.equal(passWords({ ...base, endElevDeg: 0.3 }, { ...z, mode: 'radio' }),
+    'Rises NW · peaks 26° SW 6:29 PM · sets SE 6:31 PM');
+  assert.match(passWords(base, { ...z, mode: 'radio', minElevDeg: 10 }), /^Rises above 10° NW · /);
+});
