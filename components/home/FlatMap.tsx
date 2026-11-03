@@ -9,7 +9,7 @@ import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
-import { PROJECTIONS, MAX_ZOOM, effectiveView as effectiveViewOf, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf, zoomForAltitude as zoomForAltitudeOf } from "@/lib/map/view.mjs";
+import { PROJECTIONS, MAX_ZOOM, effectiveView as effectiveViewOf, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf, satviewZoom as satviewZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { useFollow } from "@/lib/map/follow-store";
 
@@ -145,7 +145,7 @@ const capShown = drawsGlobeCap as (o: { view: View; zoom: number; failed?: boole
 const radiusFor = footprintRadiusDeg as (altKm: number, minElevDeg: number) => number;
 const footprintOf = footprintFeature as (sub: SelectedSub, altKm: number, minElevDeg: number) => GeoShape;
 const effectiveView = effectiveViewOf as (projection: string, hasFocus: boolean) => View;
-const zoomForAltitude = zoomForAltitudeOf as (altKm: number, heightPx: number) => number;
+const satviewZoom = satviewZoomOf as (altKm: number, latDeg: number, heightPx: number) => number;
 /** The GeoJSON footprint fill, hidden while the globe layer draws it. */
 const FILL_LAYER = "ss-footprint-fill";
 type Theme = "dark" | "light";
@@ -308,11 +308,12 @@ export default function FlatMap({
     return home(v, { observer: o, focus: focusOf(s), points: dotsOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
   }, []);
   /** Zoom out no further than the whole Earth: the floor follows the
-   *  container. On the globe MapLibre adds its own latitude term, so the
-   *  floor holds through moves. */
+   *  container. On the globe (and Satellite's view, which keeps the globe's
+   *  floor) MapLibre adds its own latitude term, so the floor holds through moves. */
   const limitZoom = useCallback((map: MlMap) => {
     const el = map.getContainer();
-    map.setMinZoom(zoomFloor(latest.current.view, { width: el.clientWidth || 1, height: el.clientHeight || 1 }));
+    const v = latest.current.view;
+    map.setMinZoom(zoomFloor(v === "satview" ? "globe" : v, { width: el.clientWidth || 1, height: el.clientHeight || 1 }));
   }, []);
   const moveTo = useCallback((map: MlMap, cam: Move) => {
     if (reducedMotion()) map.jumpTo(cam);
@@ -330,8 +331,13 @@ export default function FlatMap({
     if (!satview && !useFollow.getState().following) return false;
     const cam: Move = { center: [f.lonDeg, f.latDeg] };
     if (satview) {
-      const z = zoomForAltitude(f.altKm, map.getContainer().clientHeight || 1);
-      cam.zoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), z));
+      // Frame the satellite's horizon cap, no further out than the whole Earth
+      // (the globe presets' zoom at this latitude).
+      const el = map.getContainer();
+      const width = el.clientWidth || 1;
+      const height = el.clientHeight || 1;
+      const floor = home("globe", { observer: { name: "", latDeg: f.latDeg, lonDeg: f.lonDeg }, focus: null, width, height }).zoom;
+      cam.zoom = Math.min(map.getMaxZoom(), Math.max(floor, satviewZoom(f.altKm, f.latDeg, height)));
     }
     map.jumpTo(cam);
     return true;
@@ -373,11 +379,15 @@ export default function FlatMap({
   const syncGestures = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    // In Satellite's view the camera rides the satellite: no drag pan (rotate
-    // and pitch stay off in every view). Leaving it gives the drag back.
+    // In Satellite's view the camera rides the satellite and the loop owns the
+    // zoom: no pan or zoom gestures (rotate and pitch stay off in every view;
+    // the handlers keep their rotation off through enable). Leaving gives them back.
     const satview = latest.current.view === "satview";
-    if (satview) map.dragPan.disable();
-    else map.dragPan.enable();
+    const handlers = [map.dragPan, map.scrollZoom, map.touchZoomRotate, map.doubleClickZoom, map.boxZoom, map.keyboard];
+    for (const h of handlers) {
+      if (satview) h.disable();
+      else h.enable();
+    }
     // Stacked under the panel the page scrolls past the map, so the map wants
     // ctrl+wheel or two fingers; docked, full screen or zoomed in past the
     // home view it takes plain gestures. Satellite's view sets its own zoom,
@@ -835,9 +845,14 @@ export default function FlatMap({
         </div>
       ) : null}
       <div className="flat-map__zoom">
-        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
-        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
-        <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
+        {/* Satellite's view sets its own camera: no zoom or reset there. */}
+        {view === "satview" ? null : (
+          <>
+            <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
+            <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
+            <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
+          </>
+        )}
         <button
           type="button"
           aria-label={full ? "Exit full screen" : "Full screen"}

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, effectiveView, zoomForAltitude, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
+import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, effectiveView, satviewZoom, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
+import { footprintRadiusDeg } from '../lib/map/geometry.mjs';
 
 test('the view list is globe, flat and satellite view, flat by default', () => {
   assert.deepEqual(PROJECTIONS, [
@@ -20,13 +21,20 @@ test('Satellite\'s view is the third view, and falls back to the globe without a
   assert.equal(effectiveView('flat', true), 'flat');
 });
 
-test('zoomForAltitude puts the camera at the satellite\'s height', () => {
-  const z = zoomForAltitude(420, 900);
-  // 900 px tall, 36.87 degree field: 1350 px to centre; 1350 * C / (420e3 * 512) = 251.6
-  // 36.87 degrees is 1350 px rounded, so allow for that rounding.
-  assert.ok(Math.abs(z - Math.log2(1350 * 40075016.686 / (420e3 * 512))) < 1e-5);
-  assert.ok(zoomForAltitude(35786, 900) < zoomForAltitude(420, 900));
-  assert.ok(Number.isFinite(zoomForAltitude(120000, 900)));
+test('satviewZoom frames the satellite\'s horizon cap', () => {
+  for (const alt of [420, 35786, 120000]) assert.ok(Number.isFinite(satviewZoom(alt, 0, 900)), `alt ${alt}`);
+  assert.ok(satviewZoom(35786, 0, 900) < satviewZoom(420, 0, 900));
+  assert.ok(satviewZoom(120000, 0, 900) < satviewZoom(35786, 0, 900));
+  // MapLibre's globe grows by 1 / cos(latitude) at a fixed zoom, so the zoom
+  // falls by log2(1 / cos lat) to keep the cap the same size.
+  const d = satviewZoom(420, 0, 900) - satviewZoom(420, 51.6, 900);
+  assert.ok(Math.abs(d - Math.log2(1 / Math.cos((51.6 * Math.PI) / 180))) < 1e-9);
+  assert.equal(satviewZoom(420, -51.6, 900), satviewZoom(420, 51.6, 900));
+  assert.ok(Number.isFinite(satviewZoom(420, 90, 900)));
+  // ISS at the equator, 900 px: the cap's half-width is 0.45 of the height.
+  const theta = footprintRadiusDeg(420, 0) * Math.PI / 180;
+  const want = Math.log2((0.45 * 900 * 2 * Math.PI) / (512 * Math.sin(theta)));
+  assert.ok(Math.abs(satviewZoom(420, 0, 900) - want) < 1e-9);
 });
 
 test('the Night side preset centres opposite the Sun', () => {
