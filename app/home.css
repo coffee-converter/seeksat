@@ -666,7 +666,8 @@
 .quality--ok { color: var(--warn-text); }
 .cloud--clear { color: var(--ok); }
 .cloud--some { color: var(--warn-text); }
-.cloud { white-space: nowrap; }
+.cloud,
+.quality { white-space: nowrap; }
 /* Where the elements came from: a quieter cue than "visible". */
 .pass-card__tag--elements {
   color: var(--map-muted);
@@ -674,18 +675,41 @@
   white-space: nowrap;
 }
 .pass-card__tag--viewing { color: var(--map-accent); }
+/* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
+.pass-card__fact { white-space: nowrap; }
+/* Where to look, in words. It may wrap on a phone; a time never breaks. */
+.pass-card__words { margin: 0; color: var(--map-text); font-size: 13px; font-variant-numeric: tabular-nums; }
+/* "Best in the next 24 hours": one quiet tile-like button above Next up. */
+.best-pass {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--panel);
+  color: var(--map-text);
+  border: 1px solid var(--map-border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.best-pass:hover { background: var(--btn-hover); }
+.best-pass:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.best-pass__label { color: var(--map-muted); }
+.best-pass__what { color: var(--text-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
+.best-pass .quality { margin-left: 0; }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .more-panel { display: contents; }
 .more-panel[hidden] { display: none; }
 .more-panel__note { flex: 1 0 100%; margin: 2px 0 0; font-size: 13px; color: var(--map-muted); }
 
 /* chart-block:begin */
-/* The pass-card polar plot and the sky and radio chart
-   modals keep their literal dark colours in both themes, on their own dark
-   backgrounds (test/theme-css.test.mjs skips this block). */
-/* The card's polar plot (PolarPlotSvg). Scoped to the card. */
-/* On a light page the plot keeps a dark tile, so its labels read as in dark mode. */
-:root[data-theme='light'] .pass-card__plot { background: #10151f; border-radius: 6px; }
+/* The sky and radio chart modals keep their literal dark colours in both
+   themes, on their own dark backgrounds (test/theme-css.test.mjs skips this
+   block). The pass-card polar plot does too in dark theme; in light theme it
+   takes a light disc from the tokens. */
+/* The card's polar plot (PolarPlotSvg). Scoped to the card. The painter sets
+   --sky-shade (the sky at the pass peak) and strokes the arc in currentColor. */
 .pass-card__plot .polar-plot {
   display: block;
   width: 100%;
@@ -695,7 +719,7 @@
   cursor: default;
 }
 .pass-card__plot .polar-plot .horizon {
-  fill: rgba(8, 12, 24, 0.9);
+  fill: var(--sky-shade, rgba(8, 12, 24, 0.9));
   stroke: rgba(126, 184, 255, 0.55);
   stroke-width: 1.6;
 }
@@ -710,13 +734,26 @@
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+:root[data-theme='light'] .pass-card__plot .polar-plot .horizon {
+  fill: var(--panel-2);
+  stroke: rgba(var(--accent-rgb), 0.45);
+}
+:root[data-theme='light'] .pass-card__plot .polar-plot .grid { stroke: rgba(var(--accent-rgb), 0.25); }
+:root[data-theme='light'] .pass-card__plot .polar-plot .cardinal { fill: var(--muted); }
+/* The arc: 2 px in the satellite's colour in both themes. It is solid where
+   the satellite can be seen by eye and dashed elsewhere, with the opacity
+   raised so both read on a thumbnail. Dashes keep the painter's butt caps. */
+.pass-card__plot .polar-plot .arc { color: var(--sat-color, var(--map-muted)); }
 .pass-card__plot .polar-plot .arc line,
 .pass-card__plot .polar-plot .arc polyline {
   fill: none;
-  stroke-width: 4.5;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
   stroke-linecap: round;
   stroke-linejoin: round;
+  stroke-opacity: 1;
 }
+.pass-card__plot .polar-plot .arc polyline { stroke-opacity: 0.6; stroke-linecap: butt; }
 .pass-card__plot .polar-plot .iss-dot {
   fill: #ffffff;
   stroke: #000;
@@ -1345,7 +1382,6 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .up-now__list { flex: 1; min-width: 140px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
 .up-now__item { display: flex; align-items: center; gap: 8px; }
 .up-now__swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-.up-now__none { flex: 1; min-width: 140px; margin: 0; color: var(--map-muted); font-size: 14px; }
 
 /* Inline note beside a pass reminder bell. */
 .alert-note { font-size: 12px; color: var(--map-muted); align-self: center; }
@@ -1436,10 +1472,6 @@ a.home-chip { display: inline-block; text-decoration: none; }
 @media (max-width: 380px) {
   .live-view__tune-mhz { font-size: 26px; }
 }
-/* Nothing up: heading and the one line share a row. */
-.up-now--empty { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
-.up-now--empty .up-now__title { margin: 0; }
-.up-now--empty .up-now__none { flex: 1 1 200px; min-width: 0; }
 
 /* Next 24 hours: a strip per satellite, one bar per pass. The SVG holds the
    night shading and stretches; bars are buttons and the labels are HTML,

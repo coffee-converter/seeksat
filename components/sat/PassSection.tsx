@@ -421,7 +421,7 @@ export default function PassSection({
                               <p className="sat-pass__line2">
                                 <span title={row.azLabel}>{`${row.durationLabel} · ${row.fromLabel} → ${row.toLabel}`}</span>
                                 {row.key === sharedKey && <span className="pass-card__tag">shared pass</span>}
-                                {row.visible && <span className="pass-card__tag">visible</span>}
+                                {!visual && row.visible && <span className="pass-card__tag">visible</span>}
                                 {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
                               </p>
                               {row.accuracy && <p className="sat-how">{row.accuracy}</p>}
@@ -444,8 +444,8 @@ export default function PassSection({
                                       title={`${track.name} pass`}
                                     />
                                   )}
-                                  <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
-                                    {"📅"}
+                                  <button type="button" className="home-chip" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
+                                    <span aria-hidden="true">{"📅"}</span> Calendar
                                   </button>
                                   {track && (
                                     <AlertBell

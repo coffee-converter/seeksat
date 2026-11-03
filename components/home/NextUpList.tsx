@@ -1,18 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
-import { elementTags, passMetaLabel } from "@/lib/home/view.mjs";
+import { elementTags, passMetaLabel, timeFormat } from "@/lib/home/view.mjs";
+import { bestPass, passWords, riseDopplerHz } from "@/lib/passes/pass-words.mjs";
+import { passQuality } from "@/lib/passes/quality.mjs";
+import { formatPassDuration } from "@/lib/passes/format.mjs";
+import { defaultDownlink } from "@/lib/catalog.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
 import { paintPassCard } from "@/lib/passes/card-chart.js";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
-import QualityBadge, { peakMagText, visualRating } from "@/components/passes/QualityBadge";
+import QualityBadge, { peakMagText, visualRating, type Quality } from "@/components/passes/QualityBadge";
 import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
@@ -40,9 +44,18 @@ export interface Pass {
   durationMs: number;
   maxElevDeg: number;
   startAzDeg: number | null;
+  peakAzDeg?: number | null;
   endAzDeg: number | null;
+  /** Elevation at the window's start and end (above 0 when the pass starts
+   *  or ends in Earth's shadow, or at the minimum elevation). */
+  startElevDeg?: number | null;
+  endElevDeg?: number | null;
   visible: boolean;
   inProgress: boolean;
+  runsPastEnd?: boolean;
+  /** Radio mode only: time above 10° and 30°. */
+  msAbove10?: number;
+  msAbove30?: number;
   /** Visual mode only: the brightest dark-sky magnitude (null when unknown)
    *  and the Sun altitudes the visual rating reads. */
   peakMag?: number | null;
@@ -66,6 +79,39 @@ const IDLE_PAINT_MS = 30_000;
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
+const wordsOf = passWords as (pass: Pass, o: {
+  timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string;
+}) => string;
+/** The cards' clock, with no-break spaces so "06:27 PM" never wraps apart. */
+const cardTime = (ms: number, timeZone?: string) =>
+  (timeFormat as (l: undefined, tz?: string) => Intl.DateTimeFormat)(undefined, timeZone).format(ms).replace(/\s/g, "\u00a0");
+const dopplerAt = riseDopplerHz as (track: Track, obs: HomeObserver, pass: Pass, hz: number) => number | null;
+const downlinkOf = defaultDownlink as (track: Track) => { hz: number } | null;
+const elevRating = passQuality as (pass: Pass) => Quality;
+type Best = { noradId: number; name: string; pass: Pass; rating: Quality };
+const bestOf = bestPass as unknown as (cards: Card[], o: { rate: (card: Card, pass: Pass) => Quality; nowMs: number; hours: number }) => Best | null;
+const duration = (ms: number) => (formatPassDuration as (s: number) => string)(ms / 1000);
+
+/** "4m10s above 10° · 1m30s above 30°" for a radio pass; a zero figure is left out. */
+function timeAboveText(pass: Pass): string | null {
+  const parts = [];
+  if (pass.msAbove10) parts.push(`${duration(pass.msAbove10)} above 10°`);
+  if (pass.msAbove30) parts.push(`${duration(pass.msAbove30)} above 30°`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+/** "437.800 MHz, +9.2 kHz at rise" for the satellite's default downlink (the
+ *  one the radio chart opens on). Null without a downlink, or for a pass
+ *  already up, whose start is now rather than its rise. */
+function riseDopplerText(track: Track, observer: HomeObserver, pass: Pass): string | null {
+  const link = downlinkOf(track);
+  if (!link || pass.inProgress) return null;
+  const hz = dopplerAt(track, observer, pass, link.hz);
+  if (hz == null) return null;
+  const khz = Math.abs(hz / 1000).toFixed(1);
+  const sign = hz < 0 && khz !== "0.0" ? "−" : "+";
+  return `${(link.hz / 1e6).toFixed(3)} MHz, ${sign}${khz} kHz at rise`;
+}
 
 /** Text that flashes when it changes, such as a countdown ticking down. */
 function FlashText({ value }: { value: string }) {
@@ -162,6 +208,9 @@ function PassCard({
   const visual = mode === "visual";
   const rating = visual ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) }) : undefined;
   const mag = visual ? peakMagText(pass) : null;
+  const words = wordsOf(pass, { timeZone: observer.tz, mode, minElevDeg, clock: cardTime });
+  const above = visual ? null : timeAboveText(pass);
+  const tune = useMemo(() => (visual ? null : riseDopplerText(track, observer, pass)), [visual, track, observer, pass]);
 
   // Paints with the clock of the render that changed paintKey.
   useEffect(() => {
@@ -190,6 +239,9 @@ function PassCard({
     downloadText(ics, icsFileName(track.shortName, observer.name, pass.startMs), "text/calendar");
   };
 
+  const skyButton = <button type="button" className="home-chip" onClick={onSkyChart}>Sky chart</button>;
+  const radioButton = <button type="button" className="home-chip" onClick={onRadioChart}>Radio chart</button>;
+
   return (
     <li className={`pass-card${focusClass(focus)}`} style={{ "--sat-color": color } as React.CSSProperties}>
       <div className="pass-card__plot" aria-hidden="true">
@@ -205,20 +257,25 @@ function PassCard({
           {passMetaLabel(pass, nowMs, { timeZone: observer.tz })}
           <QualityBadge pass={pass} rating={rating} />
           {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
-          {pass.visible && <span className="pass-card__tag">visible</span>}
+          {/* Every pass listed in visual mode is visible, so only radio says so. */}
+          {!visual && pass.visible && <span className="pass-card__tag">visible</span>}
+          {above && <span className="pass-card__fact">{above}</span>}
+          {tune && <span className="pass-card__fact">{tune}</span>}
           <ElementTags track={track} nowMs={nowMs} />
           <ViewingTag viewing={viewing} />
         </p>
+        <p className="pass-card__words">{words}</p>
         <div className="pass-card__actions">
           {liveOk(pass, nowMs) && <button type="button" className="home-chip home-chip--live" onClick={onLive}>Live</button>}
-          <button type="button" className="home-chip" onClick={onSkyChart}>Sky chart</button>
+          {/* The chart for the mode leads; the other waits under More. */}
+          {visual ? skyButton : radioButton}
           {track.record?.source !== "pasted" && (
             <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
           )}
           <MoreToggle id={`card-more-${card.noradId}`} open={moreOpen} onToggle={onToggleMore} label={`the ${card.name} pass`}>
-            <button type="button" className="home-chip" onClick={onRadioChart}>Radio chart</button>
-            <button type="button" className="home-chip" aria-label="Add to calendar" title="Add to calendar" onClick={addToCalendar}>
-              📅
+            {visual ? radioButton : skyButton}
+            <button type="button" className="home-chip" title="Add to calendar" onClick={addToCalendar}>
+              <span aria-hidden="true">📅</span> Calendar
             </button>
             <AlertBell noradId={card.noradId} name={track.shortName} pass={pass} url={() => `/sat/${card.noradId}`} />
             <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
@@ -310,7 +367,18 @@ export default function NextUpList({
     return next;
   });
 
+  // The day's best pass among the followed ones, rated as their cards are.
+  const rate = (_card: Card, pass: Pass): Quality => (mode === "visual"
+    ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) })
+    : elevRating(pass));
+  const best = bestOf(followedCards, { rate, nowMs, hours: 24 });
+  const bestTrack = best ? tracks.get(best.noradId) : undefined;
+
   return (
+    <>
+    {best && bestTrack && (
+      <BestPassLine best={best} visual={mode === "visual"} track={bestTrack} observer={observer} nowMs={nowMs} onOpen={(e) => open("sky", bestTrack, best.pass, e)} />
+    )}
     <section className="next-up" aria-labelledby="next-up-title">
       <h2 id="next-up-title" className="home-heading">Next up</h2>
       <ul className="next-up__list">
@@ -362,5 +430,37 @@ export default function NextUpList({
         })}
       </ul>
     </section>
+    </>
+  );
+}
+
+/** "09:41 PM", or "Tue 09:41 PM" on another day than today, in the cards' clock. */
+function dayTime(ms: number, nowMs: number, timeZone?: string): string {
+  const time = cardTime(ms, timeZone);
+  const dayKey = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone });
+  if (dayKey.format(ms) === dayKey.format(nowMs)) return time;
+  return `${new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone }).format(ms)} ${time}`;
+}
+
+/** "Best in the next 24 hours: ISS 09:41 PM, Good, max 64°": a button that
+ *  opens that pass's sky chart. Shown only when it is not the soonest pass. */
+function BestPassLine({ best, visual, track, observer, nowMs, onOpen }: {
+  best: Best;
+  visual: boolean;
+  track: Track;
+  observer: HomeObserver;
+  nowMs: number;
+  onOpen: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  const { pass, rating } = best;
+  return (
+    <button type="button" className="best-pass" onClick={onOpen}>
+      <span className="best-pass__label">Best in the next 24 hours:</span>{" "}
+      <span className="best-pass__what">
+        {`${track.shortName ?? best.name} ${dayTime(pass.startMs, nowMs, observer.tz)}, `}
+        <QualityBadge pass={pass} rating={visual ? rating : undefined} />
+        {`, max ${Math.round(pass.maxElevDeg)}°`}
+      </span>
+    </button>
   );
 }

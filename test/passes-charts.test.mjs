@@ -5,7 +5,7 @@ import { findPasses } from '../lib/passes/engine.mjs';
 import { radioSeries, radioCsvText, chartStepMs, csvStepMs, passFileName } from '../lib/passes/charts.js';
 import { paintPassCard } from '../lib/passes/card-chart.js';
 import { SVG_NS, newSvgRoot } from '../lib/og/dom.mjs';
-import { chartPalette } from '../lib/pass-finder/sky-helpers.js';
+import { skyShadeForSunAlt } from '../lib/pass-finder/sky-helpers.js';
 import { sunAltitudeDeg } from '../lib/pass-finder/visibility.js';
 import { apparentAltDeg } from '../lib/refraction.js';
 import { CATALOG } from '../lib/catalog.mjs';
@@ -79,12 +79,11 @@ function cardSkeleton() {
 test('paintPassCard fills the arc, markers and horizon, and hides the dot outside the pass', () => {
   const svg = cardSkeleton();
   paintPassCard(svg, { track: ISS, obs: EN52VE, win: firstIssPass, nowMs: firstIssPass.startMs - 3_600_000 });
-  // renderArcSegments draws the arc as line and polyline segments, in the
-  // sky-adapted stroke for the sun at the pass peak (the engine's peak).
+  // renderArcSegments draws the arc as line and polyline segments, in
+  // currentColor, so the card's stylesheet gives it the satellite's colour.
   const segs = [...svg.querySelector('.arc').querySelectorAll('line, polyline')];
   assert.ok(segs.length > 0);
-  const stroke = chartPalette(apparentAltDeg(sunAltitudeDeg(EN52VE, new Date(firstIssPeakMs)))).arc;
-  for (const seg of segs) assert.equal(seg.getAttribute('stroke'), stroke);
+  for (const seg of segs) assert.equal(seg.getAttribute('stroke'), 'currentColor');
   // This daylight pass is not naked-eye visible, so it draws dashed.
   const dashed = segs.filter((seg) => seg.tagName.toLowerCase() === 'polyline');
   assert.ok(dashed.length > 0);
@@ -98,20 +97,22 @@ test('paintPassCard fills the arc, markers and horizon, and hides the dot outsid
       .map((pt) => pt.split(',').map(Number));
     assert.ok(Math.abs(x1 - x0 - 2.8) < 0.02 && Math.abs(y1 - y0 - 2.8) < 0.02);
   }
-  assert.ok(svg.querySelector('.horizon').style.fill);
+  // The sky shade for the sun at the pass peak (the engine's peak) goes out
+  // as a custom property; the stylesheet decides whether the theme uses it.
+  const shade = skyShadeForSunAlt(apparentAltDeg(sunAltitudeDeg(EN52VE, new Date(firstIssPeakMs))));
+  assert.equal(svg.style.getPropertyValue('--sky-shade'), shade);
   assert.ok(svg.querySelector('.bodies').children.length > 0);
   assert.equal(svg.querySelector('.iss-dot').style.display, 'none');
 });
 test('paintPassCard uses the pass peakMs it is given instead of recomputing it', () => {
   // A peak 12 h away puts the sun on the other side of the planet, so the
-  // arc stroke shows which peak the painter used.
+  // sky shade shows which peak the painter used.
   const givenPeakMs = firstIssPeakMs + 12 * 3_600_000;
-  const strokeAt = (ms) => chartPalette(apparentAltDeg(sunAltitudeDeg(EN52VE, new Date(ms)))).arc;
-  assert.notEqual(strokeAt(givenPeakMs), strokeAt(firstIssPeakMs));
+  const shadeAt = (ms) => skyShadeForSunAlt(apparentAltDeg(sunAltitudeDeg(EN52VE, new Date(ms))));
+  assert.notEqual(shadeAt(givenPeakMs), shadeAt(firstIssPeakMs));
   const svg = cardSkeleton();
   paintPassCard(svg, { track: ISS, obs: EN52VE, win: { ...firstIssPass, peakMs: givenPeakMs }, nowMs: firstIssPass.startMs });
-  const seg = svg.querySelector('.arc').querySelector('line, polyline');
-  assert.equal(seg.getAttribute('stroke'), strokeAt(givenPeakMs));
+  assert.equal(svg.style.getPropertyValue('--sky-shade'), shadeAt(givenPeakMs));
 });
 test('paintPassCard shows the dot while the satellite is up', () => {
   const svg = cardSkeleton();

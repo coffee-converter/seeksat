@@ -22,7 +22,7 @@ const canRemind = canRemindFn as (p: { startMs: number }, nowMs: number) => bool
 const add = addAlert as (l: PassAlert[], a: PassAlert) => PassAlert[];
 const remove = removeAlert as (l: PassAlert[], id: string) => PassAlert[];
 
-/** A 🔔 chip: remind me 10 minutes before this pass, while SeekSat is open. */
+/** A "🔔 Remind me" chip, pressed while set: remind me 10 minutes before this pass, while SeekSat is open. */
 export default function AlertBell({ noradId, name, pass, url }: Props) {
   const id = `${noradId}:${pass.startMs}`;
   const [on, setOn] = useState(false);
@@ -74,11 +74,10 @@ export default function AlertBell({ noradId, name, pass, url }: Props) {
         type="button"
         className={on ? "home-chip home-chip--on" : "home-chip"}
         aria-pressed={on}
-        aria-label={on ? "Cancel reminder" : "Remind me before this pass"}
         title={on ? "Cancel reminder" : `Reminder ${DEFAULT_LEAD_MIN} min before`}
         onClick={toggle}
       >
-        {"🔔"}
+        <span aria-hidden="true">{"🔔"}</span> Remind me
       </button>
       {note && <span className="alert-note" role="status">{note}</span>}
     </>

@@ -6,7 +6,7 @@
    selected toggles. <html data-theme> is set before first paint
    (lib/ui/theme.mjs); :root alone means dark. The chart modals and polar
    plots keep literal dark colours (the chart-block sections in the
-   stylesheets). The *-rgb tokens are channels for rgba(var(--x-rgb), alpha). */
+   stylesheets), except the pass cards' plots in light theme. The *-rgb tokens are channels for rgba(var(--x-rgb), alpha). */
 :root, :root[data-theme='dark'] {
   color-scheme: dark;
   --bg: #11151c;

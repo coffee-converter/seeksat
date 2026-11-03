@@ -356,7 +356,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return () => window.removeEventListener("online", reload);
   }, [fromCache, loadRecords]);
 
-  // The soonest pass, for the phone strip and the empty "Up now" line.
+  // The soonest pass, for the phone strip.
   const shownCards = cardsNow(cardState, cardKey) as Card[] | null;
   const nextSummary = nowMs != null ? summarize(shownCards, nowMs) : null;
 
@@ -467,7 +467,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           ) : observer && (
             <>
               {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
-                <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} next={nextSummary} />
+                <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} />
               )}
               {nowMs != null && prefs.following.length > 0 && shownCards && (
                 <Timeline
