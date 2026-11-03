@@ -1781,23 +1781,22 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .timeline__bar:hover::before { inset: 0; opacity: 1; }
 .timeline__bar:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; z-index: 1; }
 .timeline__axis { margin-top: 3px; align-items: start; }
-.timeline__ticks { grid-column: 2; position: relative; height: 26px; }
-/* Labels slide from left-aligned at the start to right-aligned at the end, so
-   none hangs past the strip. */
+.timeline__ticks { grid-column: 2; position: relative; height: 15px; }
+/* Each label is centred on its gridline; one right at either end is pinned
+   inward instead, so none hangs past the strip. */
 .timeline__tick {
   position: absolute;
   top: 0;
   left: calc(var(--x) * 100%);
-  transform: translateX(calc(var(--x) * -100%));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  transform: translateX(-50%);
   color: var(--map-muted);
   font-size: 11px;
   line-height: 1.25;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.timeline__tick--start { transform: none; }
+.timeline__tick--end { transform: translateX(-100%); }
 .timeline__day { color: var(--map-text); font-weight: 600; }
 .timeline__note { margin: 6px 0 0; color: var(--map-muted); font-size: 13px; }
 /* Under 600 px (a phone, or the side panel on a wide screen) the name sits

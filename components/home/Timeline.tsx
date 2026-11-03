@@ -32,6 +32,9 @@ const rowsOf = timelineRows as (cards: Card[], nowMs: number) => {
   leftOut: number;
 };
 const spanOf = barSpan as (pass: Pass, nowMs: number, hours: number) => Span | null;
+/** A tick this close to either end is pinned inward rather than centred, so
+ *  its label never hangs past the strip. */
+const EDGE = 0.03;
 const ticksOf = hourTicks as (nowMs: number, timeZone: string | undefined, o: { every: number; hours: number }) => Tick[];
 const nightOf = nightSpans as (observer: HomeObserver, nowMs: number, o: { hours: number }) => Span[];
 const qualityOf = passQuality as (pass: Pass) => Quality;
@@ -121,9 +124,12 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
       <div className="timeline__axis" aria-hidden="true">
         <div className="timeline__ticks">
           {ticks.map((t) => (
-            <span key={t.x} className="timeline__tick" style={{ "--x": t.x } as React.CSSProperties}>
+            <span
+              key={t.x}
+              className={`timeline__tick${t.dayLabel ? " timeline__day" : ""}${t.x < EDGE ? " timeline__tick--start" : t.x > 1 - EDGE ? " timeline__tick--end" : ""}`}
+              style={{ "--x": t.x } as React.CSSProperties}
+            >
               {t.label}
-              {t.dayLabel && <span className="timeline__day">{t.dayLabel}</span>}
             </span>
           ))}
         </div>

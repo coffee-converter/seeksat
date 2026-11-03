@@ -39,7 +39,8 @@ test("hourTicks follows the observer's zone", () => {
   assert.ok(Math.abs(tokyo[0].x - 2.5 / 24) < 1e-9);
   assert.equal(tokyo[0].dayLabel, null);
   const chi = hourTicks(NOW, 'America/Chicago', { locale: 'en-GB' });
-  assert.equal(chi[0].label, '00:00');
+  // Midnight is named by its day rather than a time.
+  assert.equal(chi[0].label, 'Mon');
   assert.equal(chi[0].dayLabel, 'Mon');
   assert.equal(chi.filter((t) => t.dayLabel).length, 1);
 });
@@ -59,7 +60,9 @@ test('hourTicks gives the same ticks for a non-Latin-digit locale', () => {
   const b = hourTicks(NOW, 'America/Chicago', { locale: 'ar-EG' });
   assert.equal(b.length, a.length);
   assert.deepEqual(b.map((t) => t.x), a.map((t) => t.x));
-  assert.deepEqual(b.map((t) => t.label), a.map((t) => t.label));
+  // Hour labels match; the midnight tick names the weekday in the locale's own words.
+  assert.deepEqual(b.filter((t) => !t.dayLabel).map((t) => t.label), a.filter((t) => !t.dayLabel).map((t) => t.label));
+  assert.deepEqual(b.filter((t) => t.dayLabel).map((t) => t.label), b.filter((t) => t.dayLabel).map((t) => t.dayLabel));
 });
 
 test('hourTicks in Asia/Kolkata lands on whole local hours that are multiples of 3', () => {
@@ -77,7 +80,7 @@ test('hourTicks across a Chicago DST change keeps ticks on local multiples of 3'
   const now = Date.parse('2026-11-01T04:30:00Z'); // fall back at 07:00Z
   const ticks = hourTicks(now, 'America/Chicago', { locale: 'en-GB' });
   assert.ok(ticks.length >= 7);
-  assert.ok(ticks.every((t) => Number(t.label.slice(0, 2)) % 3 === 0));
+  assert.ok(ticks.filter((t) => !t.dayLabel).every((t) => Number(t.label.slice(0, 2)) % 3 === 0));
   assert.ok(ticks.every((t) => t.x >= 0 && t.x <= 1));
 });
 
@@ -101,10 +104,10 @@ test('clockLabel falls back to UTC for an unknown zone', () => {
   assert.equal(clockLabel(Date.parse('2026-11-02T03:07:00Z'), 'Not/AZone'), '03:07');
 });
 
-test('hourTicks labels follow the clock the cards use: "3 PM" for 12-hour locales', () => {
+test('hourTicks labels are short: "3p" for 12-hour locales, the weekday at midnight', () => {
   const tokyo = hourTicks(NOW, 'Asia/Tokyo', { locale: 'en-US' });
-  assert.equal(tokyo[0].label, '3 PM');
+  assert.equal(tokyo[0].label, '3p');
   const chi = hourTicks(NOW, 'America/Chicago', { locale: 'en-US' });
-  assert.deepEqual(chi.slice(0, 5).map((t) => t.label), ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM']);
+  assert.deepEqual(chi.slice(0, 5).map((t) => t.label), ['Mon', '3a', '6a', '9a', '12p']);
   assert.equal(hourTicks(NOW, 'America/Chicago', { locale: 'en-GB' })[1].label, '03:00');
 });
