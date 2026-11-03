@@ -97,8 +97,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const onSkyTypeChange = useCallback((skyType: string) => setPrefs({ skyType }), [setPrefs]);
   const leaveShared = () => {
     setShared(null);
-    // Same page, new URL: keep the entry's state so its list origin survives.
-    window.history.replaceState(window.history.state, "", satPath(data.noradId) as string);
+    // Through the router, so its tree and usePathname move off the share URL
+    // too. Share pages are never marked from the list, so no origin is lost.
+    router.replace(satPath(data.noradId) as string);
   };
 
   // First render matches the server HTML; the clock starts after mount.
@@ -138,6 +139,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const focusId = data.noradId;
   // The list hands its origin over through the module flag; this page's own
   // history entry then carries it, so Back and Forward keep it.
+  // A later Next replace with preserveCustomHistoryState false (router.refresh, server actions) would drop seeksatFromList.
   useEffect(() => {
     if (!fromList()) return;
     window.history.replaceState({ ...window.history.state, seeksatFromList: true }, "", window.location.href);
