@@ -174,7 +174,10 @@ async function networkFirst(event, isPage) {
     // would answer offline for an hour, unmarked. Ask the network for data;
     // pages keep their own navigation request.
     const res = await (isPage ? fetch(request) : fetch(request, { cache: 'no-cache' }));
-    if (saveable(res)) event.waitUntil(put(request, res.clone(), isPage).catch(() => {}));
+    // An /api/sats answer marked no-store holds ids the server could not
+    // look up just then; keep the last good copy for offline instead.
+    const noStore = !isPage && /no-store/.test(res.headers.get('cache-control') ?? '');
+    if (saveable(res) && !noStore) event.waitUntil(put(request, res.clone(), isPage).catch(() => {}));
     return res;
   } catch (err) {
     const cache = await caches.open(cacheFor(request.url, isPage));

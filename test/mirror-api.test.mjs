@@ -11,6 +11,7 @@ function stub({ records = {}, ready = true, results = [], generatedAtMs = 1000, 
   return {
     calls,
     ready: async () => { if (throws) throw new Error('boom'); return ready; },
+    getSnapshotRecord: async (id) => { calls.push(id); if (throws) throw new Error('boom'); return records[id] ?? null; },
     getRecord: async (id) => { calls.push(id); if (throws) throw new Error('boom'); return records[id] ?? null; },
     search: async () => { if (throws) throw new Error('boom'); return results; },
     generatedAtMs: () => generatedAtMs,
@@ -55,12 +56,34 @@ test('known and unknown split into objects and missing', async () => {
   assert.equal(r.body.generatedAtMs, 1000);
 });
 
-test('an unknown (undefined) record is reported as missing, same as a miss', async () => {
+test('an unknown (undefined) record is reported as unknown, not missing, and not cached', async () => {
   const s = { ...stub({ records: { 25544: rec(25544) } }), getRecord: async (id) => (id === 25544 ? rec(25544) : undefined) };
   const r = await satsHandler(s, q({ ids: '25544,99999' }), NOW);
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.objects.map((o) => o.noradId), [25544]);
-  assert.deepEqual(r.body.missing, [99999]);
+  assert.deepEqual(r.body.missing, []);
+  assert.deepEqual(r.body.unknown, [99999]);
+  assert.equal(r.headers['Cache-Control'], 'no-store');
+});
+
+test('snapshot hits skip getRecord; misses are fetched one at a time, at most 3', async () => {
+  let active = 0, maxActive = 0;
+  const calls = [];
+  const s = {
+    ...stub({ records: { 1: rec(1) } }),
+    getRecord: async (id) => {
+      calls.push(id); active++; maxActive = Math.max(maxActive, active);
+      await new Promise((res) => setTimeout(res, 1));
+      active--;
+      return null;
+    },
+  };
+  const r = await satsHandler(s, q({ ids: '1,2,3,4,5,6' }), NOW);
+  assert.deepEqual(calls, [2, 3, 4]);
+  assert.equal(maxActive, 1);
+  assert.deepEqual(r.body.objects.map((o) => o.noradId), [1]);
+  assert.deepEqual(r.body.missing, [2, 3, 4]);
+  assert.deepEqual(r.body.unknown, [5, 6]);
 });
 
 test('6-digit object is returned without line1', async () => {
