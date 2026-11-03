@@ -91,6 +91,8 @@
   --map-border: var(--border);
   /* Where the map meets the header and the drawer. */
   --map-edge: var(--border);
+  /* The lat/lon values on the map's edges. */
+  --map-grid-label: var(--muted);
   --map-panel: var(--chip-bg);
 }
 /* Light: cool grey paper with white cards. Tokens not listed here fall back
@@ -157,6 +159,7 @@
   --map-land: #ebe9e1;
   /* A shade firmer than --border: the light land and panels are close in tone. */
   --map-edge: #c3ccd8;
+  --map-grid-label: #343d4b;
   --map-space: #b4bfcf;
   --map-night: rgba(20, 30, 60, 0.1);
   --map-footprint: rgba(44, 90, 153, 0.14);
