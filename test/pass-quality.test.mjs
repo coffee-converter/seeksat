@@ -10,9 +10,9 @@ test('passQuality rates by max elevation', () => {
   assert.equal(level(20), 'ok');
   assert.equal(level(19.9), 'low');
   assert.equal(level(NaN), 'low');
-  assert.deepEqual(passQuality({ maxElevDeg: 60 }), { level: 'good', label: 'Good', bars: 5, reason: 'High pass, well clear of the horizon.' });
-  assert.deepEqual(passQuality({ maxElevDeg: 30 }), { level: 'ok', label: 'OK', bars: 3, reason: 'Medium pass.' });
-  assert.deepEqual(passQuality({ maxElevDeg: 12 }), { level: 'low', label: 'Low', bars: 2, reason: 'Low pass, close to the horizon.' });
+  assert.deepEqual(passQuality({ maxElevDeg: 60 }), { level: 'good', label: 'Excellent', bars: 5, reason: 'High pass, well clear of the horizon.' });
+  assert.deepEqual(passQuality({ maxElevDeg: 30 }), { level: 'ok', label: 'Good', bars: 3, reason: 'Medium pass.' });
+  assert.deepEqual(passQuality({ maxElevDeg: 12 }), { level: 'low', label: 'Fair', bars: 2, reason: 'Low pass, close to the horizon.' });
 });
 
 test('passQuality gives 1 to 5 bars by max elevation, inside its level', () => {
@@ -27,4 +27,9 @@ test('passQuality gives 1 to 5 bars by max elevation, inside its level', () => {
   assert.equal(bars(59.9), 4);
   assert.equal(bars(60), 5);
   assert.equal(bars(NaN), 1);
+});
+
+test('each bar count has its own word', () => {
+  const word = (maxElevDeg) => passQuality({ maxElevDeg }).label;
+  assert.deepEqual([5, 15, 30, 50, 70].map(word), ['Poor', 'Fair', 'Good', 'Great', 'Excellent']);
 });

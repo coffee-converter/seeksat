@@ -21,10 +21,16 @@ test('ratingShort: cloud, low elevation, Good', () => {
   const some = visualQuality({ peakMag: -3, peakMagSunAltDeg: -20 }, { cloud: { level: 'some' } });
   assert.equal(some.cause, 'some-cloud');
   assert.equal(ratingShort(some, {}, { mode: 'visual' }), null);
-  const faint = visualQuality({ peakMag: 3, peakMagSunAltDeg: -20 });
+  const faint = visualQuality({ peakMag: 3.5, peakMagSunAltDeg: -20 });
+  assert.equal(faint.label, 'Fair');
   assert.equal(ratingShort(faint, {}, { mode: 'visual' }), 'faint');
-  const twi = visualQuality({ maxElevDeg: 60, peakSunAltDeg: -3 });
+  const twi = visualQuality({ maxElevDeg: 25, peakSunAltDeg: -3 });
+  assert.equal(twi.label, 'Fair');
   assert.equal(ratingShort(twi, {}, { mode: 'visual' }), 'twilight');
+  // From Good (3 bars) up the badge is the word alone; the tooltip says why.
+  const good3 = visualQuality({ maxElevDeg: 60, peakSunAltDeg: -3 });
+  assert.equal(good3.label, 'Good');
+  assert.equal(ratingShort(good3, {}, { mode: 'visual' }), null);
   const low = passQuality({ maxElevDeg: 3.4 });
   // Radio cards already print the max elevation, so a radio badge is just Low.
   assert.equal(ratingShort(low, { maxElevDeg: 3.4 }, { mode: 'radio' }), null);
