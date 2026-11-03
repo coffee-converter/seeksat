@@ -1282,6 +1282,11 @@ a.home-chip { display: inline-block; text-decoration: none; }
   line-height: 1.4;
   color: var(--warn-text);
 }
+.map-shell__top .offline-banner--back {
+  background: rgba(var(--accent-rgb), 0.08);
+  border-color: rgba(var(--accent-rgb), 0.32);
+  color: var(--map-text);
+}
 /* HomeApp's "Satellite data is ... old." line, under the top bar and banner. */
 .map-shell__top .saved-age { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--map-muted); }
 .map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
