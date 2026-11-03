@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
 
 test('the view list is flat and globe, flat by default', () => {
-  assert.deepEqual(PROJECTIONS, [{ id: 'flat', label: 'Mercator' }, { id: 'globe', label: 'Globe' }]);
+  assert.deepEqual(PROJECTIONS, [{ id: 'globe', label: 'Globe' }, { id: 'flat', label: 'Mercator' }]);
   assert.equal(DEFAULT_PROJECTION, 'flat');
 });
 
