@@ -93,7 +93,11 @@ p.sat-how { margin: 0 0 8px; }
 .sat-bar__when { flex: 0 0 auto; color: var(--map-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Under 1100 the window scrolls: sit under what the header keeps pinned
    (measured by HeaderPinned; the fallback is the usual header). */
-@media (max-width: 1099.98px) { .sat-bar { --sat-bar-top: var(--header-pinned, 56px); } }
+@media (max-width: 1099.98px) {
+  .sat-bar { --sat-bar-top: var(--header-pinned, 56px); }
+  /* The focus bar's Details scrolls here: stop below the pinned header. */
+  .sat-top { scroll-margin-top: var(--header-pinned, 56px); }
+}
 @media (max-width: 699.98px) { .sat-bar__in { left: -16px; right: -16px; } }
 /* Docked: the panel scrolls, and sticky measures inside its 18px top padding. */
 @media (min-width: 1100px) { .sat-bar { --sat-bar-top: -18px; } .sat-bar__in { left: -16px; right: -16px; } }

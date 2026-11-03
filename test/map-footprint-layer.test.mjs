@@ -11,6 +11,12 @@ test('the cap draws on a full globe only', () => {
   assert.equal(drawsGlobeCap({ view: 'flat', zoom: 2 }), false);
 });
 
+test("the cap draws in Satellite's view at any zoom (vertical-perspective stays a sphere)", () => {
+  assert.equal(drawsGlobeCap({ view: 'satview', zoom: 2 }), true);
+  assert.equal(drawsGlobeCap({ view: 'satview', zoom: 14 }), true);
+  assert.equal(drawsGlobeCap({ view: 'satview', zoom: 2, failed: true }), false);
+});
+
 test('a layer that failed to compile hands the fill back to GeoJSON', () => {
   assert.equal(drawsGlobeCap({ view: 'globe', zoom: 2, failed: true }), false);
 });

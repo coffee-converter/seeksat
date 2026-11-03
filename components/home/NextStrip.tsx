@@ -11,7 +11,8 @@ export interface NextSummary {
 /**
  * The soonest pass, above the map on phones, where the Next up list is a
  * long scroll away. Hidden once the panel sits beside the map (1100 px).
- * A tap focuses that satellite and brings its card into view.
+ * A tap focuses that satellite: a catalog one opens its page, and a pasted
+ * one stays on home with its card brought into view.
  */
 export default function NextStrip({ summary, rating, cloud = null, onFocus }: {
   summary: NextSummary | null;
@@ -19,11 +20,12 @@ export default function NextStrip({ summary, rating, cloud = null, onFocus }: {
   rating?: Quality;
   /** Visual mode: the pass's cloud badge, which carries any cloud reason. */
   cloud?: CloudBadge | null;
-  onFocus: (noradId: number) => void;
+  /** True when it navigated to the satellite's page (then home's list is not scrolled). */
+  onFocus: (noradId: number) => boolean;
 }) {
   if (!summary) return null;
   const go = () => {
-    onFocus(summary.noradId);
+    if (onFocus(summary.noradId)) return;
     document.getElementById("next-up-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   return (

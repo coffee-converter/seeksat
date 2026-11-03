@@ -27,8 +27,11 @@ function reducedMotion() {
 // Above the map while one satellite is focused.
 export default function FocusBar({ name, followed, blocked, onToggleFollow, mode, onClose, total = 0, onShowAll }: Props) {
   const text = textOf(name, followed, total);
-  const locked = useFollow((s) => s.following);
+  const following = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
+  // Satellite's view always follows: the lock shows on and cannot be turned off.
+  const satview = useFollow((s) => s.satview);
+  const locked = following || satview;
   return (
     <div className="focus-bar" role="region" aria-label="Focused satellite">
       <p className="focus-bar__title">{text.title}</p>
@@ -47,7 +50,9 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
               type="button"
               className={`home-chip${locked ? " home-chip--on" : ""}`}
               aria-pressed={locked}
-              onClick={() => setFollowing(!locked)}
+              disabled={satview}
+              title={satview ? "Satellite's view always follows" : undefined}
+              onClick={() => setFollowing(!following)}
             >
               {locked ? text.lock.on : text.lock.off}
             </button>

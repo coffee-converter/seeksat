@@ -337,7 +337,8 @@ export default function FlatMap({
       const width = el.clientWidth || 1;
       const height = el.clientHeight || 1;
       const floor = home("globe", { observer: { name: "", latDeg: f.latDeg, lonDeg: f.lonDeg }, focus: null, width, height }).zoom;
-      cam.zoom = Math.min(map.getMaxZoom(), Math.max(floor, satviewZoom(f.altKm, f.latDeg, height)));
+      // The shorter side, so a tall narrow frame keeps the cap's sides in.
+      cam.zoom = Math.min(map.getMaxZoom(), Math.max(floor, satviewZoom(f.altKm, f.latDeg, Math.min(width, height))));
     }
     map.jumpTo(cam);
     return true;
@@ -640,6 +641,12 @@ export default function FlatMap({
       if (fallback) document.body.style.overflow = "";
     };
   }, [full]);
+
+  // The focus bar reads whether Satellite's view (which always follows) is shown.
+  useEffect(() => {
+    useFollow.getState().setSatview(view === "satview");
+    return () => useFollow.getState().setSatview(false);
+  }, [view]);
 
   // A new view starts from its home camera. Satellite's view puts the camera
   // on the satellite; leaving it keeps the camera where it is.

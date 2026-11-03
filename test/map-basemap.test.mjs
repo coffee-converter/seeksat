@@ -146,11 +146,11 @@ test('Satellite\'s view uses the vertical-perspective projection', () => {
 });
 
 // A thin atmosphere at the edge of the Earth on the globe views, so the globe
-// stands apart from the space behind it; none on the flat map.
-test('the globe views carry a faint atmosphere and the flat map none', () => {
-  for (const view of ['globe', 'satview']) {
-    const sky = basemapStyle('dark', view).sky;
-    assert.ok(sky && sky['atmosphere-blend'] !== undefined, view);
-  }
-  assert.equal(basemapStyle('dark', 'flat').sky, undefined);
+// stands apart from the space behind it. Every view carries the same sky, so
+// switching from flat to a globe view (setProjection only) keeps it.
+test('every view carries the same faint atmosphere', () => {
+  const flat = basemapStyle('dark', 'flat').sky;
+  assert.ok(flat && flat['atmosphere-blend'] !== undefined);
+  for (const view of ['globe', 'satview']) assert.deepEqual(basemapStyle('dark', view).sky, flat, view);
+  assert.deepEqual(basemapStyle('light', 'flat').sky, flat);
 });

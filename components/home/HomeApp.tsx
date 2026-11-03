@@ -180,25 +180,27 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // clearing steps back over the entry we pushed (else replaces), so Back
   // always leaves focus.
   const router = useRouter();
-  const focusOn = useCallback((id: number | null) => {
+  // True when it opened a satellite page, so callers skip scrolling home's list.
+  const focusOn = useCallback((id: number | null): boolean => {
     const dest = id != null ? destinationOf(id) : null;
     if (dest) {
       markFromList();
       router.push(dest);
-      return;
+      return true;
     }
     const pushed = pushedHere();
     const method = focusNavMethod(useHomeStore.getState().focusId, id, pushed) as "push" | "replace" | "back" | null;
-    if (!method) return;
+    if (!method) return false;
     useHomeStore.getState().setFocusId(id);
     if (method === "back") {
       window.history.back();
-      return;
+      return false;
     }
     const href = focusHref(window.location.pathname, window.location.search, id) as string;
     // A fresh object (no Next internals): Next copies its own state across.
     if (method === "push") window.history.pushState({ [PUSHED_KEY]: true }, "", href);
     else window.history.replaceState({ [PUSHED_KEY]: id != null && pushed }, "", href);
+    return false;
   }, [router]);
   // A focus that is not followed (from search, or a shared link) needs its record.
   useEffect(() => {
