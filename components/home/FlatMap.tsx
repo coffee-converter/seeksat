@@ -8,6 +8,7 @@ import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
+import { gridCovers, viewGrid } from "@/lib/map/grid.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
 import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -416,6 +417,17 @@ export default function FlatMap({
   // when told (and on every camera move), so it lands in the same frame as a
   // follow jump; a GeoJSON source re-tiles in the worker and lands later.
   const focusMark = useRef<FocusMark | null>(null);
+  // The lat/lon lines finer than the static grid, and the line labels, built
+  // over an area around the view; rebuilt once the view leaves it or wants
+  // other steps. Cheap to check, so on every move (Lock on moves each frame).
+  const gridBuilt = useRef<ReturnType<typeof viewGrid> | null>(null);
+  const syncGrid = useCallback((map: MlMap, force = false) => {
+    const b = map.getBounds();
+    const v = { west: b.getWest(), east: b.getEast(), south: b.getSouth(), north: b.getNorth(), zoom: map.getZoom() };
+    if (!force && gridCovers(gridBuilt.current, v)) return;
+    gridBuilt.current = viewGrid(v);
+    setOverlayData(map, { "ss-grid-view": gridBuilt.current.data });
+  }, []);
   // A pending leave from a tap on the focused dot; a double-click cancels it.
   const leaveTimer = useRef<number | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
@@ -637,6 +649,7 @@ export default function FlatMap({
           custom: capLayer.current ? [capLayer.current] : [],
         });
         map.setProjection({ type: PROJECTION_OF[latest.current.view] });
+        syncGrid(map, true);
         fillHidden.current = false;
         syncFill();
         limitZoom(map);
@@ -782,6 +795,7 @@ export default function FlatMap({
       map.on("zoom", syncFill);
       // Zooming changes which tracks are too short for direction marks.
       map.on("moveend", () => {
+        if (styleReady.current) syncGrid(map);
         if (!selfJump.current) push();
       });
       // MapLibre follows its container; an untouched home view refits to it.
