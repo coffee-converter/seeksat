@@ -145,12 +145,10 @@ test('Satellite\'s view uses the vertical-perspective projection', () => {
   assert.deepEqual(basemapStyle('dark', 'satview').projection, { type: 'vertical-perspective' });
 });
 
-// A thin atmosphere at the edge of the Earth on the globe views, so the globe
-// stands apart from the space behind it. Every view carries the same sky, so
-// switching from flat to a globe view (setProjection only) keeps it.
-test('every view carries the same faint atmosphere', () => {
-  const flat = basemapStyle('dark', 'flat').sky;
-  assert.ok(flat && flat['atmosphere-blend'] !== undefined);
-  for (const view of ['globe', 'satview']) assert.deepEqual(basemapStyle('dark', view).sky, flat, view);
-  assert.deepEqual(basemapStyle('light', 'flat').sky, flat);
+// No atmosphere: MapLibre lights it from a fixed screen direction, not the
+// Sun, so it would contradict the night shading.
+test('no view draws a sky or atmosphere', () => {
+  for (const theme of ['dark', 'light']) {
+    for (const view of ['flat', 'globe', 'satview']) assert.equal(basemapStyle(theme, view).sky, undefined, `${theme} ${view}`);
+  }
 });
