@@ -52,7 +52,7 @@ export interface SelectedSub {
 interface Props {
   sats: MapSat[];
   observer: MapObserver | null;
-  /** 'flat' or 'globe' (lib/map/view.mjs). */
+  /** 'flat', 'globe' or 'satview' (lib/map/view.mjs). */
   projectionId: string;
   onProjectionChange: (id: string) => void;
   /** The focused satellite. Entering a focus pans to centre it. */
@@ -73,12 +73,14 @@ interface Props {
 
 export type FlatMapProps = Props;
 
-type View = "flat" | "globe";
+type View = "flat" | "globe" | "satview";
+/** The MapLibre projection each view draws with (as basemapStyle names it). */
+const PROJECTION_OF = { flat: "mercator", globe: "globe", satview: "vertical-perspective" } as const;
 type LngLat = [number, number];
 type Camera = { center: LngLat; zoom: number };
 /** A camera move; no zoom keeps the current zoom. */
 type Move = { center: LngLat; zoom?: number };
-type Preset = "you" | "sat" | "north" | "south";
+type Preset = "you" | "sat" | "north" | "south" | "night";
 type LegendItem = { key: string; kind: string; label: string; color?: string };
 const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
 type SourceData = Record<string, unknown>;
@@ -118,7 +120,13 @@ const home = homeCamera as (
 ) => Camera;
 const preset = presetCamera as (
   p: Preset,
-  o: { observer: MapObserver | null; focus: { lonDeg: number; latDeg: number } | null; width: number; height: number },
+  o: {
+    observer: MapObserver | null;
+    focus: { lonDeg: number; latDeg: number } | null;
+    width: number;
+    height: number;
+    date?: Date;
+  },
 ) => { center: LngLat; zoom: number } | null;
 const homeCentresFocus = homeCentresFocusOf as (
   view: View,
@@ -136,7 +144,7 @@ const makeFootprintLayer = createFootprintLayer as (o: { onFail?: () => void }) 
 const capShown = drawsGlobeCap as (o: { view: View; zoom: number; failed?: boolean }) => boolean;
 const radiusFor = footprintRadiusDeg as (altKm: number, minElevDeg: number) => number;
 const footprintOf = footprintFeature as (sub: SelectedSub, altKm: number, minElevDeg: number) => GeoShape;
-const effectiveView = effectiveViewOf as (projection: string, hasFocus: boolean) => string;
+const effectiveView = effectiveViewOf as (projection: string, hasFocus: boolean) => View;
 const zoomForAltitude = zoomForAltitudeOf as (altKm: number, heightPx: number) => number;
 /** The GeoJSON footprint fill, hidden while the globe layer draws it. */
 const FILL_LAYER = "ss-footprint-fill";
@@ -159,11 +167,11 @@ const PRESETS: { id: Preset; label: string }[] = [
   { id: "sat", label: "On the satellite" },
   { id: "north", label: "North pole" },
   { id: "south", label: "South pole" },
+  { id: "night", label: "Night side" },
 ];
 /** Zoom slack before the map counts as zoomed in past its home view. */
 const ZOOM_EPS = 0.01;
 
-const viewOf = (id: string): View => (id === "globe" ? "globe" : "flat");
 const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number }) => number;
 const easeZoom = easeZoomOf as (current: number, target: number) => number;
 const wrapLon = (d: number) => d - 360 * Math.round(d / 360);
@@ -211,7 +219,8 @@ export default function FlatMap({
   selectedSub = null,
   fill = false,
 }: Props) {
-  const view = viewOf(projectionId);
+  // Satellite's view needs a focused satellite on the map; without one it is the globe.
+  const view = effectiveView(projectionId, selectedId != null && sats.some((s) => s.noradId === selectedId && s.emphasis === "focus"));
   const glRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   // True between a style's load and the next setStyle: the overlay sources exist.
@@ -242,8 +251,8 @@ export default function FlatMap({
   const legendId = useId();
 
   // Latest props, read by map event handlers without re-binding them.
-  const latest = useRef({ sats, observer, view, projectionId, onSelect, selectedSub, minElevDeg });
-  latest.current = { sats, observer, view, projectionId, onSelect, selectedSub, minElevDeg };
+  const latest = useRef({ sats, observer, view, onSelect, selectedSub, minElevDeg });
+  latest.current = { sats, observer, view, onSelect, selectedSub, minElevDeg };
 
   /** The satellites as of now: props arrive about once a second, so each dot
    *  and the focus footprint move to trueNow(). A satellite the track cannot
@@ -314,10 +323,10 @@ export default function FlatMap({
    *  running ease (a preset's) to end. True when it jumped; its moveend pushes
    *  the overlays. */
   const followJump = useCallback((map: MlMap): boolean => {
-    const { sats: s, projectionId: p } = latest.current;
+    const { sats: s, view: v } = latest.current;
     const f = liveFocus(s);
     if (!f || map.isMoving()) return false;
-    const satview = effectiveView(p, true) === "satview";
+    const satview = v === "satview";
     if (!satview && !useFollow.getState().following) return false;
     const cam: Move = { center: [f.lonDeg, f.latDeg] };
     if (satview) {
@@ -364,13 +373,20 @@ export default function FlatMap({
   const syncGestures = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
+    // In Satellite's view the camera rides the satellite: no drag pan (rotate
+    // and pitch stay off in every view). Leaving it gives the drag back.
+    const satview = latest.current.view === "satview";
+    if (satview) map.dragPan.disable();
+    else map.dragPan.enable();
     // Stacked under the panel the page scrolls past the map, so the map wants
     // ctrl+wheel or two fingers; docked, full screen or zoomed in past the
-    // home view it takes plain gestures.
+    // home view it takes plain gestures. Satellite's view sets its own zoom,
+    // so it never counts as zoomed in.
     const homeCam = homeView(map);
     const zoomedIn =
+      !satview &&
       discZoom(latest.current.view, map.getZoom(), map.getCenter().lat) >
-      discZoom(latest.current.view, homeCam.zoom, homeCam.center[1]) + ZOOM_EPS;
+        discZoom(latest.current.view, homeCam.zoom, homeCam.center[1]) + ZOOM_EPS;
     if (docked.current || fullRef.current || zoomedIn) map.cooperativeGestures.disable();
     else map.cooperativeGestures.enable();
   }, [homeView]);
@@ -456,6 +472,8 @@ export default function FlatMap({
       pushFootprint();
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
+      // The view may already be Satellite's view (a reload on a focused page).
+      syncGestures();
       const canvas = map.getCanvas();
       canvas.setAttribute("role", "img");
       canvas.setAttribute("aria-label", "Map of followed satellites");
@@ -486,7 +504,7 @@ export default function FlatMap({
           data,
           custom: capLayer.current ? [capLayer.current] : [],
         });
-        map.setProjection({ type: latest.current.view === "globe" ? "globe" : "mercator" });
+        map.setProjection({ type: PROJECTION_OF[latest.current.view] });
         fillHidden.current = false;
         syncFill();
         limitZoom(map);
@@ -613,23 +631,28 @@ export default function FlatMap({
     };
   }, [full]);
 
-  // A new view starts from its home camera.
+  // A new view starts from its home camera. Satellite's view puts the camera
+  // on the satellite; leaving it keeps the camera where it is.
   const shownView = useRef(view);
   useEffect(() => {
-    if (shownView.current === view) return;
+    const prev = shownView.current;
+    if (prev === view) return;
     shownView.current = view;
     setFollowing(false);
     const map = mapRef.current;
     if (!map) return;
     // Before the style loads, style.load applies the projection.
-    if (styleReady.current) map.setProjection({ type: view === "globe" ? "globe" : "mercator" });
-    atHome.current = true;
-    // The old view's floor could hold the new home view back.
+    if (styleReady.current) map.setProjection({ type: PROJECTION_OF[view] });
+    // The old view's floor could hold the new camera back.
     map.setMinZoom(null);
-    map.jumpTo(homeView(map));
+    const keep = prev === "satview" || view === "satview";
+    atHome.current = !keep;
+    if (!keep) map.jumpTo(homeView(map));
     limitZoom(map);
     syncFill();
-  }, [view, homeView, setFollowing, limitZoom, syncFill]);
+    syncGestures();
+    if (view === "satview") followJump(map);
+  }, [view, homeView, setFollowing, limitZoom, syncFill, syncGestures, followJump]);
 
   // An untouched home view follows the observer (it arrives after mount, once prefs load).
   const obsLon = observer?.lonDeg ?? null;
@@ -717,7 +740,13 @@ export default function FlatMap({
     const map = mapRef.current;
     if (!map) return;
     const el = map.getContainer();
-    const cam = preset(p, { observer, focus: focusNow, width: el.clientWidth || 1, height: el.clientHeight || 1 });
+    const cam = preset(p, {
+      observer,
+      focus: focusNow,
+      width: el.clientWidth || 1,
+      height: el.clientHeight || 1,
+      date: new Date(trueNow()),
+    });
     if (!cam) return;
     atHome.current = false;
     setFollowing(p === "sat");
@@ -736,7 +765,7 @@ export default function FlatMap({
       <select
         className="flat-map__menu"
         aria-label="Map view"
-        value={view}
+        value={projectionId}
         onChange={(e) => onProjectionChange(e.target.value)}
       >
         {PROJECTIONS.map((p: { id: string; label: string }) => (
@@ -780,7 +809,8 @@ export default function FlatMap({
         {chipRow}
       </div>
     ) : top}
-    <div className={`flat-map${view === "globe" ? " flat-map--globe" : ""}`}>
+    {/* Both spherical views show space around the Earth. */}
+    <div className={`flat-map${view !== "flat" ? " flat-map--globe" : ""}`}>
       {/* MapLibre owns this element and its children. */}
       <div className="flat-map__gl" ref={glRef} />
       {noMap ? (
