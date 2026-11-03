@@ -367,7 +367,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         </LiveNumbersFold>
       ) : (
         <>
-          <AgeLine age={age} source={data.source} fetchedText={fetchedText} />
+          <AgeLine age={age} source={data.source} fetchedText={fetchedText} accuracyLink={false} />
           <p className="home-note">These elements can&apos;t be used to compute a position.</p>
         </>
       )}

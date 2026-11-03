@@ -7,7 +7,8 @@
 //                   x-seeksat-cache: 1 so the page can say how old it is.
 //                   An unsaved / falls back to the saved home; any other
 //                   unsaved page gets a small "not saved" offline page.
-//                   Offline, a page with a query (a share link) falls back to the same page saved without it.
+//                   Offline, a page with a query (a share link) falls
+//                   back to the same page saved without it.
 //   cache-first   - /_next/static (content-hashed) and /assets.
 //   network-only  - search, OG images, MCP and the refresh cron: never saved,
 //                   and left to the browser like passthrough.

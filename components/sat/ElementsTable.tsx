@@ -6,7 +6,11 @@ import { isoUtc, type Elements } from "./LiveNumbers";
 type Age = { text: string; level: string };
 
 /** "Elements are 2.3 days old, from CelesTrak, fetched 5 min ago." with its badge. */
-export function AgeLine({ age, source, fetchedText }: { age: Age; source: string; fetchedText: string | null }) {
+export function AgeLine({ age, source, fetchedText, accuracyLink = true }: {
+  age: Age; source: string; fetchedText: string | null;
+  /** The link targets How we compute these, so pass false where that is not rendered. */
+  accuracyLink?: boolean;
+}) {
   return (
     <p className="home-note sat-age">
       {`${age.text}, from ${source}`}
@@ -15,7 +19,7 @@ export function AgeLine({ age, source, fetchedText }: { age: Age; source: string
       {age.level === "stale" ? (
         <span className="sat-badge sat-badge--stale">stale elements: positions may be far off</span>
       ) : null}
-      <a className="home-link sat-age__how" href="#how-accuracy">How accurate is this?</a>
+      {accuracyLink ? <a className="home-link sat-age__how" href="#how-accuracy">How accurate is this?</a> : null}
     </p>
   );
 }
