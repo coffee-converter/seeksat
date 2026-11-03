@@ -45,7 +45,7 @@ export default function LiveDial({ track, now, headingDeg }: Props) {
         {p && <circle cx={p[0]} cy={p[1]} r={6} className="live-dial__sat" />}
       </svg>
       <figcaption className="live-dial__caption">
-        {headingDeg != null ? "Compass view, turned to where your phone points" : "Compass view, north up"}
+        {headingDeg != null ? "Compass view (turned to where your phone points)" : "Compass view (north up)"}
       </figcaption>
     </figure>
   );

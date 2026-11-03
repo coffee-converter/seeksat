@@ -14,6 +14,8 @@ import { forwardRef } from "react";
 
 const INNER_R = 45;       // horizon circle radius (in viewBox units)
 const ALT_RING_DEGS = [60, 30];
+/** What the plot shows, as its accessible name and hover title. */
+export const POLAR_CAPTION = "Looking up (east on the left)";
 
 const PolarPlotSvg = forwardRef<SVGSVGElement, { obsId?: string }>(
   function PolarPlotSvg({ obsId }, ref) {
@@ -23,7 +25,10 @@ const PolarPlotSvg = forwardRef<SVGSVGElement, { obsId?: string }>(
         className="polar-plot"
         data-obs-id={obsId}
         viewBox="0 0 100 100"
+        role="img"
+        aria-label={POLAR_CAPTION}
       >
+        <title>{POLAR_CAPTION}</title>
         <circle className="horizon" cx={50} cy={50} r={INNER_R} />
         {ALT_RING_DEGS.map((altDeg) => (
           <circle

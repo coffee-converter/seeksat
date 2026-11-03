@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState, type ReactNode } from "react";
 import { dashboardValues, formatNumber } from "@/lib/sat/numbers.mjs";
 import { useFlash } from "@/lib/ui/use-flash";
 import StatTile from "./StatTile";
@@ -86,5 +87,30 @@ export default function DashboardTiles({
       ))}
       <VisVivaTile live={live} />
     </section>
+  );
+}
+
+const PHONE_QUERY = "(max-width: 599.98px)";
+
+/**
+ * The tiles under a "Live numbers" fold: closed by default on phones (under
+ * 600 px), always open wider, where the summary is hidden (app/sat.css).
+ * It starts closed, so a phone never flashes the tiles; wider, CSS shows
+ * the content before the effect opens it.
+ */
+export function LiveNumbersFold({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_QUERY);
+    const sync = () => setOpen(!mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return (
+    <details className="sat-live" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="sat-live__summary">Live numbers</summary>
+      {children}
+    </details>
   );
 }

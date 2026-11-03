@@ -800,6 +800,11 @@
   margin-bottom: 6px;
 }
 .polar-modal-actions .polar-modal-close { order: 99; }
+/* What the chart shows, at the toolbar's left: the sky seen looking up. */
+.polar-modal-caption {
+  margin: 0 auto 0 4px;
+  color: #cfe0ff; font-size: 12px; font-weight: 600;
+}
 .polar-modal-actions button,
 .radio-modal-actions button {
   background: transparent; border: 1px solid rgba(255,255,255,0.12);

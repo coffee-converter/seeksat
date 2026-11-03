@@ -8,7 +8,7 @@ import FocusBar from "@/components/home/FocusBar";
 import { SearchBar } from "@/components/home/SearchBar";
 import MapShell from "@/components/MapShell";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
-import DashboardTiles, { type NextPassTile } from "./LiveNumbers";
+import DashboardTiles, { LiveNumbersFold, type NextPassTile } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
 import HowWeCompute from "./HowWeCompute";
 import LiveClock from "@/components/LiveClock";
@@ -18,7 +18,8 @@ import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
 import ShareButton from "./ShareButton";
 import { shareUrl } from "@/lib/share/share-link.mjs";
-import PassSection, { type NextPassReport, type PassSettings } from "./PassSection";
+import PassSection, { type NextPassReport, type PassSectionHandle, type PassSettings } from "./PassSection";
+import NextPassLine from "./NextPassLine";
 import RawElements from "./RawElements";
 import { useHomeStore, type SatApiRecord } from "@/lib/home/store";
 import { focusHref, satPageLayers, showAllCount } from "@/lib/home/focus.mjs";
@@ -214,6 +215,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const focusFollowed = focusId != null && prefs.following.includes(focusId);
 
   const [nextPass, setNextPass] = useState<NextPassReport>(undefined);
+  const passes = useRef<PassSectionHandle>(null);
   const nextTile = tileOf(nextPass, {
     nowMs,
     located: Boolean(settings.observer),
@@ -298,6 +300,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
               )}
             </div>
             {!following && blocked ? <p className="home-note">{blocked}</p> : null}
+            <NextPassLine
+              report={nextPass}
+              nowMs={nowMs}
+              mode={settings.mode}
+              skyType={prefs.skyType}
+              clouds={clouds}
+              onChart={(kind, pass, e) => passes.current?.openChart(kind, pass, e)}
+            />
           </header>
 
           {shared ? (
@@ -310,9 +320,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           ) : null}
 
           {usable && liveNow && elementsNow ? (
-            <>
+            <LiveNumbersFold>
               <DashboardTiles live={liveNow} elements={elementsNow} nextPass={nextTile} />
-            </>
+            </LiveNumbersFold>
           ) : (
             <>
               <AgeLine age={age} source={data.source} fetchedText={fetchedText} />
@@ -321,6 +331,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
           )}
 
           <PassSection
+            ref={passes}
             track={usable ? track : null}
             record={data.record}
             epochMs={epochMs}

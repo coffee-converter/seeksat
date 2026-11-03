@@ -244,7 +244,7 @@ function PassCard({
 
   return (
     <li className={`pass-card${focusClass(focus)}`} style={{ "--sat-color": color } as React.CSSProperties}>
-      <div className="pass-card__plot" aria-hidden="true">
+      <div className="pass-card__plot">
         <PolarPlotSvg ref={svgRef} />
       </div>
       <div className="pass-card__body">

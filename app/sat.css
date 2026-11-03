@@ -68,6 +68,44 @@ p.sat-how { margin: 0 0 8px; }
 .sat-back { align-self: flex-start; display: inline-flex; align-items: center; font-size: 14px; text-decoration: none; }
 .sat-back:hover { text-decoration: underline; }
 
+/* The next pass, right under the title: when and where, the rating words,
+   and a chart button that follows the mode. */
+.sat-next {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin-top: 8px; padding: 8px 12px;
+  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: 10px;
+}
+.sat-next__text { flex: 1 1 14em; margin: 0; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.sat-next__label { color: var(--map-muted); }
+.sat-next__what { color: var(--text-strong); font-weight: 600; }
+.sat-next .quality,
+.sat-next .cloud { margin-left: 0; }
+
+/* "Live numbers": a fold on phones, closed by default. From 600 px the
+   summary goes and the tiles always show (::details-content covers the
+   moment before the effect opens it). */
+.sat-live__summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 40px; padding: 0 14px;
+  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: 10px;
+  color: var(--text-heading); font-size: 14px; font-weight: 600;
+  cursor: pointer; list-style: none;
+}
+.sat-live__summary::-webkit-details-marker { display: none; }
+.sat-live__summary::after {
+  content: ""; width: 7px; height: 7px; margin-right: 2px;
+  border-right: 2px solid var(--map-muted); border-bottom: 2px solid var(--map-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+.sat-live[open] > .sat-live__summary { margin-bottom: 8px; }
+.sat-live[open] > .sat-live__summary::after { transform: translateY(2px) rotate(-135deg); }
+.sat-live__summary:hover { background: var(--tile-hover); }
+.sat-live__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (min-width: 600px) {
+  .sat-live > .sat-live__summary { display: none; }
+  .sat-live::details-content { content-visibility: visible; }
+}
+
 /* The live tile grid: one instrument panel split by hairlines, not loose cards.
    2 columns under 480 px, 3 from 480, 4 from 720. */
 .sat-dash {
@@ -182,7 +220,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   }
   /* Keep only: title block, element age line, the pass list. */
   .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
-  .sat-top .sat-follow, .sat-top .home-button, .sat-back { display: none !important; }
+  .sat-top .sat-follow, .sat-top .home-button, .sat-top .sat-next, .sat-back { display: none !important; }
   .sat-top { margin-bottom: 6pt; }
   .sat-title { font-size: 16pt; margin: 0 0 2pt; }
   .sat-elements > *:not(.sat-age) { display: none !important; }

@@ -3,6 +3,7 @@
 import { useFocusTrap } from "./useFocusTrap";
 import { useEffect, useRef, useState } from "react";
 import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
+import { POLAR_CAPTION } from "./PolarPlotSvg";
 
 export interface ChartRenderResult {
   blobUrl: string;
@@ -145,6 +146,7 @@ export default function SkyChartModalView({
       <div className="polar-modal-backdrop" onClick={onClose} />
       <div className="polar-modal-content">
         <div className="polar-modal-actions">
+          <p className="polar-modal-caption">{POLAR_CAPTION}</p>
           <button
             ref={closeBtnRef}
             className="polar-modal-close"

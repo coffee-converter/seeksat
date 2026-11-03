@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { findPasses } from '../lib/passes/engine.mjs';
-import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay, isRowOpen, directionText } from '../lib/sat/pass-rows.mjs';
+import { passRows, compass, printAccuracyNote, zoneLabel, initialRowCount, dayHeading, groupRowsByDay, isRowOpen, directionText, nextPassText } from '../lib/sat/pass-rows.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -164,4 +164,30 @@ test('directionText names rise and set bearings', () => {
     directionText({ startAzDeg: 352, endAzDeg: 131 }),
     'Rises in the N at 352°, sets in the SE at 131°',
   );
+});
+
+test('nextPassText: day, start in the rows clock, and from-to bearings', () => {
+  const now = Date.parse('2026-11-02T03:00:00Z'); // 21:00 on 1 Nov in Chicago
+  const tz = 'America/Chicago';
+  const pass = (startIso, mins = 6) => {
+    const startMs = Date.parse(startIso);
+    return { startMs, endMs: startMs + mins * 60_000, startAzDeg: 225, endAzDeg: 135 };
+  };
+  assert.equal(nextPassText(pass('2026-11-02T03:41:00Z'), now, tz, 'en-GB'), 'Today 21:41, SW to SE');
+  assert.equal(nextPassText(pass('2026-11-02T10:12:00Z'), now, tz, 'en-GB'), 'Tomorrow 04:12, SW to SE');
+  assert.equal(nextPassText(pass('2026-11-03T18:00:00Z'), now, tz, 'en-GB'), 'Tue 3 Nov 12:00, SW to SE');
+});
+
+test('nextPassText: a pass already up says until when, and an ended one gives null', () => {
+  const tz = 'America/Chicago';
+  const startMs = Date.parse('2026-11-02T02:58:00Z');
+  const p = { startMs, endMs: startMs + 6 * 60_000, startAzDeg: 0, endAzDeg: 90 };
+  assert.equal(nextPassText(p, startMs + 60_000, tz, 'en-GB'), 'up now, until 21:04, N to E');
+  assert.equal(nextPassText(p, p.endMs, tz, 'en-GB'), null);
+});
+
+test('nextPassText falls back to UTC for a zone the runtime does not know', () => {
+  const startMs = Date.parse('2026-11-02T10:12:00Z');
+  const p = { startMs, endMs: startMs + 60_000, startAzDeg: 0, endAzDeg: 180 };
+  assert.equal(nextPassText(p, startMs - 3_600_000, 'Not/AZone', 'en-GB'), 'Today 10:12, N to S');
 });

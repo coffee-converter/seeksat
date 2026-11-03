@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import HomeControls from "@/components/home/HomeControls";
 import ExtraObservers from "@/components/sat/ExtraObservers";
@@ -34,7 +34,7 @@ export type NextPass = Pass & { peakMs?: number; maxElevDeg?: number };
 /** What the search found, for the "Next pass" tile. undefined while searching. */
 export type NextPassReport =
   | undefined
-  | { kind: "pass"; pass: NextPass }
+  | { kind: "pass"; pass: NextPass; timeZone?: string }
   | { kind: "none" }
   | { kind: "stationary"; visible: boolean }
   | { kind: "failed" }
@@ -61,6 +61,13 @@ type SharedHit = { kind: "row"; key: string } | { kind: "past"; text: string } |
 const sharedRowOf = findSharedRow as (
   rows: Row[], passTimeMs: number | null, nowMs: number, o: { timeZone?: string; locale?: string },
 ) => SharedHit;
+
+type ChartKind = "sky" | "radio" | "live";
+/** What the page reaches through PassSection's ref: the rows' chart opener,
+ *  so a line above the section opens the same modals. */
+export interface PassSectionHandle {
+  openChart: (kind: ChartKind, pass: NextPass, e: React.MouseEvent<HTMLButtonElement>) => void;
+}
 
 /** effectiveSettings(): the saved prefs, or a shared view laid over them. */
 export interface PassSettings {
@@ -103,11 +110,12 @@ interface Props {
   onNextPass?: (report: NextPassReport) => void;
   /** The cloud forecast for the location (from `useClouds`), badged on visual passes. */
   clouds?: Forecast | null;
+  ref?: React.Ref<PassSectionHandle>;
 }
 
 export default function PassSection({
   track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange, skyType, onSkyTypeChange,
-  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null,
+  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null, ref,
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
@@ -222,7 +230,7 @@ export default function PassSection({
     const r = result as { kind?: string; visible?: boolean; pointing?: unknown[] };
     if (r.kind === "unavailable") return { kind: "unavailable" };
     if (r.kind === "stationary") return r.pointing?.[0] ? { kind: "stationary", visible: Boolean(r.visible) } : { kind: "unavailable" };
-    return firstPass ? { kind: "pass", pass: firstPass } : { kind: "none" };
+    return firstPass ? { kind: "pass", pass: firstPass, timeZone: observer.tz } : { kind: "none" };
   }, [track, observer, failed, result, firstPass]);
   useEffect(() => { onNextPass?.(nextReport); }, [nextReport, onNextPass]);
 
@@ -268,17 +276,18 @@ export default function PassSection({
 
   // The subject is captured at open, so the clock never repaints an open chart.
   const [subject, setSubject] = useState<ChartSubject | null>(null);
-  const [chart, setChart] = useState<"sky" | "radio" | "live" | null>(null);
+  const [chart, setChart] = useState<ChartKind | null>(null);
   const [chartsLoaded, setChartsLoaded] = useState(false);
   const trigger = useRef<HTMLElement | null>(null);
 
-  const openChart = (kind: "sky" | "radio" | "live", pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
+  const openChart = (kind: ChartKind, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
     if (!observer) return;
     trigger.current = e.currentTarget;
     setChartsLoaded(true);
     setSubject({ track, obs: observer, pass, minElevDeg, jointWindow: joint ? { startMs: pass.startMs, endMs: pass.endMs } : null } as unknown as ChartSubject);
     setChart(kind);
   };
+  useImperativeHandle(ref, () => ({ openChart }));
   const onClose = useCallback(() => {
     setChart(null);
     trigger.current?.focus();
