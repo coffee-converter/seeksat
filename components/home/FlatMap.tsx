@@ -1317,7 +1317,10 @@ export default function FlatMap({
       <div className="flat-map__zoom">
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
-        <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
+        {/* On the globe, On you and On the satellite already do this. */}
+        {view === "globe" ? null : (
+          <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
+        )}
         <button
           type="button"
           aria-label={full ? "Exit full screen" : "Full screen"}
