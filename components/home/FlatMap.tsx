@@ -676,7 +676,16 @@ export default function FlatMap({
             className={`map-legend__swatch map-legend__swatch--${item.kind}`}
             style={item.color ? ({ "--swatch": item.color } as React.CSSProperties) : undefined}
             aria-hidden="true"
-          />
+          >
+            {/* The map's observer mark (lib/map/overlays.mjs observerImage):
+                a 5 px ring with 9 px crosshair arms, 2 px strokes. */}
+            {item.kind === "observer" && (
+              <svg viewBox="0 0 22 22" width="18" height="18">
+                <circle cx="11" cy="11" r="5" fill="none" stroke="currentColor" strokeWidth="2" />
+                <path d="M2 11h18M11 2v18" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            )}
+          </span>
           {item.label}
         </li>
       ))}

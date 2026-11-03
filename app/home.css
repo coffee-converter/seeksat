@@ -1246,21 +1246,31 @@
   font-size: 12px;
 }
 .map-legend li { display: flex; align-items: center; gap: 6px; }
+/* Every swatch fills the same 22 px slot, so the labels line up. */
 .map-legend__swatch {
   flex: none;
-  width: 18px;
+  width: 22px;
   height: 12px;
   box-sizing: border-box;
 }
-.map-legend__swatch--sat { width: 10px; height: 10px; margin: 0 4px; border-radius: 50%; background: var(--swatch, var(--map-accent)); }
-.map-legend__swatch--track { height: 2px; background: linear-gradient(90deg, var(--map-text) 0%, var(--map-text) 40%, transparent 100%); }
-.map-legend__swatch--footprint { border-radius: 50%; border: 1.5px dashed var(--map-accent); background: var(--map-footprint); }
-.map-legend__swatch--ghost { width: 6px; height: 6px; margin: 0 6px; border-radius: 50%; background: var(--map-text); opacity: 0.35; }
-.map-legend__swatch--night { background: var(--map-night); border: 1px solid var(--map-border); }
-.map-legend__swatch--observer {
-  width: 12px; height: 12px; margin: 0 3px;
-  border: 2px solid var(--map-accent); border-radius: 50%;
+.map-legend__swatch--sat { width: 10px; height: 10px; margin: 0 6px; border-radius: 50%; background: var(--swatch, var(--map-accent)); }
+/* As the map draws a track: dotted where it has been, then solid and fading. */
+.map-legend__swatch--track {
+  height: 2px;
+  background:
+    repeating-linear-gradient(90deg, var(--map-text) 0 2px, transparent 2px 4px) left / 40% 100% no-repeat,
+    linear-gradient(90deg, var(--map-text), transparent) right / 60% 100% no-repeat;
 }
+/* The focused satellite's circle: a thin solid edge and a faint fill, in its colour. */
+.map-legend__swatch--footprint {
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--swatch, var(--map-accent)) 70%, transparent);
+  background: color-mix(in srgb, var(--swatch, var(--map-accent)) 12%, transparent);
+}
+.map-legend__swatch--ghost { width: 6px; height: 6px; margin: 0 8px; border-radius: 50%; background: var(--map-text); opacity: 0.35; }
+.map-legend__swatch--night { background: var(--map-night); border: 1px solid var(--map-border); }
+.map-legend__swatch--observer { display: inline-flex; align-items: center; justify-content: center; height: 18px; color: var(--map-accent); }
+.map-legend__swatch--observer svg { display: block; }
 
 /* About section. */
 .home-about {

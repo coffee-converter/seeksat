@@ -58,3 +58,8 @@ test('at 0 degrees the circle line says above the horizon', () => {
   const items = legendItems({ sats: [iss], observer: null, minElevDeg: 0 });
   assert.equal(items.find((i) => i.kind === 'footprint').label, 'Circle: where ISS is above the horizon');
 });
+
+test('the circle swatch takes the focused satellite\'s colour, as the map draws it', () => {
+  const items = legendItems({ sats: [iss], observer: null, minElevDeg: 0 });
+  assert.equal(items.find((i) => i.kind === 'footprint').color, iss.color);
+});
