@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { markFromList } from "@/lib/home/list-origin.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import { elementTags } from "@/lib/home/view.mjs";
@@ -271,7 +272,7 @@ function PassCard({
           {/* The chart for the mode leads; the other waits under More. */}
           {visual ? skyButton : radioButton}
           {track.record?.source !== "pasted" && (
-            <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
+            <Link className="home-chip" href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
           )}
           <MoreToggle id={`card-more-${card.noradId}`} open={moreOpen} onToggle={onToggleMore} label={`the ${card.name} pass`}>
             {visual ? radioButton : skyButton}
@@ -431,7 +432,7 @@ export default function NextUpList({
                 <ViewingTag viewing={viewingOf(card.noradId)} />
               </p>
               {card.kind !== "missing" && track?.record?.source !== "pasted" && (
-                <Link className="home-chip" href={`/sat/${card.noradId}`} aria-label={`Details for ${card.name}`}>Details</Link>
+                <Link className="home-chip" href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
               )}
               <FollowChip viewing={viewingOf(card.noradId)} onUnfollow={() => onUnfollow(card.noradId)} />
             </li>
