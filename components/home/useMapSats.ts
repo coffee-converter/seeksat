@@ -80,6 +80,10 @@ export function useMapSats({
         color: colors.get(noradId) ?? SAT_PALETTES.dark[0],
         ...(ground.get(noradId) ?? NO_TRACK),
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
+        positionAt: (ms) => {
+          const e = t.ecefAt(new Date(ms));
+          return e ? subOf(e) : null;
+        },
         footprint: focus ? footprintOf(sub, sub.altKm, minElevDeg) : null,
         selected: focus,
         emphasis,

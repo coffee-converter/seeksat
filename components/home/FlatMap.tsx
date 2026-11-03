@@ -7,9 +7,11 @@ import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
-import { footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
+import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
-import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
+import { PROJECTIONS, MAX_ZOOM, effectiveView as effectiveViewOf, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf, zoomForAltitude as zoomForAltitudeOf } from "@/lib/map/view.mjs";
+import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { useFollow } from "@/lib/map/follow-store";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -24,6 +26,8 @@ export interface MapSat {
   trackFuture: GeoShape;
   trackTicks: { lonDeg: number; latDeg: number; minutes: number }[];
   position: { lonDeg: number; latDeg: number };
+  /** The sub-point at a time (ms), or null when the track cannot place it. */
+  positionAt(ms: number): SelectedSub | null;
   footprint: GeoShape | null;
   /** True for the focused satellite. */
   selected: boolean;
@@ -131,11 +135,16 @@ type FootprintLayer = CustomLayerInterface & {
 const makeFootprintLayer = createFootprintLayer as (o: { onFail?: () => void }) => FootprintLayer;
 const capShown = drawsGlobeCap as (o: { view: View; zoom: number; failed?: boolean }) => boolean;
 const radiusFor = footprintRadiusDeg as (altKm: number, minElevDeg: number) => number;
+const footprintOf = footprintFeature as (sub: SelectedSub, altKm: number, minElevDeg: number) => GeoShape;
+const effectiveView = effectiveViewOf as (projection: string, hasFocus: boolean) => string;
+const zoomForAltitude = zoomForAltitudeOf as (altKm: number, heightPx: number) => number;
 /** The GeoJSON footprint fill, hidden while the globe layer draws it. */
 const FILL_LAYER = "ss-footprint-fill";
 type Theme = "dark" | "light";
 
 const NIGHT_REFRESH_MS = 60_000;
+/** How often the dots, the focus footprint and a following camera move. */
+const DOT_MS = 200;
 /** Where MapShell docks the map beside the panel (keep in step with home.css). */
 const DOCKED_QUERY = "(min-width: 1100px)";
 /** A tap this close to a dot (in px, either axis) selects it. */
@@ -224,20 +233,42 @@ export default function FlatMap({
   const docked = useRef(false);
   // Entering a focus moves once to centre it (the effect near the end).
   const centreOn = useRef<number | null>(null);
-  // "On the satellite": each props update re-centres on the focus until a
-  // gesture, Reset view, another preset or a new focus stops it.
-  const following = useRef(false);
-  const [followOn, setFollowOn] = useState(false);
-  const setFollowing = useCallback((on: boolean) => {
-    following.current = on;
-    setFollowOn(on);
-  }, []);
+  // "On the satellite": the camera stays on the focus until a gesture, Reset
+  // view, another preset or a new focus stops it. A shared store, so other
+  // controls can show and toggle it; the dot loop reads it with getState.
+  const followOn = useFollow((s) => s.following);
+  const setFollowing = useFollow((s) => s.setFollowing);
   const [legendOpen, setLegendOpen] = useState(false);
   const legendId = useId();
 
   // Latest props, read by map event handlers without re-binding them.
-  const latest = useRef({ sats, observer, view, onSelect, selectedSub, minElevDeg });
-  latest.current = { sats, observer, view, onSelect, selectedSub, minElevDeg };
+  const latest = useRef({ sats, observer, view, projectionId, onSelect, selectedSub, minElevDeg });
+  latest.current = { sats, observer, view, projectionId, onSelect, selectedSub, minElevDeg };
+
+  /** The satellites as of now: props arrive about once a second, so each dot
+   *  and the focus footprint move to trueNow(). A satellite the track cannot
+   *  place now is left out. */
+  const liveSats = useCallback((): MapSat[] => {
+    const { sats: s, minElevDeg: elev } = latest.current;
+    const ms = trueNow();
+    const out: MapSat[] = [];
+    for (const x of s) {
+      const sub = x.positionAt(ms);
+      if (!sub) continue;
+      out.push({
+        ...x,
+        position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
+        footprint: x.footprint ? footprintOf(sub, sub.altKm, elev) : null,
+      });
+    }
+    return out;
+  }, []);
+  /** The focused satellite's sub-point now, or null. */
+  const liveFocus = useCallback((s: MapSat[]): (SelectedSub & { color: string; footprint: boolean }) | null => {
+    const f = s.find((x) => x.emphasis === "focus");
+    const sub = f?.positionAt(trueNow());
+    return f && sub ? { ...sub, color: f.color, footprint: f.footprint != null } : null;
+  }, []);
 
   // The focus footprint's fill: on a full globe a custom layer draws it as a
   // true spherical cap (the GeoJSON fill stops at 85 degrees); otherwise the
@@ -256,12 +287,11 @@ export default function FlatMap({
   }, []);
   /** The focus satellite's footprint for the globe layer, as overlayData draws it. */
   const pushFootprint = useCallback(() => {
-    const { sats: s, selectedSub: sub, minElevDeg: elev } = latest.current;
-    const focus = s.find((x) => x.emphasis === "focus" && x.footprint);
-    capLayer.current?.setFootprint(focus && sub
-      ? { center: [sub.lonDeg, sub.latDeg], radiusDeg: radiusFor(sub.altKm, elev), color: focus.color }
+    const f = liveFocus(latest.current.sats);
+    capLayer.current?.setFootprint(f?.footprint
+      ? { center: [f.lonDeg, f.latDeg], radiusDeg: radiusFor(f.altKm, latest.current.minElevDeg), color: f.color }
       : null);
-  }, []);
+  }, [liveFocus]);
 
   const homeView = useCallback((map: MlMap): Camera => {
     const { sats: s, observer: o, view: v } = latest.current;
@@ -279,6 +309,24 @@ export default function FlatMap({
     if (reducedMotion()) map.jumpTo(cam);
     else map.easeTo(cam);
   }, []);
+  /** Following (or in Satellite's view), jump to the focus now: no easing, and
+   *  no originalEvent, so movestart does not take it for a gesture. Waits for a
+   *  running ease (a preset's) to end. True when it jumped; its moveend pushes
+   *  the overlays. */
+  const followJump = useCallback((map: MlMap): boolean => {
+    const { sats: s, projectionId: p } = latest.current;
+    const f = liveFocus(s);
+    if (!f || map.isMoving()) return false;
+    const satview = effectiveView(p, true) === "satview";
+    if (!satview && !useFollow.getState().following) return false;
+    const cam: Move = { center: [f.lonDeg, f.latDeg] };
+    if (satview) {
+      const z = zoomForAltitude(f.altKm, map.getContainer().clientHeight || 1);
+      cam.zoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), z));
+    }
+    map.jumpTo(cam);
+    return true;
+  }, [liveFocus]);
 
   /** Night bands, rebuilt at most every NIGHT_REFRESH_MS; true when rebuilt. */
   const refreshNight = useCallback((): boolean => {
@@ -292,7 +340,8 @@ export default function FlatMap({
    *  changes their detail) while the dots change every second, so unless all
    *  is set the track sources are only built when their key has changed. */
   const sourceData = useCallback((map: MlMap, all: boolean): SourceData => {
-    const { sats: s, observer: o } = latest.current;
+    const s = liveSats();
+    const o = latest.current.observer;
     const short = shortTracks(map, s);
     const detail = detailFor(map.getZoom(), map.getCenter().lat);
     const key = trackKey(s, short, detail);
@@ -300,7 +349,7 @@ export default function FlatMap({
     sentTrackKey.current = key;
     // The lat/lon grid never changes: it goes in only when the style loads.
     return buildData({ sats: s, observer: o, shortTrackIds: short, trackDetail: detail, tracks, graticule: all });
-  }, []);
+  }, [liveSats]);
 
   // Push the latest props into the overlay sources.
   const push = useCallback(() => {
@@ -468,7 +517,7 @@ export default function FlatMap({
       map.on("movestart", (e: { originalEvent?: Event }) => {
         if (!e.originalEvent && !map.scrollZoom.isActive()) return;
         atHome.current = false;
-        if (following.current) setFollowing(false);
+        if (useFollow.getState().following) setFollowing(false);
       });
       // Zoomed in past home, a stacked map takes one-finger and wheel gestures.
       map.on("zoomend", syncGestures);
@@ -620,15 +669,41 @@ export default function FlatMap({
         moveTo(map, { center: [sat.position.lonDeg, sat.position.latDeg] });
       }
     }
-    const focus = focusOf(sats);
     // Following jumps without easing; a preset's own ease runs to its end first.
     // The jump's moveend pushes the overlays.
-    if (map && following.current && focus && !map.isMoving()) {
-      map.jumpTo({ center: [focus.lonDeg, focus.latDeg] });
-      return;
-    }
+    if (map && followJump(map)) return;
     push();
-  }, [sats, observer, selectedId, selectedSub, minElevDeg, push, pushFootprint, moveTo]);
+  }, [sats, observer, selectedId, selectedSub, minElevDeg, push, pushFootprint, moveTo, followJump]);
+
+  // Between props, move the dots, the focus footprint and a following camera
+  // every DOT_MS. Nothing here sets React state. It stops while the tab is hidden.
+  useEffect(() => {
+    let id: number | undefined;
+    const tick = () => {
+      const map = mapRef.current;
+      if (!map || !styleReady.current) return;
+      pushFootprint();
+      if (followJump(map)) return;
+      const data = buildData({ sats: liveSats(), observer: latest.current.observer, tracks: false });
+      // Night bands are not dots: push() refreshes them once a minute.
+      delete data["ss-night"];
+      setOverlayData(map, data);
+    };
+    const stop = () => {
+      if (id !== undefined) window.clearInterval(id);
+      id = undefined;
+    };
+    const start = () => {
+      stop();
+      if (!document.hidden) id = window.setInterval(tick, DOT_MS);
+    };
+    start();
+    document.addEventListener("visibilitychange", start);
+    return () => {
+      document.removeEventListener("visibilitychange", start);
+      stop();
+    };
+  }, [pushFootprint, followJump, liveSats]);
 
   const reset = () => {
     const map = mapRef.current;
