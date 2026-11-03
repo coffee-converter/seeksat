@@ -173,6 +173,7 @@ const ZOOM_EPS = 0.01;
 const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number }) => number;
 const easeZoom = easeZoomOf as (current: number, target: number) => number;
 const wrapLon = (d: number) => d - 360 * Math.round(d / 360);
+const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 const reducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -273,12 +274,24 @@ export default function FlatMap({
     }
     return out;
   }, []);
+  // The focus's last placed sample, kept for a sample that fails.
+  const lastFocus = useRef<{ noradId: number; focus: LiveFocus } | null>(null);
   /** The focused satellite's sub-point now, or null. Worked out once per
-   *  update and shared by the footprint and the follow jump. */
+   *  update and shared by the footprint and the follow jump. A sample the
+   *  track cannot place keeps the last one, as liveSats keeps the dot, so
+   *  the globe cap does not blink off for it. */
   const liveFocus = useCallback((s: MapSat[]): LiveFocus | null => {
     const f = s.find((x) => x.emphasis === "focus");
-    const sub = f?.positionAt(trueNow());
-    return f && sub ? { ...sub, color: f.color, footprint: f.footprint != null } : null;
+    if (!f) {
+      lastFocus.current = null;
+      return null;
+    }
+    const sub = f.positionAt(trueNow());
+    const last = lastFocus.current;
+    if (!sub) return last && last.noradId === f.noradId ? last.focus : null;
+    const focus = { ...sub, color: f.color, footprint: f.footprint != null };
+    lastFocus.current = { noradId: f.noradId, focus };
+    return focus;
   }, []);
 
   // The focus footprint's fill: on a full globe a custom layer draws it as a
@@ -421,12 +434,19 @@ export default function FlatMap({
   useEffect(() => {
     let alive = true;
     let made: MlMap | null = null;
-    // A mouse button can come up off the map (MapLibre's drag listens on the window too).
+    // A mouse button can come up off the map (MapLibre's drag listens on the
+    // window too). A context menu can swallow the mouseup, so it lets go too,
+    // as does any move with no button down.
     const letGo = () => {
       handHeld.current = false;
     };
+    const onMove = (e: MouseEvent) => {
+      if (handHeld.current && e.buttons === 0) handHeld.current = false;
+    };
     window.addEventListener("mouseup", letGo);
     window.addEventListener("blur", letGo);
+    window.addEventListener("contextmenu", letGo);
+    window.addEventListener("mousemove", onMove);
     (async () => {
       let gl: typeof import("maplibre-gl");
       try {
@@ -585,7 +605,10 @@ export default function FlatMap({
       };
       map.on("touchend", lift);
       map.on("touchcancel", lift);
-      map.on("mousedown", () => {
+      // Only the primary button drags (ctrl-click on a Mac is a right click).
+      map.on("mousedown", (e: MapMouseEvent) => {
+        const ev = e.originalEvent;
+        if (ev.button !== 0 || (ev.ctrlKey && isMac())) return;
         handHeld.current = true;
       });
       // MapLibre's double-click zoom centres on the pointer, so while
@@ -618,6 +641,8 @@ export default function FlatMap({
       alive = false;
       window.removeEventListener("mouseup", letGo);
       window.removeEventListener("blur", letGo);
+      window.removeEventListener("contextmenu", letGo);
+      window.removeEventListener("mousemove", onMove);
       styleReady.current = false;
       mapRef.current = null;
       capLayer.current = null;
