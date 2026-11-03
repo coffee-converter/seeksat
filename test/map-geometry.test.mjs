@@ -249,7 +249,8 @@ test('densifyLine keeps longitudes in range next to the date line', () => {
 
 test('trackDetailFor adds points as the map zooms in', () => {
   assert.equal(trackDetailFor(2), 1);
-  assert.equal(trackDetailFor(5), 1);
+  assert.equal(trackDetailFor(3), 1);
+  assert.equal(trackDetailFor(5), 2);
   assert.ok(trackDetailFor(10) >= 4);
   assert.ok(trackDetailFor(15) >= 24 && trackDetailFor(15) <= 64);
   for (let z = 0; z < 15; z += 0.5) assert.ok(trackDetailFor(z + 0.5) >= trackDetailFor(z));
@@ -321,4 +322,15 @@ test('densifyLine never doubles back on unevenly spaced samples', () => {
   const line = [[0, 0], [1, 0.5], [2, 1], [40, 20], [41, 20.5], [42, 21]];
   const d = densifyLine(line, 8);
   for (let i = 1; i < d.length; i++) assert.ok(d[i][0] >= d[i - 1][0] - 1e-9, `backtracks at ${i}`);
+});
+
+// Near the poles the map is stretched (1 / cos latitude on both views), so a
+// 2 degree step is several times longer on screen than at the equator.
+test('trackDetailFor curves more where the map is stretched near the poles', () => {
+  assert.equal(trackDetailFor(4, 0), trackDetailFor(4));
+  assert.ok(trackDetailFor(4, 75) >= 3, `z4 at 75°: ${trackDetailFor(4, 75)}`);
+  assert.ok(trackDetailFor(4, 75) > trackDetailFor(4, 0));
+  assert.equal(trackDetailFor(4, -75), trackDetailFor(4, 75));
+  // Never infinite at the pole itself.
+  assert.ok(Number.isFinite(trackDetailFor(4, 90)) && trackDetailFor(4, 90) <= 64);
 });

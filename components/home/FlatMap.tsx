@@ -87,7 +87,7 @@ const buildData = overlayData as (o: {
   tracks?: boolean;
   graticule?: boolean;
 }) => SourceData;
-const detailFor = trackDetailFor as (zoom: number) => number;
+const detailFor = trackDetailFor as (zoom: number, latDeg: number) => number;
 // A stable id per track shape object, so an unchanged minute's tracks are not
 // re-sent to the map every second.
 const shapeIds = new WeakMap<object, number>();
@@ -294,7 +294,7 @@ export default function FlatMap({
   const sourceData = useCallback((map: MlMap, all: boolean): SourceData => {
     const { sats: s, observer: o } = latest.current;
     const short = shortTracks(map, s);
-    const detail = detailFor(map.getZoom());
+    const detail = detailFor(map.getZoom(), map.getCenter().lat);
     const key = trackKey(s, short, detail);
     const tracks = all || key !== sentTrackKey.current;
     sentTrackKey.current = key;
