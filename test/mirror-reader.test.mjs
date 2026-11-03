@@ -170,7 +170,7 @@ test('ready false when store is empty, getRecord still tries on-demand', async (
   assert.deepEqual(await reader.search('x'), []);
 });
 
-test('a throwing store is logged, treated as empty, retried after reloadMs', async () => {
+test('a throwing store is logged, treated as empty, retried after emptyRetryMs', async () => {
   let reads = 0;
   const logged = [];
   const store = {
@@ -183,7 +183,10 @@ test('a throwing store is logged, treated as empty, retried after reloadMs', asy
   assert.equal(await reader.ready(), false);
   assert.equal(reads, 1);
   assert.equal(logged.length, 1);
-  clock.t += RELOAD;
+  clock.t += 29_999;
+  assert.equal(await reader.ready(), false);
+  assert.equal(reads, 1);
+  clock.t += 1;
   assert.equal(await reader.ready(), true);
   assert.equal(reads, 2);
 });
