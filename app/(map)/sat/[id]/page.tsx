@@ -30,5 +30,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { id } = await params;
-  return <SatApp data={await load(id)} />;
+  const data = await load(id);
+  return <SatApp key={data.noradId} data={data} />;
 }

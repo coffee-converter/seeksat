@@ -3,17 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import FlatMap from "@/components/home/FlatMap";
+import { usePublishMapScene } from "@/lib/map/scene-store";
 import FocusBar from "@/components/home/FocusBar";
-import { SearchBar } from "@/components/home/SearchBar";
-import MapShell from "@/components/MapShell";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
 import HowWeCompute from "./HowWeCompute";
-import LiveClock from "@/components/LiveClock";
-import NightToggle from "@/components/NightToggle";
-import ThemeToggle from "@/components/ThemeToggle";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
 import ShareButton from "./ShareButton";
@@ -39,8 +34,6 @@ import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import { isMapAll, mapAllHref } from "@/lib/sat/map-param.mjs";
 import SatChips, { type Chip } from "@/components/home/SatChips";
 import { CATALOG } from "@/lib/catalog.mjs";
-import "@/app/home.css";
-import "@/app/sat.css";
 
 export type SatPageData = ReturnType<typeof satPageData>;
 export type SharedBlob = NonNullable<ReturnType<typeof decodeStateBlob>>;
@@ -248,155 +241,134 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const following = prefs.following.includes(data.noradId);
   const blocked = followBlockedMessage(prefs.following, data.noradId) as string | null;
 
-  const map = (
-    <FlatMap
-      fill
-      sats={sats}
-      observer={settings.observer}
-      selectedSub={focusSub}
-      projectionId={prefs.projection}
-      onProjectionChange={(id) => setPrefs({ projection: id })}
-      selectedId={focusId}
-      minElevDeg={settings.minElevDeg}
-      onSelect={setFocusId}
-      chips={othersShown && (
-        <SatChips chips={chips} focusId={focusId} onFocus={(id) => (id == null ? showAll() : setFocusId(id))} onToggleHidden={toggleHidden} />
-      )}
-      top={usable && focusId != null && (
-        <FocusBar
-          name={focusName}
-          followed={focusFollowed}
-          blocked={followBlockedMessage(prefs.following, focusId) as string | null}
-          total={showAllTotal}
-          pageHref={focusId === data.noradId || mapTracks.get(focusId)?.record?.source === "pasted"
-            ? null
-            : `/sat/${focusId}`}
-          onToggleFollow={() => (focusFollowed ? unfollow(focusId) : follow(focusId))}
-          onShowAll={showAll}
-        />
-      )}
-    />
-  );
+  usePublishMapScene({
+    sats,
+    observer: settings.observer,
+    selectedSub: focusSub,
+    projectionId: prefs.projection,
+    onProjectionChange: (id) => setPrefs({ projection: id }),
+    selectedId: focusId,
+    minElevDeg: settings.minElevDeg,
+    onSelect: setFocusId,
+    chips: othersShown && (
+      <SatChips chips={chips} focusId={focusId} onFocus={(id) => (id == null ? showAll() : setFocusId(id))} onToggleHidden={toggleHidden} />
+    ),
+    top: usable && focusId != null && (
+      <FocusBar
+        name={focusName}
+        followed={focusFollowed}
+        blocked={followBlockedMessage(prefs.following, focusId) as string | null}
+        total={showAllTotal}
+        pageHref={focusId === data.noradId || mapTracks.get(focusId)?.record?.source === "pasted"
+          ? null
+          : `/sat/${focusId}`}
+        onToggleFollow={() => (focusFollowed ? unfollow(focusId) : follow(focusId))}
+        onShowAll={showAll}
+      />
+    ),
+    // A search result opens that satellite's page; Esc in an empty search shows all.
+    search: { onView: (id) => router.push(satPath(id)), onClearFocus: showAll },
+  });
 
   return (
-    <MapShell
-      className="sat"
-      top={(
-        <>
-          <Link className="home-wordmark" href="/">SeekSat</Link>
-          <div className="map-shell__search">
-            {/* A search result opens that satellite's page; Esc in an empty search shows all. */}
-            <SearchBar onView={(id) => router.push(satPath(id))} onClearFocus={showAll} />
-          </div>
-          <div className="map-shell__end">
-            <LiveClock nowMs={nowMs} compact />
-            <ThemeToggle />
-            <NightToggle />
-          </div>
-        </>
-      )}
-      map={map}
-      panel={(
-        <>
-          <header className="sat-top">
-            {/* Home, with this satellite still focused on the map. */}
-            <Link className="home-link sat-back" href={focusHref("/", "", data.noradId)}>
-              {"← Your satellites"}
-            </Link>
-            <h1 className="sat-title">{data.name}</h1>
-            <p className="home-note">
-              {`NORAD ${data.noradId}`}
-              {data.intlDesignator ? ` · ${data.intlDesignator}` : ""}
-            </p>
-            {data.note ? <p className="home-note">{data.note}</p> : null}
-            <div className="sat-follow">
-              <button
-                type="button"
-                className={`home-button home-button--primary${following ? " home-chip--on" : ""}`}
-                disabled={!following && Boolean(blocked)}
-                onClick={() => (following ? unfollow(data.noradId) : follow(data.noradId))}
-              >
-                {following ? "Following" : "Follow"}
-              </button>
-              {settings.observer && (
-                <ShareButton url={headerLink} title={data.name} size="button" />
-              )}
-            </div>
-            {!following && blocked ? <p className="home-note">{blocked}</p> : null}
-            <NextPassLine
-              report={nextPass}
-              nowMs={nowMs}
-              mode={settings.mode}
-              skyType={prefs.skyType}
-              clouds={clouds}
-              onChart={(kind, pass, e) => passes.current?.openChart(kind, pass, e)}
-            />
-          </header>
+    <>
+    <header className="sat-top">
+      {/* Home, with this satellite still focused on the map. */}
+      <Link className="home-link sat-back" href={focusHref("/", "", data.noradId)}>
+        {"← Your satellites"}
+      </Link>
+      <h1 className="sat-title">{data.name}</h1>
+      <p className="home-note">
+        {`NORAD ${data.noradId}`}
+        {data.intlDesignator ? ` · ${data.intlDesignator}` : ""}
+      </p>
+      {data.note ? <p className="home-note">{data.note}</p> : null}
+      <div className="sat-follow">
+        <button
+          type="button"
+          className={`home-button home-button--primary${following ? " home-chip--on" : ""}`}
+          disabled={!following && Boolean(blocked)}
+          onClick={() => (following ? unfollow(data.noradId) : follow(data.noradId))}
+        >
+          {following ? "Following" : "Follow"}
+        </button>
+        {settings.observer && (
+          <ShareButton url={headerLink} title={data.name} size="button" />
+        )}
+      </div>
+      {!following && blocked ? <p className="home-note">{blocked}</p> : null}
+      <NextPassLine
+        report={nextPass}
+        nowMs={nowMs}
+        mode={settings.mode}
+        skyType={prefs.skyType}
+        clouds={clouds}
+        onChart={(kind, pass, e) => passes.current?.openChart(kind, pass, e)}
+      />
+    </header>
 
-          {shared ? (
-            <div className="sat-shared" role="status">
-              <p className="sat-shared__text">{bannerOf(shared)}</p>
-              <button type="button" className="home-button" onClick={leaveShared}>
-                Use my location and settings
-              </button>
-            </div>
-          ) : null}
+    {shared ? (
+      <div className="sat-shared" role="status">
+        <p className="sat-shared__text">{bannerOf(shared)}</p>
+        <button type="button" className="home-button" onClick={leaveShared}>
+          Use my location and settings
+        </button>
+      </div>
+    ) : null}
 
-          {usable && liveNow && elementsNow ? (
-            <LiveNumbersFold>
-              <DashboardTiles live={liveNow} elements={elementsNow} />
-            </LiveNumbersFold>
-          ) : (
-            <>
-              <AgeLine age={age} source={data.source} fetchedText={fetchedText} />
-              <p className="home-note">These elements can&apos;t be used to compute a position.</p>
-            </>
-          )}
+    {usable && liveNow && elementsNow ? (
+      <LiveNumbersFold>
+        <DashboardTiles live={liveNow} elements={elementsNow} />
+      </LiveNumbersFold>
+    ) : (
+      <>
+        <AgeLine age={age} source={data.source} fetchedText={fetchedText} />
+        <p className="home-note">These elements can&apos;t be used to compute a position.</p>
+      </>
+    )}
 
-          <PassSection
-            ref={passes}
-            track={usable ? track : null}
-            record={data.record}
-            epochMs={epochMs}
-            nowMs={nowMs}
-            settings={settings}
-            onModeChange={onModeChange}
-            onMinElevChange={onMinElevChange}
-            skyType={prefs.skyType}
-            onSkyTypeChange={onSkyTypeChange}
-            sharedPassMs={shared?.passTimeMs ?? null}
-            preferredFreqHz={shared?.freqHz ?? null}
-            onFreqPicked={(hz) => { pickedFreq.current = hz; }}
-            onNextPass={setNextPass}
-            clouds={clouds}
-          />
-
-          {usable && liveNow && elementsNow ? (
-            <>
-              <ElementsTable
-                elements={elementsNow}
-                age={age}
-                source={data.source}
-                fetchedText={fetchedText}
-                epochMs={epochMs}
-              />
-              <OrbitDiagram track={track} nowMs={nowMs} />
-              <OrbitCheck live={liveNow} />
-            </>
-          ) : null}
-
-          <Downlinks downlinks={data.downlinks} />
-          <RawElements raw={data.raw} />
-          {usable ? <HowWeCompute /> : null}
-
-          <footer className="home-footer">
-            <span>
-              built by{" "}
-              <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
-            </span>
-          </footer>
-        </>
-      )}
+    <PassSection
+      ref={passes}
+      track={usable ? track : null}
+      record={data.record}
+      epochMs={epochMs}
+      nowMs={nowMs}
+      settings={settings}
+      onModeChange={onModeChange}
+      onMinElevChange={onMinElevChange}
+      skyType={prefs.skyType}
+      onSkyTypeChange={onSkyTypeChange}
+      sharedPassMs={shared?.passTimeMs ?? null}
+      preferredFreqHz={shared?.freqHz ?? null}
+      onFreqPicked={(hz) => { pickedFreq.current = hz; }}
+      onNextPass={setNextPass}
+      clouds={clouds}
     />
+
+    {usable && liveNow && elementsNow ? (
+      <>
+        <ElementsTable
+          elements={elementsNow}
+          age={age}
+          source={data.source}
+          fetchedText={fetchedText}
+          epochMs={epochMs}
+        />
+        <OrbitDiagram track={track} nowMs={nowMs} />
+        <OrbitCheck live={liveNow} />
+      </>
+    ) : null}
+
+    <Downlinks downlinks={data.downlinks} />
+    <RawElements raw={data.raw} />
+    {usable ? <HowWeCompute /> : null}
+
+    <footer className="home-footer">
+      <span>
+        built by{" "}
+        <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
+      </span>
+    </footer>
+    </>
   );
 }
