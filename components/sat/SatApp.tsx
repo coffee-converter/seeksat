@@ -37,6 +37,8 @@ import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import { isMapAll, mapAllHref } from "@/lib/sat/map-param.mjs";
+import SatChips, { type Chip } from "@/components/home/SatChips";
+import { CATALOG } from "@/lib/catalog.mjs";
 import "@/app/home.css";
 import "@/app/sat.css";
 
@@ -68,6 +70,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const setPrefs = useHomeStore((s) => s.setPrefs);
+  const toggleHidden = useHomeStore((s) => s.toggleHidden);
   const records = useHomeStore((s) => s.records);
   const loadRecords = useHomeStore((s) => s.loadRecords);
 
@@ -164,8 +167,12 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   // ones too, without navigating; their records load on the first Show all.
   const [focusId, setFocusId] = useState<number | null>(data.noradId);
   const loadedOthers = useRef(false);
+  // The chips appear with the first Show all, once the followed satellites
+  // are on the map to pick from, and stay for the page's life.
+  const [othersShown, setOthersShown] = useState(false);
   const showAll = useCallback(() => {
     setFocusId(null);
+    setOthersShown(true);
     if (!loadedOthers.current) {
       loadedOthers.current = true;
       void loadRecords();
@@ -223,6 +230,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const { sats, focusSub } = useMapSats({
     layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg,
   });
+  // One chip per followed satellite, as on the home page: tap to focus,
+  // the eye to hide or show.
+  const chips = useMemo<Chip[]>(() => prefs.following.map((id) => ({
+    noradId: id,
+    name: mapTracks.get(id)?.shortName ?? CATALOG.find((c) => c.noradId === id)?.shortName ?? `NORAD ${id}`,
+    color: colors.get(id) ?? SAT_PALETTES[theme][0],
+    hidden: prefs.hidden.includes(id),
+  })), [prefs.following, prefs.hidden, mapTracks, colors, theme]);
   const focusName = focusId === data.noradId ? data.shortName : focusId != null ? mapTracks.get(focusId)?.shortName ?? `NORAD ${focusId}` : "";
   const focusFollowed = focusId != null && prefs.following.includes(focusId);
 
@@ -244,6 +259,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       selectedId={focusId}
       minElevDeg={settings.minElevDeg}
       onSelect={setFocusId}
+      chips={othersShown && (
+        <SatChips chips={chips} focusId={focusId} onFocus={(id) => (id == null ? showAll() : setFocusId(id))} onToggleHidden={toggleHidden} />
+      )}
       top={usable && focusId != null && (
         <FocusBar
           name={focusName}
