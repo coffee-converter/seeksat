@@ -1,0 +1,160 @@
+/* The design bible page (/design-27b284ec240e9ac9). Layout only: every colour,
+   size, space, radius and duration is a token, and the components/ui parts on
+   show are placed here, never restyled (test/ui-library.test.mjs and
+   test/theme-css.test.mjs scan this file). */
+.bible { min-height: 100%; background: var(--bg); color: var(--text); }
+
+/* Top bar: wordmark, theme and night vision. */
+.bible__bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8) var(--sp-16);
+  padding: var(--sp-12) var(--sp-16);
+  background: var(--bg);
+  border-bottom: var(--line-subtle);
+}
+/* The page heading: the wordmark, then "Design bible" at body size. */
+.bible__brand { display: flex; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-md); font-weight: var(--fw-regular); }
+.bible__wordmark { font-family: var(--font-brand); font-size: var(--fs-xl); font-weight: var(--fw-semibold); }
+.bible__seek { color: var(--wordmark-dim); }
+.bible__sat { color: var(--accent); }
+.bible__subtitle { color: var(--muted); }
+.bible__switches { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+
+.bible__nav,
+.bible__main { max-width: 1080px; margin: 0 auto; }
+.bible__nav { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12); padding: var(--sp-12) var(--sp-16) 0; }
+.bible__nav-link { color: var(--link); font-size: var(--fs-sm); }
+.bible__main { padding: var(--sp-16) var(--sp-16) calc(var(--sp-32) + var(--sp-32)); }
+.bible__intro { max-width: 72ch; color: var(--muted); }
+
+/* Sections and headings. */
+.bible__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding-top: var(--sp-32);
+  scroll-margin-top: 112px;
+}
+.bible__h2 { color: var(--text-heading); font-size: var(--fs-xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
+.bible__h3 { color: var(--text-heading); font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+.bible__h4 { color: var(--text-heading); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.bible__lede { max-width: 72ch; color: var(--muted); }
+.bible__note { color: var(--muted); font-size: var(--fs-sm); }
+.bible__specimen { display: flex; flex-direction: column; gap: var(--sp-8); padding-top: var(--sp-12); }
+.bible__code { color: var(--text-code); font-family: var(--font-code); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.bible__resolved { display: block; color: var(--faint); font-family: var(--font-code); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+
+.bible__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--sp-12); }
+.bible__grid--tight { grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+.bible__grid--start { align-items: start; }
+/* The lg tile's hero value scales with the tile, so it needs a real width. */
+.bible__wide-tile { max-width: 480px; }
+.bible__grid--wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); }
+
+/* Font and type: a sample beside its token. */
+.bible__sample { max-width: 60ch; font-size: var(--fs-lg); }
+.bible__digits { margin: var(--sp-12) 0; font-size: var(--fs-2xl); letter-spacing: 0.04em; }
+.bible__stack { display: flex; flex-direction: column; gap: var(--sp-12); list-style: none; }
+.bible__spec-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4) var(--sp-16);
+}
+.bible__spec-sample { min-width: 0; color: var(--text-strong); }
+.bible__spec-meta { color: var(--muted); font-size: var(--fs-sm); }
+/* The hero step scales with its container: this row is one. */
+.bible__hero { container-type: inline-size; }
+
+/* Colour tokens: name, then the dark and light values. */
+.bible__tokens {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  background: var(--panel);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+}
+.bible__token {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-8) var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-top: var(--line-subtle);
+}
+.bible__token:first-child { border-top: 0; }
+.bible__token--head { color: var(--faint); font-size: var(--fs-xs); font-weight: var(--fw-medium); letter-spacing: 0.06em; text-transform: uppercase; }
+.bible__token-name { min-width: 0; }
+.bible__cell { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--sp-2) var(--sp-8); min-width: 0; }
+.bible__theme-tag { grid-column: 1 / -1; color: var(--faint); font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; }
+.bible__cell .bible__theme-tag { display: none; }
+@media (max-width: 699px) {
+  .bible__token { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .bible__token-name { grid-column: 1 / -1; }
+  .bible__token--head { display: none; }
+  .bible__cell .bible__theme-tag { display: block; }
+}
+.bible__chip {
+  flex: none;
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: var(--line-subtle);
+  border-radius: var(--radius-md);
+}
+.bible__chip--shadow { margin: var(--sp-2) var(--sp-4) var(--sp-8); background: var(--panel); }
+.bible__value { display: flex; flex-direction: column; min-width: 0; }
+.bible__name { color: var(--muted); font-size: var(--fs-xs); }
+
+/* JS palettes. */
+.bible__columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-12); margin-top: var(--sp-8); }
+.bible__swatches { display: flex; flex-direction: column; gap: var(--sp-6); margin-top: var(--sp-4); list-style: none; }
+.bible__swatch { display: flex; align-items: center; gap: var(--sp-8); }
+
+/* Spacing, radius, borders, shadows. */
+.bible__measure { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: var(--sp-12); }
+.bible__space { display: block; height: 16px; background: var(--accent); }
+.bible__tile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-8); }
+.bible__shape { display: block; width: 72px; height: 56px; background: var(--panel-2); border: var(--line-control); }
+.bible__shape--line { background: var(--panel); }
+.bible__shape--raised { margin: var(--sp-8) 0 var(--sp-12); background: var(--panel); border: 0; border-radius: var(--radius-lg); }
+
+/* Motion: hover or focus a sample to move its dot. */
+.bible__motion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-12);
+  background: var(--panel);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+.bible__motion:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.bible__track { position: relative; display: block; width: 112px; height: 16px; background: var(--panel-2); border-radius: var(--radius-full); }
+.bible__dot { position: absolute; top: 0; left: 0; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; }
+.bible__motion:hover .bible__dot,
+.bible__motion:focus-visible .bible__dot { transform: translateX(96px); }
+
+/* Components: rows of parts. */
+.bible__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+.bible__row--map { padding: var(--sp-12); background: var(--map-ocean); border-radius: var(--radius-lg); }
+.bible__row-label { min-width: 64px; color: var(--muted); font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; }
+.bible__row--map .bible__row-label { color: var(--map-text); }
+.bible__chips { display: flex; flex-wrap: wrap; gap: var(--sp-8); list-style: none; }
+.bible__labelled { display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-4); }
+.bible__flush { list-style: none; }
+.bible__flush li { padding: var(--sp-8) var(--sp-12); border-top: var(--line-subtle); }
+.bible__flush li:first-child { border-top: 0; }
+.bible__accent { --surface-accent: var(--accent); }
+.bible__tap { color: inherit; }
+.bible__modal-body { display: flex; flex-direction: column; gap: var(--sp-12); max-width: 480px; padding: var(--sp-8) var(--sp-4); }
+.bible__modal-body--wide { width: min(900px, 92vw); max-width: none; }

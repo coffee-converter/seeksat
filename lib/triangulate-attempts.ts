@@ -3,6 +3,7 @@
 // browser-local manifest overrides + user attempts from localStorage,
 // and provides helpers for persisting / deleting user attempts.
 
+import { localStore } from "./safe-storage.mjs";
 import type {
   AttemptData,
   AttemptEntry,
@@ -82,18 +83,20 @@ export function persistUserAttempt(attempt: UserAttemptEntry): void {
   else next.push(attempt);
   // Re-use saveUserAttempts logic inline so we don't need to export
   // it separately - drops the transient `source` flag before serialise.
-  if (typeof localStorage === "undefined") return;
+  const store = localStore();
+  if (!store) return;
   const serializable = next.map(({ source: _s, ...rest }) => rest);
-  localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable));
+  try { store.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable)); } catch { /* full or blocked */ }
 }
 
 /** Delete a user attempt from localStorage (manifest attempts can't
  *  be deleted; the UI hides the button for them). */
 export function deleteUserAttempt(id: string): void {
-  if (typeof localStorage === "undefined") return;
+  const store = localStore();
+  if (!store) return;
   const remaining = loadUserAttempts().filter((a) => a.id !== id);
   const serializable = remaining.map(({ source: _s, ...rest }) => rest);
-  localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable));
+  try { store.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable)); } catch { /* full or blocked */ }
 }
 
 /** Persist the current store state under the right key. User

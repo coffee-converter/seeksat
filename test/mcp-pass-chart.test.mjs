@@ -21,3 +21,29 @@ test('returns text-only when there is no pass (lat 85, incl 51.6)', async () => 
   assert.equal(res.pngBase64, undefined);
   assert.match(res.summary, /No upcoming/);
 });
+
+test('omits the magnitude from the summary when standardMag is unknown', async () => {
+  const observer = { name: 'Sydney-ish', latDeg: -30, lonDeg: 150 };
+  const known = await renderPassChartPng({ entry: ENTRY, record: REC, observer, mode: 'visual', nowMs: NOW });
+  assert.match(known.summary, /mag/, 'fixture yields a visual pass with a magnitude');
+  const entry = { noradId: 25485, name: '25485', shortName: null, standardMag: null };
+  const res = await renderPassChartPng({ entry, record: REC, observer, mode: 'visual', nowMs: NOW });
+  assert.ok(res.pngBase64);
+  assert.doesNotMatch(res.summary, /mag/);
+});
+
+test('shades the chart arc only when the standard magnitude is known', async () => {
+  const observer = { name: 'Sydney-ish', latDeg: -30, lonDeg: 150 };
+  const chart = async (standardMag) => (await renderPassChartPng({
+    entry: { noradId: 25544, name: 'ISS (ZARYA)', shortName: 'ISS', standardMag },
+    record: REC, observer, mode: 'visual', nowMs: NOW,
+  })).pngBase64;
+  assert.notEqual(await chart(-1.8), await chart(null));
+});
+
+test('titles a synthesized satellite with the record name', async () => {
+  const observer = { name: 'Equator', latDeg: 0, lonDeg: 0 };
+  const entry = { noradId: 25485, name: '25485', shortName: null, standardMag: null };
+  const res = await renderPassChartPng({ entry, record: { ...REC, noradId: 25485, name: 'SYNTH SAT' }, observer, mode: 'radio', nowMs: NOW });
+  assert.match(res.summary, /^SYNTH SAT over Equator/);
+});

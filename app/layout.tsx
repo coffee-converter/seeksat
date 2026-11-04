@@ -1,10 +1,42 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import CesiumLoader from "@/components/CesiumLoader";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
+import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
+import { mapTokenCss } from "@/lib/ui/map-tokens.mjs";
+import { chartTokenCss } from "@/lib/ui/chart-tokens.mjs";
+import ThemeSync from "@/components/ThemeSync";
+import SwRegister from "@/components/SwRegister";
 import "./globals.css";
+import "./ui.css";
+// Atkinson Hyperlegible Next, variable (wght 200-800), committed under
+// app/fonts/ (OFL; see app/fonts/README.md) and served by next/font from
+// /_next/static/media, same origin. Split as Google Fonts splits it: latin is
+// preloaded; latin-ext loads only when a page uses one of its characters.
+// The unicode ranges match scripts/build-atkinson-web.py (next/font needs
+// literal options). The font has no arrow glyphs (U+2190/2192); those use the
+// system font.
+const atkinson = localFont({
+  src: "./fonts/AtkinsonHyperlegibleNext-latin.woff2",
+  weight: "200 800",
+  variable: "--font-atkinson",
+  display: "swap",
+  declarations: [{ prop: "unicode-range", value: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD" }],
+});
+// No metric fallback face of its own: one would cover every character and
+// shadow the latin face behind it in --font-sans.
+const atkinsonExt = localFont({
+  src: "./fonts/AtkinsonHyperlegibleNext-latin-ext.woff2",
+  weight: "200 800",
+  variable: "--font-atkinson-ext",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF" }],
+});
+
 const SITE_NAME = "SeekSat";
 // SEO title: ~52 chars (target 50-60) so search results don't truncate
 // and the page reads as more than a bare brand name. SITE_NAME stays the
@@ -13,8 +45,7 @@ const SITE_TITLE = "SeekSat - Satellite & ISS Pass Forecasts for Any Sky";
 // Meta description: ~146 chars (target 110-160). The longer marketing
 // blurb was 198 chars and got truncated in results.
 const SITE_DESCRIPTION =
-  "Find when the ISS and other satellites pass over your ground stations " +
-  "- a 3D globe, multi-station overhead timing, and polar sky charts per pass.";
+  "Track any satellite and find its passes from where you are, for radio or watching, with honest live numbers and polar sky charts.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -67,31 +98,25 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  // Hints to browsers/PWA installers. `manifest` is omitted - drop a
-  // public/manifest.webmanifest in later if a PWA install matters.
+  // The web app manifest comes from app/manifest.ts; Next links it.
   formatDetection: { telephone: false, email: false, address: false },
 };
 
 // `themeColor` + `viewport` moved out of `metadata` in Next 14 - they
 // belong in a separate `viewport` export. Matches the page background
-// in globals.css (#0a0e1a) so mobile address-bar / standalone-PWA
+// in globals.css (#11151c) so mobile address-bar / standalone-PWA
 // chrome blends in instead of flashing white.
 export const viewport: Viewport = {
-  themeColor: "#0a0e1a",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#11151c" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f5f8" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
 
-// Cesium 1.141 - same version the legacy static pages used. Loaded
-// as a side-effect global from CDN; CSS first so widget styles are
-// present before any component mounts a Viewer. CesiumLoader is a
-// tiny client component wrapping next/script's <Script onReady> so
-// useCesiumViewer can await a Promise rather than poll for window.Cesium.
-const CESIUM_VERSION = "1.141";
-const CESIUM_CDN = `https://cesium.com/downloads/cesiumjs/releases/${CESIUM_VERSION}`;
-
-// Structured data: what SeekSat is, that it's free, and who built it. The
-// Person's url + sameAs consolidate the "Aaron Hanson" entity across sites.
+// Structured data: what SeekSat is, that it's free, and who built it,
+// named by the site aaronhanson.dev (as the footer credit is).
 const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
@@ -101,7 +126,7 @@ const JSON_LD = {
       url: `${SITE_URL}/`,
       name: SITE_NAME,
       description: SITE_DESCRIPTION,
-      publisher: { "@id": `${SITE_URL}/#person` },
+      publisher: { "@id": `${SITE_URL}/#org` },
     },
     {
       "@type": "WebApplication",
@@ -111,18 +136,13 @@ const JSON_LD = {
       operatingSystem: "Web",
       description: SITE_DESCRIPTION,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-      creator: { "@id": `${SITE_URL}/#person` },
+      creator: { "@id": `${SITE_URL}/#org` },
     },
     {
-      "@type": "Person",
-      "@id": `${SITE_URL}/#person`,
-      name: "Aaron Hanson",
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#org`,
+      name: "aaronhanson.dev",
       url: "https://aaronhanson.dev",
-      sameAs: [
-        "https://aaronhanson.dev",
-        "https://github.com/coffee-converter",
-        "https://www.linkedin.com/in/ildiscgolfer",
-      ],
     },
   ],
 };
@@ -131,22 +151,23 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${atkinson.variable} ${atkinsonExt.variable}`} suppressHydrationWarning>
       <head>
+        {/* Sets data-theme on <html> before first paint (no light/dark flash). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {/* Exo 2 (subset, base64) for the SeekSat brand wordmark. Same
             embed the polar-chart export uses - inlined here so the font
             is available document-wide (e.g. the on-scene corner mark)
             with no extra network fetch or flash of fallback text. */}
         <style dangerouslySetInnerHTML={{ __html: EXO2_FONT_FACE }} />
-        <link rel="stylesheet" href={`${CESIUM_CDN}/Build/Cesium/Widgets/widgets.css`} />
-        {/* Preload kicks off the ~3MB Cesium.js fetch in parallel with
-            React hydration / route chunks, instead of waiting for the
-            afterInteractive Script tag to be parsed. Same URL the
-            CesiumLoader Script tag uses, so the browser dedupes. */}
-        <link rel="preload" as="script" href={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />
+        {/* Map colours (--map-ocean, --map-land, --map-night, --map-observer)
+            generated from the map modules, so the legend and the map agree,
+            and --modal-dark-bg from the charts' canvas colour. */}
+        <style dangerouslySetInnerHTML={{ __html: mapTokenCss() + chartTokenCss() }} />
       </head>
       <body>
-        <CesiumLoader src={`${CESIUM_CDN}/Build/Cesium/Cesium.js`} />
+        <ThemeSync />
+        <SwRegister />
         {children}
         {/* Vercel Web Analytics (page views, top pages, referrers)
             and Speed Insights (Core Web Vitals from real visitors).

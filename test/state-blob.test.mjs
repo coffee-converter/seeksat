@@ -219,3 +219,27 @@ test('visual mode does not carry a frequency', () => {
   assert.equal(out.mode, 'visual');
   assert.equal(out.downlinkHz, null);
 });
+
+// ---- Plan 5: satellite + UTF-8 ------------------------------------------
+
+const OBS = { name: 'Chicago', latDeg: 41.8781, lonDeg: -87.6298 };
+
+test('blob carries the satellite', () => {
+  assert.equal(decodeStateBlob(encodeStateBlob({ observers: [OBS], noradId: 33591 })).noradId, 33591);
+  assert.equal(decodeStateBlob(encodeStateBlob({ observers: [OBS] })).noradId, null);
+});
+test('non-Latin-1 names round-trip', () => {
+  for (const name of ['東京', 'Zürich', 'Base 🛰️']) {
+    assert.equal(decodeStateBlob(encodeStateBlob({ observers: [{ ...OBS, name }] })).observers[0].name, name);
+  }
+});
+test('blobs from the old Latin-1 encoder still decode', () => {
+  const old = btoa(JSON.stringify({ o: [['Zürich', 47.37, 8.54]], m: 'r', f: 437800000 }))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const d = decodeStateBlob(old);
+  assert.equal(d.observers[0].name, 'Zürich');
+  assert.equal(d.downlinkHz, 437800000);
+});
+test('out-of-range observers are dropped', () => {
+  assert.equal(decodeStateBlob(encodeStateBlob({ observers: [{ name: 'x', latDeg: 95, lonDeg: 0 }, OBS] })).observers.length, 1);
+});

@@ -83,7 +83,7 @@ test('passSuccessProbability: visual mode - empty window returns 0', () => {
   const win = { startMs: 0, endMs: 0 };
   const p = passSuccessProbability(win, [OBS_EQUATOR], {
     mode: 'visual', minElevDeg: 10,
-    issEcefAtFn: () => null,
+    ecefAtFn: () => null,
     cloudForecastForObs: NO_CLOUDS,
   });
   assert.equal(p, 0);
@@ -93,7 +93,7 @@ test('passSuccessProbability: visual mode - no observers returns 0', () => {
   const win = { startMs: 0, endMs: 60_000 };
   const p = passSuccessProbability(win, [], {
     mode: 'visual', minElevDeg: 10,
-    issEcefAtFn: () => ISS_OVERHEAD,
+    ecefAtFn: () => ISS_OVERHEAD,
     cloudForecastForObs: NO_CLOUDS,
   });
   assert.equal(p, 0);
@@ -104,7 +104,7 @@ test('passSuccessProbability: visual midnight pass returns positive score', () =
   const win = { startMs: midnight, endMs: midnight + 4 * 60_000 }; // 4 min
   const p = passSuccessProbability(win, [OBS_EQUATOR], {
     mode: 'visual', minElevDeg: 10,
-    issEcefAtFn: () => ISS_OVERHEAD,
+    ecefAtFn: () => ISS_OVERHEAD,
     cloudForecastForObs: NO_CLOUDS,
   });
   // Score = (twilight × altitude × clear) × coordinationFactor(durSec).
@@ -119,7 +119,7 @@ test('passSuccessProbability: radio mode delegates to radioPassSuccessProbabilit
   const win = { startMs: midnight, endMs: midnight + 4 * 60_000 };
   const p = passSuccessProbability(win, [OBS_EQUATOR], {
     mode: 'radio', minElevDeg: 10,
-    issEcefAtFn: () => ISS_OVERHEAD,
+    ecefAtFn: () => ISS_OVERHEAD,
     cloudForecastForObs: NO_CLOUDS,
   });
   // Radio mode doesn't gate on sun, so even noon should score positive.
@@ -199,10 +199,10 @@ test('peakMagnitudeInWindow: returns null when no ISS samples in window', () => 
 });
 
 test('peakMagnitudeInWindow: returns brightest magnitude (most negative)', () => {
-  // Construct an issEcefAt that varies range across the window: closer
+  // Construct an ecefAt that varies range across the window: closer
   // at t=30_000 (overhead → 400 km), farther at edges (offset).
   const win = { startMs: 0, endMs: 60_000 };
-  const issEcefAtFn = (date) => {
+  const ecefAtFn = (date) => {
     const t = date.getTime();
     if (t >= 25_000 && t <= 35_000) return ISS_OVERHEAD; // overhead → brightest
     return [EARTH_R, 2_000_000, 0]; // farther + lower → dimmer
@@ -211,7 +211,7 @@ test('peakMagnitudeInWindow: returns brightest magnitude (most negative)', () =>
   // observer might be on the night side of Earth and see the unlit hemi).
   const midnight = Date.UTC(2025, 2, 20, 0, 0, 0);
   const w = { startMs: midnight, endMs: midnight + 60_000 };
-  // Re-shape issEcefAtFn using the shifted timestamps
+  // Re-shape ecefAtFn using the shifted timestamps
   const fn = (date) => {
     const tRel = date.getTime() - midnight;
     if (tRel >= 25_000 && tRel <= 35_000) return ISS_OVERHEAD;

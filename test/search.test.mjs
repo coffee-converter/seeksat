@@ -42,3 +42,14 @@ test('handles window that ends after search range', () => {
   assert.ok(Math.abs(out[0].startMs - 900_000) < 1500);
   assert.equal(out[0].endMs, 1_000_000);
 });
+
+test('edges are whole seconds and do not depend on the search start', () => {
+  // A pass from 200_123.4 ms to 500_456.7 ms, searched from many offsets.
+  const pred = (ms) => ms >= 200_123.4 && ms <= 500_456.7;
+  const seen = new Set();
+  for (let start = 0; start < 60_000; start += 7_331) {
+    const [w] = findWindowsFromPredicate(pred, start, 1_000_000, 60_000);
+    seen.add(`${w.startMs}-${w.endMs}`);
+  }
+  assert.deepEqual([...seen], ['201000-501000']);
+});

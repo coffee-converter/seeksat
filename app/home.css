@@ -1,0 +1,1353 @@
+/* home.css - the home screen and the map shell. Colours are theme tokens (app/globals.css). */
+
+.flat-map {
+  position: relative;
+  width: 100%;
+  /* Sized here, not from JS, so the server render has its height and the
+     phone URL bar showing or hiding (svh ignores it) never resizes the map. */
+  height: max(220px, 50vh);
+  height: max(220px, 50svh);
+  background: var(--map-ocean);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  color: var(--map-text);
+  font-family: var(--font-sans);
+}
+/* The globe view shows the frame around the globe, so it gets its own colour. */
+.flat-map--globe { background: var(--map-space); }
+/* Above maplibregl-map's own position: relative. */
+.flat-map > .flat-map__gl {
+  position: absolute;
+  inset: 0;
+}
+/* The lat/lon values on the map's left and bottom edges (FlatMap places them). */
+.flat-map__grid-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.flat-map__grid-label {
+  position: absolute; left: 0; top: 0;
+  font-size: var(--fs-xs); line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums;
+  color: var(--map-grid-label);
+  text-shadow: 0 0 2px var(--map-land), 0 0 2px var(--map-land);
+}
+/* The focused satellite's dot and name, a marker FlatMap moves every frame.
+   It matches the map's focus symbol (lib/map/overlays.mjs): a 5 px dot with a
+   2 px ring in the water colour, and an 11 px bold name 0.8 em right of the
+   centre with a 1.5 px halo. --focus-color is the satellite's colour, set by
+   FlatMap. Taps go through to the canvas, which tests the marker itself. */
+.flat-map__focus {
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.flat-map__focus.maplibregl-marker-covered { visibility: hidden; }
+.flat-map__focus-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--focus-color, var(--map-accent));
+  box-shadow: 0 0 0 2px var(--map-ocean);
+}
+/* Known radio downlinks: two arcs up and to the left of the dot, as on the
+   map's other dots (lib/map/overlays.mjs ss-radio). The name, on the right,
+   stays where it is. */
+.flat-map__focus--radio::before,
+.flat-map__focus--radio::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  border: 1.5px solid transparent;
+  border-top-color: var(--focus-color, var(--map-accent));
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+/* Arc radii 7 and 10 px, as on the map's dots. */
+.flat-map__focus--radio::before { width: 16px; height: 16px; }
+.flat-map__focus--radio::after { width: 22px; height: 22px; }
+.flat-map__focus-name {
+  position: absolute;
+  left: calc(50% + 0.8em);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--focus-color, var(--map-accent));
+  -webkit-text-stroke: 3px var(--map-ocean);
+  paint-order: stroke fill;
+}
+.flat-map__nogl {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: var(--sp-16);
+  text-align: center;
+  color: var(--map-text);
+}
+/* The chip strip and view menu share a row over the top of the map.
+   The row lets taps through to the canvas between its controls. */
+.flat-map__top {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  pointer-events: none;
+}
+.flat-map__top > * { pointer-events: auto; }
+.flat-map__views { flex: none; margin-left: auto; }
+/* MapLibre's attribution sits above the zoom buttons, so opening it never covers them. */
+.flat-map .maplibregl-ctrl-bottom-right { bottom: 40px; }
+/* Its compact pill and info button in the map's colours (MapLibre draws them white). */
+.flat-map .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.flat-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  background-color: var(--map-panel);
+  color: var(--map-text);
+}
+.flat-map .maplibregl-ctrl-attrib a { color: var(--map-text); }
+.flat-map .maplibregl-ctrl-attrib-button,
+.flat-map .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button {
+  background-image: none;
+  background-color: transparent;
+}
+/* MapLibre's info icon as a mask, so it takes the text colour. */
+.flat-map .maplibregl-ctrl-attrib-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--map-text);
+  -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill-rule='evenodd' viewBox='0 0 20 20'%3E %3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E %3C/svg%3E") center / 24px 24px no-repeat;
+  mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill-rule='evenodd' viewBox='0 0 20 20'%3E %3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E %3C/svg%3E") center / 24px 24px no-repeat;
+}
+/* Inset: the map frame clips anything outside it. */
+.flat-map .maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.flat-map__zoom {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: var(--sp-4);
+}
+/* Globe camera buttons sit in a row above the zoom buttons (wrapping upward
+   on a very narrow map); the attribution moves up above them. */
+.flat-map__presets {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 46px;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  gap: var(--sp-4);
+  pointer-events: none;
+}
+.flat-map__presets .btn { pointer-events: auto; }
+.flat-map--globe .maplibregl-ctrl-bottom-right { bottom: 82px; }
+
+/* Full screen: the native API when present, else this class (iPhone Safari). */
+.flat-map-shell--full {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-8);
+  background: var(--bg);
+  overflow: hidden;
+}
+.flat-map-shell--full .flat-map {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  /* The legend takes its own height; the map gets the rest of the dynamic viewport. */
+  max-height: calc(100dvh - 16px);
+}
+.flat-map-shell--full .map-legend,
+.flat-map-shell--full .focus-bar { flex: 0 0 auto; }
+.flat-map-shell:fullscreen { background: var(--bg); }
+
+/* Search bar, pinned on top of the home screen. */
+.search-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: var(--sp-8);
+  /* Opaque: once the bar sticks, the map scrolls underneath it. */
+  background: var(--bg);
+  color: var(--map-text);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-sans);
+}
+.search-bar__row { display: flex; gap: var(--sp-8); }
+.search-bar__row > .field { flex: 1; min-width: 0; }
+.search-bar__list {
+  /* Floats over the page, so opening it never pushes the map down and
+     nothing shows through it. */
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: var(--popover);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+}
+.search-bar__list[hidden] { display: none; }
+.search-bar__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-12);
+  cursor: pointer;
+}
+.search-bar__name { min-width: 0; overflow-wrap: anywhere; }
+/* The follow star: its own tap target, so a row tap still means view. */
+.search-bar__star { flex: none; }
+.search-bar__star-glyph { font-size: var(--fs-xl); line-height: 1; }
+.search-bar__star-glyph--on { color: var(--warn); }
+.search-bar__option:hover,
+.search-bar__option[aria-selected="true"] { background: rgba(var(--accent-rgb), 0.16); }
+.search-bar__id { color: var(--map-muted); font-size: 0.85em; }
+.search-bar__radio { margin-left: var(--sp-4); color: var(--accent); }
+.search-bar__note { margin: var(--sp-6) var(--sp-2) 0; color: var(--map-muted); }
+.search-bar__paste { display: flex; flex-direction: column; gap: var(--sp-6); margin-top: var(--sp-8); }
+/* TLE columns line up only in the code font. */
+.search-bar__tle { font-family: var(--font-code); }
+.search-bar__add { align-self: flex-start; }
+.search-bar__error { margin: 0; color: var(--danger-text); }
+
+/* Home screen layout. */
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-24);
+  max-width: 760px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-8) var(--sp-24);
+  color: var(--map-text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+}
+.home-heading {
+  margin: 0 0 var(--sp-8);
+  color: var(--text-heading);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+}
+.home-wordmark {
+  margin: var(--sp-2) var(--sp-2) 0;
+  color: var(--map-accent);
+  font-family: var(--font-brand);
+  font-size: var(--fs-2xl);
+  font-weight: 600; /* brand */
+  letter-spacing: 0.01em;
+  line-height: var(--lh-tight);
+}
+
+/* LiveClock: UTC large with a pulsing live dot, local time below. */
+.live-clock { text-align: right; }
+.live-clock p { margin: 0; }
+.live-clock__utc { display: flex; align-items: baseline; justify-content: flex-end; gap: var(--sp-8); }
+.live-clock__dot {
+  /* On the baseline, as LIVE's capitals are: an empty box sits its bottom
+     there, so its middle meets theirs (centring it on the row lined it up
+     with the bigger time instead). */
+  align-self: baseline; flex: none; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ok); animation: live-pulse 2s ease-out infinite;
+}
+.live-clock__live { color: var(--ok); font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: 0.1em; text-transform: uppercase; }
+.live-clock__time {
+  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+.live-clock__zone { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.live-clock__local { min-height: 1.4em; color: var(--map-muted); font-size: var(--fs-md); line-height: var(--lh-snug); font-variant-numeric: tabular-nums; }
+.live-clock--compact .live-clock__utc { gap: var(--sp-6); }
+.live-clock--compact .live-clock__time { font-size: var(--fs-xl); }
+.live-clock--compact .live-clock__live { font-size: var(--fs-xs); }
+.live-clock--compact .live-clock__zone { font-size: var(--fs-xs); }
+.live-clock--compact .live-clock__local { font-size: var(--fs-xs); }
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(var(--ok-rgb), 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(var(--ok-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--ok-rgb), 0); }
+}
+
+/* A value that just changed (useFlash). */
+@keyframes tick { from { background: var(--flash-bg); color: var(--flash-text); } to { background: transparent; } }
+.is-ticking { animation: tick 700ms ease-out; }
+.flash-text { border-radius: var(--radius-sm); }
+@media (prefers-reduced-motion: reduce) {
+  .is-ticking { animation: none; }
+  .live-clock__dot { animation: none; }
+}
+
+.home-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  margin-top: auto;
+  padding: var(--sp-12) var(--sp-2) 0;
+  border-top: var(--line-subtle);
+  color: var(--map-muted);
+  font-size: var(--fs-sm);
+}
+.home-footer a { color: var(--map-muted); text-decoration: underline; text-underline-offset: 2px; }
+.home-footer a:hover,
+.home-footer a:focus-visible { color: var(--map-accent); }
+/* ClockSkewBanner's look, scoped to the home screen and the map shell. */
+.home .clock-skew-banner,
+.map-shell .clock-skew-banner {
+  padding: var(--sp-6) var(--sp-12);
+  background: rgba(var(--warn-rgb), 0.08);
+  border: 1px solid rgba(var(--warn-rgb), 0.32);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  color: var(--warn-text);
+}
+.home .clock-skew-banner strong,
+.map-shell .clock-skew-banner strong { color: var(--warn); font-weight: var(--fw-semibold); }
+.home-note { margin: 0; color: var(--map-muted); }
+.home-error { margin: 0; color: var(--danger-text); }
+
+
+/* Settings row under the map. */
+/* One settings group: the location on top, then the controls in a row. */
+.home-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8) var(--sp-12);
+}
+.home-controls__elev { display: flex; align-items: center; }
+/* What the elevation setting does, on its own line under the controls. */
+.home-controls__bands { flex-basis: 100%; }
+.home-controls__band-row { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-8); }
+.home-controls__hint { flex: 1 0 100%; margin: 0; color: var(--map-muted); font-size: var(--fs-sm); }
+/* The stepper: two quiet buttons and the value in one outlined box. */
+.home-controls__elev { border: var(--line-input); border-radius: var(--radius-md); overflow: hidden; }
+.home-controls__value {
+  min-width: 4.5em;
+  /* As tall as the stepper buttons beside it, the value centred. */
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 var(--sp-8);
+  border-left: var(--line-input);
+  border-right: var(--line-input);
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+}
+.home-controls__pending { visibility: hidden; }
+/* Narrow phones: just enough tighter that mode and elevation share a line. */
+@media (max-width: 379.98px) {
+  .home-controls { padding: var(--sp-8); gap: var(--sp-8); }
+  .home-controls__value { padding: 0 var(--sp-6); }
+}
+.home-controls__place {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-8);
+  min-width: 0;
+  max-width: 100%;
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+.home-controls__label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-regular); }
+/* Sky type (visual mode): at the end of the location row, in body weight. */
+.home-controls__sky { font-weight: var(--fw-regular); }
+.home-controls__place .home-controls__sky { margin-left: auto; align-self: center; }
+.home-controls__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  background: rgba(var(--danger-rgb), 0.1);
+  color: var(--danger-soft-text);
+  border: 1px solid rgba(var(--danger-rgb), 0.4);
+  border-radius: var(--radius-lg);
+}
+
+/* Location prompt and the popular list. */
+.location-prompt,
+.popular {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  padding: var(--sp-12);
+  background: var(--map-panel);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+}
+.location-prompt__hint { margin: 0; color: var(--map-muted); }
+.location-prompt__form { display: flex; gap: var(--sp-8); width: 100%; }
+.location-prompt__form > .field { flex: 1; min-width: 0; }
+.popular__list { list-style: none; margin: 0; padding: 0; width: 100%; }
+.popular__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: var(--sp-6) 0;
+  border-top: var(--line-subtle);
+}
+.popular__item:first-child { border-top: 0; }
+
+/* Next up cards. */
+/* One cloud line for the list when every pass shares the forecast. */
+.next-up__note { margin: calc(-1 * var(--sp-4)) 0 var(--sp-8); color: var(--map-muted); font-size: var(--fs-md); }
+.next-up__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* A Surface with an accent edge in the satellite's colour. */
+.pass-card {
+  --surface-accent: var(--sat-color, var(--map-muted));
+  display: flex;
+  gap: var(--sp-12);
+}
+.pass-card--short {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+.pass-card__plot { flex: 0 0 76px; align-self: flex-start; width: 76px; padding: var(--sp-6); }
+.pass-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.pass-card__headline { margin: 0; color: var(--text-strong); font-size: var(--fs-lg); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+.pass-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-12);
+  margin: 0;
+  color: var(--map-muted);
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+}
+/* The row's gap spaces the badges, so a wrapped one lines up at the left. */
+.pass-card__meta .quality,
+.pass-card__meta .cloud,
+.pass-card__meta .pass-card__tag { margin-left: 0; }
+.pass-card__tag {
+  margin-left: var(--sp-8);
+  color: var(--teal);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+/* Pass quality and cloud cover: quiet text, a coloured word. The word carries
+   it, the colour backs it up; the quality word follows its signal bars. */
+.quality,
+.cloud {
+  display: inline-block;
+  margin-left: var(--sp-8);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-body);
+  color: var(--muted);
+}
+/* The word and its signal bars take the bar count's colour, red to green. */
+.quality--b1 { color: var(--q1); }
+.quality--b2 { color: var(--q2); }
+.quality--b3 { color: var(--q3); }
+.quality--b4 { color: var(--q4); }
+.quality--b5 { color: var(--q5); }
+/* The signal bars (RatingBars) sit before the word. */
+.quality .qbars { margin-right: var(--sp-6); }
+.cloud--clear { color: var(--ok); }
+.cloud--some { color: var(--warn-text); }
+.cloud,
+.quality { white-space: nowrap; }
+/* The quality and cloud badges stay together on one line. */
+.rating-pair { display: inline-flex; align-items: baseline; gap: var(--sp-6); white-space: nowrap; }
+.rating-pair .quality,
+.rating-pair .cloud { margin-left: 0; }
+/* In running text the pair keeps the badge's own left margin. */
+.best-pass__what .rating-pair { margin-left: var(--sp-8); }
+/* Where the elements came from: a quieter cue than "visible". */
+.pass-card__tag--elements {
+  color: var(--map-muted);
+  font-weight: var(--fw-regular);
+  white-space: nowrap;
+}
+.pass-card__tag--viewing { color: var(--map-accent); }
+/* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
+/* Where to look, in words. It may wrap on a phone; a time never breaks. */
+/* Where the pass goes, in the stat columns under Starts, Max and Lasts. */
+.pass-path__step dt { color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-path__dir { color: var(--map-text); font-weight: var(--fw-semibold); }
+.pass-path__step dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Radio mode: what to listen and transmit on, as a small table. */
+.radio-rows {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-12);
+  margin: 0;
+}
+.radio-rows dt { color: var(--map-muted); font-size: var(--fs-sm); }
+.radio-rows dd { margin: 0; }
+.radio-rows__freq { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); white-space: nowrap; }
+.radio-rows__note { justify-self: end; text-align: right; color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-card__radio-none { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-card__radio-more { margin-top: var(--sp-4); }
+/* A pass card: the name and rating on top, the plot beside three stat
+   columns (Starts, Max, Lasts) that sit in the same place on every card,
+   then where to look, the facts and the buttons. */
+.pass-card--pass {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-areas: "top top" "plot stats" "body body";
+  column-gap: var(--sp-12);
+  row-gap: var(--sp-8);
+  align-items: center;
+}
+.pass-card--pass .pass-card__top {
+  grid-area: top;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4) var(--sp-12);
+  min-width: 0;
+}
+.pass-card--pass .pass-card__plot { grid-area: plot; padding: 0; }
+.pass-card--pass .pass-card__body { grid-area: body; gap: var(--sp-8); }
+.pass-card__stats {
+  grid-area: stats;
+  display: grid;
+  gap: var(--sp-8);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+/* Starts, Max and Lasts, and the path strip under them, in one grid: each
+   column as wide as its widest cell, the columns spread evenly across. */
+.pass-card__stats { grid-template-columns: repeat(3, auto); justify-content: space-between; column-gap: var(--sp-12); row-gap: var(--sp-8); }
+.pass-card__stat { min-width: 0; }
+.pass-card__stat dt { font-size: var(--fs-sm); color: var(--map-muted); }
+.pass-card__stat dd { margin: 0; }
+.pass-card__stat-value {
+  color: var(--text-strong);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
+/* "Best in the next 24 hours": one quiet interactive Surface above Next up. */
+.best-pass { display: block; width: 100%; }
+.best-pass__label { color: var(--map-muted); }
+.best-pass__what { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.best-pass .quality,
+.best-pass .cloud { margin-left: 0; }
+.pass-card__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; font-size: var(--fs-md); color: var(--map-muted); }
+
+/* chart-block:begin */
+/* Chart graphics only: the painted sky and radio charts keep their literal
+   dark colours in both themes (test/theme-css.test.mjs skips this block). The
+   pass-card polar plot does too in dark theme; in light theme it takes a
+   light disc from the tokens. The dialogs around the charts are library
+   Modals, styled below the block. */
+/* The card's polar plot (PolarPlotSvg). Scoped to the card. The painter sets
+   --sky-shade (the sky at the pass peak) and strokes the arc in currentColor. */
+.pass-card__plot .polar-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  cursor: default;
+}
+.pass-card__plot .polar-plot .horizon {
+  fill: var(--sky-shade, rgba(8, 12, 24, 0.9));
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 1.6;
+}
+.pass-card__plot .polar-plot .grid {
+  fill: none;
+  stroke: rgba(126, 184, 255, 0.3);
+  stroke-width: 0.8;
+}
+.pass-card__plot .polar-plot .cardinal {
+  fill: #cfe0ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+:root[data-theme='light'] .pass-card__plot .polar-plot .horizon {
+  fill: var(--panel-2);
+  stroke: rgba(var(--accent-rgb), 0.45);
+}
+:root[data-theme='light'] .pass-card__plot .polar-plot .grid { stroke: rgba(var(--accent-rgb), 0.25); }
+:root[data-theme='light'] .pass-card__plot .polar-plot .cardinal { fill: var(--muted); }
+/* The arc: 2 px in the satellite's colour in both themes. It is solid where
+   the satellite can be seen by eye and dashed elsewhere, with the opacity
+   raised so both read on a thumbnail. Dashes keep the painter's butt caps. */
+.pass-card__plot .polar-plot .arc { color: var(--sat-color, var(--map-muted)); }
+.pass-card__plot .polar-plot .arc line,
+.pass-card__plot .polar-plot .arc polyline {
+  fill: none;
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-opacity: 1;
+}
+.pass-card__plot .polar-plot .arc polyline { stroke-opacity: 0.8; stroke-linecap: butt; }
+.pass-card__plot .polar-plot .iss-dot {
+  fill: #ffffff;
+  stroke: #000;
+  stroke-width: 0.6;
+}
+
+/* The SVGs are painted offscreen and rasterized into the PNG <img>. */
+.polar-modal-svg {
+  position: absolute;
+  left: -10000px; top: -10000px;
+  width: 800px; height: 800px;
+  pointer-events: none;
+}
+.polar-modal-svg .horizon {
+  fill: rgba(4, 8, 20, 0.85);
+  stroke: rgba(126, 184, 255, 0.55);
+  stroke-width: 0.8;
+}
+.polar-modal-svg .grid {
+  fill: none; stroke: rgba(126, 184, 255, 0.18); stroke-width: 0.4;
+}
+.polar-modal-svg .spoke {
+  stroke: rgba(126, 184, 255, 0.12); stroke-width: 0.3;
+}
+.polar-modal-svg .cardinal {
+  fill: #cfe0ff; font-size: 11px; letter-spacing: 0.08em; font-weight: 700;
+}
+.polar-modal-svg .arc {
+  fill: none; stroke-width: 1.6; stroke-linecap: round;
+  stroke-linejoin: round; opacity: 0.9;
+}
+.polar-modal-svg .iss-dot {
+  fill: #ffffff; stroke: #7eb8ff; stroke-width: 0.7;
+}
+.polar-modal-svg .star-name {
+  fill: #8aa0c8; font-size: 3.2px; opacity: 0.85;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.radio-modal-svg {
+  position: absolute;
+  left: -10000px; top: -10000px;
+  width: 900px; height: 703px;
+  pointer-events: none;
+}
+/* The phone radio chart (paintRadioChartCompact), drawn at the dialog's width. */
+.radio-phone-svg { display: block; width: 100%; height: auto; }
+/* chart-block:end */
+
+/* Chart dialogs (SkyChartModalView, RadioChartModalView): an always-dark
+   library Modal (tone="dark") around the painted PNG. */
+.chart-modal { display: flex; flex-direction: column; align-items: center; }
+.chart-modal--radio { align-items: stretch; }
+.chart-modal__img { display: block; width: auto; height: auto; border-radius: var(--radius-md); user-select: none; }
+.chart-modal__img--sky { max-width: min(96vw, 1400px); max-height: calc(94vh - 64px); }
+.chart-modal__img--radio {
+  width: 100%;
+  max-width: min(96vw, 1400px);
+  max-height: 82vh;
+  object-fit: contain;
+  align-self: center;
+}
+.chart-modal__hint {
+  margin: 0;
+  padding-top: var(--sp-6);
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.chart-hint--touch { display: none; }
+@media (hover: none) {
+  .chart-hint--mouse { display: none; }
+  .chart-hint--touch { display: inline; }
+}
+/* The radio chart's frequency menu and custom MHz field, in the toolbar. */
+.chart-modal__custom { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-xs); color: var(--muted); }
+.chart-modal__mhz { width: 96px; }
+/* The chosen frequency's uplink and tone, on its own line under the toolbar. */
+.chart-modal__uplink { flex-basis: 100%; margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+@media (max-width: 600px) {
+  .chart-modal__img { max-width: 92vw; max-width: 92dvw; }
+  .chart-modal__custom { max-width: 100%; min-width: 0; }
+  /* A long downlink name would push the menu past the dialog's edge. */
+  .chart-modal__freq { max-width: 100%; min-width: 0; flex: 1 1 auto; }
+}
+/* Radio chart on phones: a phone-width chart with a heading, tiles and a tune
+   table, in place of the shrunken desktop image. --phone is only set at
+   600 px or less. */
+.radio-phone {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-2) var(--sp-2) var(--sp-4);
+  color: var(--text);
+}
+.radio-phone__title { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); color: var(--text-strong); }
+.radio-phone__sub { margin: calc(-1 * var(--sp-6)) 0 0; font-size: var(--fs-sm); color: var(--muted); }
+.radio-phone__tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6); }
+.radio-tune {
+  width: 100%; border-collapse: collapse;
+  font-size: var(--fs-md); font-variant-numeric: tabular-nums;
+}
+.radio-tune caption {
+  text-align: left; padding-bottom: var(--sp-4);
+  font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text);
+}
+.radio-tune th,
+.radio-tune td {
+  padding: var(--sp-4) var(--sp-2); text-align: right; white-space: nowrap;
+  border-top: var(--line-subtle);
+}
+.radio-tune td { color: var(--text-strong); }
+.radio-tune thead th { border-top: 0; font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--muted); }
+.radio-tune thead th:first-child,
+.radio-tune th[scope="row"] { text-align: left; font-weight: var(--fw-medium); color: var(--text); }
+/* "Closest approach" may wrap, so the table fits a 360 px phone. */
+.radio-tune th[scope="row"] { white-space: normal; }
+.radio-phone__legend { margin: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); color: var(--muted); }
+.radio-phone__full { align-self: flex-start; }
+.chart-modal--phone .chart-modal__link,
+.chart-modal--phone .chart-modal__hint { display: none; }
+/* Open full size: the desktop image at its natural width, to pan and zoom. */
+.chart-modal--full .chart-modal__link {
+  display: block; overflow: auto; max-height: 70vh; max-height: 70dvh;
+  /* A scrolling flex item would otherwise shrink to nothing in the column. */
+  flex: none;
+  margin-top: var(--sp-8); border-radius: var(--radius-md);
+}
+.chart-modal--full .chart-modal__img--radio { width: 900px; max-width: none; max-height: none; }
+.chart-modal--full .chart-modal__hint { display: block; }
+.radio-phone__about { margin-top: var(--sp-8); }
+.radio-phone__about p { margin: var(--sp-4) 0 0; font-size: var(--fs-sm); line-height: var(--lh-snug); color: var(--muted); }
+
+/* Focus bar, above the map while one satellite is focused. */
+.focus-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-6) var(--sp-12);
+  margin-bottom: var(--sp-8);
+  padding: var(--sp-6) var(--sp-8) var(--sp-6) var(--sp-12);
+  background: var(--map-panel);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+}
+.focus-bar__title { flex: 1 1 auto; min-width: 0; margin: 0; font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+.focus-bar__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.focus-bar .focus-bar__close { min-width: 40px; min-height: 40px; }
+.focus-bar__x { font-size: var(--fs-xl); line-height: 1; }
+/* Details jumps to the drawer title, which only sits below the map under 1100 px. */
+@media (min-width: 1100px) { .focus-bar .focus-bar__details { display: none; } }
+.focus-bar__note { flex-basis: 100%; margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
+
+/* Satellite chips over the top of the map. The strip scrolls sideways inside
+   itself and never widens the page. */
+.sat-chips {
+  display: flex;
+  flex: 0 1 auto;
+  gap: var(--sp-6);
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 var(--sp-2);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.sat-chips::-webkit-scrollbar { display: none; }
+
+/* Bigger tap targets on touch screens. */
+
+/* Cards: the headline focuses the satellite; a focus dims the other cards. */
+.pass-card__focus {
+  padding: 0;
+  min-height: 24px;
+  background: none;
+  color: inherit;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pass-card__focus:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pass-card__focus:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
+/* Another satellite is focused: the text stays readable, and the plot, rating
+   and colour stripe step back. (The focused card is Surface selected.) */
+.pass-card--dim { --surface-accent: var(--map-border); }
+.pass-card--dim .pass-card__plot,
+.pass-card--dim .pass-card__rating { opacity: 0.6; }
+.pass-card--dim .pass-card__headline,
+.pass-card--dim .pass-card__stat-value { color: var(--map-text); }
+
+/* Map legend. */
+.map-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6) var(--sp-16);
+  margin: var(--sp-8) 0 0;
+  padding: 0;
+  color: var(--map-muted);
+  font-size: var(--fs-sm);
+}
+.map-legend li { display: flex; align-items: center; gap: var(--sp-6); }
+/* Every swatch fills the same 22 px slot, so the labels line up. */
+.map-legend__swatch {
+  flex: none;
+  width: 22px;
+  height: 12px;
+  box-sizing: border-box;
+}
+.map-legend__swatch--sat { width: 10px; height: 10px; margin: 0 var(--sp-6); border-radius: 50%; background: var(--swatch, var(--map-accent)); }
+/* As the map draws a track: dotted where it has been, then solid and fading. */
+.map-legend__swatch--track {
+  height: 2px;
+  background:
+    repeating-linear-gradient(90deg, var(--map-text) 0 2px, transparent 2px 4px) left / 40% 100% no-repeat,
+    linear-gradient(90deg, var(--map-text), transparent) right / 60% 100% no-repeat;
+}
+/* The focused satellite's circle: a faint fill in its colour, no outline. */
+.map-legend__swatch--footprint {
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--swatch, var(--map-accent)) 30%, transparent);
+}
+.map-legend__swatch--ghost { width: 6px; height: 6px; margin: 0 var(--sp-8); border-radius: 50%; background: var(--map-text); opacity: 0.35; }
+.map-legend__swatch--night { background: var(--map-night); border: var(--line-subtle); }
+.map-legend__swatch--note { display: none; }
+.map-legend li:has(> .map-legend__swatch--note) { flex-basis: 100%; }
+.map-legend__swatch--observer { display: inline-flex; align-items: center; justify-content: center; height: 18px; color: var(--map-observer); }
+.map-legend__swatch--observer svg { display: block; }
+.map-legend__swatch--radio { display: inline-flex; align-items: center; justify-content: center; height: 18px; color: var(--map-text); }
+.map-legend__swatch--radio svg { display: block; }
+
+/* About section. */
+.home-about {
+  margin-top: var(--sp-16);
+  color: var(--map-muted);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+}
+.home-about__summary { cursor: pointer; color: var(--map-text); }
+.home-about__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.home-about p { margin: var(--sp-8) 0 0; }
+.home-about a { color: var(--map-accent); }
+
+/* Map shell (components/MapShell.tsx), shared by / and /sat/<id>.
+   Under 1100 px: one column, a sticky top bar, a tall map, the panel below.
+   From 1100 px: the map fills the window beside a scrolling panel. */
+.map-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "top" "map" "panel";
+  min-height: 100%;
+  color: var(--map-text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+}
+.map-shell__top {
+  grid-area: top;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 560px) minmax(max-content, 1fr);
+  grid-template-areas: "brand search clock";
+  align-items: center;
+  gap: var(--sp-8) var(--sp-24);
+  min-height: 56px;
+  padding: var(--sp-6) var(--sp-12);
+  background: var(--bg);
+  border-bottom: 1px solid var(--map-edge);
+}
+/* OfflineBanner (components/OfflineBanner.tsx): a full-width row under the top bar's contents. */
+.map-shell__top .offline-banner {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--sp-6) var(--sp-12);
+  background: rgba(var(--warn-rgb), 0.08);
+  border: 1px solid rgba(var(--warn-rgb), 0.32);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  color: var(--warn-text);
+}
+.map-shell__top .offline-banner--back {
+  background: rgba(var(--accent-rgb), 0.08);
+  border-color: rgba(var(--accent-rgb), 0.32);
+  color: var(--map-text);
+}
+/* HomeApp's "Satellite data is ... old." line, under the top bar and banner. */
+.map-shell__top .saved-age { grid-column: 1 / -1; margin: 0; font-size: var(--fs-sm); color: var(--map-muted); }
+.map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
+.map-shell__end { grid-area: clock; justify-self: end; display: flex; align-items: center; gap: var(--sp-12); }
+/* ThemeToggle (components/ThemeToggle.tsx): segmented from 700 px, one cycling
+   button below, so the phone header row never crowds the wordmark. */
+.theme-toggle[data-ready="false"] { visibility: hidden; }
+.theme-toggle[data-night="true"] { opacity: 0.55; }
+.theme-toggle .theme-toggle__cycle { display: none; min-width: 56px; min-height: 36px; }
+@media (max-width: 699.98px) {
+  .theme-toggle__group { display: none; }
+  .theme-toggle .theme-toggle__cycle { display: inline-flex; }
+}
+/* NightToggle (components/NightToggle.tsx): the height of the theme well;
+   icon only under 700 px. */
+.night-toggle { min-height: 38px; }
+.night-toggle[data-ready="false"] { visibility: hidden; }
+.night-toggle__icon { display: none; flex: none; }
+@media (max-width: 699.98px) {
+  .night-toggle { min-width: 36px; min-height: 36px; }
+  .night-toggle__icon { display: block; }
+  .night-toggle__label { display: none; }
+}
+.map-shell__search { grid-area: search; min-width: 0; }
+/* The search bar sits flat in the bar; what opens under it floats over the page. */
+.map-shell__top .search-bar { position: relative; top: auto; z-index: auto; padding: 0; background: none; border: 0; border-radius: 0; }
+.map-shell__top .search-bar__below {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.map-shell__top .search-bar__list { position: static; }
+.map-shell__top .search-bar__below > p,
+.map-shell__top .search-bar__paste {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--popover);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+}
+.map-shell__map { grid-area: map; min-width: 0; padding: var(--sp-8) var(--sp-8) 0; }
+.map-shell__panel {
+  grid-area: panel;
+  /* Positioned, so visually hidden labels inside stay inside (and never
+     stretch the page past the docked shell). */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-24);
+  min-width: 0;
+  padding: var(--sp-16) var(--sp-8) var(--sp-24);
+}
+/* Docked, the panel has a fixed height: its children must not shrink to fit
+   (the tile grid clips its overflow, so it would collapse to nothing). */
+.map-shell__panel > * { flex-shrink: 0; }
+.map-shell.sat .map-shell__panel { gap: var(--sp-24); }
+
+/* Phones: two rows, wordmark and clock, then search. Only the first row
+   scrolls away (the negative top), so the search stays pinned. The wordmark
+   column never shrinks below the word, so the clock cannot slide over it.
+   The map runs edge to edge; everything else keeps a 16 px side margin. */
+@media (max-width: 699.98px) {
+  .map-shell__top {
+    top: -48px;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 38px auto;
+    grid-template-areas: "brand clock" "search search";
+    gap: var(--sp-4) var(--sp-12);
+    padding: var(--sp-6) var(--sp-16) var(--sp-8);
+  }
+  .map-shell__map { padding: var(--sp-8) 0 0; }
+  .map-shell__map > :not(.flat-map-shell--fill),
+  .flat-map-shell--fill .map-legend-box { margin-left: var(--sp-16); margin-right: var(--sp-16); }
+  /* A full-width button keeps its 100%, so it gives back the margins. */
+  .map-shell__map > .next-strip { width: calc(100% - 32px); }
+  .flat-map-shell--fill .flat-map { border-left: 0; border-right: 0; border-radius: 0; }
+  .map-shell__panel { padding: var(--sp-16) var(--sp-16) var(--sp-24); }
+}
+/* The smallest phones: the pulsing dot alone says live, so the clock row fits
+   beside the wordmark. */
+@media (max-width: 399.98px) {
+  .map-shell__top .live-clock__live { display: none; }
+  /* Alone beside the time, it centres on the digits. */
+  .map-shell__top .live-clock__dot { align-self: center; }
+}
+/* Small phones: tighter gaps so the wordmark, clock, theme and Night vision
+   fit on one row at 360 px. */
+@media (max-width: 479px) {
+  .map-shell__top { column-gap: var(--sp-4); }
+  .map-shell__end { gap: var(--sp-4); }
+  .theme-toggle .theme-toggle__cycle { min-width: 48px; }
+}
+
+/* FlatMap fill: sized by the shell. Narrow screens stack the focus bar,
+   the map (chips over its top) and the open legend in a grid. */
+.flat-map-shell--fill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "map" "legend";
+}
+.flat-map-shell--fill .flat-map__over {
+  grid-area: map;
+  align-self: start;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-8);
+  min-width: 0;
+  padding: var(--sp-8);
+  pointer-events: none;
+}
+.flat-map-shell--fill .flat-map__head { align-self: stretch; min-width: 0; pointer-events: auto; }
+.flat-map-shell--fill .flat-map__head .focus-bar { margin: 0; box-shadow: var(--shadow-popover); }
+.flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
+.flat-map-shell--fill .flat-map {
+  grid-area: map;
+  height: max(260px, 60vh);
+  height: max(260px, 60svh);
+}
+.flat-map-shell--fill .map-legend-box { grid-area: legend; min-width: 0; }
+.map-legend-box .map-legend__toggle { display: none; }
+.flat-map-shell--fill.flat-map-shell--full { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.flat-map-shell--fill.flat-map-shell--full .flat-map { height: auto; min-height: 0; }
+
+/* A first visit (no location yet), stacked: HomeApp puts the location card
+   above the map, and the map is capped at 40vh under it. */
+@media (max-width: 1099.98px) {
+  .home-first-visit .map-shell__map > .location-prompt { margin-bottom: var(--sp-8); }
+  .home-first-visit .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
+    height: 40vh;
+    height: 40svh;
+  }
+}
+
+/* Satellite page on phones: a shorter map and a folded legend, so the title
+   and the next pass line are on the first screen. */
+@media (max-width: 699.98px) {
+  .map-shell.sat .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
+    height: max(220px, 45vh);
+    height: max(220px, 45svh);
+  }
+  .map-shell.sat .flat-map-shell--fill .map-legend__toggle { display: inline-flex; margin-top: var(--sp-6); }
+  .map-shell.sat .flat-map-shell--fill .map-legend-box:not(.map-legend-box--open) .map-legend { display: none; }
+}
+
+/* Docked: the map fills the window under the top bar, beside the panel. */
+@media (min-width: 1100px) {
+  .map-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "top top" "map panel";
+  }
+  /* 56 px tall; the offline banner adds a row under it while it shows. */
+  .map-shell__top { position: relative; grid-template-rows: 56px; row-gap: 0; padding: 0 var(--sp-16); }
+  .map-shell__top .offline-banner,
+  .map-shell__top .saved-age { margin-bottom: var(--sp-8); }
+  .map-shell__map { display: grid; min-height: 0; padding: 0; }
+  .map-shell__panel {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp-16) var(--sp-16) var(--sp-24);
+    background: var(--bg);
+    border-left: 1px solid var(--map-edge);
+    scrollbar-width: thin;
+    scrollbar-color: var(--btn-line) transparent;
+  }
+
+  .flat-map-shell--fill {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "map";
+  }
+  .flat-map-shell--fill .flat-map {
+    height: auto;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  /* Focus bar and chips stack over the top of the map; taps between them reach the canvas. */
+  .flat-map-shell--fill .flat-map__over {
+    grid-area: map;
+    align-self: start;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-8);
+    min-width: 0;
+    padding: var(--sp-12);
+    pointer-events: none;
+  }
+  .flat-map-shell--fill .flat-map__head { align-self: flex-start; max-width: min(640px, 100%); pointer-events: auto; }
+  .flat-map-shell--fill .flat-map__head .focus-bar { margin: 0; box-shadow: var(--shadow-popover); }
+  .flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
+  .flat-map-shell--fill .flat-map__zoom { left: auto; right: 10px; bottom: 10px; }
+  .flat-map-shell--fill .flat-map__presets { left: 10px; right: 10px; bottom: 48px; justify-content: flex-end; }
+  .flat-map-shell--fill .flat-map--globe .maplibregl-ctrl-bottom-right { bottom: 84px; }
+  /* The legend: a toggle at the bottom left that opens upward. */
+  .flat-map-shell--fill .map-legend-box {
+    grid-area: map;
+    align-self: end;
+    justify-self: start;
+    z-index: 2;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: var(--sp-6);
+    margin: 0 0 var(--sp-12) var(--sp-12);
+  }
+  .flat-map-shell--fill .map-legend__toggle { display: inline-flex; min-height: 32px; }
+  .flat-map-shell--fill .map-legend-box:not(.map-legend-box--open) .map-legend { display: none; }
+  .flat-map-shell--fill .map-legend {
+    flex-direction: column;
+    gap: var(--sp-6);
+    /* The ground-position note wraps rather than stretching the box. */
+    max-width: 34em;
+    margin: 0;
+    padding: var(--sp-12) var(--sp-12);
+    background: var(--map-panel);
+    border: var(--line-subtle);
+    border-radius: var(--radius-lg);
+  }
+  .flat-map-shell--fill.flat-map-shell--full { grid-template-rows: minmax(0, 1fr); padding: 0; }
+  .flat-map-shell--fill.flat-map-shell--full .flat-map { max-height: none; }
+}
+
+/* Up now: live sky view for the followed satellites. */
+.up-now { margin: 0; }
+.up-now__title { margin: 0 0 var(--sp-8); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-heading); }
+.up-now__body { display: flex; gap: var(--sp-12); align-items: center; flex-wrap: wrap; }
+.up-now__sky { flex: 0 0 160px; width: 160px; height: 160px; }
+.up-now__horizon { fill: rgba(var(--ink-rgb), 0.03); stroke: var(--map-muted); stroke-width: 1; }
+.up-now__ring { fill: none; stroke: var(--map-border); stroke-width: 1; stroke-dasharray: 2 3; }
+.up-now__dir { fill: var(--map-muted); font-size: var(--fs-xs); }
+.up-now__dot { stroke: var(--bg); stroke-width: 1.5; }
+.up-now__list { flex: 1; min-width: 140px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+.up-now__tune { color: var(--map-muted); }
+.up-now__item { display: flex; align-items: center; gap: var(--sp-8); }
+.up-now__swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+
+/* Inline note beside a pass reminder bell. */
+.alert-note { font-size: var(--fs-sm); color: var(--map-muted); align-self: center; }
+
+/* Paste elements: a + on phones, so the search field gets the width. */
+.search-bar__paste-short { display: none; }
+@media (max-width: 599px) {
+  .search-bar__paste-button { min-width: 44px; }
+  .search-bar__paste-full { display: none; }
+  .search-bar__paste-short { display: inline; font-size: var(--fs-xl); line-height: 1; }
+}
+
+/* The soonest pass above the map on phones (NextStrip). */
+.next-strip {
+  display: flex; align-items: center; gap: var(--sp-6);
+  width: 100%;
+  margin: 0 0 var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--map-panel);
+  color: var(--map-text);
+  border: var(--line-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  font: inherit;
+  font-size: var(--fs-md);
+  text-align: left;
+  cursor: pointer;
+}
+.next-strip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.next-strip__label { font-weight: var(--fw-semibold); color: var(--text-heading); }
+.next-strip__text { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.next-strip .quality,
+.next-strip .cloud { margin-left: 0; flex: none; }
+@media (min-width: 1100px) {
+  .next-strip { display: none; }
+}
+
+/* The green "on air" dot inside a Live button. */
+.live-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 2px var(--primary-text);
+}
+
+/* Live pass view (components/live): full screen, readable at arm's length. */
+/* Inside a full-size library Modal, which gives the 560 px column and the title. */
+.live-view { display: flex; flex-direction: column; gap: var(--sp-12); }
+/* Sits under the Modal's title, as its subtitle. */
+.live-view__sub { margin: calc(-1 * var(--sp-8)) 0 0; color: var(--map-muted); font-size: var(--fs-md); }
+.live-view__status { margin: 0; font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
+.live-view__status strong { color: var(--text-strong); }
+.live-view__status span { color: var(--map-muted); }
+.live-view__turn { margin: calc(-1 * var(--sp-4)) 0 0; text-align: center; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--accent); }
+.live-dial { margin: 0; }
+.live-dial svg { display: block; width: 100%; max-width: 340px; height: auto; margin: 0 auto; }
+.live-dial__horizon { fill: var(--panel); stroke: var(--map-muted); stroke-width: 1.2; }
+.live-dial__ring { fill: none; stroke: var(--map-border); stroke-width: 1; stroke-dasharray: 3 4; }
+.live-dial__ahead { stroke: var(--map-muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.live-dial__card { fill: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.live-dial__track { fill: none; stroke: var(--map-muted); stroke-width: 2; stroke-linejoin: round; opacity: 0.6; }
+.live-dial__arrow { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.live-dial__sat { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+.live-dial__caption { margin-top: var(--sp-4); text-align: center; font-size: var(--fs-sm); color: var(--map-muted); }
+.live-view__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin: 0; }
+.live-view__nums dt { font-size: var(--fs-sm); color: var(--map-muted); }
+.live-view__nums dd { margin: var(--sp-2) 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.live-view__radio .home-note { margin: var(--sp-4) 0 0; }
+.live-view__tune { margin: 0; display: flex; align-items: baseline; gap: var(--sp-12); flex-wrap: wrap; }
+.live-view__tune-label { font-size: var(--fs-md); color: var(--map-muted); }
+.live-view__tune-mhz { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.live-view__tune-mode { font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--map-muted); }
+.live-view__doppler { margin: var(--sp-2) 0 0; font-variant-numeric: tabular-nums; }
+.live-view__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+@media (max-width: 380px) {
+  .live-view__tune-mhz { font-size: var(--fs-2xl); }
+}
+
+/* Next 24 hours: a strip per satellite, one bar per pass. The SVG holds the
+   night shading and stretches; bars are buttons and the labels are HTML,
+   placed by percent, so nothing is distorted. */
+.timeline { margin: 0; min-width: 0; container-type: inline-size; }
+.timeline__rows { position: relative; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-4); }
+.timeline__row,
+.timeline__axis { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: var(--sp-8); align-items: center; }
+.timeline__name { display: flex; align-items: center; gap: var(--sp-6); min-width: 0; font-size: var(--fs-md); color: var(--map-text); }
+.timeline__swatch { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-color); }
+.timeline__name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timeline__strip {
+  position: relative;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: var(--timeline-day);
+}
+/* Now: a hairline at the left edge. */
+.timeline__strip::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 0;
+  width: 1.5px;
+  background: var(--map-accent);
+  pointer-events: none;
+}
+.timeline__svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.timeline__night { fill: var(--timeline-night); }
+.timeline__grid { stroke: rgba(var(--ink-rgb), 0.1); stroke-width: 1; }
+.timeline__grid--day { stroke: rgba(var(--ink-rgb), 0.28); }
+/* A bar is at least 8 px wide, widened about its middle and kept inside the strip. */
+.timeline__bar {
+  --bw: max(calc(var(--w) * 100%), 8px);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: clamp(0px, calc(var(--mid) * 100% - var(--bw) / 2), calc(100% - var(--bw)));
+  width: var(--bw);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+}
+/* Solid in the satellite's colour, with a ring of the strip's colour so
+   neighbouring bars stay apart. Lower ratings dim a little, never so far
+   that the bar is lost; cloud adds a light hatch. */
+.timeline__bar::before {
+  content: "";
+  position: absolute;
+  inset: 2px 0;
+  border-radius: var(--radius-sm);
+  background-color: var(--sat-color);
+  box-shadow: 0 0 0 1px var(--timeline-day);
+}
+.timeline__bar--ok::before { opacity: 0.85; }
+.timeline__bar--low::before { opacity: 0.7; }
+.timeline__bar--cloudy::before {
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(var(--bg-rgb), 0.3) 4px 6px);
+}
+.timeline__bar:hover::before { inset: 0; opacity: 1; }
+.timeline__bar:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; z-index: 1; }
+.timeline__axis { margin-top: var(--sp-4); align-items: start; }
+.timeline__ticks { grid-column: 2; position: relative; height: 15px; }
+/* Each label is centred on its gridline; one right at either end is pinned
+   inward instead, so none hangs past the strip. */
+.timeline__tick {
+  position: absolute;
+  top: 0;
+  left: calc(var(--x) * 100%);
+  transform: translateX(-50%);
+  color: var(--map-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.timeline__tick--start { transform: none; }
+.timeline__tick--end { transform: translateX(-100%); }
+.timeline__day { color: var(--map-text); font-weight: var(--fw-semibold); }
+.timeline__note { margin: var(--sp-6) 0 0; color: var(--map-muted); font-size: var(--fs-md); }
+/* Under 600 px (a phone, or the side panel on a wide screen) the name sits
+   above its strip, so the strip keeps the full width. */
+@container (max-width: 599.98px) {
+  .timeline__rows { gap: var(--sp-2); }
+  .timeline__row,
+  .timeline__axis { grid-template-columns: minmax(0, 1fr); row-gap: var(--sp-2); }
+  .timeline__name { font-size: var(--fs-sm); }
+  .timeline__ticks { grid-column: 1; }
+}
+@media print {
+  .timeline,
+  .cloud { display: none; }
+}

@@ -1,313 +1,237 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* theme-tokens:begin */
+/* Page colours for both themes, the "Slate" look: neutral cool-grey chrome,
+   with a muted blue kept for the brand, links, focus, the main action and
+   selected toggles. <html data-theme> is set before first paint
+   (lib/ui/theme.mjs); :root alone means dark. The chart modals and polar
+   plots keep literal dark colours (the chart-block sections in the
+   stylesheets), except the pass cards' plots in light theme. The *-rgb tokens are channels for rgba(var(--x-rgb), alpha). */
+:root, :root[data-theme='dark'], .theme-dark {
+  color-scheme: dark;
+  --bg: #11151c;
+  --bg-rgb: 17, 21, 28;
+  /* Cards and tiles sit on the page in this lifted grey. */
+  --panel: #171c24;
+  --panel-2: #1c222c;
+  --popover: #1a2029;
+  --code-bg: #171c24;
+  --border: #232a35;
+  --ink-rgb: 255, 255, 255;
+  --edge-rgb: 120, 132, 150;
+  --text: #e4e8ee;
+  --text-strong: #f4f6f9;
+  --text-plain: #e4e8ee;
+  --text-heading: #eef1f5;
+  --text-code: #e4e8ee;
+  --muted: #96a0ae;
+  --faint: #727c8a;
+  --wordmark-dim: #96a0ae;
+  --accent: #8fb4e6;
+  --accent-rgb: 143, 180, 230;
+  --accent-strong: #ffffff;
+  --link: var(--accent);
+  /* Control tiers: a filled main action, neutral outlines, and a well with a
+     filled segment for toggles and menus. */
+  --primary: #5c8fd6;
+  --primary-hover: #6f9de0;
+  --primary-text: #0b1220;
+  --btn-line: #364152;
+  --btn-hover: #1e2530;
+  --seg-on: #2e4a73;
+  --seg-on-text: #ffffff;
+  --ok: #4ade80;
+  --ok-rgb: 74, 222, 128;
+  --warn: #facc15;
+  --warn-rgb: 250, 204, 21;
+  --warn-text: #f5d36a;
+  --danger: #f87171;
+  --danger-rgb: 248, 113, 113;
+  --danger-text: #ff9a9a;
+  --danger-soft-text: #ffc4c4;
+  /* Pass rating bars, 1 (red) to 5 (green). The bar count carries the
+     rating; the colour backs it up. Each passes 4.5:1 on the panel. */
+  --q1: #f87171;
+  --q2: #fb923c;
+  --q3: #facc15;
+  --q4: #a3e635;
+  --q5: #4ade80;
+  --teal: #7fe5d1;
+  --teal-rgb: 127, 229, 209;
+  --badge-old-text: #fde68a;
+  --badge-stale-text: #ffc4c4;
+  --focus-ring: #8fb4e6;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --shadow-soft: rgba(0, 0, 0, 0.35);
+  --shadow-popover: 0 6px 20px var(--shadow-soft);
+  --shadow-modal: 0 10px 28px var(--shadow);
+  --chip-bg: rgba(17, 21, 28, 0.9);
+  --chip-border: #2b3341;
+  /* The well: inputs, menus and segmented toggles. */
+  --input-bg: #19202a;
+  /* 3:1 against the page and cards: the edge is what marks a field. */
+  --input-border: #626d7e;
+  --tile-bg: #171c24;
+  --tile-hover: #1c222c;
+  --flash-bg: rgba(143, 180, 230, 0.24);
+  --flash-text: #ffffff;
+  /* --modal-dark-bg, the always-dark chart dialogs' panel (Modal tone="dark"),
+     is generated from the charts' canvas colour (lib/ui/chart-tokens.mjs,
+     inlined by app/layout.tsx). */
+  /* Map chrome and legend. --map-ocean, --map-land, --map-night and
+     --map-observer are generated from lib/map/*.mjs (lib/ui/map-tokens.mjs,
+     inlined by app/layout.tsx). The map modules hold no copy of the rest:
+     only the stylesheet paints them. */
+  /* Space behind the globe: darker than night-side land, so the Earth's edge shows. */
+  --map-space: #000000;
+  --map-footprint: rgba(143, 180, 230, 0.16);
+  /* The timeline strip: daylight lifted, night sunk, clearly apart. */
+  --timeline-day: #2a3344;
+  --timeline-night: #0d1117;
+  --map-accent: var(--accent);
+  --map-text: var(--text);
+  --map-muted: var(--muted);
+  --map-border: var(--border);
+  /* Where the map meets the header and the drawer. */
+  --map-edge: var(--border);
+  /* The lat/lon values on the map's edges. */
+  --map-grid-label: var(--muted);
+  --map-panel: var(--chip-bg);
+}
+/* Light: cool grey paper with white cards. Tokens not listed here fall back
+   to the block above (the aliases follow the overridden values). */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f3f5f8;
+  --bg-rgb: 243, 245, 248;
+  --panel: #ffffff;
+  --panel-2: #ebeff4;
+  --popover: #ffffff;
+  --code-bg: #ebeff4;
+  --border: #dfe4ea;
+  --ink-rgb: 26, 34, 48;
+  --edge-rgb: 90, 100, 117;
+  --text: #1a2230;
+  --text-strong: #0b1220;
+  --text-plain: #1a2230;
+  --text-heading: #111827;
+  --text-code: #1a2230;
+  --muted: #5a6475;
+  --faint: #6b7380;
+  --wordmark-dim: #5a6475;
+  --accent: #2c5a99;
+  --accent-rgb: 44, 90, 153;
+  --accent-strong: #173a6b;
+  --primary: #2c5a99;
+  --primary-hover: #244c84;
+  --primary-text: #ffffff;
+  --btn-line: #c3ccd8;
+  --btn-hover: #ebeff4;
+  --seg-on: #2c5a99;
+  --seg-on-text: #ffffff;
+  --ok: #137a3a;
+  --ok-rgb: 19, 122, 58;
+  --warn: #94580a;
+  --warn-rgb: 202, 138, 4;
+  --warn-text: #7a4806;
+  --danger: #c42b2b;
+  --danger-rgb: 220, 38, 38;
+  --danger-text: #b42318;
+  --danger-soft-text: #8f1d1d;
+  --q1: #c42b2b;
+  --q2: #b45309;
+  --q3: #8a6500;
+  --q4: #4d7c0f;
+  --q5: #137a3a;
+  --teal: #0f766e;
+  --teal-rgb: 15, 118, 110;
+  --badge-old-text: #7a4806;
+  --badge-stale-text: #8f1d1d;
+  --focus-ring: #2c5a99;
+  --shadow: rgba(16, 22, 32, 0.16);
+  --shadow-soft: rgba(16, 22, 32, 0.12);
+  --shadow-popover: 0 6px 20px var(--shadow-soft);
+  --shadow-modal: 0 10px 28px var(--shadow);
+  --chip-bg: rgba(255, 255, 255, 0.9);
+  --chip-border: #d3dae3;
+  --input-bg: #ebeff4;
+  --input-border: #808a99;
+  --tile-bg: #ffffff;
+  --tile-hover: #f3f5f8;
+  --flash-bg: rgba(44, 90, 153, 0.16);
+  --flash-text: #0b1220;
+  /* A shade firmer than --border: the light land and panels are close in tone. */
+  --map-edge: #c3ccd8;
+  --map-grid-label: #343d4b;
+  --map-space: #b4bfcf;
+  --map-footprint: rgba(44, 90, 153, 0.14);
+  --timeline-day: #e4e8ee;
+  --timeline-night: #b7c0cc;
+}
+/* Night vision (lib/ui/theme.mjs sets data-night, with data-theme forced to
+   dark): one filter on the root turns every colour, the map and the charts
+   included, into a dim red. Grayscale, then darken before sepia and saturate
+   so no channel clips (clipping is what lets green and blue creep back),
+   then scale so white lands at about 70% red with green and blue about 30%
+   of it. A filter on the root does not make a containing block, so fixed
+   dialogs and the full-screen map stay put. The background is the
+   overscroll colour. An element in native full screen (the map) renders
+   in the top layer, outside the root's filter, so it gets the same one. */
+html[data-night='1'] {
+  --night-filter: grayscale(1) brightness(0.3) sepia(1) saturate(12) hue-rotate(-25deg) brightness(0.71);
+  background: #0a0303;
+  filter: var(--night-filter);
+}
+html[data-night='1'] :fullscreen { filter: var(--night-filter); }
+/* Printing stays as it was. */
+@media print {
+  html[data-night='1'],
+  html[data-night='1'] :fullscreen { filter: none; background: none; }
+}
+/* A dark island inside a light page takes its text colour from the dark
+   tokens. Kept apart from the token block so :root does not set color. */
+.theme-dark { color: var(--text); }
+/* Scale tokens: the same in both themes. --font-atkinson and
+   --font-atkinson-ext are set by next/font (app/layout.tsx). Latin-ext comes
+   first: its unicode-range sends every other character on to latin. */
+:root {
+  --font-sans: var(--font-atkinson-ext), var(--font-atkinson), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-num: var(--font-sans);
+  --font-brand: 'Exo 2', system-ui, sans-serif;
+  --font-code: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-md: 13px; --fs-lg: 15px; --fs-xl: 18px; --fs-2xl: 24px;
+  --fs-input: 16px; /* form controls: iOS zooms anything smaller */
+  --fs-hero: min(40px, 9cqi);
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+  --lh-tight: 1.2; --lh-snug: 1.4; --lh-body: 1.5;
+  --sp-2: 2px; --sp-4: 4px; --sp-6: 6px; --sp-8: 8px; --sp-12: 12px; --sp-16: 16px; --sp-24: 24px; --sp-32: 32px;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px; --radius-full: 999px;
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+/* Declared per scope: var() resolves where it is declared, so a .theme-dark
+   island must resolve these against its own dark tokens. */
+:root, .theme-dark {
+  --line-subtle: 1px solid var(--border);
+  --line-control: 1px solid var(--btn-line);
+  --line-input: 1px solid var(--input-border);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; }
+}
+/* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than
    the actual visible area, leaving bare background below the globe.
    dvh tracks the dynamic visible area so the canvas fills the
    viewport reliably. vh fallback preserves desktop behavior on older
    browsers without dvh support. */
-html, body { width: 100%; height: 100%; height: 100dvh; background: #0a0e1a; color: #e0e0e0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px; line-height: 1.5; }
-#cesium-container { width: 100vw; height: 100vh; height: 100dvh; }
-
-/* Disable text selection by default on the whole UI - accidental
-   double-clicks on buttons/labels picking up stray text selection is
-   more annoying than the rare case of wanting to copy a timestamp.
-   Re-enable specifically for input controls (where text-selection
-   IS the point). Applies to both index.html and pass-finder.html. */
-body {
-  -webkit-user-select: none;
-  user-select: none;
-}
-input, textarea, [contenteditable="true"] {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-/* (Top-center brand pill nav removed - was only useful when both /
-   and /passes were linked. Triangulate is unlinked now and the
-   pass-finder is the home page, so no chrome needed.) */
-
-.panel {
-  position: absolute; top: 16px;
-  background: rgba(10, 14, 26, 0.92);
-  border: 1px solid rgba(100, 140, 255, 0.3);
-  border-radius: 12px;
-  padding: 14px 16px;
-  backdrop-filter: blur(12px);
-  max-width: 460px;
-  max-height: calc(100vh - 32px);
-  max-height: calc(100dvh - 32px);
-  overflow: auto;
-  z-index: 1000;
-}
-.panel-left { left: 16px; }
-.panel-right { right: 16px; max-width: 340px; }
-
-/* Left panel collapse - mirrors pass-finder. Toggle button sits on
-   the right edge of the panel when open; slides with the panel to the
-   viewport edge when collapsed so the user can always re-open. */
-:root { --panel-left-width: 460px; }
-#panel-observations { width: var(--panel-left-width); max-width: var(--panel-left-width); transition: transform 0.25s ease; }
-@media (max-width: 600px) {
-  :root {
-    --panel-left-width: calc(100vw - 54px); /* 16px left + panel + 22px toggle + 16px right */
-    --panel-left-width: calc(100dvw - 54px);
-  }
-}
-#panel-toggle {
-  position: absolute;
-  top: 28px;
-  left: calc(16px + var(--panel-left-width));
-  width: 22px;
-  height: 56px;
-  z-index: 1100;
-  background: rgba(10, 14, 26, 0.92);
-  border: 1px solid rgba(100, 140, 255, 0.3);
-  border-left: none;
-  border-radius: 0 8px 8px 0;
-  color: #cfe0ff;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  padding: 0;
-  backdrop-filter: blur(12px);
-  transition: left 0.25s ease;
-}
-#panel-toggle::before { content: "◂"; }
-#panel-toggle:hover { background: rgba(126, 184, 255, 0.18); }
-body.panel-collapsed #panel-observations {
-  transform: translateX(calc(-100% - 32px));
-  pointer-events: none;
-}
-body.panel-collapsed #panel-toggle {
-  left: 16px;
-  border-left: 1px solid rgba(100, 140, 255, 0.3);
-  border-radius: 8px;
-}
-body.panel-collapsed #panel-toggle::before { content: "▸"; }
-.panel h2 { font-size: 14px; color: #7eb8ff; margin-bottom: 10px;
-  text-transform: uppercase; letter-spacing: 0.08em; }
-#attempt-picker {
-  display: flex; align-items: center; gap: 6px;
-  margin-bottom: 10px;
-}
-#attempt-picker label {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #7eb8ff; font-weight: 700;
-}
-#attempt-picker select {
-  flex: 1;
-  padding: 5px 8px;
-  cursor: pointer;
-}
-#attempt-picker button {
-  background: rgba(126, 184, 255, 0.12);
-  border: 1px solid rgba(126, 184, 255, 0.35);
-  color: #cfe0ff;
-  width: 24px; height: 24px;
-  padding: 0;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  display: inline-flex; align-items: center; justify-content: center;
-  margin: 0;
-}
-#attempt-picker button:hover { background: rgba(126, 184, 255, 0.22); }
-#attempt-picker button[hidden] { display: none; }
-
-#attempt-new-form {
-  display: flex; flex-direction: column; gap: 6px;
-  background: rgba(126, 184, 255, 0.05);
-  border: 1px solid rgba(126, 184, 255, 0.18);
-  border-radius: 4px;
-  padding: 8px 10px;
-  margin-bottom: 10px;
-}
-#attempt-new-form[hidden] { display: none; }
-#attempt-new-form .af-row {
-  display: flex; align-items: center; gap: 8px;
-}
-#attempt-new-form .af-row > span {
-  flex: 0 0 44px;
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #7eb8ff; font-weight: 700;
-}
-#attempt-new-form .af-row > input[type="text"] {
-  flex: 1;
-}
-#attempt-new-form .af-check { font-size: 11px; color: #cfe0ff; }
-#attempt-new-form .af-check span { flex: 1; font-weight: 400;
-  text-transform: none; letter-spacing: 0; color: #cfe0ff; }
-#attempt-new-form .af-actions {
-  display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px;
-}
-#attempt-new-form .af-actions button { margin-top: 0; padding: 4px 10px; font-size: 11px; }
-
-/* Shared collapsible-section styling for the three sibling details
-   panels in #panel-observations (#result-section, #obs-details,
-   #tle-section). Chevron + label + horizontal rule across the rest of
-   the header - gives each section a clear banded look. */
-#panel-observations > details + details {
-  margin-top: 8px;
-}
-#panel-observations > details > summary {
-  list-style: none; cursor: pointer;
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 2px;
-  margin-bottom: 6px;
-}
-#panel-observations > details > summary::-webkit-details-marker { display: none; }
-/* Clip-path triangle instead of a unicode glyph for exact centering
-   (unicode ▾ renders bottom-heavy in every font). */
-#panel-observations > details > summary::before {
-  content: "";
-  width: 16px; height: 16px;
-  background-color: #7eb8ff;
-  clip-path: polygon(10% 35%, 90% 35%, 50% 80%);
-  transition: transform 0.15s;
-  flex: 0 0 auto;
-}
-#panel-observations > details:not([open]) > summary::before { transform: rotate(-90deg); }
-#panel-observations > details > summary h2 {
-  margin: 0;
-  flex: 0 0 auto;
-}
-/* Filler bar - takes the remaining horizontal room beside the label.
-   Extra left margin so the bar reads visually separate from the title. */
-#panel-observations > details > summary::after {
-  content: "";
-  flex: 1 1 auto;
-  margin-left: 4px;
-  height: 7px;
-  border-radius: 3px;
-  background: rgba(126, 184, 255, 0.35);
-}
-
-#tle-section .tle-actions {
-  display: flex; align-items: center; gap: 6px;
-  margin-bottom: 6px;
-}
-#tle-section .tle-actions button {
-  font-size: 11px;
-  padding: 3px 10px;
-  margin-top: 0;
-}
-#tle-section .tle-actions button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-#tle-section .tle-actions #tle-warn {
-  font-size: 10px; color: #facc15;
-  margin-left: auto;
-}
-#tle-section textarea {
-  width: 100%;
-  min-height: 28px;
-  resize: vertical;
-  margin-top: 4px;
-}
-.panel input[type=text], .panel textarea, .panel select {
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-  color: #e0e0e0; padding: 4px 6px; border-radius: 4px;
-  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
-}
-.panel textarea { width: 100%; min-height: 26px; resize: vertical; margin-top: 4px; }
-.panel button {
-  background: rgba(126, 184, 255, 0.12); border: 1px solid rgba(126, 184, 255, 0.4);
-  color: #cfe0ff; padding: 6px 10px; border-radius: 6px; cursor: pointer;
-  font-size: 12px; margin-top: 8px;
-}
-.panel button:hover { background: rgba(126, 184, 255, 0.22); }
-
-.timestamp-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-.timestamp-row input { width: 250px; }
-.hint { color: #8899bb; font-size: 11px; }
-
-.opt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
-  font-size: 11px; color: #cfe0ff; cursor: pointer; user-select: none; }
-.opt-row input { margin: 0; }
-
-
-/* Scroll the observer list within its own bounds so a long list
-   doesn't push the whole left panel taller than the viewport. Bound
-   by ~40% of the viewport. The negative-margin + padding-right pair
-   bleeds the list into the panel's right gutter so the scrollbar
-   lives in otherwise-empty pane space instead of overlapping cards. */
-#obs-list {
-  display: flex; flex-direction: column;
-  gap: 6px; margin-bottom: 8px;
-  max-height: 40vh; overflow-y: auto;
-  margin-right: -12px;
-  padding-right: 12px;
-}
-
-.obs-card {
-  background: rgba(255,255,255,0.025);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 7px 10px;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-}
-.obs-card:hover {
-  background: rgba(126,184,255,0.07);
-  border-color: rgba(126,184,255,0.28);
-}
-.obs-card:focus-visible {
-  outline: 2px solid rgba(126, 184, 255, 0.7);
-  outline-offset: 2px;
-}
-.obs-card-meta {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: 0;
-  line-height: 1.2;
-}
-.obs-card-name {
-  font-size: 12px; font-weight: 600; color: #e0e0e0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.obs-card-coords {
-  font-size: 10px; color: #8899bb;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-}
-.obs-card-header {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
-}
-.color-swatch {
-  width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.18); display: inline-block;
-}
-.obs-card-header input[data-field=name] {
-  flex: 1; background: transparent; border: 1px solid transparent;
-  font-weight: 600; font-size: 13px; font-family: inherit;
-  padding: 3px 6px; color: #e0e0e0;
-}
-.obs-card-header input[data-field=name]:hover,
-.obs-card-header input[data-field=name]:focus {
-  background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
-  outline: none;
-}
-.obs-card-header .remove {
-  background: transparent; border: none; color: #8899bb; cursor: pointer;
-  font-size: 14px; padding: 3px 7px; margin: 0; border-radius: 4px;
-}
-.obs-card-header .remove:hover {
-  background: rgba(248,113,113,0.12); color: #f87171;
-}
-.obs-card-header .fps-view {
-  background: transparent; border: 1px solid transparent; color: #8899bb;
-  cursor: pointer; font-size: 12px; padding: 2px 6px; margin: 0;
-  border-radius: 4px; line-height: 1;
-}
-.obs-card-header .fps-view:hover {
-  background: rgba(126, 184, 255, 0.12); color: #cfe0ff;
-}
-.obs-card-header .fps-view.active {
-  background: rgba(126, 184, 255, 0.25); color: #7eb8ff;
-  border-color: rgba(126, 184, 255, 0.5);
-}
-
+html, body { width: 100%; height: 100%; height: 100dvh; background: var(--bg); color: var(--text-plain);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md); line-height: var(--lh-body); }
+/* chart-block:begin */
+/* The pass cards' polar plots (components/passes/PolarPlotSvg.tsx) keep
+   these literal dark colours; app/home.css retints them in light theme
+   (test/theme-css.test.mjs skips this block). */
 .polar-plot {
   display: block;
   margin: 4px auto 2px;
@@ -347,113 +271,7 @@ body.panel-collapsed #panel-toggle::before { content: "▸"; }
   stroke: #7eb8ff;
   stroke-width: 0.7;
 }
+/* chart-block:end */
 
-.obs-row {
-  display: grid; grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px; margin-top: 4px;
-}
-.obs-row.mode-row { grid-template-columns: 90px 1fr 1fr; }
-.field {
-  display: flex; align-items: center; gap: 4px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 5px; padding: 2px 6px;
-  min-width: 0;
-}
-.field:focus-within { border-color: rgba(126,184,255,0.5); }
-.field-label {
-  font-size: 9px; color: #8899bb;
-  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
-  min-width: 22px; flex-shrink: 0;
-}
-.field input, .field select {
-  flex: 1; min-width: 0; background: transparent !important;
-  border: none !important; padding: 3px 0 !important;
-  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
-  color: #e0e0e0;
-}
-.field input:focus, .field select:focus { outline: none; }
-.field select { padding-right: 16px !important; }
-
-.footnote { color: #6a7a9a; font-size: 10px; margin-top: 6px; line-height: 1.4; }
-.footnote code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px;
-  background: rgba(255,255,255,0.04); padding: 1px 4px; border-radius: 3px; }
-
-.result-block { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10.5px;
-  line-height: 1.4;
-  background: rgba(255,255,255,0.04); padding: 5px 8px; border-radius: 5px;
-  margin-bottom: 4px; white-space: pre-wrap; }
-.result-block:last-child { margin-bottom: 0; }
-.result-block .label { color: #7eb8ff; font-weight: 600; }
-
-/* SeekSat brand wordmark - inconspicuous, top-right corner of the scene.
-   pointer-events:none keeps globe drag/zoom unobstructed; the dark text-
-   shadow keeps it legible over both bright (daylit) and dark sky. Two-tone
-   "Seek" muted + "Sat" accent, matching the polar-chart watermark. */
-.brand-mark {
-  position: absolute; top: 14px; right: 18px; z-index: 1000;
-  pointer-events: none; user-select: none;
-  font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-weight: 600; font-size: 17px; letter-spacing: 0.01em;
-  opacity: 0.62; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
-}
-.brand-mark .seek { color: #8aa0c8; }
-.brand-mark .sat  { color: #7eb8ff; }
-
-/* Attribution under the brand mark, stacked below the About (i) button
-   at top:42px so it never overlaps it. Floating + subtle like the wordmark,
-   but clickable (a real link), so it opts back into pointer events. */
-.brand-credit {
-  position: absolute; top: 72px; right: 18px; z-index: 1000;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 11px; letter-spacing: 0.01em; text-decoration: none;
-  color: #8aa0c8; opacity: 0.5; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
-}
-.brand-credit:hover { opacity: 0.85; text-decoration: underline; }
-.brand-credit:focus-visible {
-  outline: 2px solid rgba(126, 184, 255, 0.7); outline-offset: 2px; border-radius: 4px;
-}
-
-#camera-controls { position: absolute; bottom: 16px; right: 16px;
-  display: flex; gap: 6px; z-index: 1000; }
-#camera-controls button {
-  background: rgba(10, 14, 26, 0.92); border: 1px solid rgba(100, 140, 255, 0.3);
-  color: #cfe0ff; padding: 6px 10px; border-radius: 6px; cursor: pointer;
-  backdrop-filter: blur(12px); font-size: 12px;
-}
-#camera-controls button:hover { background: rgba(126, 184, 255, 0.18); }
-#camera-controls button.active {
-  background: rgba(126, 184, 255, 0.35);
-  border-color: rgba(126, 184, 255, 0.7);
-}
-
-#sim-time {
-  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-  z-index: 1000;
-  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
-  color: #cfe0ff; letter-spacing: 0.04em;
-  background: rgba(10,14,26,0.7); padding: 6px 12px; border-radius: 6px;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(100, 140, 255, 0.25);
-  white-space: nowrap; pointer-events: none;
-}
-/* Imagery picker sits inline in the camera-controls bar so it can't
-   overlap the left panel when the panel is tall. */
-#imagery-picker {
-  display: flex; align-items: center; gap: 6px;
-  background: rgba(10, 14, 26, 0.92);
-  border: 1px solid rgba(100, 140, 255, 0.3);
-  border-radius: 6px; padding: 4px 8px;
-  backdrop-filter: blur(12px);
-  color: #cfe0ff;
-}
-.picker-label {
-  font-size: 9px; color: #8899bb;
-  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
-}
-#imagery-select {
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-  color: #e0e0e0; padding: 2px 4px; border-radius: 4px;
-  font-size: 11px; font-family: inherit;
-  min-width: 140px;
-}
+/* Numbers: same face as the text, with equal-width digits so columns line up. */
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }

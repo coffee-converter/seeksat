@@ -1,0 +1,466 @@
+/* UI library (components/ui): Button, Segmented, Badge, RatingBars.
+   Tokens only: no colour, font, radius, spacing or motion literals. */
+
+/* Button: md is today's .home-button, sm is .home-chip. Secondary is outlined,
+   primary filled, quiet text only. aria-pressed is the toggled-on filled segment. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-12);
+  background: transparent;
+  color: var(--map-text);
+  border: var(--line-control);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.btn--sm { padding: var(--sp-4) var(--sp-12); font-size: var(--fs-md); }
+.btn:hover:not(:disabled) { background: var(--btn-hover); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.btn--primary {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+  font-weight: var(--fw-semibold);
+}
+.btn--primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+.btn--quiet { color: var(--map-muted); border-color: transparent; }
+.btn--quiet:hover:not(:disabled) { color: var(--map-text); }
+
+/* .btn--on: the same look without aria-pressed (the label says the state). */
+.btn[aria-pressed="true"],
+.btn.btn--on {
+  background: var(--seg-on);
+  border-color: var(--seg-on);
+  color: var(--seg-on-text);
+}
+.btn[aria-pressed="true"]:hover:not(:disabled),
+.btn.btn--on:hover:not(:disabled) { background: var(--seg-on); }
+/* A main action that is on (Following), or pressedLook="accent" (Night
+   vision, beside the theme control): accent outline on the card colour. */
+.btn--primary[aria-pressed="true"],
+.btn--primary[aria-pressed="true"]:hover:not(:disabled),
+.btn--accent-pressed[aria-pressed="true"],
+.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled),
+.btn--primary.btn--on,
+.btn--primary.btn--on:hover:not(:disabled),
+.btn--accent-pressed.btn--on,
+.btn--accent-pressed.btn--on:hover:not(:disabled) {
+  background: var(--panel);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn--primary[aria-pressed="true"]:hover:not(:disabled),
+.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled),
+.btn--primary.btn--on:hover:not(:disabled),
+.btn--accent-pressed.btn--on:hover:not(:disabled) { background: var(--btn-hover); }
+
+/* Overlay: on the map imagery, so it has an opaque panel backing and the chip
+   edge. Hover and pressed (a filled segment) are the shared rules; open
+   (aria-expanded) firms the edge. */
+.btn--overlay {
+  background: var(--map-panel);
+  border-color: var(--chip-border);
+  color: var(--map-text);
+}
+.btn--overlay[aria-expanded="true"] { border-color: var(--btn-line); }
+
+/* Link: an inline text action in a sentence or a label row. */
+.btn--link {
+  min-height: 24px;
+  padding: 0;
+  color: var(--link);
+  border: 0;
+  font-weight: var(--fw-regular);
+  text-decoration: underline;
+}
+.btn--link:hover:not(:disabled) { background: none; }
+
+.btn--icon { padding: var(--sp-6); min-width: 32px; min-height: 32px; line-height: 1; }
+.btn--icon.btn--sm { padding: var(--sp-4); min-width: 28px; min-height: 28px; }
+
+.btn--danger:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+.btn--done,
+.btn--done:hover:not(:disabled) { color: var(--teal); border-color: var(--teal); }
+/* A filled main action keeps its text readable on the fill when done; the
+   label change (Copied, Saved) carries the cue. */
+.btn--primary.btn--done { color: var(--primary-text); border-color: var(--primary); }
+.btn--primary.btn--done:hover:not(:disabled) { color: var(--primary-text); border-color: var(--primary-hover); }
+
+/* A link never fills: pressed or on, it stays link text with a firmer underline
+   (beats the fill and accent-outline rules above, hover included). */
+.btn.btn--link[aria-pressed="true"],
+.btn.btn--link.btn--on {
+  background: none;
+  border: 0;
+  color: var(--link);
+  font-weight: var(--fw-semibold);
+  text-decoration-thickness: 2px;
+}
+.btn.btn--link[aria-pressed="true"]:hover:not(:disabled),
+.btn.btn--link.btn--on:hover:not(:disabled) { background: none; border: 0; color: var(--link); }
+
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .btn--icon { min-width: 44px; }
+  /* Inline in text: 24 px, the WCAG minimum, so it never splits its line. */
+  .btn--link { min-height: 24px; }
+}
+
+/* Segmented: a well of options, the chosen one a filled segment (today's
+   .theme-toggle__group and the Globe | Mercator group). */
+.segmented {
+  display: inline-flex;
+  padding: var(--sp-2);
+  background: var(--input-bg);
+  border: var(--line-input);
+  border-radius: var(--radius-lg);
+}
+.segmented__opt {
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  color: var(--map-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: var(--sp-8) var(--sp-12);
+  min-height: 32px;
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.segmented--sm .segmented__opt { padding: var(--sp-6) var(--sp-8); min-height: 28px; }
+.segmented__opt:hover:not(:disabled) { color: var(--map-text); }
+.segmented__opt[aria-checked="true"] { background: var(--seg-on); color: var(--seg-on-text); }
+.segmented__opt:disabled { opacity: 0.45; cursor: default; }
+.segmented__opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+@media (pointer: coarse) {
+  .segmented__opt { min-height: 44px; }
+}
+
+/* Badge: a pill; tinted by tone, always with words inside. */
+.badge {
+  display: inline-block;
+  padding: var(--sp-2) var(--sp-8);
+  border: var(--line-control);
+  border-radius: var(--radius-lg);
+  color: var(--map-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  white-space: nowrap;
+}
+.badge--warn { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
+.badge--danger { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
+.badge--rating {
+  padding: 1px var(--sp-8); /* nudge */
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  color: inherit;
+  border: 0;
+  border-radius: var(--radius-full);
+}
+.badge--ok { background: rgba(var(--ok-rgb), 0.14); color: var(--ok); border: 1px solid rgba(var(--ok-rgb), 0.4); }
+
+/* RatingBars: five bars of rising height, the first N on; colour by count. */
+.qbars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  height: 1.05em;
+  vertical-align: -0.15em;
+}
+.qbars i {
+  display: block;
+  width: 3.5px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+.qbars i.on { background: currentColor; }
+.qbars i:nth-child(1) { height: 20%; }
+.qbars i:nth-child(2) { height: 40%; }
+.qbars i:nth-child(3) { height: 60%; }
+.qbars i:nth-child(4) { height: 80%; }
+.qbars i:nth-child(5) { height: 100%; }
+.qbars--b1 { color: var(--q1); }
+.qbars--b2 { color: var(--q2); }
+.qbars--b3 { color: var(--q3); }
+.qbars--b4 { color: var(--q4); }
+.qbars--b5 { color: var(--q5); }
+
+/* StatTile: one dashboard number (moved from sat.css). */
+.stat-tile {
+  display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0;
+  padding: var(--sp-12) var(--sp-16); background: var(--tile-bg); color: inherit; text-decoration: none;
+  container-type: inline-size; overflow-wrap: normal;
+}
+a.stat-tile:hover { background: var(--tile-hover); }
+a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.stat-tile__label {
+  color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-medium);
+}
+.stat-tile__value {
+  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
+}
+.stat-tile__num { margin: 0 calc(-1 * var(--sp-4)); padding: 0 var(--sp-4); border-radius: var(--radius-sm); }
+.stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: var(--fw-medium); letter-spacing: 0; }
+.stat-tile__note { color: var(--map-muted); font-size: var(--fs-xs); line-height: var(--lh-snug); }
+.stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: var(--fs-hero); white-space: normal; text-wrap: balance; }
+.stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); white-space: normal; }
+
+@media (max-width: 479.98px) {
+  .stat-tile { padding: var(--sp-12); }
+  .stat-tile__value { font-size: var(--fs-2xl); }
+  .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
+  .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
+}
+/* sm: a compact bordered tile for a summary row (the radio chart on
+   phones). After the phone rules, so it stays compact there. */
+.stat-tile--sm { gap: var(--sp-2); padding: var(--sp-6) var(--sp-8); border: var(--line-subtle); border-radius: var(--radius-md); }
+.stat-tile--sm .stat-tile__label { font-size: var(--fs-xs); }
+.stat-tile--sm .stat-tile__value { font-size: var(--fs-lg); }
+
+/* Modal: a centred frame over a backdrop ("dialog"), or the whole screen
+   ("full"). tone="dark" adds .theme-dark, so the tokens below turn dark. */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--map-text);
+}
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(6px);
+}
+.modal__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  max-width: min(98vw, 98vh);
+  max-height: 98vh;
+  padding: var(--sp-4) var(--sp-6);
+  background: var(--bg);
+  border: var(--line-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+}
+/* An always-dark dialog holds a painted chart: the panel takes the chart's
+   canvas colour, so the image has no visible edge. */
+.theme-dark > .modal__panel { background: var(--modal-dark-bg); }
+/* When the actions do not fit beside the title (a phone), they wrap below it. */
+.modal__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-4);
+  border-bottom: var(--line-subtle);
+}
+/* hideTitle: the actions fill the row from the left, Close at the far right. */
+.modal__head--bare .modal__actions { flex: 1 1 auto; margin-left: 0; }
+.modal__head--bare .modal__actions > :last-child { margin-left: auto; }
+.modal__title { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-strong); }
+.modal__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6); margin-left: auto; }
+.modal__body { min-height: 0; overflow-y: auto; }
+/* wide: a chart wider than tall; phones keep the 96vw below. */
+.modal__panel--wide { max-width: 98vw; }
+@media (max-width: 600px) {
+  .modal__panel { max-width: 96vw; padding: var(--sp-8) var(--sp-12); }
+}
+/* The live view's takeover: no backdrop, the page colour, scrolls inside. */
+.modal--full { display: block; overflow-y: auto; background: var(--bg); }
+.modal--full .modal__backdrop { display: none; }
+.modal--full .modal__panel {
+  max-width: 560px;
+  max-height: none;
+  margin: 0 auto;
+  padding: var(--sp-16) var(--sp-16) var(--sp-32);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  gap: var(--sp-12);
+}
+/* The takeover scrolls as a whole, so the body is not its own scroller. */
+.modal--full .modal__body { overflow: visible; }
+.modal--full .modal__head { border-bottom: 0; padding: 0; align-items: flex-start; }
+.modal--full .modal__title { font-size: var(--fs-2xl); }
+
+/* Visually hidden, still read by screen readers (Field's hideLabel, table captions). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px; /* nudge */
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Field: label above the control, hint and error below. The control is
+   13px, and 16px (--fs-input) on touch so iOS does not zoom on focus. */
+.field { display: flex; flex-direction: column; gap: var(--sp-4); }
+.field__label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+.field__control {
+  width: 100%;
+  min-height: 32px;
+  padding: var(--sp-6) var(--sp-8);
+  background: var(--input-bg);
+  color: var(--map-text);
+  border: var(--line-input);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--fs-md);
+}
+/* A select draws its own chevron, so it matches in every browser: two 5px
+   triangles from crossed gradients meet in a "v" 10-15px from the right
+   edge, inside the 32px right padding. */
+select.field__control {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--sp-32);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--map-muted) 50%),
+    linear-gradient(135deg, var(--map-muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.field__control::placeholder { color: var(--map-muted); }
+.field__control:disabled { opacity: 0.6; }
+.field__control:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.field__control[aria-invalid="true"] { border-color: var(--danger); }
+.field__hint,
+.field__error { margin: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
+.field__hint { color: var(--map-muted); }
+.field__error { color: var(--danger); }
+/* Touch: 16px (--fs-input), so iOS does not zoom on focus. */
+@media (pointer: coarse) {
+  .field__control { min-height: 44px; font-size: var(--fs-input); }
+}
+
+/* Surface: the card look. */
+.surface {
+  background: var(--panel);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--map-text);
+}
+.surface--padded { padding: var(--sp-12); }
+.surface--padded-sm { padding: var(--sp-8) var(--sp-12); }
+/* Accent: a coloured leading edge; the context sets --surface-accent (a
+   satellite's colour on its pass card). */
+.surface--accent { border-left: 3px solid var(--surface-accent, var(--map-muted)); }
+/* Selected: a firmer edge and a 1 px ring; an accent edge keeps its colour. */
+.surface--selected { border-color: var(--btn-line); box-shadow: 0 0 0 1px var(--btn-line); }
+.surface--accent.surface--selected { border-left-color: var(--surface-accent, var(--map-muted)); }
+/* Interactive: the whole surface is a button. */
+.surface--interactive { font: inherit; text-align: left; cursor: pointer; }
+.surface--interactive:hover { background: var(--btn-hover); }
+.surface--interactive:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* Disclosure: a "⋯" button and the actions it reveals. The wrapper and panel
+   are display: contents, so the revealed actions join the row they sit in. */
+.disclosure,
+.disclosure__panel { display: contents; }
+.disclosure__panel[hidden] { display: none; }
+/* Open: the filled segment, as the old .home-chip--on did. */
+.disclosure .btn[aria-expanded="true"],
+.disclosure .btn[aria-expanded="true"]:hover:not(:disabled) {
+  background: var(--seg-on);
+  border-color: var(--seg-on);
+  color: var(--seg-on-text);
+}
+.disclosure__toggle { min-width: 40px; font-size: var(--fs-xl); font-weight: var(--fw-semibold); line-height: 1; }
+
+/* Details: a native fold with a chevron. */
+.details__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  min-height: 40px;
+  padding: 0 var(--sp-12);
+  background: var(--tile-bg);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--text-heading);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+.details__summary::-webkit-details-marker { display: none; }
+.details__summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--map-muted);
+  border-bottom: 2px solid var(--map-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+.details[open] > .details__summary { margin-bottom: var(--sp-8); }
+.details[open] > .details__summary::after { transform: translateY(2px) rotate(-135deg); }
+.details__summary:hover { background: var(--tile-hover); }
+.details__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Chip: a pill with a dot and a name, and optionally an eye. --chip-color
+   sets the dot and the focus ring. */
+.chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
+}
+.chip--focus {
+  border-color: var(--chip-color, var(--map-accent));
+  box-shadow: inset 0 0 0 1px var(--chip-color, var(--map-accent));
+}
+.chip button {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  background: none;
+  color: var(--map-text);
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.chip__name { gap: var(--sp-6); padding: 0 var(--sp-4) 0 var(--sp-12); white-space: nowrap; }
+.chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chip-color, var(--map-accent));
+}
+/* In radio mode a chip with known downlinks shows the radio mark for its dot. */
+.chip__radio { flex: none; width: 16px; height: 16px; color: var(--chip-color, var(--map-accent)); }
+.chip__eye { padding: 0 var(--sp-8) 0 var(--sp-6); color: var(--map-muted); border-radius: 0 var(--radius-full) var(--radius-full) 0; }
+.chip__eye:hover { color: var(--map-text); }
+.chip button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-full); }
+.chip--hidden { opacity: 0.5; }
+.chip--hidden .chip__name { text-decoration: line-through; }
+
+/* The radio mark icon (components/ui/RadioMark.tsx): sits on the text line. */
+.radio-mark { display: inline-block; flex: none; vertical-align: -0.15em; }

@@ -1,13 +1,16 @@
-// app/api/refresh-tle/route.ts - Vercel Cron target. Reads catalog,
-// fetches each TLE, epoch-guard merges into Edge Config. Guarded by
-// CRON_SECRET so only Vercel Cron (or an authorized caller) can run it.
+// app/api/refresh-tle/route.ts - Vercel Cron target. Fetches the CelesTrak
+// OMM groups (plus any curated satellite no group holds) and rewrites the
+// Blob catalog snapshot. Guarded by CRON_SECRET so only Vercel Cron (or an
+// authorized caller) can run it, and only on the production deployment.
+import { MIRROR_GROUPS, fetchGroup, fetchByCatnr } from '@/lib/mirror/celestrak.mjs';
 import { CATALOG } from '@/lib/catalog.mjs';
-import { fetchTleForId } from '@/lib/mcp/tle-fetch.mjs';
-import { refreshCatalog } from '@/lib/mcp/refresh.mjs';
-import { createEdgeConfigStore } from '@/lib/mcp/tle-store.mjs';
+import { refreshMirror, refreshResponse } from '@/lib/mirror/refresh.mjs';
+import { createBlobSnapshotStore } from '@/lib/mirror/snapshot-store.mjs';
+import { downlinksFromTransmitters, fetchTransmitters } from '@/lib/mirror/satnogs.mjs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 export async function GET(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -15,11 +18,21 @@ export async function GET(req: Request): Promise<Response> {
   if (!secret || auth !== `Bearer ${secret}`) {
     return new Response('Unauthorized', { status: 401 });
   }
-  const result = await refreshCatalog({
-    store: createEdgeConfigStore(),
-    catalog: CATALOG,
-    fetchTle: (id: string) => fetchTleForId(id),
-    now: () => Date.now(),
+  // Only production refreshes. Previews and local builds share the same Blob
+  // store, and every refresh counts against CelesTrak's limits for our IPs.
+  if (process.env.VERCEL_ENV !== 'production') {
+    return new Response('Refresh runs only in production', { status: 403 });
+  }
+  const result = await refreshMirror({
+    store: createBlobSnapshotStore(),
+    groups: MIRROR_GROUPS,
+    fetchGroup,
+    pinnedIds: CATALOG.map((s) => s.noradId),
+    fetchByCatnr,
+    // Once a day: radio downlinks from SatNOGS DB.
+    fetchDownlinks: async () => downlinksFromTransmitters(await fetchTransmitters()),
+    now: Date.now,
   });
-  return Response.json({ ok: true, ...result });
+  const { status, body } = refreshResponse(result);
+  return Response.json(body, { status });
 }

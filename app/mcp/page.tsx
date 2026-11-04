@@ -19,8 +19,7 @@ export default function McpDocsPage() {
       <header>
         <h1><span className="seek">Seek</span><span className="sat">Sat</span> MCP</h1>
         <p className="lede">
-          Same engine, two faces: the web app renders satellite passes in a 3D globe for
-          humans; this MCP server exposes the same SGP4 + visibility-physics engine to AI agents.
+          Same engine, two faces: the web app shows satellite pages and pass lists for people; this MCP server exposes the same SGP4 + visibility-physics engine to AI agents.
         </p>
       </header>
 
@@ -57,8 +56,9 @@ export default function McpDocsPage() {
           <li><strong>Deterministic, offline core.</strong> Pass geometry, magnitude, and
             visibility run with zero network calls; weather is the only network-dependent tool
             and is deliberately separate.</li>
-          <li><strong>Cron-cached, epoch-guarded TLEs.</strong> A 6-hour cron refreshes TLEs
-            into Edge Config; requests read from the cache (sub-ms), never upstream. A flaky
+          <li><strong>Cron-cached, epoch-guarded TLEs.</strong> A 4-hour cron mirrors the
+            CelesTrak catalog into Vercel Blob; requests read from that snapshot, with a
+            rate-limited CelesTrak lookup only for satellites not in it. A flaky
             source returning an older element set can&apos;t clobber good data, and an upstream
             outage just means serving the last-known-good TLE - still SGP4-valid for days.</li>
           <li><strong>Engine reuse.</strong> Every pass number comes from the same unit-tested
@@ -68,7 +68,7 @@ export default function McpDocsPage() {
       </section>
 
       <footer>
-        <Link href="/">← Back to the globe</Link>
+        <Link href="/">← Back to SeekSat</Link>
         {GITHUB_URL && (
           <> · <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">Source</a></>
         )}

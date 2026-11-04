@@ -1,33 +1,33 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { issAltitudeDeg, sunAltitudeDeg, issIlluminated, isVisibleAtAll } from '../lib/pass-finder/visibility.js';
+import { satAltitudeDeg, sunAltitudeDeg, satIlluminated, isVisibleAtAll } from '../lib/pass-finder/visibility.js';
 import { geodeticToEcef } from '../lib/coords.js';
 
 const close = (a, b, eps) => Math.abs(a - b) < eps;
 
-test('issAltitudeDeg: ISS directly above observer is 90°', () => {
+test('satAltitudeDeg: ISS directly above observer is 90°', () => {
   // Observer at (0, 0). ISS directly above at altitude 400 km.
   const obs = { latDeg: 0, lonDeg: 0 };
-  const issEcef = [(6378137 + 400000), 0, 0]; // straight up at (0,0)
-  const alt = issAltitudeDeg(obs, issEcef);
+  const satEcef = [(6378137 + 400000), 0, 0]; // straight up at (0,0)
+  const alt = satAltitudeDeg(obs, satEcef);
   assert.ok(close(alt, 90, 0.01), `alt=${alt}`);
 });
 
-test('issAltitudeDeg: ISS on the equator opposite to observer is below horizon', () => {
+test('satAltitudeDeg: ISS on the equator opposite to observer is below horizon', () => {
   const obs = { latDeg: 0, lonDeg: 0 };
-  const issEcef = [-(6378137 + 400000), 0, 0]; // antipodal
-  const alt = issAltitudeDeg(obs, issEcef);
+  const satEcef = [-(6378137 + 400000), 0, 0]; // antipodal
+  const alt = satAltitudeDeg(obs, satEcef);
   assert.ok(alt < 0, `alt=${alt}`);
 });
 
-test('issAltitudeDeg: ISS on horizon is approximately 0°', () => {
+test('satAltitudeDeg: ISS on horizon is approximately 0°', () => {
   const obs = { latDeg: 0, lonDeg: 0 };
   // Horizon distance to a 400 km satellite: ground angle ~19.5° from observer
   // Place ISS at lon=20° (slightly past horizon, slightly below).
   const lon = 20 * Math.PI / 180;
   const r = 6378137 + 400000;
-  const issEcef = [r * Math.cos(lon), r * Math.sin(lon), 0];
-  const alt = issAltitudeDeg(obs, issEcef);
+  const satEcef = [r * Math.cos(lon), r * Math.sin(lon), 0];
+  const alt = satAltitudeDeg(obs, satEcef);
   // Should be near 0° (positive small or negative small)
   assert.ok(Math.abs(alt) < 10, `alt=${alt}`);
 });
@@ -66,25 +66,25 @@ test('sunAltitudeDeg: at lat=0 lon=0 around noon UTC, sun is above horizon', () 
   assert.ok(alt > 30, `alt=${alt}`);
 });
 
-test('issIlluminated: ISS on day side (anti-anti-sun) is lit', () => {
+test('satIlluminated: ISS on day side (anti-anti-sun) is lit', () => {
   // Sun direction = +X. ISS at +X (on day side) is lit (not behind Earth).
   const sunDir = [1, 0, 0];
-  const issEcef = [(6378137 + 400000), 0, 0];
-  assert.equal(issIlluminated(issEcef, sunDir), true);
+  const satEcef = [(6378137 + 400000), 0, 0];
+  assert.equal(satIlluminated(satEcef, sunDir), true);
 });
 
-test('issIlluminated: ISS exactly behind Earth in cylindrical shadow is dark', () => {
+test('satIlluminated: ISS exactly behind Earth in cylindrical shadow is dark', () => {
   // Sun direction = +X. ISS at -X with small offset still inside shadow cylinder.
   const sunDir = [1, 0, 0];
-  const issEcef = [-(6378137 + 400000), 1000, 1000]; // 1km off axis
-  assert.equal(issIlluminated(issEcef, sunDir), false);
+  const satEcef = [-(6378137 + 400000), 1000, 1000]; // 1km off axis
+  assert.equal(satIlluminated(satEcef, sunDir), false);
 });
 
-test('issIlluminated: ISS behind Earth but outside cylinder is lit (grazing)', () => {
+test('satIlluminated: ISS behind Earth but outside cylinder is lit (grazing)', () => {
   // Sun direction = +X. ISS at -X with large Y offset (well outside cylinder).
   const sunDir = [1, 0, 0];
-  const issEcef = [-(6378137 + 400000), 7_000_000, 0];
-  assert.equal(issIlluminated(issEcef, sunDir), true);
+  const satEcef = [-(6378137 + 400000), 7_000_000, 0];
+  assert.equal(satIlluminated(satEcef, sunDir), true);
 });
 
 test('isVisibleAtAll: all conditions met -> true', () => {
@@ -95,9 +95,9 @@ test('isVisibleAtAll: all conditions met -> true', () => {
   const obsEcef = geodeticToEcef(obs.latDeg, obs.lonDeg, 0);
   const r = Math.hypot(...obsEcef) + 400000;
   const scale = r / Math.hypot(...obsEcef);
-  const issEcef = obsEcef.map(c => c * scale);
+  const satEcef = obsEcef.map(c => c * scale);
   const d = new Date(Date.UTC(2026, 5, 21, 3, 0, 0));
-  const result = isVisibleAtAll([obs], issEcef, d);
+  const result = isVisibleAtAll([obs], satEcef, d);
   assert.equal(result, true, `expected true at obs zenith with sun well below twilight`);
 });
 
@@ -107,7 +107,7 @@ test('isVisibleAtAll: ISS too low for one observer -> false', () => {
   // ISS over A's zenith - far below B's horizon
   const ecefA = geodeticToEcef(0, 0, 0);
   const scale = (6378137 + 400000) / 6378137;
-  const issEcef = ecefA.map(c => c * scale);
+  const satEcef = ecefA.map(c => c * scale);
   const d = new Date(Date.UTC(2026, 5, 21, 6, 0, 0));
-  assert.equal(isVisibleAtAll([a, b], issEcef, d), false);
+  assert.equal(isVisibleAtAll([a, b], satEcef, d), false);
 });

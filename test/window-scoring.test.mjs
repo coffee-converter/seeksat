@@ -43,7 +43,7 @@ function makeForecast(atMs, hourValues) {
 
 // ---- bestMomentMs: peak-of-min-altitude moment finder -------------------
 
-test('bestMomentMs: returns startMs when issEcefAtFn always returns null', () => {
+test('bestMomentMs: returns startMs when ecefAtFn always returns null', () => {
   const w = { startMs: 0, endMs: 60_000 };
   const out = bestMomentMs(w, [{ latDeg: 0, lonDeg: 0 }], () => null);
   assert.equal(out, 0);
@@ -56,13 +56,13 @@ test('bestMomentMs: picks instant where ISS is highest', () => {
   // Easiest: place ISS along observer's local zenith (above equator at
   // lon=0) at the peak moment, and offset horizontally before/after.
   const RADIUS = 6378137;
-  const issEcefAtFn = (date) => {
+  const ecefAtFn = (date) => {
     const t = date.getTime();
     if (t === 30_000) return [RADIUS + 400_000, 0, 0]; // overhead
     // Offset horizontally by ~1000 km at non-peak - lower altitude.
     return [RADIUS, 1_000_000, 0];
   };
-  const out = bestMomentMs(w, [obs], issEcefAtFn);
+  const out = bestMomentMs(w, [obs], ecefAtFn);
   assert.equal(out, 30_000);
 });
 
@@ -74,7 +74,7 @@ test('bestMomentMs: with two observers, finds best joint instant', () => {
   const obsB = { latDeg: 0, lonDeg: 10 };
   const RADIUS = 6378137;
   // Construct a sequence where peak is at midpoint.
-  const issEcefAtFn = (date) => {
+  const ecefAtFn = (date) => {
     const t = date.getTime();
     // ISS at altitude 400km, longitude varies linearly from -90 to +90
     // across the window - passes overhead lon=0 at t=30_000.
@@ -83,7 +83,7 @@ test('bestMomentMs: with two observers, finds best joint instant', () => {
     const r = RADIUS + 400_000;
     return [r * Math.cos(lonRad), r * Math.sin(lonRad), 0];
   };
-  const out = bestMomentMs(w, [obsA, obsB], issEcefAtFn);
+  const out = bestMomentMs(w, [obsA, obsB], ecefAtFn);
   // Should land near 30_000 (where lon=0 passes between observers).
   // The 5000ms step grid → answer is at the nearest 5000 multiple.
   assert.equal(out, 30_000);

@@ -1,0 +1,258 @@
+.sat { overflow-wrap: anywhere; }
+.sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-strong); }
+.sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); max-width: 100%; margin-top: var(--sp-6); }
+.sat-age { line-height: var(--lh-body); }
+.sat-age__how { margin-left: var(--sp-8); }
+.sat-age .badge { margin-left: var(--sp-8); }
+.sat-how { display: block; margin-top: var(--sp-2); color: var(--map-muted); font-size: var(--fs-sm); line-height: var(--lh-snug); }
+p.sat-how { margin: 0 0 var(--sp-8); }
+.sat-diagram { margin: 0; }
+.sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto var(--sp-6); }
+.sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); }
+.sat-list { margin: 0; padding-left: var(--sp-16); }
+.sat-list__sub { color: var(--muted); font-size: var(--fs-sm); }
+.sat-raw { margin-bottom: var(--sp-12); }
+.sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.sat-raw-head h3 { margin: 0; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
+.sat-raw pre {
+  margin: var(--sp-6) 0 0; padding: var(--sp-8); max-width: 100%; overflow-x: auto;
+  background: var(--code-bg); border: 0; border-radius: var(--radius-lg);
+  font-size: var(--fs-sm); user-select: text;
+}
+.sat-passes { margin-bottom: 0; }
+.sat-passlist { list-style: none; margin: 0; padding: 0; }
+.sat-show-all { margin-top: var(--sp-12); }
+.sat-zone { margin: var(--sp-4) 0 var(--sp-8); }
+.sat-pass { padding: var(--sp-8) 0; border-bottom: var(--line-subtle); }
+/* Passes under day headings: the same Starts, Max and Lasts columns and
+   rating pill as the home cards, then where to look below. */
+.sat-day-group + .sat-day-group { margin-top: var(--sp-16); }
+.sat-day {
+  margin: 0;
+  padding: var(--sp-6) 0 var(--sp-4);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--map-muted);
+  border-bottom: var(--line-subtle);
+}
+.sat-day__list { list-style: none; margin: 0; padding: 0; }
+.sat-pass__head {
+  display: grid;
+  grid-template-columns: minmax(0, 26em) auto;
+  grid-template-areas: "stats rating";
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--sp-6) var(--sp-12);
+}
+.sat-pass__stats { grid-area: stats; }
+.sat-pass__rating { grid-area: rating; justify-self: end; }
+.sat-pass__rating .quality,
+.sat-pass__rating .cloud { margin-left: 0; }
+@media (max-width: 600px) {
+  .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
+  .sat-pass__rating { justify-self: start; }
+}
+/* The radio panel, tags and buttons under the head, evenly spaced. */
+.sat-pass > .pass-card__radio,
+.sat-pass > .pass-card__actions { margin-top: var(--sp-8); }
+.sat-pass__line2 { margin: var(--sp-8) 0 0; color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: var(--lh-body); }
+.sat-pass__line2 .pass-card__tag:first-child { margin-left: 0; }
+.sat-observers { margin: var(--sp-12) 0; }
+.sat-observers__title { margin: 0 0 var(--sp-4); font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
+.sat-observers__list { list-style: none; margin: var(--sp-8) 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.sat-observers__item { display: inline-flex; align-items: center; gap: var(--sp-6); padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-12); border: var(--line-subtle); border-radius: var(--radius-full); }
+.sat-shared {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8) var(--sp-12);
+  margin: var(--sp-12) 0; padding: var(--sp-12) var(--sp-12); border-radius: var(--radius-lg);
+  background: var(--map-footprint); border: 1px solid var(--map-accent);
+}
+.sat-shared__text { margin: 0; color: var(--map-text); line-height: var(--lh-body); }
+.sat-shared-past { margin: 0 0 var(--sp-8); }
+.sat-pass.pass-row--shared {
+  padding: var(--sp-8); border-radius: var(--radius-md);
+  background: var(--map-footprint); box-shadow: inset 3px 0 0 var(--map-accent);
+}
+
+/* Header: who it is, then Follow and Share. The clock lives in the shell's top bar. */
+.sat-top { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.sat-back { align-self: flex-start; }
+
+/* Title bar: pinned over the content once .sat-top has scrolled away. The
+   wrapper has no height and cancels the panel's flex gap, so nothing shifts
+   when the bar shows. --sat-bar-top is the pinned header's height. */
+.sat-bar {
+  --sat-bar-top: 0px;
+  position: sticky; top: var(--sat-bar-top); z-index: 20;
+  height: 0; margin-bottom: calc(-1 * var(--sp-24)); visibility: hidden;
+}
+.sat-bar--on { visibility: visible; }
+.sat-bar__in {
+  position: absolute; left: -8px; right: -8px; top: 0;
+  display: flex; align-items: center; gap: var(--sp-12); min-width: 0;
+  padding: var(--sp-6) var(--sp-12); background: var(--bg); border-bottom: var(--line-subtle);
+}
+.sat-bar .sat-bar__close { min-width: 40px; min-height: 40px; }
+.sat-bar__x { font-size: var(--fs-xl); line-height: 1; }
+.sat-bar__name { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-semibold); color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sat-bar__when { flex: 0 0 auto; color: var(--map-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Under 1100 the window scrolls: sit under what the header keeps pinned
+   (measured by HeaderPinned; the fallback is the usual header). */
+@media (max-width: 1099.98px) {
+  .sat-bar { --sat-bar-top: var(--header-pinned, 56px); }
+  /* The focus bar's Details scrolls here: stop below the pinned header. */
+  .sat-top { scroll-margin-top: var(--header-pinned, 56px); }
+}
+@media (max-width: 699.98px) { .sat-bar__in { left: -16px; right: -16px; } }
+/* Docked: the panel scrolls, and sticky measures inside its 18px top padding. */
+@media (min-width: 1100px) { .sat-bar { --sat-bar-top: -18px; } .sat-bar__in { left: -16px; right: -16px; } }
+
+/* The next pass, right under the title: when and where, the rating words,
+   and a chart button that follows the mode. */
+.sat-next {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-12);
+  margin-top: var(--sp-6);
+}
+.sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-6); min-width: 0; }
+.sat-next__text { margin: 0; line-height: var(--lh-snug); font-variant-numeric: tabular-nums; }
+.sat-next__label { color: var(--map-muted); }
+.sat-next__what { color: var(--text-strong); font-weight: var(--fw-semibold); }
+.sat-next .quality,
+.sat-next .cloud { margin-left: 0; }
+
+/* "Live numbers" (Details): a fold on phones, closed by default. From 600 px the
+   summary goes and the tiles always show (::details-content covers the
+   moment before the effect opens it). */
+@media (min-width: 600px) {
+  .sat-live > .details__summary { display: none; }
+  .sat-live::details-content { content-visibility: visible; }
+}
+
+/* The live tile grid: one instrument panel split by hairlines, not loose cards.
+   2 columns under 480 px, 3 from 480, 4 from 720. Seven tiles: Sunlight
+   widens so every row fills. */
+.sat-dash {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; /* nudge */
+  background: var(--map-border); border: var(--line-subtle); border-radius: var(--radius-lg); overflow: hidden;
+}
+.sat-dash .stat-tile--wide { grid-column: 1 / -1; }
+@media (max-width: 479.98px) {
+  .sat-dash__sun { grid-column: span 2; }
+}
+@media (min-width: 480px) {
+  .sat-dash { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sat-dash__sun { grid-column: 1 / -1; }
+}
+@media (min-width: 720px) {
+  .sat-dash { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sat-dash__sun { grid-column: span 2; }
+}
+
+/* Orbit check: a plain sentence, then the vis-viva formulas set as code, so
+   the words between them never read as variables. */
+.sat-orbit-check__lead { margin: 0; color: var(--map-text); }
+.sat-orbit-check__pct { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.sat-orbit-check__math { margin: var(--sp-8) 0 0; color: var(--map-muted); line-height: var(--lh-body); }
+.sat-formula {
+  padding: 1px var(--sp-6); /* nudge */
+  background: var(--code-bg);
+  border: var(--line-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-code);
+  font-family: var(--font-num);
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Mean elements: label and value pairs, one column on phones. */
+.sat-elements .sat-age { margin-bottom: var(--sp-6); }
+.sat-etable { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-24); margin: 0; }
+.sat-etable__row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-12);
+  padding: var(--sp-6) 0; border-bottom: var(--line-subtle);
+}
+.sat-etable dt { color: var(--map-muted); }
+.sat-etable dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; text-align: right; }
+@media (min-width: 480px) {
+  .sat-etable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sat-etable__row--wide { grid-column: 1 / -1; }
+}
+@media (min-width: 900px) {
+  .sat-etable { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* How we compute these: visible text, never tooltips. */
+.sat-how-section { padding-top: var(--sp-4); }
+.sat-how-list { display: grid; gap: var(--sp-12); margin: 0; }
+.sat-how-list__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
+.sat-how-list dt { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: var(--fs-md); line-height: var(--lh-body); }
+@media (min-width: 600px) {
+  .sat-how-list__row { grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: var(--sp-16); }
+}
+
+/* Docked (1100 px and up) the panel is 380 px wide, whatever the viewport:
+   two tile columns, one column of elements, and stacked How-we-compute rows. */
+@media (min-width: 1100px) {
+  .map-shell__panel .sat-title { font-size: var(--fs-2xl); }
+  .map-shell__panel .sat-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .map-shell__panel .sat-dash .stat-tile--wide,
+  .map-shell__panel .sat-dash__sun { grid-column: 1 / -1; }
+  .map-shell__panel .sat-etable { grid-template-columns: minmax(0, 1fr); }
+  .map-shell__panel .sat-how-list__row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
+  .map-shell__panel .sat-diagram svg { max-width: 300px; }
+}
+
+.sat-passes__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
+.sat-passes__head .home-heading { margin: 0; }
+.print-only { display: none; }
+.sat-print-table { border-collapse: collapse; }
+
+/* print: a clean black-on-white pass sheet. Colours are the keywords black
+   and white (not tokens), so the sheet is the same whatever the theme. */
+@media print {
+  /* Scoped to .map-shell.sat so printing home is unaffected. */
+  @page { margin: 14mm; }
+  html, body { height: auto !important; overflow: visible !important; background: white !important; }
+  .map-shell.sat {
+    display: block; height: auto; min-height: 0; overflow: visible;
+    background: white; font-size: 10.5pt;
+  }
+  .map-shell.sat *, .map-shell.sat *::before, .map-shell.sat *::after {
+    color: black !important; background: transparent !important;
+    box-shadow: none !important; text-shadow: none !important;
+  }
+  .map-shell.sat .map-shell__top, .map-shell.sat .map-shell__map { display: none !important; }
+  .map-shell.sat .map-shell__panel {
+    display: block; height: auto; overflow: visible; padding: 0;
+    border: 0; background: white;
+  }
+  /* Keep only: title block, element age line, the pass list. */
+  .map-shell.sat .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
+  .sat-bar { display: none !important; }
+  .sat-top .sat-follow, .sat-top .btn, .sat-top .sat-next, .sat-back { display: none !important; }
+  .sat-top { margin-bottom: 6pt; }
+  .sat-title { font-size: 16pt; margin: 0 0 2pt; }
+  .sat-elements > *:not(.sat-age) { display: none !important; }
+  .sat-elements .sat-age, .sat-age { display: block; margin: 0 0 8pt; font-size: 10pt; }
+  .sat-age__how { display: none; }
+  .sat-age .badge { border: 1px solid black !important; border-radius: 0; padding: 0 4pt; font-size: 9pt; }
+
+  #passes > *:not(.sat-passes__head):not(.print-only) { display: none !important; }
+  .sat-passlist { display: none !important; }
+  .sat-print-chip { display: none !important; }
+  .print-only { display: block; }
+  table.print-only { display: table; width: 100%; font-size: 9.5pt; font-variant-numeric: tabular-nums; }
+  .sat-print-table thead { display: table-header-group; }
+  .sat-print-table th { text-align: left; font-weight: 700; padding: 2pt 4pt; border-bottom: 1pt solid black; }
+  .sat-print-table td { padding: 2pt 4pt; border-bottom: 0.5pt solid black; }
+  .sat-print-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .sat-passes__head .home-heading { font-size: 12pt; margin: 6pt 0 2pt; }
+  .sat-print-meta { margin: 0 0 6pt; font-size: 10pt; }
+  .sat-print-foot { margin: 10pt 0 0; font-size: 9pt; }
+  .sat-pass { padding: 3pt 0; border-bottom: 0.5pt solid black; break-inside: avoid; page-break-inside: avoid; }
+  .sat-pass .pass-card__tag { margin-left: 6pt; padding: 0 4pt; border: 0.5pt solid black; font-size: 8.5pt; }
+  .sat-pass .pass-card__tag.pass-card__tag { background: none; }
+  .sat-pass .sat-how { margin: 1pt 0 0; font-size: 8.5pt; }
+  .sat-pass .pass-card__actions { display: none !important; }
+}
