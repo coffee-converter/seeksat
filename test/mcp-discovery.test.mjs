@@ -1,12 +1,13 @@
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TOOL_SUMMARIES, mcpUrl, claudeAddCommand, mcpJsonConfig } from '../lib/mcp/discovery.mjs';
 
-test('TOOL_SUMMARIES lists the six tools in order', () => {
-  assert.deepEqual(
-    TOOL_SUMMARIES.map((t) => t.name),
-    ['list_satellites', 'find_passes', 'get_position', 'next_visible_pass', 'get_pass_weather', 'get_pass_chart'],
-  );
+test('TOOL_SUMMARIES lists every tool the server registers, each with a summary', () => {
+  const route = readFileSync(new URL('../app/api/mcp/route.ts', import.meta.url), 'utf8');
+  const registered = [...route.matchAll(/server\.tool\(\s*'([a-z_]+)'/g)].map((m) => m[1]);
+  assert.ok(registered.length >= 9, registered.join());
+  assert.deepEqual([...TOOL_SUMMARIES.map((t) => t.name)].sort(), [...registered].sort());
   for (const t of TOOL_SUMMARIES) assert.ok(t.summary.length > 0, `${t.name} has a summary`);
 });
 

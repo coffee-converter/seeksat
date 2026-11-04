@@ -6,6 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool, getPassChartTool, bestPassTool,
+  searchSatellitesTool, radioPassTool,
 } from '@/lib/mcp/tools.mjs';
 import { getCatalogReader } from '@/lib/mirror/server.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
@@ -29,6 +30,7 @@ const deps = {
   geocode: (q: string, opts?: object) => geocodeOne(q, opts),
   fetchWeather: (lat: number, lon: number) => fetchCloudForecast(lat, lon),
   now: () => Date.now(),
+  search: (q: string, limit: number, opts?: { radio?: boolean }) => getCatalogReader().search(q, limit, opts),
 };
 
 const asText = (obj: unknown) => ({
@@ -160,6 +162,41 @@ const mcpHandler = createMcpHandler(
               ] }
             : { content: [{ type: 'text' as const, text: res.summary }] };
         } catch (e) { return asError(e); }
+      },
+    );
+
+    server.tool(
+      'search_satellites',
+      'Search the full satellite catalog (about 15,000 objects) by name, alias or NORAD number, best match first. Use it to turn a name like "SDO" or "NOAA 19" into a NORAD number for the other tools; names outside the popular list only resolve directly on an exact whole-name match. mode "radio" lists satellites with known radio downlinks first among equally good matches.',
+      {
+        query: z.string().min(1).describe('a name, part of one, or a NORAD number, e.g. "sdo", "noaa 19", "25544"'),
+        limit: z.number().int().positive().max(20).optional().describe('how many results. Default 10.'),
+        mode: z.enum(['visual', 'radio']).optional(),
+      },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'search_satellites', tier, keyId });
+        try { return asText(await searchSatellitesTool(args, deps)); } catch (e) { return asError(e); }
+      },
+    );
+
+    server.tool(
+      'get_radio_pass',
+      'Radio details for one pass of a satellite over a location: its known downlink (and uplink) frequencies, the Doppler swing, when to tune to what frequency (at 10 and 30 degrees up and closest approach), and a table of time, azimuth, elevation, range and receive frequency for pointing an antenna and tuning a radio. Uses the next pass above minElevationDeg, or the one peaking nearest passTime. A satellite that never sets here (geosynchronous) gets the next 24 hours instead. Give frequencyMHz to use a frequency other than the default downlink. Predictions from published elements: the transmitter\'s own frequency offset is unknown, so the curve\'s shape is what to compare.',
+      {
+        satellite: z.string().describe('NORAD id or name, e.g. "iss", "so-50" or 36395'),
+        lat: z.number().min(-90).max(90).optional(),
+        lon: z.number().min(-180).max(180).optional(),
+        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+        frequencyMHz: z.number().positive().max(300000).optional().describe('downlink to compute Doppler for, in MHz. Default: the satellite\'s default known downlink.'),
+        passTime: z.string().optional().describe('ISO time near the wanted pass\'s peak (e.g. from find_passes). Default: the next pass.'),
+        minElevationDeg: z.number().min(0).max(90).optional().describe('lowest peak elevation that counts as a pass. Default 10.'),
+        windowHours: z.number().positive().max(240).optional().describe('how far ahead to look for a pass, in hours. Default 48.'),
+      },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'get_radio_pass', tier, keyId, satellite: args.satellite });
+        try { return asText(await radioPassTool(args, deps, tier)); } catch (e) { return asError(e); }
       },
     );
 
