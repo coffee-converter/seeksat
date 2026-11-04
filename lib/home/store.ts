@@ -113,10 +113,12 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     get().hydrate();
     // Apply the patch to what is saved now, not to this tab's copy: another
     // tab may have changed other settings since this one loaded.
-    const prefs = { ...get().prefs, ...savedPrefs(), ...patch };
+    const { projection: savedProjection = null, ...saved } = storedPrefs() ?? {};
+    const prefs = { ...get().prefs, ...saved, ...patch };
     const projectionChosen = get().projectionChosen || "projection" in patch;
     set({ prefs, projectionChosen });
-    savePrefs(projectionChosen ? prefs : { ...prefs, projection: null });
+    // Not yet picked here: keep whatever view another tab saved.
+    lastSaveFailed = !savePrefs(projectionChosen ? prefs : { ...prefs, projection: savedProjection });
   },
 
   loadRecords: async () => {
@@ -208,13 +210,25 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   },
 }));
 
-/** The saved prefs without the projection (each tab keeps its own view
- *  until it is picked), or nothing when storage is out of reach, so this
- *  tab's copy stands. */
-function savedPrefs(): Partial<Prefs> {
-  if (!localStore()) return {};
-  const { projection: _p, ...rest } = loadPrefs() as Prefs;
-  return rest;
+// True when this tab's last save did not land (storage full): its copy is
+// then newer than storage, so it stands.
+let lastSaveFailed = false;
+
+/** The prefs as saved now (projection null when none was picked), or null
+ *  when there is nothing to go by: storage out of reach, no saved prefs, an
+ *  unreadable value, or this tab's last save failed. This tab's copy stands then. */
+function storedPrefs(): (Omit<Prefs, "projection"> & { projection: string | null }) | null {
+  const store = localStore();
+  if (!store || lastSaveFailed) return null;
+  let raw: string | null;
+  try {
+    raw = store.getItem(PREFS_KEY);
+    if (raw == null) return null;
+    JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  return parsePrefs(raw) as Omit<Prefs, "projection"> & { projection: string | null };
 }
 
 /** Take in prefs another tab saved; returns a cleanup. The map's projection
@@ -226,6 +240,8 @@ export function watchPrefs(win: Pick<Window, "addEventListener" | "removeEventLi
     if (!st.hydrated) return;
     const { projection: _p, ...rest } = parsePrefs(e.key === null ? null : e.newValue) as Prefs;
     useHomeStore.setState({ prefs: { ...st.prefs, ...rest } });
+    // A satellite followed over there needs its record here too.
+    if (rest.following.some((id) => !st.prefs.following.includes(id))) void useHomeStore.getState().loadRecords();
   };
   win.addEventListener("storage", onStorage);
   return () => win.removeEventListener("storage", onStorage);
