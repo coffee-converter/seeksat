@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MODES, applyMode, readMode, readNight, themeControlHint, writeMode } from "@/lib/ui/theme.mjs";
+import Button from "@/components/ui/Button";
+import Segmented from "@/components/ui/Segmented";
 
 type Mode = "auto" | "light" | "dark";
 
@@ -15,7 +17,7 @@ function apply(mode: Mode) {
 }
 
 /**
- * Auto / Light / Dark. A segmented radio group; under 700 px a single button
+ * Auto / Light / Dark. A Segmented radio group; under 700 px a single button
  * that cycles through the three (styles in app/home.css). The mode is read
  * after mount, so the server and first client render match: until then the
  * same-size control is hidden.
@@ -23,8 +25,6 @@ function apply(mode: Mode) {
 export default function ThemeToggle() {
   const [mode, setMode] = useState<Mode | null>(null);
   const [night, setNight] = useState(false);
-
-  const groupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const m = readMode() as Mode;
@@ -44,46 +44,29 @@ export default function ThemeToggle() {
     apply(next);
   }, []);
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const step = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1
-      : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
-    if (!step) return;
-    e.preventDefault();
-    const at = MODES.indexOf(mode ?? "auto");
-    const to = MODES[(at + step + MODES.length) % MODES.length] as Mode;
-    choose(to);
-    groupRef.current?.querySelectorAll<HTMLElement>("[role=radio]")[MODES.indexOf(to)]?.focus();
-  };
-
   const current: Mode = mode ?? "auto";
   const next = MODES[(MODES.indexOf(current) + 1) % MODES.length] as Mode;
 
   return (
     <div className="theme-toggle" data-ready={mode ? "true" : "false"} data-night={night ? "true" : "false"} title={themeControlHint(night)}>
-      <div className="theme-toggle__group" role="radiogroup" aria-label="Theme" aria-description={themeControlHint(night)} ref={groupRef} onKeyDown={onKeyDown}>
-        {(MODES as Mode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="radio"
-            aria-checked={current === m}
-            tabIndex={mode && current !== m ? -1 : 0}
-            className="theme-toggle__opt"
-            onClick={() => choose(m)}
-          >
-            {LABEL[m]}
-          </button>
-        ))}
+      <div className="theme-toggle__group">
+        <Segmented
+          label="Theme"
+          description={themeControlHint(night)}
+          options={(MODES as Mode[]).map((m) => ({ value: m, label: LABEL[m] }))}
+          value={current}
+          onChange={choose}
+        />
       </div>
-      <button
-        type="button"
+      <Button
+        size="sm"
         className="theme-toggle__cycle"
         aria-label={`Theme: ${LABEL[current]}. Switch to ${LABEL[next]}.`}
         aria-description={themeControlHint(night)}
         onClick={() => choose(next)}
       >
         {LABEL[current]}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -2,6 +2,9 @@
 
 import { MIN_ELEV_MAX, stepMinElev } from "@/lib/home/view.mjs";
 import { SKY_TYPES } from "@/lib/sky/visual-rating.mjs";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
+import Segmented from "@/components/ui/Segmented";
 
 const skyTypes = SKY_TYPES as ReadonlyArray<{ id: string; label: string }>;
 
@@ -27,16 +30,13 @@ export default function HomeControls({
 }: Props) {
   // How dark the sky is where you watch: it belongs with the location.
   const skySelect = mode === "visual" ? (
-    <select
-      className="home-controls__sky"
-      aria-label="Sky type"
-      title="Sky type"
-      value={skyType}
-      disabled={!ready}
-      onChange={(e) => onSkyTypeChange(e.target.value)}
-    >
-      {skyTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-    </select>
+    <div className="home-controls__sky">
+      <Field label="Sky type" hideLabel>
+        <select title="Sky type" value={skyType} disabled={!ready} onChange={(e) => onSkyTypeChange(e.target.value)}>
+          {skyTypes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+      </Field>
+    </div>
   ) : null;
 
   return (
@@ -48,50 +48,45 @@ export default function HomeControls({
           <span className="home-controls__name" title={locationName}>
             {locationName || "Your location"}
           </span>
-          <button type="button" className="home-link" onClick={onChangeLocation}>
+          <Button variant="link" onClick={onChangeLocation}>
             Change
-          </button>
+          </Button>
           {skySelect}
         </div>
       )}
 
-      <div className="home-controls__mode" role="group" aria-label="Pass mode">
-        {(["radio", "visual"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            className="home-chip"
-            aria-pressed={ready && mode === m}
-            disabled={!ready}
-            onClick={() => onModeChange(m)}
-          >
-            {m === "radio" ? "Radio" : "Visual"}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        label="Pass mode"
+        size="sm"
+        options={[{ value: "radio", label: "Radio", disabled: !ready }, { value: "visual", label: "Visual", disabled: !ready }]}
+        value={mode}
+        onChange={onModeChange}
+      />
 
       <div className="home-controls__elev" role="group" aria-label="Minimum elevation">
-        <button
-          type="button"
-          className="home-chip"
+        <Button
+          variant="quiet"
+          size="sm"
+          iconOnly
           aria-label="Lower minimum elevation"
           disabled={!ready || minElevDeg <= 0}
           onClick={() => onMinElevChange(stepMinElev(minElevDeg, -1))}
         >
           {"−"}
-        </button>
+        </Button>
         <span className="home-controls__value" aria-live="polite" title="Minimum elevation">
           Min elevation <span className={ready ? undefined : "home-controls__pending"}>{minElevDeg}°</span>
         </span>
-        <button
-          type="button"
-          className="home-chip"
+        <Button
+          variant="quiet"
+          size="sm"
+          iconOnly
           aria-label="Raise minimum elevation"
           disabled={!ready || minElevDeg >= MIN_ELEV_MAX}
           onClick={() => onMinElevChange(stepMinElev(minElevDeg, 1))}
         >
           +
-        </button>
+        </Button>
       </div>
 
       {locationName == null && skySelect}

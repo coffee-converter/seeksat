@@ -25,6 +25,8 @@ import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
 import Disclosure from "@/components/ui/Disclosure";
+import Button from "@/components/ui/Button";
+import { buttonClass } from "@/lib/ui/classes.mjs";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
 export type Track = ReturnType<typeof makeTrack>;
@@ -165,18 +167,17 @@ function ViewingTag({ viewing }: { viewing: ViewingProps | null }) {
 function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onUnfollow: () => void }) {
   if (viewing) {
     return (
-      <button
-        type="button"
-        className="home-chip"
+      <Button
+        size="sm"
         disabled={Boolean(viewing.blocked)}
         title={viewing.blocked ?? undefined}
         onClick={viewing.onFollow}
       >
         {"\u2606 Follow"}
-      </button>
+      </Button>
     );
   }
-  return <button type="button" className="home-chip home-chip--quiet" onClick={onUnfollow}>Unfollow</button>;
+  return <Button size="sm" variant="quiet" onClick={onUnfollow}>Unfollow</Button>;
 }
 
 /** none: nothing is focused; focus: this card's satellite is; dim: another is. */
@@ -237,8 +238,8 @@ function PassCard({
     downloadText(ics, icsFileName(track.shortName, observer.name, pass.startMs), "text/calendar");
   };
 
-  const skyButton = <button type="button" className="home-chip" onClick={onSkyChart}>Sky chart</button>;
-  const radioButton = <button type="button" className="home-chip" onClick={onRadioChart}>Radio chart</button>;
+  const skyButton = <Button size="sm" onClick={onSkyChart}>Sky chart</Button>;
+  const radioButton = <Button size="sm" onClick={onRadioChart}>Radio chart</Button>;
 
   return (
     <li className={`pass-card pass-card--pass${focusClass(focus)}`} style={{ "--sat-color": color } as React.CSSProperties}>
@@ -268,17 +269,17 @@ function PassCard({
           </p>
         )}
         <div className="pass-card__actions">
-          {liveOk(pass, nowMs) && <button type="button" className="home-chip home-chip--live" onClick={onLive}>Live</button>}
+          {liveOk(pass, nowMs) && <Button size="sm" variant="primary" onClick={onLive}><span className="live-dot" aria-hidden="true" />Live</Button>}
           {/* The chart for the mode leads; the other waits under More. */}
           {visual ? skyButton : radioButton}
           {track.record?.source !== "pasted" && (
-            <Link className="home-chip" href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
+            <Link className={buttonClass({ size: "sm" })} href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
           )}
           <Disclosure id={`card-more-${card.noradId}`} open={moreOpen} onToggle={onToggleMore} label={`the ${card.name} pass`}>
             {visual ? radioButton : skyButton}
-            <button type="button" className="home-chip" title="Add to calendar" onClick={addToCalendar}>
+            <Button size="sm" title="Add to calendar" onClick={addToCalendar}>
               <span aria-hidden="true">📅</span> Calendar
-            </button>
+            </Button>
             <AlertBell noradId={card.noradId} name={track.shortName} pass={pass} url={() => `/sat/${card.noradId}`} />
             <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
           </Disclosure>
@@ -432,7 +433,7 @@ export default function NextUpList({
                 <ViewingTag viewing={viewingOf(card.noradId)} />
               </p>
               {card.kind !== "missing" && track?.record?.source !== "pasted" && (
-                <Link className="home-chip" href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
+                <Link className={buttonClass({ size: "sm" })} href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
               )}
               <FollowChip viewing={viewingOf(card.noradId)} onUnfollow={() => onUnfollow(card.noradId)} />
             </li>

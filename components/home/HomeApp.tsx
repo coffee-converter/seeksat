@@ -33,6 +33,7 @@ import { visualRating } from "@/components/passes/QualityBadge";
 import AboutSection from "./AboutSection";
 import { usePublishMapScene } from "@/lib/map/scene-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
+import Button from "@/components/ui/Button";
 
 const CARD_REFRESH_MS = 10 * 60_000;
 
@@ -459,9 +460,9 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       {status === "error" && (
         <div className="home-banner" role="alert">
           <span>{error ?? "Something went wrong loading satellites."}</span>
-          <button type="button" className="home-button" onClick={() => void loadRecords()}>
+          <Button onClick={() => void loadRecords()}>
             Try again
-          </button>
+          </Button>
         </div>
       )}
 

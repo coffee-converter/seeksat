@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { canRemind as canRemindFn, addAlert, makeAlert, removeAlert, DEFAULT_LEAD_MIN } from "@/lib/alerts/alerts.mjs";
 import { readAlerts, watchAlerts, writeAlerts, type PassAlert } from "@/lib/alerts/store";
+import Button from "@/components/ui/Button";
 
 export const OPEN_TAB_NOTE = "Reminders work only while SeekSat is open, in a tab or as an installed app.";
 const BLOCKED_NOTE = "Your browser blocked notifications. Allow them for this site to get reminders.";
@@ -70,15 +71,14 @@ export default function AlertBell({ noradId, name, pass, url }: Props) {
 
   return (
     <>
-      <button
-        type="button"
-        className={on ? "home-chip home-chip--on" : "home-chip"}
-        aria-pressed={on}
+      <Button
+        size="sm"
+        pressed={on}
         title={on ? "Cancel reminder" : `Reminder ${DEFAULT_LEAD_MIN} min before`}
         onClick={toggle}
       >
         <span aria-hidden="true">{"🔔"}</span> Remind me
-      </button>
+      </Button>
       {note && <span className="alert-note" role="status">{note}</span>}
     </>
   );

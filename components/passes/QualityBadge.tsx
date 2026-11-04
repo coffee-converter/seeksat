@@ -2,6 +2,7 @@ import { passQuality } from "@/lib/passes/quality.mjs";
 import { formatMag, visualQuality } from "@/lib/sky/visual-rating.mjs";
 import { ratingShort } from "@/lib/passes/pass-words.mjs";
 import type { CloudBadge } from "@/lib/sky/cloud-badge.mjs";
+import RatingBars from "@/components/ui/RatingBars";
 
 /** `cause` (visual ratings only) is what held the rating below Good. */
 export type Quality = { level: "good" | "ok" | "low"; label: string; reason: string; cause?: string | null; bars?: number };
@@ -51,11 +52,8 @@ export default function QualityBadge({ pass, rating, maxShown = false }: {
   const bars = Math.min(BAR_COUNT, Math.max(1, Math.round(q.bars ?? 1)));
   return (
     <span className={`quality quality--${q.level} quality--b${bars}`} title={q.reason}>
-      <span className="qbars" aria-hidden="true">
-        {Array.from({ length: BAR_COUNT }, (_, i) => <i key={i} className={i < bars ? "on" : undefined} />)}
-      </span>
+      <RatingBars bars={bars as 1 | 2 | 3 | 4 | 5} label={`${bars} of ${BAR_COUNT}`} />
       {ratingText(q, pass, !!rating, maxShown)}
-      <span className="sr-only">{`, ${bars} of ${BAR_COUNT}`}</span>
     </span>
   );
 }

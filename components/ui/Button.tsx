@@ -2,7 +2,8 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { buttonClass, cx } from "@/lib/ui/classes.mjs";
 
 type Common = {
-  variant?: "primary" | "secondary" | "quiet";
+  /** link: an inline text action (Change, Cancel), underlined in the link colour. */
+  variant?: "primary" | "secondary" | "quiet" | "link";
   size?: "md" | "sm";
   tone?: "default" | "danger";
   /** A finished action (Copied, Saved): shows the teal confirmation look. */

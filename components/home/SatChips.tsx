@@ -1,5 +1,7 @@
 "use client";
 
+import ChipView from "@/components/ui/Chip";
+
 export interface Chip {
   noradId: number;
   name: string;
@@ -24,34 +26,15 @@ export default function SatChips({ chips, focusId, onFocus, onToggleHidden }: Pr
       {chips.map((c) => {
         const focused = c.noradId === focusId;
         return (
-          <li
+          <ChipView
             key={c.noradId}
-            className={`sat-chip${c.hidden ? " sat-chip--hidden" : ""}${focused ? " sat-chip--focus" : ""}`}
-            style={{ "--sat-color": c.color } as React.CSSProperties}
-          >
-            <button
-              type="button"
-              className="sat-chip__name"
-              aria-pressed={focused}
-              onClick={() => onFocus(focused ? null : c.noradId)}
-            >
-              <span className="sat-chip__dot" aria-hidden="true" />
-              {c.name}
-            </button>
-            <button
-              type="button"
-              className="sat-chip__eye"
-              aria-label={c.hidden ? `Show ${c.name} on the map` : `Hide ${c.name} on the map`}
-              title={c.hidden ? "Show on the map" : "Hide on the map"}
-              onClick={() => onToggleHidden(c.noradId)}
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                <path d="M1 8s2.6-5 7-5 7 5 7 5-2.6 5-7 5-7-5-7-5z" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                <circle cx="8" cy="8" r="2" fill="currentColor" />
-                {c.hidden && <path d="M2 14 14 2" stroke="currentColor" strokeWidth="1.4" />}
-              </svg>
-            </button>
-          </li>
+            color={c.color}
+            label={c.name}
+            focused={focused}
+            hidden={c.hidden}
+            onSelect={() => onFocus(focused ? null : c.noradId)}
+            onToggleHidden={() => onToggleHidden(c.noradId)}
+          />
         );
       })}
     </ul>

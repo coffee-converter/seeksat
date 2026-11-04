@@ -51,6 +51,17 @@
 }
 .btn--primary[aria-pressed="true"]:hover:not(:disabled) { background: var(--btn-hover); }
 
+/* Link: an inline text action in a sentence or a label row. */
+.btn--link {
+  min-height: 24px;
+  padding: 0;
+  color: var(--link);
+  border: 0;
+  font-weight: var(--fw-regular);
+  text-decoration: underline;
+}
+.btn--link:hover:not(:disabled) { background: none; }
+
 .btn--icon { padding: var(--sp-6); min-width: 32px; min-height: 32px; line-height: 1; }
 .btn--icon.btn--sm { padding: var(--sp-4); min-width: 28px; min-height: 28px; }
 
@@ -61,6 +72,8 @@
 @media (pointer: coarse) {
   .btn { min-height: 44px; }
   .btn--icon { min-width: 44px; }
+  /* Inline in text: 24 px, the WCAG minimum, so it never splits its line. */
+  .btn--link { min-height: 24px; }
 }
 
 /* Segmented: a well of options, the chosen one a filled segment (today's
@@ -138,8 +151,8 @@
 
 /* StatTile: one dashboard number (moved from sat.css). */
 .stat-tile {
-  display: flex; flex-direction: column; gap: 4px; min-width: 0;
-  padding: 12px 14px 13px; background: var(--tile-bg); color: inherit; text-decoration: none;
+  display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0;
+  padding: var(--sp-12) var(--sp-16); background: var(--tile-bg); color: inherit; text-decoration: none;
   container-type: inline-size; overflow-wrap: normal;
 }
 a.stat-tile:hover { background: var(--tile-hover); }
@@ -151,14 +164,14 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15;
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
 }
-.stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: var(--radius-sm); }
+.stat-tile__num { margin: 0 calc(-1 * var(--sp-4)); padding: 0 var(--sp-4); border-radius: var(--radius-sm); }
 .stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: var(--fw-medium); letter-spacing: 0; }
 .stat-tile__note { color: var(--map-muted); font-size: var(--fs-xs); line-height: 1.35; }
 .stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: var(--fs-hero); white-space: normal; text-wrap: balance; }
 .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); white-space: normal; }
 
 @media (max-width: 479.98px) {
-  .stat-tile { padding: 10px 12px 11px; }
+  .stat-tile { padding: var(--sp-12); }
   .stat-tile__value { font-size: var(--fs-2xl); }
   .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
   .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
@@ -240,8 +253,33 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   font: inherit;
   font-size: var(--fs-input);
 }
+/* A select draws its own chevron, so it matches in every browser. */
+select.field__control {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--sp-32);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--map-muted) 50%),
+    linear-gradient(135deg, var(--map-muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.field__control::placeholder { color: var(--map-muted); }
+.field__control:disabled { opacity: 0.6; }
 .field__control:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .field__control[aria-invalid="true"] { border-color: var(--danger); }
+.field__label--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px; /* nudge */
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .field__hint,
 .field__error { margin: 0; font-size: var(--fs-sm); line-height: 1.4; }
 .field__hint { color: var(--map-muted); }

@@ -136,7 +136,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
             <h2 id={titleId} className="live-view__title">{`${track.shortName} live`}</h2>
             <p className="live-view__sub">{`From ${obs.name}`}</p>
           </div>
-          <button ref={closeRef} type="button" className="home-chip" onClick={onClose}>Close</button>
+          <button ref={closeRef} type="button" className="btn btn--sm" onClick={onClose}>Close</button>
         </header>
         <p className="sr-only" aria-live="polite">{phaseText}</p>
         <p className="live-view__status">
@@ -182,10 +182,10 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
         </section>
         <div className="live-view__actions">
           {hasOrientation && !compassOn && (
-            <button type="button" className="home-chip" onClick={startCompass}>Use phone compass</button>
+            <button type="button" className="btn btn--sm" onClick={startCompass}>Use phone compass</button>
           )}
-          <button type="button" className="home-chip" onClick={() => onChart("sky")}>Sky chart</button>
-          <button type="button" className="home-chip" onClick={() => onChart("radio")}>Radio chart</button>
+          <button type="button" className="btn btn--sm" onClick={() => onChart("sky")}>Sky chart</button>
+          <button type="button" className="btn btn--sm" onClick={() => onChart("radio")}>Radio chart</button>
         </div>
       </div>
     </div>

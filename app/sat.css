@@ -1,36 +1,36 @@
 .sat { overflow-wrap: anywhere; }
 .sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15; color: var(--text-strong); }
-.sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; margin-top: 6px; }
+.sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); max-width: 100%; margin-top: var(--sp-6); }
 .sat-age { line-height: 1.6; }
-.sat-age__how { margin-left: 8px; font-size: var(--fs-sm); white-space: nowrap; }
-.sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: var(--radius-lg); font-size: var(--fs-sm); }
+.sat-age__how { margin-left: var(--sp-8); font-size: var(--fs-sm); white-space: nowrap; }
+.sat-badge { display: inline-block; margin-left: var(--sp-8); padding: 1px var(--sp-8); border-radius: var(--radius-lg); font-size: var(--fs-sm); } /* nudge */
 .sat-badge--old { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
 .sat-badge--stale { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
-.sat-how { display: block; margin-top: 2px; color: var(--map-muted); font-size: var(--fs-sm); line-height: 1.4; }
-p.sat-how { margin: 0 0 8px; }
+.sat-how { display: block; margin-top: var(--sp-2); color: var(--map-muted); font-size: var(--fs-sm); line-height: 1.4; }
+p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-diagram { margin: 0; }
-.sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto 6px; }
+.sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto var(--sp-6); }
 .sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); }
-.sat-list { margin: 0; padding-left: 18px; }
-.sat-raw { margin-bottom: 10px; }
-.sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sat-list { margin: 0; padding-left: var(--sp-16); }
+.sat-raw { margin-bottom: var(--sp-12); }
+.sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
 .sat-raw-head h3 { margin: 0; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-raw pre {
-  margin: 6px 0 0; padding: 8px; max-width: 100%; overflow-x: auto;
+  margin: var(--sp-6) 0 0; padding: var(--sp-8); max-width: 100%; overflow-x: auto;
   background: var(--code-bg); border: 0; border-radius: var(--radius-lg);
   font-size: var(--fs-sm); user-select: text;
 }
 .sat-passes { margin-bottom: 0; }
 .sat-passlist { list-style: none; margin: 0; padding: 0; }
-.sat-show-all { margin-top: 10px; }
-.sat-zone { margin: 4px 0 8px; }
-.sat-pass { padding: 8px 0; border-bottom: 1px solid var(--map-border); }
+.sat-show-all { margin-top: var(--sp-12); }
+.sat-zone { margin: var(--sp-4) 0 var(--sp-8); }
+.sat-pass { padding: var(--sp-8) 0; border-bottom: 1px solid var(--map-border); }
 /* Passes under day headings: the same Starts, Max and Lasts columns and
    rating pill as the home cards, then where to look below. */
-.sat-day-group + .sat-day-group { margin-top: 16px; }
+.sat-day-group + .sat-day-group { margin-top: var(--sp-16); }
 .sat-day {
   margin: 0;
-  padding: 6px 0 4px;
+  padding: var(--sp-6) 0 var(--sp-4);
   font-size: var(--fs-md);
   font-weight: var(--fw-semibold);
   color: var(--map-muted);
@@ -43,7 +43,7 @@ p.sat-how { margin: 0 0 8px; }
   grid-template-areas: "stats rating";
   justify-content: space-between;
   align-items: start;
-  gap: 6px 12px;
+  gap: var(--sp-6) var(--sp-12);
 }
 .sat-pass__stats { grid-area: stats; }
 .sat-pass__rating { grid-area: rating; justify-self: end; }
@@ -53,26 +53,26 @@ p.sat-how { margin: 0 0 8px; }
   .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
   .sat-pass__rating { justify-self: start; }
 }
-.sat-pass__line2 { margin: 6px 0 6px; color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: 1.5; }
-.sat-pass .pass-card__tag { margin-left: 8px; }
-.sat-observers { margin: 12px 0; }
-.sat-observers__title { margin: 0 0 4px; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
-.sat-observers__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.sat-observers__item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--map-border); border-radius: var(--radius-full); }
+.sat-pass__line2 { margin: var(--sp-6) 0 var(--sp-6); color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: 1.5; }
+.sat-pass .pass-card__tag { margin-left: var(--sp-8); }
+.sat-observers { margin: var(--sp-12) 0; }
+.sat-observers__title { margin: 0 0 var(--sp-4); font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
+.sat-observers__list { list-style: none; margin: var(--sp-8) 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.sat-observers__item { display: inline-flex; align-items: center; gap: var(--sp-6); padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-12); border: 1px solid var(--map-border); border-radius: var(--radius-full); }
 .sat-shared {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
-  margin: 10px 0; padding: 10px 12px; border-radius: var(--radius-lg);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8) var(--sp-12);
+  margin: var(--sp-12) 0; padding: var(--sp-12) var(--sp-12); border-radius: var(--radius-lg);
   background: var(--map-footprint); border: 1px solid var(--map-accent);
 }
 .sat-shared__text { margin: 0; color: var(--map-text); line-height: 1.5; }
-.sat-shared-past { margin: 0 0 8px; }
+.sat-shared-past { margin: 0 0 var(--sp-8); }
 .sat-pass.pass-row--shared {
-  padding: 8px; border-radius: var(--radius-md);
+  padding: var(--sp-8); border-radius: var(--radius-md);
   background: var(--map-footprint); box-shadow: inset 3px 0 0 var(--map-accent);
 }
 
 /* Header: who it is, then Follow and Share. The clock lives in the shell's top bar. */
-.sat-top { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sat-top { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 .sat-back { align-self: flex-start; display: inline-flex; align-items: center; font-size: var(--fs-md); text-decoration: none; }
 .sat-back:hover { text-decoration: underline; }
 
@@ -82,13 +82,13 @@ p.sat-how { margin: 0 0 8px; }
 .sat-bar {
   --sat-bar-top: 0px;
   position: sticky; top: var(--sat-bar-top); z-index: 20;
-  height: 0; margin-bottom: -24px; visibility: hidden;
+  height: 0; margin-bottom: calc(-1 * var(--sp-24)); visibility: hidden;
 }
 .sat-bar--on { visibility: visible; }
 .sat-bar__in {
   position: absolute; left: -8px; right: -8px; top: 0;
-  display: flex; align-items: center; gap: 10px; min-width: 0;
-  padding: 6px 12px; background: var(--bg); border-bottom: 1px solid var(--map-border);
+  display: flex; align-items: center; gap: var(--sp-12); min-width: 0;
+  padding: var(--sp-6) var(--sp-12); background: var(--bg); border-bottom: 1px solid var(--map-border);
 }
 .sat-bar__name { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-semibold); color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sat-bar__when { flex: 0 0 auto; color: var(--map-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -106,11 +106,11 @@ p.sat-how { margin: 0 0 8px; }
 /* The next pass, right under the title: when and where, the rating words,
    and a chart button that follows the mode. */
 .sat-next {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
-  margin-top: 6px; padding: 6px 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-12);
+  margin-top: var(--sp-6); padding: var(--sp-6) var(--sp-12);
   background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: var(--radius-lg);
 }
-.sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-6); min-width: 0; }
 .sat-next__text { margin: 0; line-height: 1.4; font-variant-numeric: tabular-nums; }
 .sat-next__label { color: var(--map-muted); }
 .sat-next__what { color: var(--text-strong); font-weight: var(--fw-semibold); }
@@ -121,19 +121,19 @@ p.sat-how { margin: 0 0 8px; }
    summary goes and the tiles always show (::details-content covers the
    moment before the effect opens it). */
 .sat-live__summary {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  min-height: 40px; padding: 0 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+  min-height: 40px; padding: 0 var(--sp-16);
   background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: var(--radius-lg);
   color: var(--text-heading); font-size: var(--fs-md); font-weight: var(--fw-semibold);
   cursor: pointer; list-style: none;
 }
 .sat-live__summary::-webkit-details-marker { display: none; }
 .sat-live__summary::after {
-  content: ""; width: 7px; height: 7px; margin-right: 2px;
+  content: ""; width: 7px; height: 7px; margin-right: var(--sp-2);
   border-right: 2px solid var(--map-muted); border-bottom: 2px solid var(--map-muted);
   transform: translateY(-2px) rotate(45deg);
 }
-.sat-live[open] > .sat-live__summary { margin-bottom: 8px; }
+.sat-live[open] > .sat-live__summary { margin-bottom: var(--sp-8); }
 .sat-live[open] > .sat-live__summary::after { transform: translateY(2px) rotate(-135deg); }
 .sat-live__summary:hover { background: var(--tile-hover); }
 .sat-live__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -146,7 +146,7 @@ p.sat-how { margin: 0 0 8px; }
    2 columns under 480 px, 3 from 480, 4 from 720. Seven tiles: Sunlight
    widens so every row fills. */
 .sat-dash {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; /* nudge */
   background: var(--map-border); border: 1px solid var(--map-border); border-radius: var(--radius-lg); overflow: hidden;
 }
 .sat-dash .stat-tile--wide { grid-column: 1 / -1; }
@@ -166,9 +166,9 @@ p.sat-how { margin: 0 0 8px; }
    the words between them never read as variables. */
 .sat-orbit-check__lead { margin: 0; color: var(--map-text); }
 .sat-orbit-check__pct { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
-.sat-orbit-check__math { margin: 8px 0 0; color: var(--map-muted); line-height: 1.9; }
+.sat-orbit-check__math { margin: var(--sp-8) 0 0; color: var(--map-muted); line-height: 1.9; }
 .sat-formula {
-  padding: 1px 6px;
+  padding: 1px var(--sp-6); /* nudge */
   background: var(--code-bg);
   border: var(--line-subtle);
   border-radius: var(--radius-md);
@@ -180,11 +180,11 @@ p.sat-how { margin: 0 0 8px; }
 }
 
 /* Mean elements: label and value pairs, one column on phones. */
-.sat-elements .sat-age { margin-bottom: 6px; }
-.sat-etable { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; margin: 0; }
+.sat-elements .sat-age { margin-bottom: var(--sp-6); }
+.sat-etable { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-24); margin: 0; }
 .sat-etable__row {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
-  padding: 6px 0; border-bottom: 1px solid var(--map-border);
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-12);
+  padding: var(--sp-6) 0; border-bottom: 1px solid var(--map-border);
 }
 .sat-etable dt { color: var(--map-muted); }
 .sat-etable dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; text-align: right; }
@@ -197,13 +197,13 @@ p.sat-how { margin: 0 0 8px; }
 }
 
 /* How we compute these: visible text, never tooltips. */
-.sat-how-section { padding-top: 4px; }
-.sat-how-list { display: grid; gap: 10px; margin: 0; }
-.sat-how-list__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.sat-how-section { padding-top: var(--sp-4); }
+.sat-how-list { display: grid; gap: var(--sp-12); margin: 0; }
+.sat-how-list__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
 .sat-how-list dt { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
 .sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: var(--fs-md); line-height: 1.5; }
 @media (min-width: 600px) {
-  .sat-how-list__row { grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: 16px; }
+  .sat-how-list__row { grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: var(--sp-16); }
 }
 
 /* Docked (1100 px and up) the panel is 380 px wide, whatever the viewport:
@@ -217,11 +217,11 @@ p.sat-how { margin: 0 0 8px; }
   .map-shell__panel .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
   .map-shell__panel .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
   .map-shell__panel .sat-etable { grid-template-columns: minmax(0, 1fr); }
-  .map-shell__panel .sat-how-list__row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .map-shell__panel .sat-how-list__row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
   .map-shell__panel .sat-diagram svg { max-width: 300px; }
 }
 
-.sat-passes__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sat-passes__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
 .sat-passes__head .home-heading { margin: 0; }
 .print-only { display: none; }
 .sat-print-table { border-collapse: collapse; }

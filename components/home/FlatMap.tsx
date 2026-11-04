@@ -13,6 +13,8 @@ import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.m
 import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { useFollow } from "@/lib/map/follow-store";
+import Button from "@/components/ui/Button";
+import Segmented from "@/components/ui/Segmented";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -1223,33 +1225,14 @@ export default function FlatMap({
   const chipRow = (
     <div className="flat-map__top">
       {chips}
-      <div
-        className="flat-map__views"
-        role="radiogroup"
-        aria-label="Map view"
-        onKeyDown={(e) => {
-          const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
-          if (!step) return;
-          e.preventDefault();
-          const next = PROJECTIONS[(PROJECTIONS.findIndex((p: { id: string }) => p.id === view) + step + PROJECTIONS.length) % PROJECTIONS.length];
-          onProjectionChange(next.id);
-          e.currentTarget.querySelector<HTMLButtonElement>(`[data-view="${next.id}"]`)?.focus();
-        }}
-      >
-        {PROJECTIONS.map((p: { id: string; label: string }) => (
-          <button
-            key={p.id}
-            type="button"
-            role="radio"
-            data-view={p.id}
-            aria-checked={view === p.id}
-            tabIndex={view === p.id ? 0 : -1}
-            className="flat-map__view"
-            onClick={() => onProjectionChange(p.id)}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="flat-map__views">
+        <Segmented
+          label="Map view"
+          size="sm"
+          options={PROJECTIONS.map((p: { id: string; label: string }) => ({ value: p.id, label: p.label }))}
+          value={view}
+          onChange={onProjectionChange}
+        />
       </div>
     </div>
   );
@@ -1302,32 +1285,28 @@ export default function FlatMap({
       {view === "globe" ? (
         <div className="flat-map__presets" role="group" aria-label="Globe camera">
           {PRESETS.map((p) => (
-            <button
+            <Button
               key={p.id}
-              type="button"
+              size="sm"
               disabled={(p.id === "you" && !observer) || (p.id === "sat" && !focusNow)}
-              aria-pressed={p.id === "sat" ? followOn : undefined}
+              pressed={p.id === "sat" ? followOn : undefined}
               onClick={() => goTo(p.id)}
             >
               {p.label}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
       <div className="flat-map__zoom">
-        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
-        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
+        <Button iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
+        <Button iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
         {/* On the globe, On you and Satellite GP already do this. */}
         {view === "globe" ? null : (
-          <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
+          <Button onClick={reset}>Reset view</Button>
         )}
-        <button
-          type="button"
-          aria-label={full ? "Exit full screen" : "Full screen"}
-          onClick={toggleFull}
-        >
+        <Button iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
           {"⛶"}
-        </button>
+        </Button>
       </div>
       <table className="sr-only">
         <caption>Current satellite positions</caption>
@@ -1352,15 +1331,15 @@ export default function FlatMap({
     {fill ? (
       // The toggle shows only when docked; narrower, the legend is always open below the map.
       <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
-        <button
-          type="button"
+        <Button
+          size="sm"
           className="map-legend__toggle"
           aria-expanded={legendOpen}
           aria-controls={legendId}
           onClick={() => setLegendOpen((v) => !v)}
         >
           Legend
-        </button>
+        </Button>
         {legendList}
       </div>
     ) : legendList}

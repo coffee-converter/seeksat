@@ -7,12 +7,14 @@ interface Props {
   label: string;
   hint?: string;
   error?: string;
+  /** Keeps the label for screen readers only, where the placeholder or the row already says what the control is. */
+  hideLabel?: boolean;
   /** One input, select or textarea; Field gives it the id and the aria wiring. */
   children: ReactElement<{ id?: string; className?: string; "aria-describedby"?: string; "aria-invalid"?: boolean }>;
 }
 
 /** A labelled form control with an optional hint and error. */
-export default function Field({ label, hint, error, children }: Props) {
+export default function Field({ label, hint, error, hideLabel = false, children }: Props) {
   const uid = useId();
   const id = children.props.id ?? `${uid}-control`;
   const hintId = `${uid}-hint`;
@@ -20,7 +22,7 @@ export default function Field({ label, hint, error, children }: Props) {
   const described = [children.props["aria-describedby"], hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ");
   return (
     <div className="field">
-      <label className="field__label" htmlFor={id}>{label}</label>
+      <label className={cx("field__label", hideLabel && "field__label--hidden")} htmlFor={id}>{label}</label>
       {cloneElement(children, {
         id,
         className: cx("field__control", children.props.className),

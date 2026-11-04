@@ -7,8 +7,8 @@ type Option<T extends string> = { value: T; label: string; disabled?: boolean };
 
 /** A single-choice control as a radiogroup: one tab stop (roving tabindex),
  *  arrow keys / Home / End move and select, wrapping. */
-export default function Segmented<T extends string>({ label, options, value, onChange, size = "md" }: {
-  label: string; options: Option<T>[]; value: T; onChange: (v: T) => void; size?: "md" | "sm";
+export default function Segmented<T extends string>({ label, description, options, value, onChange, size = "md" }: {
+  label: string; /** Extra spoken help (aria-description). */ description?: string; options: Option<T>[]; value: T; onChange: (v: T) => void; size?: "md" | "sm";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const enabled = options.filter((o) => !o.disabled).map((o) => o.value);
@@ -25,7 +25,7 @@ export default function Segmented<T extends string>({ label, options, value, onC
   };
 
   return (
-    <div className={cx("segmented", size === "sm" && "segmented--sm")} role="radiogroup" aria-label={label} ref={ref} onKeyDown={onKeyDown}>
+    <div className={cx("segmented", size === "sm" && "segmented--sm")} role="radiogroup" aria-label={label} aria-description={description} ref={ref} onKeyDown={onKeyDown}>
       {options.map((o) => (
         <button
           key={o.value}

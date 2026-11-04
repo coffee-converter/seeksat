@@ -5,6 +5,8 @@ import { searchQuery, searchUrl } from "@/lib/home/search.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
 import { followLabel } from "@/lib/home/focus.mjs";
 import { useHomeStore } from "@/lib/home/store";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
 
 interface Result {
   noradId: number;
@@ -168,25 +170,24 @@ export function SearchBar({ onView, onClearFocus }: Props) {
       }}
     >
       <div className="search-bar__row">
-        <input
-          className="search-bar__input"
-          type="search"
-          role="combobox"
-          aria-label="Search satellites"
-          aria-expanded={listVisible}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={active >= 0 ? `${uid}-opt-${active}` : undefined}
-          placeholder="Name or NORAD ID"
-          autoComplete="off"
-          value={text}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          onFocus={() => text && setOpen(true)}
-        />
-        <button
-          type="button"
-          className="search-bar__button search-bar__paste-button"
+        <Field label="Search satellites" hideLabel>
+          <input
+            type="search"
+            role="combobox"
+            aria-expanded={listVisible}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={active >= 0 ? `${uid}-opt-${active}` : undefined}
+            placeholder="Name or NORAD ID"
+            autoComplete="off"
+            value={text}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKeyDown}
+            onFocus={() => text && setOpen(true)}
+          />
+        </Field>
+        <Button
+          className="search-bar__paste-button"
           aria-expanded={pasteOpen}
           aria-label="Paste elements"
           title="Paste elements"
@@ -194,7 +195,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
         >
           <span className="search-bar__paste-full" aria-hidden="true">Paste elements</span>
           <span className="search-bar__paste-short" aria-hidden="true">+</span>
-        </button>
+        </Button>
       </div>
 
       {/* Everything under the input row. In the map shell's top bar it drops
@@ -223,18 +224,21 @@ export function SearchBar({ onView, onClearFocus }: Props) {
                 {r.name} <span className="search-bar__id">{r.noradId}</span>
               </span>
               {/* Out of the tab order: the focus bar has the same toggle for keyboards. */}
-              <button
-                type="button"
+              <Button
+                variant="quiet"
+                iconOnly
                 tabIndex={-1}
-                className={`search-bar__star${followed ? " search-bar__star--on" : ""}`}
+                className="search-bar__star"
                 aria-label={followLabel(r.name, followed)}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFollow(r);
                 }}
               >
-                {followed ? "\u2605" : "\u2606"}
-              </button>
+                <span className={`search-bar__star-glyph${followed ? " search-bar__star-glyph--on" : ""}`} aria-hidden="true">
+                  {followed ? "\u2605" : "\u2606"}
+                </span>
+              </Button>
             </li>
           );
         })}
@@ -255,25 +259,22 @@ export function SearchBar({ onView, onClearFocus }: Props) {
 
       {pasteOpen && (
         <div className="search-bar__paste">
-          <label htmlFor={`${uid}-paste`}>Paste a 2LE or 3LE element set</label>
-          <textarea
-            id={`${uid}-paste`}
-            rows={4}
-            spellCheck={false}
-            value={pasted}
-            onChange={(e) => {
-              setPasted(e.target.value);
-              setPasteError(null);
-            }}
-          />
-          {pasteError && (
-            <p className="search-bar__error" role="alert">
-              {pasteError}
-            </p>
-          )}
-          <button type="button" className="search-bar__button" onClick={onAdd}>
+          <Field label="Paste a 2LE or 3LE element set" error={pasteError ?? undefined}>
+            <textarea
+              id={`${uid}-paste`}
+              className="search-bar__tle"
+              rows={4}
+              spellCheck={false}
+              value={pasted}
+              onChange={(e) => {
+                setPasted(e.target.value);
+                setPasteError(null);
+              }}
+            />
+          </Field>
+          <Button className="search-bar__add" onClick={onAdd}>
             Add
-          </button>
+          </Button>
         </div>
       )}
       </div>

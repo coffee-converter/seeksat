@@ -5,6 +5,8 @@ import { parseLocationInput } from "@/lib/location/maidenhead.mjs";
 import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 import { MAX_FOLLOWING, POPULAR_IDS } from "@/lib/home/prefs.mjs";
 import { useHomeStore, type HomeLocation } from "@/lib/home/store";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
 
 const DENIED = "Location access was denied. Type a place or grid square instead.";
 const UNAVAILABLE = "Your location isn't available right now. Type a place or grid square instead.";
@@ -120,37 +122,31 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
     <section className="location-prompt" aria-labelledby={`${uid}-title`}>
       <h2 id={`${uid}-title`} className="home-heading">Where are you?</h2>
       <p className="location-prompt__hint">Passes are worked out for your location. It stays on this device.</p>
-      <button
-        type="button"
-        className="home-button home-button--primary"
-        disabled={gpsBusy}
-        onClick={useDevice}
-      >
+      <Button variant="primary" disabled={gpsBusy} onClick={useDevice}>
         {gpsBusy ? "Finding you..." : "Use my location"}
-      </button>
+      </Button>
       <form className="location-prompt__form" onSubmit={onSubmit}>
-        <label htmlFor={`${uid}-place`} className="sr-only">Place, coordinates or grid square</label>
-        <input
-          id={`${uid}-place`}
-          className="home-input"
-          type="text"
-          autoComplete="off"
-          placeholder='Place, "lat, lon" or grid square (EN52ve)'
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setMessage(null);
-          }}
-        />
-        <button type="submit" className="home-button" disabled={textBusy || !text.trim()}>
+        <Field label="Place, coordinates or grid square" hideLabel>
+          <input
+            type="text"
+            autoComplete="off"
+            placeholder='Place, "lat, lon" or grid square (EN52ve)'
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              setMessage(null);
+            }}
+          />
+        </Field>
+        <Button type="submit" disabled={textBusy || !text.trim()}>
           {textBusy ? "Looking..." : "Set"}
-        </button>
+        </Button>
       </form>
       {message && <p className="home-error" role="alert">{message}</p>}
       {onCancel && (
-        <button type="button" className="home-link" onClick={onCancel}>
+        <Button variant="link" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       )}
     </section>
   );
@@ -175,17 +171,16 @@ export function PopularList({ names }: { names: ReadonlyMap<number, string> }) {
           return (
             <li key={id} className="popular__item">
               <span>{name}</span>
-              <button
-                type="button"
-                className={`home-button home-button--primary${on ? " home-chip--on" : ""}`}
-                aria-pressed={on}
+              <Button
+                variant="primary"
+                pressed={on}
                 aria-label={`Follow ${name}`}
                 disabled={!on && full}
                 title={!on && full ? `You can follow up to ${MAX_FOLLOWING} satellites` : undefined}
                 onClick={() => (on ? unfollow(id) : follow(id))}
               >
                 {on ? "Following" : "Follow"}
-              </button>
+              </Button>
             </li>
           );
         })}

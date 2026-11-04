@@ -86,7 +86,7 @@ function declsIn(file, property) {
   for (const m of css.matchAll(/[{;]\s*([-\w]+)\s*:\s*([^;{}]*)/g)) {
     if (m[1] !== property) continue;
     const line = css.slice(0, m.index + m[0].indexOf(m[1])).split('\n').length;
-    found.push({ where: `${file}:${line}`, value: m[2].trim(), brand: (src[line - 1] || '').includes('/* brand */') });
+    found.push({ where: `${file}:${line}`, value: m[2].trim(), brand: (src[line - 1] || '').includes('/* brand */'), nudge: (src[line - 1] || '').includes('/* nudge */') });
   }
   return found;
 }
@@ -467,5 +467,26 @@ test('radius, transition and drop shadow use tokens', () => {
     ...declsIn(f, 'transition').filter((d) => !transOk(d.value)),
     ...declsIn(f, 'box-shadow').filter((d) => !shadowOk(d.value.replace(/\s*!important$/, ''))),
   ]);
+  assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
+});
+
+/** Splits a value on spaces outside parentheses, so calc(-1 * var(--sp-4)) stays one part. */
+function parts(v) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of v) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    if (/\s/.test(ch) && depth === 0) { if (cur) out.push(cur); cur = ''; } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+test('padding, margin and gap use spacing tokens', () => {
+  const ok = (v) => parts(v).every((p) => /^var\(--sp-\d+\)$/.test(p) || ['0', 'auto'].includes(p) || /^calc\(.*var\(--sp-/.test(p) || /env\(safe-area/.test(p));
+  const found = FILES.flatMap((f) => ['padding', 'margin', 'gap', 'row-gap', 'column-gap', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right']
+    .flatMap((p) => declsIn(f, p)).filter((d) => !ok(d.value) && !d.nudge));
   assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
 });

@@ -2,6 +2,7 @@
 
 import { focusBarText } from "@/lib/home/focus.mjs";
 import { useFollow } from "@/lib/map/follow-store";
+import Button from "@/components/ui/Button";
 
 type BarText = { title: string; showAll: string; follow: string; lock: { off: string; on: string } };
 const textOf = focusBarText as (name: string, isFollowed: boolean, total: number) => BarText;
@@ -33,39 +34,29 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
     <div className="focus-bar" role="region" aria-label="Focused satellite">
       <p className="focus-bar__title">{text.title}</p>
       <div className="focus-bar__actions">
-        <button
-          type="button"
-          className={`home-chip focus-bar__follow${followed ? " home-chip--on" : ""}`}
-          disabled={!followed && Boolean(blocked)}
-          onClick={onToggleFollow}
-        >
+        <Button size="sm" pressed={followed} disabled={!followed && Boolean(blocked)} onClick={onToggleFollow}>
           {text.follow}
-        </button>
+        </Button>
         {mode === "page" ? (
           <>
-            <button
-              type="button"
-              className={`home-chip${following ? " home-chip--on" : ""}`}
-              aria-pressed={following}
-              onClick={() => setFollowing(!following)}
-            >
+            <Button size="sm" pressed={following} onClick={() => setFollowing(!following)}>
               {following ? text.lock.on : text.lock.off}
-            </button>
-            <button
-              type="button"
-              className="home-chip focus-bar__details"
+            </Button>
+            <Button
+              size="sm"
+              className="focus-bar__details"
               onClick={() =>
                 document.querySelector(".sat-top")?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" })
               }
             >
               Details
-            </button>
-            <button type="button" className="home-chip focus-bar__close" aria-label="Close details" onClick={onClose}>
-              {"×"}
-            </button>
+            </Button>
+            <Button size="sm" iconOnly className="focus-bar__close" aria-label="Close details" onClick={onClose}>
+              <span className="focus-bar__x" aria-hidden="true">{"×"}</span>
+            </Button>
           </>
         ) : (
-          <button type="button" className="home-chip" onClick={onShowAll}>{text.showAll}</button>
+          <Button size="sm" onClick={onShowAll}>{text.showAll}</Button>
         )}
       </div>
       {!followed && blocked && <p className="focus-bar__note">{blocked}</p>}
