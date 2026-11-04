@@ -101,7 +101,7 @@ test('GEO pointing starts from the first sample that propagates', () => {
 });
 test('GEO pointing is all null when no sample propagates', () => {
   const dead = { ...goes, ecefAt: () => null };
-  assert.deepEqual(stationaryPointing(dead, [EN52VE], GOES_T0)[0], { obsId: 'en52ve', azDeg: null, elDeg: null, elMinDeg: null, elMaxDeg: null });
+  assert.deepEqual(stationaryPointing(dead, [EN52VE], GOES_T0)[0], { obsId: 'en52ve', azDeg: null, elDeg: null, elMinDeg: null, elMaxDeg: null, azMinDeg: null, azMaxDeg: null });
 });
 test('the last pass runs past a search end that cuts it', () => {
   const first = findPasses({ track: iss, observers: [EN52VE], startMs: ISS_T0 }).passes[0];

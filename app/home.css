@@ -1042,6 +1042,15 @@
   /* Alone beside the time, it centres on the digits. */
   .map-shell__top .live-clock__dot { align-self: center; }
 }
+/* Under 360 px (older small phones): a smaller wordmark and time, and the
+   clock lines never wrap, so the header row still fits. */
+@media (max-width: 359.98px) {
+  .map-shell__top .home-wordmark { font-size: var(--fs-xl); }
+  .map-shell__top .live-clock__dot { display: none; }
+  .map-shell__top .live-clock__time { font-size: var(--fs-xl); }
+  .map-shell__top .live-clock__utc,
+  .map-shell__top .live-clock__local { white-space: nowrap; }
+}
 /* Small phones: tighter gaps so the wordmark, clock, theme and Night vision
    fit on one row at 360 px. */
 @media (max-width: 479px) {

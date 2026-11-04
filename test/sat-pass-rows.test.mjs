@@ -29,7 +29,20 @@ test('a pass far from the epoch carries the accuracy note', () => {
 test('GOES 16 stationary text is rounded', () => {
   const v = passRows(findPasses({ track: goes, observers: [EN52VE], startMs: GOES_T0 }), opts);
   assert.equal(v.kind, 'stationary');
-  assert.match(v.text, /^Fixed in your sky at azimuth \d+\.\d°, elevation \d+\.\d°\./);
+  assert.match(v.text, /^(Nearly f|F)ixed in your sky at azimuth \d+\.\d°, elevation \d+\.\d°\./);
+});
+test('an inclined geosynchronous satellite is always up but not fixed', () => {
+  const r = { kind: 'stationary', visible: true, pointing: [{ obsId: 'home', azDeg: 240.6, elDeg: 72.3, elMinDeg: 16.8, elMaxDeg: 75.9, azMinDeg: 195.1, azMaxDeg: 296 }] };
+  assert.equal(passRows(r, opts).text, 'Always up here, but not fixed: over a day it moves between azimuth 195.1° and 296.0°, and between 16.8° and 75.9° up, so a dish has to follow it.');
+  // Station-kept: a few hundredths of a degree reads as fixed.
+  const kept = { kind: 'stationary', visible: true, pointing: [{ obsId: 'home', azDeg: 203.1, elDeg: 38.2, elMinDeg: 38.15, elMaxDeg: 38.25, azMinDeg: 203.05, azMaxDeg: 203.15 }] };
+  assert.match(passRows(kept, opts).text, /^Fixed in your sky/);
+  // A range across north does not wrap into a near-full circle.
+  const north = { kind: 'stationary', visible: true, pointing: [{ obsId: 'home', azDeg: 0.1, elDeg: 40, elMinDeg: 39.9, elMaxDeg: 40.1, azMinDeg: 359.9, azMaxDeg: 0.2 }] };
+  assert.match(passRows(north, opts).text, /^Fixed in your sky/);
+  // A degree or two of wander (an older comsat) is nearly fixed.
+  const drift = { kind: 'stationary', visible: true, pointing: [{ obsId: 'home', azDeg: 203.6, elDeg: 38.5, elMinDeg: 37.8, elMaxDeg: 39.2, azMinDeg: 203.4, azMaxDeg: 204.1 }] };
+  assert.match(passRows(drift, opts).text, /^Nearly fixed in your sky at azimuth 203\.6°/);
 });
 test('stationary that never rises', () => {
   const r = { kind: 'stationary', visible: false, pointing: [{ obsId: 'home', azDeg: 1, elDeg: -5, elMinDeg: -6, elMaxDeg: -4 }] };
