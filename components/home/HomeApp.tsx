@@ -188,9 +188,22 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     if (id != null && useHomeStore.getState().prefs.hidden.includes(id)) toggleHidden(id);
     focusOn(id);
   }, [toggleHidden, focusOn]);
+  // Unfollowing the focused pasted satellite removes its elements: there is
+  // nothing left to show, and its number may be a different catalog object,
+  // so leave focus rather than look it up.
+  const pastedIds = useRef<number[]>(prefs.custom.map((c) => c.noradId));
+  useEffect(() => {
+    const before = pastedIds.current;
+    pastedIds.current = prefs.custom.map((c) => c.noradId);
+    const id = useHomeStore.getState().focusId;
+    if (id != null && before.includes(id) && !pastedIds.current.includes(id)) focusOn(null);
+  }, [prefs.custom, focusOn]);
   // A focus that is not followed (from search, or a shared link) needs its record.
   useEffect(() => {
-    if (hydrated && focusId != null && !prefs.following.includes(focusId)) void loadViewing(focusId);
+    // The store, not this render, says whether the focus still holds: the
+    // effect above may have just left it.
+    if (hydrated && focusId != null && useHomeStore.getState().focusId === focusId
+      && !prefs.following.includes(focusId)) void loadViewing(focusId);
   }, [hydrated, focusId, prefs.following, loadViewing]);
   useEffect(() => {
     if (focusId == null) return;
