@@ -1083,7 +1083,7 @@ export default function FlatMap({
 
   // Between props, move the other dots and the GeoJSON footprint every
   // DOT_MS, and the focus while the frame loop idles. Nothing here sets
-  // React state. It stops while the tab is hidden.
+  // React state. It stops while the tab is hidden or the map is out of view.
   useEffect(() => {
     let id: number | undefined;
     const tick = () => {
@@ -1105,14 +1105,28 @@ export default function FlatMap({
       if (id !== undefined) window.clearInterval(id);
       id = undefined;
     };
+    // On phones the stacked map scrolls away under the list: no ticks then.
+    let inView = true;
     const start = () => {
       stop();
-      if (!document.hidden) id = window.setInterval(tick, DOT_MS);
+      if (document.hidden || !inView) return;
+      // Back in view: catch up now rather than on the next tick.
+      tick();
+      id = window.setInterval(tick, DOT_MS);
     };
+    const el = glRef.current;
+    const io = el && typeof IntersectionObserver === "function"
+      ? new IntersectionObserver((entries) => {
+        inView = entries[entries.length - 1].isIntersecting;
+        start();
+      })
+      : null;
+    if (el) io?.observe(el);
     start();
     document.addEventListener("visibilitychange", start);
     return () => {
       document.removeEventListener("visibilitychange", start);
+      io?.disconnect();
       stop();
     };
   }, [liveSats, refreshNight]);
