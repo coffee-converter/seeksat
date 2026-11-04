@@ -281,64 +281,69 @@ export default function RadioChartModalView({
         tone="dark"
         actions={(
           <>
-            <Button size="sm" done={copyStatus === "copied"} title="Copy image to clipboard" onClick={onCopy}>
-              {copyStatus === "copied" ? "Copied!" : "Copy"}
-            </Button>
-            <Button size="sm" title="Download as PNG" onClick={() => linkRef.current?.click()}>
-              Save PNG
-            </Button>
-            <Button size="sm" title="Download 1s-step Doppler series as CSV" onClick={onCsv}>
-              CSV
-            </Button>
-            {onSkyChart && (
-              <Button size="sm" title="Sky chart for this pass - where to point" onClick={onSkyChart}>
-                Sky chart
-              </Button>
-            )}
-            <div className="chart-modal__freq">
-              <Field label="Downlink frequency" hideLabel>
-                <select
-                  value={freqHz ?? ""}
-                  onChange={(ev) => onFreqChange(ev.target.value ? Number(ev.target.value) : null)}
-                >
-                  {downlinks.length === 0 && !freqHz && <option value="">no known downlink</option>}
-                  {pickerGroups(downlinks).map((g) => (
-                    <optgroup key={g.band} label={g.label}>
-                      {g.links.map((d) => (
-                        <option key={d.hz} value={d.hz}>
-                          {`${(d.hz / 1e6).toFixed(3)}${d.mode ? ` ${d.mode.toUpperCase()}` : ""}${d.uplink ? " \u2191" : ""} \u2014 ${d.label}`}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                  {/* A freeform frequency (from the input below) that isn't in the
-                      catalog matches no <option> above - without this the menu
-                      silently falls back to its first option while the chart
-                      keeps using the typed frequency, which looks like the
-                      picker desynced from the chart. */}
-                  {freqHz != null && !downlinks.some((d) => d.hz === freqHz) && (
-                    <option value={freqHz}>
-                      custom — {(freqHz / 1e6).toFixed(3)} MHz
-                    </option>
-                  )}
-                </select>
-              </Field>
+            {/* What to tune, at the left; the files and Sky chart at the right, by Close. */}
+            <div className="chart-modal__tune">
+              <div className="chart-modal__freq">
+                <Field label="Downlink frequency" hideLabel>
+                  <select
+                    value={freqHz ?? ""}
+                    onChange={(ev) => onFreqChange(ev.target.value ? Number(ev.target.value) : null)}
+                  >
+                    {downlinks.length === 0 && !freqHz && <option value="">no known downlink</option>}
+                    {pickerGroups(downlinks).map((g) => (
+                      <optgroup key={g.band} label={g.label}>
+                        {g.links.map((d) => (
+                          <option key={d.hz} value={d.hz}>
+                            {`${(d.hz / 1e6).toFixed(3)}${d.mode ? ` ${d.mode.toUpperCase()}` : ""}${d.uplink ? " \u2191" : ""} \u2014 ${d.label}`}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                    {/* A freeform frequency (from the input below) that isn't in the
+                        catalog matches no <option> above - without this the menu
+                        silently falls back to its first option while the chart
+                        keeps using the typed frequency, which looks like the
+                        picker desynced from the chart. */}
+                    {freqHz != null && !downlinks.some((d) => d.hz === freqHz) && (
+                      <option value={freqHz}>
+                        custom — {(freqHz / 1e6).toFixed(3)} MHz
+                      </option>
+                    )}
+                  </select>
+                </Field>
+              </div>
+              <div className="chart-modal__custom">
+                <span aria-hidden="true">Custom</span>
+                <Field label="Custom downlink frequency in MHz" hideLabel>
+                  <input
+                    className="chart-modal__mhz"
+                    type="number"
+                    step="0.001"
+                    placeholder="000.000"
+                    onBlur={(ev) => {
+                      const mhz = Number(ev.target.value);
+                      if (Number.isFinite(mhz) && mhz > 1) onFreqChange(Math.round(mhz * 1e6));
+                    }}
+                  />
+                </Field>
+                <span aria-hidden="true">MHz</span>
+              </div>
             </div>
-            <div className="chart-modal__custom">
-              <span aria-hidden="true">Custom</span>
-              <Field label="Custom downlink frequency in MHz" hideLabel>
-                <input
-                  className="chart-modal__mhz"
-                  type="number"
-                  step="0.001"
-                  placeholder="000.000"
-                  onBlur={(ev) => {
-                    const mhz = Number(ev.target.value);
-                    if (Number.isFinite(mhz) && mhz > 1) onFreqChange(Math.round(mhz * 1e6));
-                  }}
-                />
-              </Field>
-              <span aria-hidden="true">MHz</span>
+            <div className="chart-modal__tools">
+              <Button size="sm" done={copyStatus === "copied"} title="Copy image to clipboard" onClick={onCopy}>
+                {copyStatus === "copied" ? "Copied!" : "Copy"}
+              </Button>
+              <Button size="sm" title="Download as PNG" onClick={() => linkRef.current?.click()}>
+                Save PNG
+              </Button>
+              <Button size="sm" title="Download 1s-step Doppler series as CSV" onClick={onCsv}>
+                CSV
+              </Button>
+              {onSkyChart && (
+                <Button size="sm" title="Sky chart for this pass - where to point" onClick={onSkyChart}>
+                  Sky chart
+                </Button>
+              )}
             </div>
             {(() => {
               // The chosen frequency's uplink: what to transmit on, with its tone.
