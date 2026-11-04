@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
 
 interface Props {
   /** The link, or a function that builds it (so window.location.origin is read in the click handler). */
@@ -39,21 +41,14 @@ export default function ShareButton({ url, title, label = "Share", size = "chip"
 
   return (
     <>
-      <button type="button" className={size === "chip" ? "home-chip" : "home-button"} onClick={onClick}>
+      <Button size={size === "chip" ? "sm" : "md"} onClick={onClick}>
         {label}
-      </button>
+      </Button>
       {state.kind === "copied" && <span className="home-note" role="status">Link copied</span>}
       {state.kind === "manual" && (
-        <label className="home-note">
-          Copy this link:
-          <input
-            type="text"
-            readOnly
-            value={state.url}
-            style={{ fontSize: 16, width: "100%", display: "block" }}
-            onFocus={(e) => e.currentTarget.select()}
-          />
-        </label>
+        <Field label="Copy this link:">
+          <input type="text" readOnly value={state.url} onFocus={(e) => e.currentTarget.select()} />
+        </Field>
       )}
     </>
   );

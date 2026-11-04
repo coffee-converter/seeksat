@@ -332,87 +332,9 @@
 .home-note { margin: 0; color: var(--map-muted); }
 .home-error { margin: 0; color: var(--danger-text); }
 
-/* old-buttons:begin (the satellite page still uses these until it moves to the library) */
-/* Buttons, chips, inputs and links shared by the home components.
-   Tiers: the main action is filled (--primary, and the Live chip); ordinary
-   buttons and chips are a neutral outline; --quiet (Unfollow, More) is muted
-   text only; a pressed toggle is a filled segment (--seg-on). */
-.home-button,
-.home-chip {
-  padding: var(--sp-6) var(--sp-12);
-  background: transparent;
-  color: var(--map-text);
-  border: var(--line-control);
-  border-radius: var(--radius-md);
-  font: inherit;
-  font-weight: var(--fw-medium);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.home-chip { padding: var(--sp-4) var(--sp-12); font-size: var(--fs-md); }
-.home-button:hover:not(:disabled),
-.home-chip:hover:not(:disabled) { background: var(--btn-hover); }
-.home-button:disabled,
-.home-chip:disabled { opacity: 0.45; cursor: default; }
-.home-button--primary,
-.home-chip--live {
-  background: var(--primary);
-  color: var(--primary-text);
-  border-color: var(--primary);
-  font-weight: var(--fw-semibold);
-}
-.home-button--primary:hover:not(:disabled),
-.home-chip--live:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
-.home-chip[aria-pressed="true"],
-.home-chip--on,
-.home-button.home-chip--on {
-  background: var(--seg-on);
-  border-color: var(--seg-on);
-  color: var(--seg-on-text);
-}
-.home-chip[aria-pressed="true"]:hover:not(:disabled),
-.home-chip--on:hover:not(:disabled) { background: var(--seg-on); }
-/* A main action that is on (Following): its own look, an accent outline and
-   accent text on the card colour, so it never reads as the filled Follow. */
-.home-button--primary.home-chip--on,
-.home-button--primary.home-chip--on:hover:not(:disabled) {
-  background: var(--panel);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.home-button--primary.home-chip--on:hover:not(:disabled) { background: var(--btn-hover); }
-.home-chip--quiet { color: var(--map-muted); border-color: transparent; }
-.home-chip--quiet:hover:not(:disabled) { color: var(--map-text); }
-.home-input {
-  flex: 1;
-  min-width: 0;
-  padding: var(--sp-8) var(--sp-12);
-  background: var(--input-bg);
-  color: var(--map-text);
-  border: var(--line-input);
-  border-radius: var(--radius-md);
-  font: inherit;
-  font-size: var(--fs-input);
-}
-.home-input::placeholder { color: var(--map-muted); }
-.home-link {
-  padding: 0;
-  min-height: 24px;
-  background: none;
-  border: 0;
-  color: var(--link);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.home-button:focus-visible,
-.home-chip:focus-visible,
-.home-input:focus-visible,
-.home-link:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
-}
-/* old-buttons:end */
+/* A text link (the not-found pages, Back to your satellites, How accurate). */
+.home-link { color: var(--link); text-decoration: underline; }
+.home-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
 /* Settings row under the map. */
 /* One settings group: the location on top, then the controls in a row. */
@@ -496,6 +418,7 @@
 }
 .location-prompt__hint { margin: 0; color: var(--map-muted); }
 .location-prompt__form { display: flex; gap: var(--sp-8); width: 100%; }
+.location-prompt__form > .field { flex: 1; min-width: 0; }
 .popular__list { list-style: none; margin: 0; padding: 0; width: 100%; }
 .popular__item {
   display: flex;

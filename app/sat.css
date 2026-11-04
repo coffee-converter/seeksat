@@ -3,9 +3,7 @@
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); max-width: 100%; margin-top: var(--sp-6); }
 .sat-age { line-height: 1.6; }
 .sat-age__how { margin-left: var(--sp-8); font-size: var(--fs-sm); white-space: nowrap; }
-.sat-badge { display: inline-block; margin-left: var(--sp-8); padding: 1px var(--sp-8); border-radius: var(--radius-lg); font-size: var(--fs-sm); } /* nudge */
-.sat-badge--old { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
-.sat-badge--stale { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
+.sat-age .badge { margin-left: var(--sp-8); }
 .sat-how { display: block; margin-top: var(--sp-2); color: var(--map-muted); font-size: var(--fs-sm); line-height: 1.4; }
 p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-diagram { margin: 0; }
@@ -90,6 +88,8 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   display: flex; align-items: center; gap: var(--sp-12); min-width: 0;
   padding: var(--sp-6) var(--sp-12); background: var(--bg); border-bottom: 1px solid var(--map-border);
 }
+.sat-bar .sat-bar__close { min-width: 40px; min-height: 40px; }
+.sat-bar__x { font-size: var(--fs-xl); line-height: 1; }
 .sat-bar__name { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-semibold); color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sat-bar__when { flex: 0 0 auto; color: var(--map-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Under 1100 the window scrolls: sit under what the header keeps pinned
@@ -117,28 +117,11 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-next .quality,
 .sat-next .cloud { margin-left: 0; }
 
-/* "Live numbers": a fold on phones, closed by default. From 600 px the
+/* "Live numbers" (Details): a fold on phones, closed by default. From 600 px the
    summary goes and the tiles always show (::details-content covers the
    moment before the effect opens it). */
-.sat-live__summary {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
-  min-height: 40px; padding: 0 var(--sp-16);
-  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: var(--radius-lg);
-  color: var(--text-heading); font-size: var(--fs-md); font-weight: var(--fw-semibold);
-  cursor: pointer; list-style: none;
-}
-.sat-live__summary::-webkit-details-marker { display: none; }
-.sat-live__summary::after {
-  content: ""; width: 7px; height: 7px; margin-right: var(--sp-2);
-  border-right: 2px solid var(--map-muted); border-bottom: 2px solid var(--map-muted);
-  transform: translateY(-2px) rotate(45deg);
-}
-.sat-live[open] > .sat-live__summary { margin-bottom: var(--sp-8); }
-.sat-live[open] > .sat-live__summary::after { transform: translateY(2px) rotate(-135deg); }
-.sat-live__summary:hover { background: var(--tile-hover); }
-.sat-live__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (min-width: 600px) {
-  .sat-live > .sat-live__summary { display: none; }
+  .sat-live > .details__summary { display: none; }
   .sat-live::details-content { content-visibility: visible; }
 }
 
@@ -248,13 +231,13 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   /* Keep only: title block, element age line, the pass list. */
   .map-shell.sat .map-shell__panel > *:not(.sat-top):not(.sat-elements):not(.sat-age):not(#passes) { display: none !important; }
   .sat-bar { display: none !important; }
-  .sat-top .sat-follow, .sat-top .home-button, .sat-top .sat-next, .sat-back { display: none !important; }
+  .sat-top .sat-follow, .sat-top .btn, .sat-top .sat-next, .sat-back { display: none !important; }
   .sat-top { margin-bottom: 6pt; }
   .sat-title { font-size: 16pt; margin: 0 0 2pt; }
   .sat-elements > *:not(.sat-age) { display: none !important; }
   .sat-elements .sat-age, .sat-age { display: block; margin: 0 0 8pt; font-size: 10pt; }
   .sat-age__how { display: none; }
-  .sat-badge { border: 1px solid black !important; border-radius: 0; padding: 0 4pt; font-size: 9pt; }
+  .sat-age .badge { border: 1px solid black !important; border-radius: 0; padding: 0 4pt; font-size: 9pt; }
 
   #passes > *:not(.sat-passes__head):not(.print-only) { display: none !important; }
   .sat-passlist { display: none !important; }

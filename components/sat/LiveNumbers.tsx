@@ -5,6 +5,7 @@ import { dashboardValues, formatNumber } from "@/lib/sat/numbers.mjs";
 import { useFlash } from "@/lib/ui/use-flash";
 import StatTile from "@/components/ui/StatTile";
 import type { SatPageData } from "./SatApp";
+import { Details } from "@/components/ui/Disclosure";
 
 export type Live = NonNullable<SatPageData["live"]>;
 export type Elements = NonNullable<SatPageData["elements"]>;
@@ -87,9 +88,8 @@ export function LiveNumbersFold({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener("change", sync);
   }, []);
   return (
-    <details className="sat-live" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary className="sat-live__summary">Live numbers</summary>
+    <Details className="sat-live" summary="Live numbers" open={open} onToggle={setOpen}>
       {children}
-    </details>
+    </Details>
   );
 }

@@ -17,14 +17,7 @@ const TASK_9 = [
   'components/live/LiveView.tsx',
 ];
 
-// TEMPORARY (Task 8 group A): the satellite page moves in group B.
-const GROUP_B = [
-  'components/sat/SatApp.tsx', 'components/sat/PassSection.tsx', 'components/sat/ExtraObservers.tsx',
-  'components/sat/NextPassLine.tsx', 'components/sat/RawElements.tsx', 'components/sat/ShareButton.tsx',
-  'components/sat/LiveNumbers.tsx', 'components/sat/Downlinks.tsx', 'components/sat/HowWeCompute.tsx',
-  'components/sat/ElementsTable.tsx', 'app/sat.css',
-];
-const pending = (file) => TASK_9.includes(file) || GROUP_B.includes(file);
+const pending = (file) => TASK_9.includes(file);
 
 // Raw <input type="checkbox|range|radio"> allowed outside components/ui (none yet).
 const INPUT_ALLOW = [];
@@ -86,7 +79,7 @@ function filesMatching(re) {
   const found = [];
   for (const file of [...SOURCES, 'app/globals.css', 'app/home.css', 'app/sat.css']) {
     if (pending(file)) continue;
-    blankBetween(read(file), '/* old-buttons:begin', '/* old-buttons:end */').split('\n').forEach((l, i) => { if (re.test(l)) found.push(`${file}:${i + 1}`); });
+    read(file).split('\n').forEach((l, i) => { if (re.test(l)) found.push(`${file}:${i + 1}`); });
   }
   return found;
 }
@@ -115,7 +108,7 @@ function blankPrint(css) {
 }
 /** A screen stylesheet with comments, tokens, chart graphics and print blanked. */
 function liveCss(file) {
-  let css = blankBetween(read(file), '/* old-buttons:begin', '/* old-buttons:end */').replace(/\/\*[\s\S]*?\*\//g, (c) => (c.includes(':begin') || c.includes(':end') ? c : blank(c)));
+  let css = read(file).replace(/\/\*[\s\S]*?\*\//g, (c) => (c.includes(':begin') || c.includes(':end') ? c : blank(c)));
   css = blankBetween(css, '/* theme-tokens:begin */', '/* theme-tokens:end */');
   css = blankBetween(css, '/* chart-block:begin */', '/* chart-block:end */');
   return blankPrint(css);

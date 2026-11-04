@@ -2,6 +2,7 @@
 
 import { formatNumber, periodText } from "@/lib/sat/numbers.mjs";
 import { isoUtc, type Elements } from "./LiveNumbers";
+import Badge from "@/components/ui/Badge";
 
 type Age = { text: string; level: string };
 
@@ -15,9 +16,9 @@ export function AgeLine({ age, source, fetchedText, accuracyLink = true }: {
     <p className="home-note sat-age">
       {`${age.text}, from ${source}`}
       {fetchedText ? `, ${fetchedText}.` : "."}
-      {age.level === "old" ? <span className="sat-badge sat-badge--old">old elements</span> : null}
+      {age.level === "old" ? <Badge tone="warn">old elements</Badge> : null}
       {age.level === "stale" ? (
-        <span className="sat-badge sat-badge--stale">stale elements: positions may be far off</span>
+        <Badge tone="danger">stale elements: positions may be far off</Badge>
       ) : null}
       {accuracyLink ? <a className="home-link sat-age__how" href="#how-accuracy">How accurate is this?</a> : null}
     </p>

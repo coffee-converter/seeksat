@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { SatPageData } from "./SatApp";
+import Button from "@/components/ui/Button";
 
 function Block({ title, text }: { title: string; text: string }) {
   const ref = useRef<HTMLPreElement>(null);
@@ -26,9 +27,9 @@ function Block({ title, text }: { title: string; text: string }) {
     <div className="sat-raw">
       <div className="sat-raw-head">
         <h3>{title}</h3>
-        <button type="button" className="home-button" onClick={() => void copy()}>
+        <Button done={copied} onClick={() => void copy()}>
           {copied ? "Copied" : "Copy"}
-        </button>
+        </Button>
       </div>
       <pre ref={ref}>{text}</pre>
     </div>

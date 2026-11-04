@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 import { parseLocationInput } from "@/lib/location/maidenhead.mjs";
 import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
 
 interface Props {
   /** A shared view: show these places, with no way to add or remove one. */
@@ -78,35 +80,34 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
           {observers.map((o) => (
             <li key={o.id} className="sat-observers__item">
               <span>{o.name || `${o.latDeg.toFixed(2)}, ${o.lonDeg.toFixed(2)}`}</span>
-              {!readOnly && <button
-                type="button"
-                className="home-chip"
+              {!readOnly && <Button
+                size="sm"
+                iconOnly
                 aria-label={`Remove ${o.name}`}
                 onClick={() => removeObserver(o.id)}
               >
                 {"×"}
-              </button>}
+              </Button>}
             </li>
           ))}
         </ul>
       )}
       {!readOnly && <form className="location-prompt__form" onSubmit={onSubmit}>
-        <label htmlFor={`${uid}-place`} className="sr-only">Place, coordinates or grid square</label>
-        <input
-          id={`${uid}-place`}
-          className="home-input"
-          type="text"
-          autoComplete="off"
-          placeholder='Place, "lat, lon" or grid'
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setMessage(null);
-          }}
-        />
-        <button type="submit" className="home-button" disabled={busy || !text.trim()}>
+        <Field label="Place, coordinates or grid square" hideLabel>
+          <input
+            type="text"
+            autoComplete="off"
+            placeholder='Place, "lat, lon" or grid'
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              setMessage(null);
+            }}
+          />
+        </Field>
+        <Button type="submit" disabled={busy || !text.trim()}>
           {busy ? "Looking..." : "Add"}
-        </button>
+        </Button>
       </form>}
       {message && <p className="home-error" role="alert">{message}</p>}
     </div>

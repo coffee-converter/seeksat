@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Button from "./Button";
+import { cx } from "@/lib/ui/classes.mjs";
 
 interface DisclosureProps {
   /** Id of the panel the button controls. */
@@ -39,10 +40,17 @@ export function Disclosure({ id, open, onToggle, label, children }: DisclosurePr
   );
 }
 
-/** A native fold: <details> with a chevron summary. */
-export function Details({ summary, defaultOpen, children }: { summary: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
+/** A native fold: <details> with a chevron summary. Pass `open` and
+ *  `onToggle` to control it; `className` places it in a layout. */
+export function Details({ summary, defaultOpen, open, onToggle, className, children }: {
+  summary: ReactNode; defaultOpen?: boolean; open?: boolean; onToggle?: (open: boolean) => void; className?: string; children: ReactNode;
+}) {
   return (
-    <details className="details" open={defaultOpen}>
+    <details
+      className={cx("details", className)}
+      open={open ?? defaultOpen}
+      onToggle={onToggle ? (e) => onToggle(e.currentTarget.open) : undefined}
+    >
       <summary className="details__summary">{summary}</summary>
       {children}
     </details>

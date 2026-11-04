@@ -36,6 +36,7 @@ import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/s
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import SatChips, { type Chip } from "@/components/home/SatChips";
 import { CATALOG } from "@/lib/catalog.mjs";
+import Button from "@/components/ui/Button";
 
 export type SatPageData = ReturnType<typeof satPageData>;
 export type SharedBlob = NonNullable<ReturnType<typeof decodeStateBlob>>;
@@ -327,9 +328,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     <>
       <div className={`sat-bar${barOn ? " sat-bar--on" : ""}`} ref={barRef}>
         <div className="sat-bar__in">
-          <button type="button" className="home-chip focus-bar__close" aria-label="Close details" onClick={onClose}>
-            {"\u00d7"}
-          </button>
+          <Button size="sm" iconOnly className="sat-bar__close" aria-label="Close details" onClick={onClose}>
+            <span className="sat-bar__x" aria-hidden="true">{"\u00d7"}</span>
+          </Button>
           <span className="sat-bar__name">{data.shortName}</span>
           {barWhen ? <span className="sat-bar__when">{barWhen}</span> : null}
         </div>
@@ -354,14 +355,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         </p>
         {data.note ? <p className="home-note">{data.note}</p> : null}
         <div className="sat-follow">
-          <button
-            type="button"
-            className={`home-button home-button--primary${following ? " home-chip--on" : ""}`}
+          <Button
+            variant="primary"
+            pressed={following}
             disabled={!following && Boolean(blocked)}
             onClick={toggleFollow}
           >
             {following ? "Following" : "Follow"}
-          </button>
+          </Button>
           {settings.observer && (
             <ShareButton url={headerLink} title={data.name} size="button" />
           )}
@@ -380,9 +381,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       {shared ? (
         <div className="sat-shared" role="status">
           <p className="sat-shared__text">{bannerOf(shared)}</p>
-          <button type="button" className="home-button" onClick={leaveShared}>
+          <Button onClick={leaveShared}>
             Use my location and settings
-          </button>
+          </Button>
         </div>
       ) : null}
 

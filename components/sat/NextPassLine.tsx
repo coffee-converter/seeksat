@@ -3,6 +3,7 @@ import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { nextPassText, nextPassWhen as whenOf } from "@/lib/sat/pass-rows.mjs";
 import type { NextPass, NextPassReport, PassSectionHandle } from "./PassSection";
+import Button from "@/components/ui/Button";
 
 type LinePass = NextPass & RatedPass & { peakMs: number; startAzDeg: number; endAzDeg: number };
 const textOf = nextPassText as (pass: LinePass, nowMs: number, timeZone?: string, locale?: string) => string | null;
@@ -46,9 +47,9 @@ export default function NextPassLine({ report, nowMs, mode, skyType, clouds, onC
           {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
         </span>
       </div>
-      <button type="button" className="home-chip" onClick={(e) => onChart(visual ? "sky" : "radio", pass, e)}>
+      <Button size="sm" onClick={(e) => onChart(visual ? "sky" : "radio", pass, e)}>
         {visual ? "Sky chart" : "Radio chart"}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -26,6 +26,7 @@ import PassStats, { passTime } from "@/components/passes/PassStats";
 import { passWords } from "@/lib/passes/pass-words.mjs";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
+import Button from "@/components/ui/Button";
 
 // The chart painters load on the first chart open, not with the page.
 const PassChartModals = dynamic(() => import("@/components/passes/PassChartModals"), { ssr: false });
@@ -343,7 +344,7 @@ export default function PassSection({
       <div className="sat-passes__head">
         <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
         {view?.kind === "rows" && (
-          <button type="button" className="home-chip sat-print-chip" onClick={() => window.print()}>Print</button>
+          <Button size="sm" className="sat-print-chip" onClick={() => window.print()}>Print</Button>
         )}
       </div>
       {!track ? (
@@ -450,9 +451,9 @@ export default function PassSection({
                               {row.key === oldNote?.key && <p className="sat-how">{oldNote.text}</p>}
                               <div className="pass-card__actions">
                                 {liveOk(row.pass, bucketMs) && (
-                                  <button type="button" className="home-chip home-chip--live" onClick={(e) => openChart("live", row.pass, e)}>Live</button>
+                                  <Button size="sm" variant="primary" onClick={(e) => openChart("live", row.pass, e)}><span className="live-dot" aria-hidden="true" />Live</Button>
                                 )}
-                                <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
+                                <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>
                                 <Disclosure
                                   id={moreId}
                                   open={open}
@@ -460,16 +461,16 @@ export default function PassSection({
                                   label={`the ${row.timesLabel} pass`}
                                 >
                                   <p className="more-panel__note">{bearings(row.pass as Pass & { startAzDeg: number; endAzDeg: number })}</p>
-                                  <button type="button" className="home-chip" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</button>
+                                  <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>
                                   {track && (
                                     <ShareButton
                                       url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, pickedFreq.current)}
                                       title={`${track.name} pass`}
                                     />
                                   )}
-                                  <button type="button" className="home-chip" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
+                                  <Button size="sm" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
                                     <span aria-hidden="true">{"📅"}</span> Calendar
-                                  </button>
+                                  </Button>
                                   {track && (
                                     <AlertBell
                                       noradId={track.noradId}
@@ -488,9 +489,9 @@ export default function PassSection({
                   ))}
                 </div>
                 {view.rows.length > rowCount && (
-                  <button type="button" className="home-chip sat-show-all" onClick={() => setShowAll(true)}>
+                  <Button size="sm" className="sat-show-all" onClick={() => setShowAll(true)}>
                     {`Show all ${view.rows.length} passes`}
-                  </button>
+                  </Button>
                 )}
                 </>
               ) : (
