@@ -75,7 +75,8 @@ export default function HomeControls({
           {"−"}
         </Button>
         <span className="home-controls__value" aria-live="polite" title="Minimum elevation">
-          Min elevation <span className={ready ? undefined : "home-controls__pending"}>{minElevDeg}°</span>
+          {/* One inline run: the box is a flex container, which would drop the space. */}
+          <span>Min elevation <span className={ready ? undefined : "home-controls__pending"}>{minElevDeg}°</span></span>
         </span>
         <Button
           variant="quiet"
