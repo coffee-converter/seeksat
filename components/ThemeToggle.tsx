@@ -5,9 +5,9 @@ import { MODES, applyMode, readMode, readNight, themeControlHint, writeMode } fr
 import Button from "@/components/ui/Button";
 import Segmented from "@/components/ui/Segmented";
 
-type Mode = "auto" | "light" | "dark";
+export type Mode = "auto" | "light" | "dark";
 
-const LABEL: Record<Mode, string> = { auto: "Auto", light: "Light", dark: "Dark" };
+export const LABEL: Record<Mode, string> = { auto: "Auto", light: "Light", dark: "Dark" };
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 function apply(mode: Mode) {
@@ -17,19 +17,17 @@ function apply(mode: Mode) {
 }
 
 /**
- * Auto / Light / Dark. A Segmented radio group; under 700 px a single button
- * that cycles through the three (styles in app/home.css). The mode is read
- * after mount, so the server and first client render match: until then the
- * same-size control is hidden.
+ * The saved theme mode (null until read after mount), whether night vision is
+ * on, and `choose`, which saves and applies a mode. On mount it re-applies the
+ * saved mode (idempotent) and tells listeners the starting theme.
  */
-export default function ThemeToggle() {
+export function useThemeMode() {
   const [mode, setMode] = useState<Mode | null>(null);
   const [night, setNight] = useState(false);
 
   useEffect(() => {
     const m = readMode() as Mode;
     setMode(m);
-    // Re-apply the saved mode (idempotent) and tell listeners the starting theme.
     apply(m);
     setNight(readNight());
     // NightToggle fires this after it changes the saved setting.
@@ -44,6 +42,17 @@ export default function ThemeToggle() {
     apply(next);
   }, []);
 
+  return { mode, night, choose };
+}
+
+/**
+ * Auto / Light / Dark. A Segmented radio group; under 700 px a single button
+ * that cycles through the three (styles in app/home.css). The mode is read
+ * after mount, so the server and first client render match: until then the
+ * same-size control is hidden.
+ */
+export default function ThemeToggle() {
+  const { mode, night, choose } = useThemeMode();
   const current: Mode = mode ?? "auto";
   const next = MODES[(MODES.indexOf(current) + 1) % MODES.length] as Mode;
 

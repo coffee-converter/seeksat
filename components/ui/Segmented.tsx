@@ -16,7 +16,9 @@ export default function Segmented<T extends string>({ label, description, option
   const stop = value !== null && enabled.includes(value) ? value : enabled[0];
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const to = segmentedNext(enabled, value, e.key) as T;
+    // Alt/Meta/Ctrl + arrow is a browser or OS shortcut (back, word jump): leave it alone.
+    if (e.altKey || e.metaKey || e.ctrlKey) return;
+    const to = segmentedNext(enabled, value, e.key, e) as T;
     if (to === value && !(e.key === "Home" || e.key === "End")) return;
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;
     e.preventDefault();

@@ -26,8 +26,9 @@ interface Props {
 }
 
 /**
- * The one dialog. Tab is trapped inside, Escape closes (captured, so the
- * page's own Esc handlers never see it), the page behind does not scroll,
+ * The one dialog. Tab is trapped inside, Escape closes (caught on the way
+ * down at window and stopped there, so the page's own Esc handlers never see
+ * it), the page behind does not scroll,
  * focus starts on Close and returns to the opener on close.
  */
 export default function Modal({ open, onClose, title, size = "dialog", tone = "page", actions, labelledBy, hideTitle = false, wide = false, children }: Props) {
@@ -44,7 +45,7 @@ export default function Modal({ open, onClose, title, size = "dialog", tone = "p
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onCloseRef.current(); }
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCloseRef.current(); }
     };
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });

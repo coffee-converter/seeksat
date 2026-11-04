@@ -4,6 +4,7 @@ import type { Forecast } from "@/lib/sky/use-clouds";
 import { nextPassText, nextPassWhen as whenOf } from "@/lib/sat/pass-rows.mjs";
 import type { NextPass, NextPassReport, PassSectionHandle } from "./PassSection";
 import Button from "@/components/ui/Button";
+import Surface from "@/components/ui/Surface";
 
 type LinePass = NextPass & RatedPass & { peakMs: number; startAzDeg: number; endAzDeg: number };
 const textOf = nextPassText as (pass: LinePass, nowMs: number, timeZone?: string, locale?: string) => string | null;
@@ -34,7 +35,7 @@ export default function NextPassLine({ report, nowMs, mode, skyType, clouds, onC
   const visual = mode === "visual";
   const rating = visual ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) }) : undefined;
   return (
-    <div className="sat-next">
+    <Surface padded="sm" className="sat-next">
       {/* The sentence, then the rating on its own line under it, flush left. */}
       <div className="sat-next__main">
         <p className="sat-next__text">
@@ -50,6 +51,6 @@ export default function NextPassLine({ report, nowMs, mode, skyType, clouds, onC
       <Button size="sm" onClick={(e) => onChart(visual ? "sky" : "radio", pass, e)}>
         {visual ? "Sky chart" : "Radio chart"}
       </Button>
-    </div>
+    </Surface>
   );
 }

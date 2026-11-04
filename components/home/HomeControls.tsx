@@ -5,6 +5,7 @@ import { SKY_TYPES } from "@/lib/sky/visual-rating.mjs";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
 import Segmented from "@/components/ui/Segmented";
+import Surface from "@/components/ui/Surface";
 
 const skyTypes = SKY_TYPES as ReadonlyArray<{ id: string; label: string }>;
 
@@ -40,7 +41,7 @@ export default function HomeControls({
   ) : null;
 
   return (
-    <div className="home-controls">
+    <Surface className="home-controls">
       {/* Where the passes are for comes first: everything below depends on it. */}
       {locationName != null && (
         <div className="home-controls__place">
@@ -92,6 +93,6 @@ export default function HomeControls({
       {/* What the elevation setting does, under the row of controls. */}
       <p className="home-controls__hint">Min elevation hides lower passes and sizes the footprint circle.</p>
 
-    </div>
+    </Surface>
   );
 }

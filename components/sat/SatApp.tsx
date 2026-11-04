@@ -37,6 +37,7 @@ import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import SatChips, { type Chip } from "@/components/home/SatChips";
 import { CATALOG } from "@/lib/catalog.mjs";
 import Button from "@/components/ui/Button";
+import { cx, linkClass } from "@/lib/ui/classes.mjs";
 
 export type SatPageData = ReturnType<typeof satPageData>;
 export type SharedBlob = NonNullable<ReturnType<typeof decodeStateBlob>>;
@@ -338,7 +339,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       <header className="sat-top" ref={topRef}>
         {/* Back to the list, as Close does; a modified click still opens a tab. */}
         <Link
-          className="home-link sat-back"
+          className={cx(linkClass(), "sat-back")}
           href="/"
           onClick={(e) => {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;

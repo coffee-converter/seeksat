@@ -18,7 +18,8 @@
   background: var(--bg);
   border-bottom: var(--line-subtle);
 }
-.bible__brand { display: flex; align-items: baseline; gap: var(--sp-8); }
+/* The page heading: the wordmark, then "Design bible" at body size. */
+.bible__brand { display: flex; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-md); font-weight: var(--fw-regular); }
 .bible__wordmark { font-family: var(--font-brand); font-size: var(--fs-xl); font-weight: var(--fw-semibold); }
 .bible__seek { color: var(--wordmark-dim); }
 .bible__sat { color: var(--accent); }

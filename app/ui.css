@@ -365,6 +365,17 @@ select.field__control {
   color: var(--map-text);
 }
 .surface--padded { padding: var(--sp-12); }
+.surface--padded-sm { padding: var(--sp-8) var(--sp-12); }
+/* Accent: a coloured leading edge; the context sets --surface-accent (a
+   satellite's colour on its pass card). */
+.surface--accent { border-left: 3px solid var(--surface-accent, var(--map-muted)); }
+/* Selected: a firmer edge and a 1 px ring; an accent edge keeps its colour. */
+.surface--selected { border-color: var(--btn-line); box-shadow: 0 0 0 1px var(--btn-line); }
+.surface--accent.surface--selected { border-left-color: var(--surface-accent, var(--map-muted)); }
+/* Interactive: the whole surface is a button. */
+.surface--interactive { font: inherit; text-align: left; cursor: pointer; }
+.surface--interactive:hover { background: var(--btn-hover); }
+.surface--interactive:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
 /* Disclosure: a "⋯" button and the actions it reveals. The wrapper and panel
    are display: contents, so the revealed actions join the row they sit in. */

@@ -98,3 +98,10 @@ test('middleware does not catch the design page', () => {
     assert.ok(!re.test(ROUTE), `${p} matches ${ROUTE}`);
   }
 });
+
+test('the design page has one h1 and reuses the site theme control state', () => {
+  const src = read('app/design-27b284ec240e9ac9/DesignBible.tsx');
+  assert.equal((src.match(/<h1\b/g) || []).length, 1);
+  assert.match(src, /useThemeMode\(\)/);
+  assert.doesNotMatch(src, /writeMode|applyMode/, 'theme saving lives in ThemeToggle');
+});

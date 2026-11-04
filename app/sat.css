@@ -2,7 +2,7 @@
 .sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-strong); }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); max-width: 100%; margin-top: var(--sp-6); }
 .sat-age { line-height: var(--lh-body); }
-.sat-age__how { margin-left: var(--sp-8); font-size: var(--fs-sm); white-space: nowrap; }
+.sat-age__how { margin-left: var(--sp-8); }
 .sat-age .badge { margin-left: var(--sp-8); }
 .sat-how { display: block; margin-top: var(--sp-2); color: var(--map-muted); font-size: var(--fs-sm); line-height: var(--lh-snug); }
 p.sat-how { margin: 0 0 var(--sp-8); }
@@ -71,8 +71,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 
 /* Header: who it is, then Follow and Share. The clock lives in the shell's top bar. */
 .sat-top { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
-.sat-back { align-self: flex-start; display: inline-flex; align-items: center; font-size: var(--fs-md); text-decoration: none; }
-.sat-back:hover { text-decoration: underline; }
+.sat-back { align-self: flex-start; }
 
 /* Title bar: pinned over the content once .sat-top has scrolled away. The
    wrapper has no height and cancels the panel's flex gap, so nothing shifts
@@ -107,8 +106,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
    and a chart button that follows the mode. */
 .sat-next {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-12);
-  margin-top: var(--sp-6); padding: var(--sp-6) var(--sp-12);
-  background: var(--tile-bg); border: var(--line-subtle); border-radius: var(--radius-lg);
+  margin-top: var(--sp-6);
 }
 .sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-6); min-width: 0; }
 .sat-next__text { margin: 0; line-height: var(--lh-snug); font-variant-numeric: tabular-nums; }
@@ -196,9 +194,6 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   .map-shell__panel .sat-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .map-shell__panel .sat-dash .stat-tile--wide,
   .map-shell__panel .sat-dash__sun { grid-column: 1 / -1; }
-  .map-shell__panel .stat-tile__value { font-size: var(--fs-2xl); }
-  .map-shell__panel .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
-  .map-shell__panel .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
   .map-shell__panel .sat-etable { grid-template-columns: minmax(0, 1fr); }
   .map-shell__panel .sat-how-list__row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
   .map-shell__panel .sat-diagram svg { max-width: 300px; }

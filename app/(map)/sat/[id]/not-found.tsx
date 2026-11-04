@@ -1,5 +1,6 @@
 import Link from "next/link";
 import "@/app/home.css";
+import { linkClass } from "@/lib/ui/classes.mjs";
 import NotFoundScene from "./NotFoundScene";
 
 export default function NotFound() {
@@ -10,7 +11,7 @@ export default function NotFound() {
       <p className="home-note">
         That satellite isn&apos;t in our catalog. It may have come down, or the number may be wrong.
       </p>
-      <Link className="home-link" href="/">Back to SeekSat</Link>
+      <Link className={linkClass()} href="/">Back to SeekSat</Link>
     </section>
   );
 }

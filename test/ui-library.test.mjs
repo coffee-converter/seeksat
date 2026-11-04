@@ -121,7 +121,7 @@ function tagSelectors() {
 }
 
 // Library parts a screen may place but never restyle.
-const LIB_PART = /\.(?:btn|segmented|badge|chip|field|details)(?:__[\w]+|--[\w]+)*(?![\w-])/;
+const LIB_PART = /\.(?:btn|segmented|badge|chip|field|details|stat-tile|modal|surface|disclosure|qbars)(?:__[\w]+|--[\w]+)*(?![\w-])/;
 const LAYOUT_PROP = /^(?:margin(?:-[\w-]+)?|flex(?:-[\w-]+)?|grid(?:-[\w-]+)?|order|display|align-[\w-]+|justify-[\w-]+|place-[\w-]+|(?:min-|max-)?(?:width|height)|position|inset|top|left|right|bottom|z-index|pointer-events|visibility)$/;
 
 /** Declarations in screen CSS that set a non-layout property on a library part, as "file:line  selector { prop }". */
@@ -178,4 +178,50 @@ test('the scans see the files they guard', () => {
   assert.ok(SOURCES.includes('components/home/HomeApp.tsx'));
   assert.ok(SOURCES.includes('components/sat/SatApp.tsx'));
   assert.ok(!SOURCES.some((f) => f.startsWith('components/ui/')));
+});
+
+test('a pass rating reads its word first, then "N of 5"', () => {
+  const src = readFileSync(path.join(ROOT, 'components/passes/QualityBadge.tsx'), 'utf8');
+  // The bars sit before the word on screen but are decorative there; the
+  // count is spoken after the word, as "Poor: faint, 3 of 5".
+  assert.match(src, /<RatingBars bars=\{[^}]*\} \/>/, 'the badge\'s bars carry no accessible name');
+  const word = src.indexOf('{ratingText(');
+  const count = src.search(/className="sr-only">\{`, \$\{bars\} of \$\{BAR_COUNT\}`\}/);
+  assert.ok(word > 0 && count > word, 'the spoken count follows the word');
+  const bars = readFileSync(path.join(ROOT, 'components/ui/RatingBars.tsx'), 'utf8');
+  assert.match(bars, /aria-hidden/, 'RatingBars without a label is hidden from screen readers');
+});
+
+test('Modal stops Escape from reaching page handlers', () => {
+  const src = readFileSync(path.join(ROOT, 'components/ui/Modal.tsx'), 'utf8');
+  assert.match(src, /e\.key === "Escape"\)\s*\{[^}]*e\.stopPropagation\(\)/);
+});
+
+// R21: the card look (panel, hairline edge, corners, the coloured leading
+// edge, the selected ring) comes from Surface; these screen classes keep layout.
+const CARDS = ['.home-controls', '.pass-card', '.best-pass', '.live-view__nums div', '.live-view__radio', '.sat-next'];
+const CARD_LOOK = /^(?:background(?:-color)?|border(?:-[\w-]+)?|box-shadow|outline(?:-[\w-]+)?)$/;
+
+test('the card screens take their look from Surface', () => {
+  const found = [];
+  for (const file of SCREEN_CSS) {
+    const css = liveCss(file);
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const sels = m[1].trim().split(/,(?![^(]*\))/).map((s) => s.trim().replace(/:[\w-]+(\([^)]*\))?/g, ''));
+      const hits = sels.filter((s) => CARDS.some((c) => s === c || new RegExp(`^${c.replace('.', '\\.')}(?:--[\\w-]+)+$`).test(s)));
+      if (!hits.length) continue;
+      for (const d of m[2].matchAll(/([-\w]+)\s*:/g)) {
+        if (!CARD_LOOK.test(d[1])) continue;
+        found.push(`${file}:${css.slice(0, m.index + m[0].indexOf('{')).split('\n').length}  ${hits.join(', ')} { ${d[1]} }`);
+      }
+    }
+  }
+  assert.deepEqual(found, []);
+  const uses = {
+    'components/home/HomeControls.tsx': /surfaceClass\(|<Surface\b/,
+    'components/home/NextUpList.tsx': /surfaceClass\(\{[^}]*accent/,
+    'components/live/LiveView.tsx': /<Surface\b/,
+    'components/sat/NextPassLine.tsx': /surfaceClass\(|<Surface\b/,
+  };
+  for (const [f, re] of Object.entries(uses)) assert.match(read(f), re, f);
 });

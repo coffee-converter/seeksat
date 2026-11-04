@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cx, buttonClass, badgeClass, segmentedNext, modalClass } from '../lib/ui/classes.mjs';
+import { cx, buttonClass, badgeClass, segmentedNext, modalClass, linkClass, surfaceClass } from '../lib/ui/classes.mjs';
 
 test('buttonClass defaults and modifiers', () => {
   assert.equal(buttonClass(), 'btn');
@@ -31,9 +31,35 @@ test('segmentedNext moves with arrows, wraps, and jumps with Home and End', () =
   assert.equal(segmentedNext(v, 'light', 'End'), 'dark');
   assert.equal(segmentedNext(v, 'light', 'a'), 'light');
 });
+test('segmentedNext from nothing chosen goes to the first (or last) option', () => {
+  const v = ['auto', 'light', 'dark'];
+  assert.equal(segmentedNext(v, null, 'ArrowRight'), 'auto');
+  assert.equal(segmentedNext(v, null, 'ArrowDown'), 'auto');
+  assert.equal(segmentedNext(v, null, 'ArrowLeft'), 'dark');
+  assert.equal(segmentedNext(v, null, 'ArrowUp'), 'dark');
+  // A value no longer among the enabled options counts as nothing chosen.
+  assert.equal(segmentedNext(['light', 'dark'], 'auto', 'ArrowRight'), 'light');
+});
+test('segmentedNext ignores keys held with Alt, Meta or Ctrl', () => {
+  const v = ['auto', 'light', 'dark'];
+  for (const mod of ['altKey', 'metaKey', 'ctrlKey']) {
+    assert.equal(segmentedNext(v, 'auto', 'ArrowRight', { [mod]: true }), 'auto', mod);
+    assert.equal(segmentedNext(v, 'light', 'Home', { [mod]: true }), 'light', mod);
+  }
+  assert.equal(segmentedNext(v, 'auto', 'ArrowRight', { shiftKey: true }), 'light');
+});
+test('linkClass is the library link look', () => assert.equal(linkClass(), buttonClass({ variant: 'link' })));
 test('cx drops falsy parts', () => assert.equal(cx('a', false, null, 'b', undefined, ''), 'a b'));
 
 test('modalClass', () => {
   assert.equal(modalClass(), 'modal');
   assert.equal(modalClass({ size: 'full', tone: 'dark' }), 'modal modal--full theme-dark');
+});
+
+test('surfaceClass: padded by default, compact, flush, accent, selected, interactive', () => {
+  assert.equal(surfaceClass(), 'surface surface--padded');
+  assert.equal(surfaceClass({ padded: 'sm' }), 'surface surface--padded-sm');
+  assert.equal(surfaceClass({ padded: false }), 'surface');
+  assert.equal(surfaceClass({ accent: true, selected: true }), 'surface surface--padded surface--accent surface--selected');
+  assert.equal(surfaceClass({ padded: 'sm', interactive: true }), 'surface surface--padded-sm surface--interactive');
 });

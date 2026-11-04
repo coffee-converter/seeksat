@@ -54,8 +54,10 @@ export default function QualityBadge({ pass, rating, maxShown = false, pill = fa
   const bars = Math.min(BAR_COUNT, Math.max(1, Math.round(q.bars ?? 1)));
   const body = (
     <>
-      <RatingBars bars={bars as 1 | 2 | 3 | 4 | 5} label={`${bars} of ${BAR_COUNT}`} />
+      {/* Bars first on screen, but spoken after the word: "Poor: faint, 3 of 5". */}
+      <RatingBars bars={bars as 1 | 2 | 3 | 4 | 5} />
       {ratingText(q, pass, !!rating, maxShown)}
+      <span className="sr-only">{`, ${bars} of ${BAR_COUNT}`}</span>
     </>
   );
   return (

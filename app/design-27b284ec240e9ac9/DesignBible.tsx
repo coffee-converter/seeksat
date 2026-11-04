@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { MODES, applyMode, readMode, readNight, themeControlHint, writeMode } from "@/lib/ui/theme.mjs";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { MODES, themeControlHint } from "@/lib/ui/theme.mjs";
 import { useResolvedTheme } from "@/lib/ui/use-theme";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -14,6 +14,7 @@ import Segmented from "@/components/ui/Segmented";
 import StatTile from "@/components/ui/StatTile";
 import Surface from "@/components/ui/Surface";
 import NightToggle from "@/components/NightToggle";
+import { LABEL as MODE_LABEL, useThemeMode, type Mode } from "@/components/ThemeToggle";
 
 export type Cell = { value: string; resolved: string; kind: "color" | "channels" | "shadow" | "other"; inherited: boolean };
 export type ColorRow = { name: string; source: "globals.css" | "map-tokens.mjs" | "chart-tokens.mjs"; dark: Cell; light: Cell };
@@ -23,9 +24,6 @@ export type Palette = { title: string; source: string; note?: string; columns: {
 export type Token = { name: string; value: string };
 export type BibleData = { colors: ColorGroup[]; scale: Token[]; reducedMotion: Token[]; nightFilter: string; palettes: Palette[] };
 
-type Mode = "auto" | "light" | "dark";
-const MODE_LABEL: Record<Mode, string> = { auto: "Auto", light: "Light", dark: "Dark" };
-const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 const SECTIONS = [
   ["font", "Font"], ["type", "Type scale"], ["colour", "Colour"], ["spacing", "Spacing"], ["radius", "Radius"],
@@ -35,23 +33,9 @@ const SECTIONS = [
 const SAMPLE = "The ISS rises in the north-west at 21:04, climbs to 72° and fades into shadow two minutes later. Bring binoculars.";
 const IS_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i;
 
-/** Auto / Light / Dark through lib/ui/theme.mjs, as the site's own ThemeToggle does. */
+/** Auto / Light / Dark: the site ThemeToggle's own state (useThemeMode), always as the segmented group. */
 function ThemeSwitch() {
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [night, setNight] = useState(false);
-  useEffect(() => {
-    setMode(readMode() as Mode);
-    setNight(readNight());
-    const onTheme = () => setNight(readNight());
-    window.addEventListener("seeksat:theme", onTheme);
-    return () => window.removeEventListener("seeksat:theme", onTheme);
-  }, []);
-  const choose = useCallback((next: Mode) => {
-    setMode(next);
-    writeMode(next);
-    const theme = applyMode(document, next, window.matchMedia(DARK_QUERY).matches);
-    window.dispatchEvent(new CustomEvent("seeksat:theme", { detail: theme }));
-  }, []);
+  const { mode, night, choose } = useThemeMode();
   return (
     <Segmented
       label="Theme"
@@ -144,10 +128,10 @@ export default function DesignBible({ data }: { data: BibleData }) {
   return (
     <div className="bible">
       <header className="bible__bar">
-        <div className="bible__brand">
+        <h1 className="bible__brand">
           <span className="bible__wordmark"><span className="bible__seek">Seek</span><span className="bible__sat">Sat</span></span>
           <span className="bible__subtitle">Design bible</span>
-        </div>
+        </h1>
         <div className="bible__switches">
           <ThemeSwitch />
           <NightToggle />

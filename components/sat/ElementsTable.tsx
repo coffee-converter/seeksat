@@ -3,6 +3,7 @@
 import { formatNumber, periodText } from "@/lib/sat/numbers.mjs";
 import { isoUtc, type Elements } from "./LiveNumbers";
 import Badge from "@/components/ui/Badge";
+import { cx, linkClass } from "@/lib/ui/classes.mjs";
 
 type Age = { text: string; level: string };
 
@@ -20,7 +21,7 @@ export function AgeLine({ age, source, fetchedText, accuracyLink = true }: {
       {age.level === "stale" ? (
         <Badge tone="danger">stale elements: positions may be far off</Badge>
       ) : null}
-      {accuracyLink ? <a className="home-link sat-age__how" href="#how-accuracy">How accurate is this?</a> : null}
+      {accuracyLink ? <a className={cx(linkClass(), "sat-age__how")} href="#how-accuracy">How accurate is this?</a> : null}
     </p>
   );
 }

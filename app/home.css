@@ -206,7 +206,6 @@
 .search-bar__option:hover,
 .search-bar__option[aria-selected="true"] { background: rgba(var(--accent-rgb), 0.16); }
 .search-bar__id { color: var(--map-muted); font-size: 0.85em; }
-.search-bar__tag { color: var(--map-accent); font-size: 0.85em; }
 .search-bar__note { margin: var(--sp-6) var(--sp-2) 0; color: var(--map-muted); }
 .search-bar__paste { display: flex; flex-direction: column; gap: var(--sp-6); margin-top: var(--sp-8); }
 /* TLE columns line up only in the code font. */
@@ -243,9 +242,6 @@
   letter-spacing: 0.01em;
   line-height: var(--lh-tight);
 }
-/* The wordmark row, with a compact clock on the right. */
-.home-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-4) var(--sp-12); }
-.home-top .home-wordmark { margin: var(--sp-2) var(--sp-2) 0; }
 
 /* LiveClock: UTC large with a pulsing live dot, local time below. */
 .live-clock { text-align: right; }
@@ -315,9 +311,6 @@
 .home-note { margin: 0; color: var(--map-muted); }
 .home-error { margin: 0; color: var(--danger-text); }
 
-/* A text link (the not-found pages, Back to your satellites, How accurate). */
-.home-link { color: var(--link); text-decoration: underline; }
-.home-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
 /* Settings row under the map. */
 /* One settings group: the location on top, then the controls in a row. */
@@ -326,10 +319,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-8) var(--sp-12);
-  padding: var(--sp-12) var(--sp-12);
-  background: var(--panel);
-  border: var(--line-subtle);
-  border-radius: var(--radius-lg);
 }
 .home-controls__elev { display: flex; align-items: center; }
 /* What the elevation setting does, on its own line under the controls. */
@@ -428,14 +417,11 @@
   padding: 0;
   list-style: none;
 }
+/* A Surface with an accent edge in the satellite's colour. */
 .pass-card {
+  --surface-accent: var(--sat-color, var(--map-muted));
   display: flex;
   gap: var(--sp-12);
-  padding: var(--sp-12);
-  background: var(--panel);
-  border: var(--line-subtle);
-  border-left: 3px solid var(--sat-color, var(--map-muted));
-  border-radius: var(--radius-lg);
 }
 .pass-card--short {
   flex-wrap: wrap;
@@ -451,9 +437,6 @@
   gap: var(--sp-4);
 }
 .pass-card__headline { margin: 0; color: var(--text-strong); font-size: var(--fs-lg); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
-/* Peak magnitude (visual mode, known brightness): beside "max 47°". */
-.pass-mag { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pass-card__mag { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-medium); }
 .pass-card__meta {
   display: flex;
   flex-wrap: wrap;
@@ -555,22 +538,8 @@
 }
 .pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
-/* "Best in the next 24 hours": one quiet tile-like button above Next up. */
-.best-pass {
-  display: block;
-  width: 100%;
-  padding: var(--sp-8) var(--sp-12);
-  background: var(--panel);
-  color: var(--map-text);
-  border: var(--line-subtle);
-  border-radius: var(--radius-lg);
-  font: inherit;
-  font-size: var(--fs-md);
-  text-align: left;
-  cursor: pointer;
-}
-.best-pass:hover { background: var(--btn-hover); }
-.best-pass:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* "Best in the next 24 hours": one quiet interactive Surface above Next up. */
+.best-pass { display: block; width: 100%; }
 .best-pass__label { color: var(--map-muted); }
 .best-pass__what { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 .best-pass .quality,
@@ -810,10 +779,9 @@
 }
 .pass-card__focus:hover { text-decoration: underline; text-underline-offset: 3px; }
 .pass-card__focus:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
-.pass-card--focus { border-color: var(--btn-line); border-left-color: var(--sat-color, var(--map-muted)); box-shadow: 0 0 0 1px var(--btn-line); }
 /* Another satellite is focused: the text stays readable, and the plot, rating
-   and colour stripe step back. */
-.pass-card--dim { border-left-color: var(--map-border); }
+   and colour stripe step back. (The focused card is Surface selected.) */
+.pass-card--dim { --surface-accent: var(--map-border); }
 .pass-card--dim .pass-card__plot,
 .pass-card--dim .pass-card__rating { opacity: 0.6; }
 .pass-card--dim .pass-card__headline,
@@ -1230,10 +1198,8 @@
 .live-dial__sat { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
 .live-dial__caption { margin-top: var(--sp-4); text-align: center; font-size: var(--fs-sm); color: var(--map-muted); }
 .live-view__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin: 0; }
-.live-view__nums div { padding: var(--sp-12) var(--sp-12); background: var(--panel); border-radius: var(--radius-lg); }
 .live-view__nums dt { font-size: var(--fs-sm); color: var(--map-muted); }
 .live-view__nums dd { margin: var(--sp-2) 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.live-view__radio { padding: var(--sp-12) var(--sp-16); background: var(--panel); border-radius: var(--radius-lg); }
 .live-view__radio .home-note { margin: var(--sp-4) 0 0; }
 .live-view__tune { margin: 0; display: flex; align-items: baseline; gap: var(--sp-12); flex-wrap: wrap; }
 .live-view__tune-label { font-size: var(--fs-md); color: var(--map-muted); }

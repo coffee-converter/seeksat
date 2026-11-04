@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import Surface from "@/components/ui/Surface";
 import LiveDial from "@/components/live/LiveDial";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -135,12 +136,12 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
         {compassNote && <p className="home-note">{compassNote}</p>}
         {live && live.azDeg != null && live.elDeg != null && (
           <dl className="live-view__nums num">
-            <div><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></div>
-            <div><dt>Elevation</dt><dd>{`${Math.round(live.elDeg)}°`}</dd></div>
-            <div><dt>Range</dt><dd>{`${Math.round(live.rangeKm!).toLocaleString()} km`}</dd></div>
+            <Surface><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></Surface>
+            <Surface><dt>Elevation</dt><dd>{`${Math.round(live.elDeg)}°`}</dd></Surface>
+            <Surface><dt>Range</dt><dd>{`${Math.round(live.rangeKm!).toLocaleString()} km`}</dd></Surface>
           </dl>
         )}
-        <section className="live-view__radio" aria-label="Tuning">
+        <Surface as="section" className="live-view__radio" aria-label="Tuning">
           {tune === "none" ? null : tune === "pick" ? (
             <p className="home-note">Pick a frequency in the radio chart to see where to tune.</p>
           ) : tune === "over" ? (
@@ -163,7 +164,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
           ) : (
             <p className="home-note">{`${((freqHz ?? 0) / 1e6).toFixed(3)} MHz once it rises.`}</p>
           )}
-        </section>
+        </Surface>
         <div className="live-view__actions">
           {hasOrientation && !compassOn && (
             <Button size="sm" onClick={startCompass}>Use phone compass</Button>

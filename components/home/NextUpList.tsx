@@ -26,7 +26,7 @@ import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
 import Disclosure from "@/components/ui/Disclosure";
 import Button from "@/components/ui/Button";
-import { buttonClass } from "@/lib/ui/classes.mjs";
+import { buttonClass, cx, surfaceClass } from "@/lib/ui/classes.mjs";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
 export type Track = ReturnType<typeof makeTrack>;
@@ -182,7 +182,10 @@ function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onU
 
 /** none: nothing is focused; focus: this card's satellite is; dim: another is. */
 type FocusState = "none" | "focus" | "dim";
-const focusClass = (f: FocusState) => (f === "none" ? "" : ` pass-card--${f}`);
+/** A pass card is a Surface with the satellite's colour on its leading edge,
+ *  selected while its satellite is focused. */
+const cardClass = (kind: "pass" | "short", f: FocusState) =>
+  cx("pass-card", `pass-card--${kind}`, f === "dim" && "pass-card--dim", surfaceClass({ accent: true, selected: f === "focus" }));
 
 /** The headline, as a button that focuses the satellite on the map. */
 function Headline({ text, focus, onFocus }: { text: string; focus: FocusState; onFocus: () => void }) {
@@ -242,7 +245,7 @@ function PassCard({
   const radioButton = <Button size="sm" onClick={onRadioChart}>Radio chart</Button>;
 
   return (
-    <li className={`pass-card pass-card--pass${focusClass(focus)}`} style={{ "--sat-color": color } as React.CSSProperties}>
+    <li className={cardClass("pass", focus)} style={{ "--sat-color": color } as React.CSSProperties}>
       <div className="pass-card__top">
         <p className="pass-card__headline">
           <Headline text={card.name} focus={focus} onFocus={onFocus} />
@@ -424,7 +427,7 @@ export default function NextUpList({
           return (
             <li
               key={card.noradId}
-              className={`pass-card pass-card--short${focusClass(focusOf(card.noradId))}`}
+              className={cardClass("short", focusOf(card.noradId))}
               style={{ "--sat-color": color } as React.CSSProperties}
             >
               <p className="pass-card__headline">
@@ -467,7 +470,7 @@ function BestPassLine({ best, visual, clouds, track, observer, nowMs, onOpen }: 
 }) {
   const { pass, rating } = best;
   return (
-    <button type="button" className="best-pass" title={visual ? "Open the sky chart for this pass" : "Open the radio chart for this pass"} onClick={onOpen}>
+    <button type="button" className={`best-pass ${surfaceClass({ padded: "sm", interactive: true })}`} title={visual ? "Open the sky chart for this pass" : "Open the radio chart for this pass"} onClick={onOpen}>
       <span className="best-pass__label">Best in the next 24 hours:</span>{" "}
       <span className="best-pass__what">
         {`${track.shortName ?? best.name} ${dayTime(pass.startMs, nowMs, observer.tz)}, `}
