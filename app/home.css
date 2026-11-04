@@ -47,23 +47,24 @@
   background: var(--focus-color, var(--map-accent));
   box-shadow: 0 0 0 2px var(--map-ocean);
 }
-/* Known radio downlinks: arcs each side of the dot, as on the map's other
-   dots (lib/map/overlays.mjs ss-radio), and the name moved clear of them. */
+/* Known radio downlinks: two arcs up and to the left of the dot, as on the
+   map's other dots (lib/map/overlays.mjs ss-radio). The name, on the right,
+   stays where it is. */
 .flat-map__focus--radio::before,
 .flat-map__focus--radio::after {
   content: "";
   position: absolute;
   top: 50%;
   left: 50%;
+  box-sizing: border-box;
   border: 1.5px solid transparent;
-  border-left-color: var(--focus-color, var(--map-accent));
-  border-right-color: var(--focus-color, var(--map-accent));
+  border-top-color: var(--focus-color, var(--map-accent));
   border-radius: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
-.flat-map__focus--radio::before { width: 18px; height: 18px; }
-.flat-map__focus--radio::after { width: 26px; height: 26px; }
-.flat-map__focus--radio .flat-map__focus-name { left: calc(50% + 1.2em); }
+/* Arc radii 7 and 10 px, as on the map's dots. */
+.flat-map__focus--radio::before { width: 16px; height: 16px; }
+.flat-map__focus--radio::after { width: 22px; height: 22px; }
 .flat-map__focus-name {
   position: absolute;
   left: calc(50% + 0.8em);
@@ -223,6 +224,7 @@
 .search-bar__option:hover,
 .search-bar__option[aria-selected="true"] { background: rgba(var(--accent-rgb), 0.16); }
 .search-bar__id { color: var(--map-muted); font-size: 0.85em; }
+.search-bar__radio { margin-left: var(--sp-4); color: var(--accent); }
 .search-bar__note { margin: var(--sp-6) var(--sp-2) 0; color: var(--map-muted); }
 .search-bar__paste { display: flex; flex-direction: column; gap: var(--sp-6); margin-top: var(--sp-8); }
 /* TLE columns line up only in the code font. */

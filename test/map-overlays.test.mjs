@@ -177,7 +177,7 @@ test('overlayLayers keeps the overlay order', () => {
     assert.equal(l.layout['icon-allow-overlap'], true);
     assert.equal(l.layout['icon-ignore-placement'], false);
     assert.equal(l.layout['text-optional'], true);
-    assert.deepEqual(l.layout['text-variable-anchor'], ['left', 'right']);
+    assert.ok(l.layout['text-variable-anchor-offset'], 'names to the right, else the left');
     assert.deepEqual(l.layout['symbol-sort-key'], ['get', 'sortKey']);
     assert.equal(l.paint['text-halo-color'], COLORS.water);
     assert.equal(l.paint['icon-halo-color'], COLORS.water);
@@ -341,13 +341,18 @@ test('the radio mark: a flag on dots with downlinks, drawn round normal dots onl
   assert.deepEqual(radio.filter, ['all', ['==', ['get', 'radio'], true], ['==', ['get', 'emphasis'], 'normal']]);
   assert.equal(radio.layout['icon-image'], 'ss-radio');
   assert.equal(radio.paint['icon-color'][1], 'color');
-  // Arcs left and right of the centre, the centre itself clear for the dot.
+  // Arcs up and to the left of the centre only, the centre clear for the dot.
   const img = overlayImages(COLORS).find((i) => i.id === 'ss-radio');
   const alpha = (x, y) => img.data[(y * img.width + x) * 4 + 3];
   const c = img.width / 2;
   // SDF: MapLibre draws where alpha passes the 0.75 edge (192).
-  const drawn = (x, y) => alpha(Math.round(x), Math.round(y)) >= 192;
-  for (const dx of [7, 10, -7, -10]) assert.ok(drawn(c + dx, c), `arc at ${dx}`);
+  // Any of the 3x3 pixels round a point: a thin anti-aliased arc can fall between centres.
+  const drawn = (x, y) => [-1, 0, 1].some((i) => [-1, 0, 1].some((j) => alpha(Math.round(x) + i, Math.round(y) + j) >= 192));
+  const d = Math.SQRT1_2;
+  for (const r of [7, 10]) assert.ok(drawn(c - r * d, c - r * d), `arc at ${r} up-left`);
+  for (const [sx, sy] of [[1, -1], [1, 1], [-1, 1]]) assert.ok(!drawn(c + sx * 9 * d, c + sy * 9 * d), `nothing at ${sx},${sy}`);
   assert.ok(!drawn(c, c), 'the centre is left for the dot');
-  assert.ok(!drawn(c, c - 9), 'nothing straight above');
+  // Names on the left sit further out on a dot with arcs.
+  const sats = overlayLayers(COLORS).find((l) => l.id === 'ss-sats');
+  assert.equal(sats.layout['text-variable-anchor-offset'][0], 'case');
 });

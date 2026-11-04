@@ -1346,11 +1346,11 @@ export default function FlatMap({
           >
             {/* The map's observer mark (lib/map/overlays.mjs observerImage):
                 a 5 px ring with 9 px crosshair arms, 2 px strokes. */}
-            {/* The radio mark (lib/map/overlays.mjs radioImage): two arcs each side of a dot. */}
+            {/* The radio mark (lib/map/overlays.mjs radioImage): two arcs up and to the left of a dot. */}
             {item.kind === "radio" && (
               <svg viewBox="0 0 30 30" width="22" height="22">
                 <circle cx="15" cy="15" r="4" fill="currentColor" />
-                <path d="M9.6 10.5a7 7 0 0 0 0 9M20.4 10.5a7 7 0 0 1 0 9M7.3 8.6a10 10 0 0 0 0 12.8M22.7 8.6a10 10 0 0 1 0 12.8" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M8.03 14.39A7 7 0 0 1 14.39 8.03M5.04 14.13A10 10 0 0 1 14.13 5.04" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             )}
             {item.kind === "observer" && (
