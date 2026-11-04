@@ -104,11 +104,13 @@ localStorage.
 
 1. Create a Blob store in the Vercel dashboard and link it to the project, so `BLOB_READ_WRITE_TOKEN` is set.
 2. Set `CRON_SECRET` and deploy.
-3. Run the cron once by hand so the snapshot exists before anyone needs it:
+3. Run the cron once by hand so the snapshot exists before anyone needs it: in the Vercel dashboard, Project > Settings > Cron Jobs > Run. Or, from a machine that is not a developer laptop (CelesTrak blocks addresses that ask too often):
 
    ```sh
-   curl -H "Authorization: Bearer $CRON_SECRET" https://seeksat.app/api/refresh-tle
+   curl -H "Authorization: Bearer $CRON_SECRET" https://seeksat.com/api/refresh-tle
    ```
+
+   The route refreshes only on the production deployment; elsewhere it answers 403.
 
 4. Check the JSON reply: `written` should be `true` and `objectCount` should be in the thousands. A 502 means no group could be fetched and nothing was written; `failedGroups` lists which ones.
 
