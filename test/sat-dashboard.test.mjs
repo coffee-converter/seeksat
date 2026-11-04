@@ -20,9 +20,9 @@ test('dashboardValues: keys, labels, units and notes in order', () => {
   const rows = dashboardValues(liveNumbers(iss, new Date(SUNLIT_MS)), orbitElements(iss));
   assert.deepEqual(rows.map((r) => [r.key, r.label, r.unit, r.note]), [
     ['altitude', 'Altitude', 'km', 'above the WGS84 ellipsoid'],
+    ['radius', "From Earth's center", 'km', 'distance, from SGP4'],
     ['speed', 'Speed', 'km/s', 'inertial, from SGP4'],
     ['groundSpeed', 'Ground speed', 'km/s', "over Earth's surface"],
-    ['radius', "From Earth's center", 'km', 'distance, from SGP4'],
     ['lat', 'Latitude', '', 'below the satellite'],
     ['lon', 'Longitude', '', 'below the satellite'],
     ['sun', 'Sunlight', '', "Earth's shadow and atmosphere"],

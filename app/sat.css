@@ -136,23 +136,17 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 }
 
 /* The live tile grid: one instrument panel split by hairlines, not loose cards.
-   2 columns under 480 px, 3 from 480, 4 from 720. Seven tiles: Sunlight
-   widens so every row fills. */
+   2 columns, 4 from 720 px; the tiles come in pairs (altitude and distance,
+   the two speeds, latitude and longitude), side by side either way. Seven
+   tiles: Sunlight widens so every row fills. */
 .sat-dash {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; /* nudge */
   background: var(--map-border); border: var(--line-subtle); border-radius: var(--radius-lg); overflow: hidden;
 }
 .sat-dash .stat-tile--wide { grid-column: 1 / -1; }
-@media (max-width: 479.98px) {
-  .sat-dash__sun { grid-column: span 2; }
-}
-@media (min-width: 480px) {
-  .sat-dash { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .sat-dash__sun { grid-column: 1 / -1; }
-}
+.sat-dash__sun { grid-column: span 2; }
 @media (min-width: 720px) {
   .sat-dash { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .sat-dash__sun { grid-column: span 2; }
 }
 
 /* Orbit check: a plain sentence, then the vis-viva formulas set as code, so
