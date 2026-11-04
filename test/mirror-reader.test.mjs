@@ -218,7 +218,7 @@ async function searchReader() {
 test('search: exact id first', async () => {
   const r = await (await searchReader()).search('25544');
   assert.equal(r[0].noradId, 25544);
-  assert.deepEqual(Object.keys(r[0]).sort(), ['name', 'noradId']);
+  assert.deepEqual(Object.keys(r[0]).sort(), ['name', 'noradId', 'radio']);
 });
 
 test('search: curated alias beats prefix beats substring', async () => {
@@ -270,4 +270,28 @@ test('a served record carries the snapshot downlinks for it, and only its own', 
   assert.equal((await reader.getRecord(25544)).downlinks[0].hz, 145_800_000);
   assert.equal((await reader.getSnapshotRecord(25544)).downlinks.length, 1);
   assert.equal((await reader.getRecord(99999)).downlinks, undefined);
+});
+
+test('radio-mode search: satellites with downlinks first, and downlink words find them', async () => {
+  const s = snap([
+    rec(70001, 'ALPHASAT A'),
+    rec(70002, 'ALPHASAT B'),
+    rec(70003, 'ALPHASAT C'),
+  ]);
+  s.downlinks = {
+    70002: [{ hz: 145_800_000, label: 'Mode V SSTV', mode: 'sstv', source: 'satnogs', default: true }],
+    70003: [{ hz: 437_000_000, label: 'Telemetry', mode: 'fm', source: 'satnogs', default: true }],
+  };
+  const { reader } = make({ store: createMemorySnapshotStore(s) });
+  const plain = await reader.search('alphasat');
+  assert.deepEqual(plain.map((r) => [r.noradId, r.radio]), [[70001, false], [70002, true], [70003, true]]);
+  const radio = await reader.search('alphasat', 20, { radio: true });
+  assert.deepEqual(radio.map((r) => r.noradId), [70002, 70003, 70001]);
+  // A downlink word: by mode or by a word in the label; not a name search.
+  const ids = async (q) => (await reader.search(q, 20, { radio: true })).map((r) => r.noradId).filter((id) => id >= 70000);
+  assert.deepEqual(await ids('sstv'), [70002]);
+  assert.deepEqual(await ids('FM'), [70003]);
+  assert.deepEqual(await ids('telemetry'), [70003]);
+  // Outside radio mode the same word is an ordinary name search.
+  assert.deepEqual((await reader.search('sstv')).filter((r) => r.noradId >= 70000), []);
 });

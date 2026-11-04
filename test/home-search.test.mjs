@@ -20,6 +20,8 @@ test('searchQuery rejects empty and blank', () => {
 });
 test('searchUrl encodes the query', () => {
   assert.equal(searchUrl('a b&c'), '/api/search?q=a%20b%26c');
+  assert.equal(searchUrl('fm', 'radio'), '/api/search?q=fm&mode=radio');
+  assert.equal(searchUrl('fm', 'visual'), '/api/search?q=fm');
 });
 test('searchQuery trims before capping', () => {
   assert.equal(searchQuery(' '.repeat(70) + 'iss'), 'iss');

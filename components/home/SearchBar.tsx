@@ -7,10 +7,13 @@ import { followLabel } from "@/lib/home/focus.mjs";
 import { useHomeStore } from "@/lib/home/store";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
+import RadioMark from "@/components/ui/RadioMark";
 
 interface Result {
   noradId: number;
   name: string;
+  /** Known radio downlinks. */
+  radio?: boolean;
 }
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -38,6 +41,8 @@ export function SearchBar({ onView, onClearFocus }: Props) {
   const [limitError, setLimitError] = useState<string | null>(null);
 
   const following = useHomeStore((s) => s.prefs.following);
+  // Radio mode ranks satellites with known downlinks first and marks them.
+  const mode = useHomeStore((s) => s.prefs.mode);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const addCustom = useHomeStore((s) => s.addCustom);
@@ -72,7 +77,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
       const ctl = new AbortController();
       abort.current = ctl;
       try {
-        const res = await fetch(searchUrl(q), { signal: ctl.signal });
+        const res = await fetch(searchUrl(q, mode), { signal: ctl.signal });
         if (ctl.signal.aborted) return;
         if (!res.ok) throw new Error(String(res.status));
         const body = (await res.json()) as { results: Result[] };
@@ -222,6 +227,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
             >
               <span className="search-bar__name">
                 {r.name} <span className="search-bar__id">{r.noradId}</span>
+                {mode === "radio" && r.radio && <RadioMark className="search-bar__radio" label="known downlinks" />}
               </span>
               {/* Out of the tab order: the focus bar has the same toggle for keyboards. */}
               <Button
