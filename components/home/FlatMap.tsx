@@ -38,6 +38,8 @@ export interface MapSat {
   orbitClass: string;
   /** Minutes between the track's time ticks (geometry.mjs tickStepMin). */
   tickMin: number;
+  /** Known radio downlinks: the dot gets the radio mark. */
+  radio?: boolean;
 }
 
 export interface MapObserver {
@@ -150,9 +152,9 @@ const footprintOf = footprintFeature as (sub: SelectedSub, altKm: number, minEle
 const FILL_LAYER = "ss-footprint-fill";
 type Theme = "dark" | "light";
 /** The focused satellite now, as its dot, the footprint and the follow jump need it. */
-type LiveFocus = SelectedSub & { name: string; color: string; footprint: boolean };
+type LiveFocus = SelectedSub & { name: string; color: string; footprint: boolean; radio: boolean };
 /** The focused satellite's dot and name: a marker the frame loop moves. */
-type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; shown: boolean; label: string; color: string };
+type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; shown: boolean; label: string; color: string; radio: boolean };
 /** A Lock on zoom, eased by the frame loop's jump: from and to zoom, start (ms) and length. */
 type ZoomGoal = { from: number; to: number; t0: number; dur: number };
 /** The frame loop's controls while a satellite is focused (the frame effect). */
@@ -345,7 +347,7 @@ export default function FlatMap({
     const sub = f.positionAt(ms);
     const last = lastFocus.current;
     if (!sub) return last && last.noradId === f.noradId ? last.focus : null;
-    const focus = { ...sub, name: f.name, color: f.color, footprint: f.footprint != null };
+    const focus = { ...sub, name: f.name, color: f.color, footprint: f.footprint != null, radio: f.radio === true };
     lastFocus.current = { noradId: f.noradId, focus };
     return focus;
   }, []);
@@ -537,6 +539,10 @@ export default function FlatMap({
       mark.label = f.name;
       mark.name.textContent = f.name;
     }
+    if (f.radio !== mark.radio) {
+      mark.radio = f.radio;
+      mark.el.classList.toggle("flat-map__focus--radio", f.radio);
+    }
     mark.marker.setLngLat([f.lonDeg, f.latDeg]);
     if (!mark.shown) {
       mark.marker.addTo(map);
@@ -694,6 +700,7 @@ export default function FlatMap({
         shown: false,
         label: "",
         color: "",
+        radio: false,
       };
       setMapReady(true);
       capLayer.current = makeFootprintLayer({
@@ -1339,6 +1346,13 @@ export default function FlatMap({
           >
             {/* The map's observer mark (lib/map/overlays.mjs observerImage):
                 a 5 px ring with 9 px crosshair arms, 2 px strokes. */}
+            {/* The radio mark (lib/map/overlays.mjs radioImage): two arcs each side of a dot. */}
+            {item.kind === "radio" && (
+              <svg viewBox="0 0 30 30" width="22" height="22">
+                <circle cx="15" cy="15" r="4" fill="currentColor" />
+                <path d="M9.6 10.5a7 7 0 0 0 0 9M20.4 10.5a7 7 0 0 1 0 9M7.3 8.6a10 10 0 0 0 0 12.8M22.7 8.6a10 10 0 0 1 0 12.8" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              </svg>
+            )}
             {item.kind === "observer" && (
               <svg viewBox="0 0 22 22" width="18" height="18">
                 <circle cx="11" cy="11" r="5" fill="none" stroke="currentColor" strokeWidth="2" />

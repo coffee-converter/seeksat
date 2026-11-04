@@ -163,7 +163,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -201,7 +201,7 @@ test('overlayImages draws every icon the layers name', () => {
   const images = overlayImages(COLORS);
   const byId = new Map(images.map((i) => [i.id, i]));
   const named = overlayLayers(COLORS).flatMap((l) => iconNames(l.layout?.['icon-image']));
-  assert.deepEqual([...new Set(named)].sort(), ['ss-chevron', 'ss-dot', 'ss-dot-focus', 'ss-dot-ghost', 'ss-observer', 'ss-tick']);
+  assert.deepEqual([...new Set(named)].sort(), ['ss-chevron', 'ss-dot', 'ss-dot-focus', 'ss-dot-ghost', 'ss-observer', 'ss-radio', 'ss-tick']);
   for (const id of named) {
     const img = byId.get(id);
     assert.ok(img, `no image for ${id}`);
@@ -209,7 +209,7 @@ test('overlayImages draws every icon the layers name', () => {
     assert.equal(img.data.length, img.width * img.height * 4);
     assert.ok(img.data.some((v, i) => i % 4 === 3 && v > 0), `${id} is blank`);
   }
-  for (const id of ['ss-chevron', 'ss-tick', 'ss-dot', 'ss-dot-focus', 'ss-dot-ghost']) assert.equal(byId.get(id).sdf, true, id);
+  for (const id of ['ss-chevron', 'ss-tick', 'ss-dot', 'ss-dot-focus', 'ss-dot-ghost', 'ss-radio']) assert.equal(byId.get(id).sdf, true, id);
   assert.equal(byId.get('ss-observer').sdf, false);
 });
 
@@ -334,4 +334,20 @@ test('the future fade is cut by time on a highly elliptical track', () => {
     const start = timeOf.get(c.geometry.coordinates[0][0].join());
     assert.ok(Math.abs(start - t0 - (i * span) / 8) <= span / 192 + 1, `chunk ${i} starts ${((start - t0) / span).toFixed(3)}`);
   });
+});
+
+test('the radio mark: a flag on dots with downlinks, drawn round normal dots only', () => {
+  const radio = overlayLayers(COLORS).find((l) => l.id === 'ss-sats-radio');
+  assert.deepEqual(radio.filter, ['all', ['==', ['get', 'radio'], true], ['==', ['get', 'emphasis'], 'normal']]);
+  assert.equal(radio.layout['icon-image'], 'ss-radio');
+  assert.equal(radio.paint['icon-color'][1], 'color');
+  // Arcs left and right of the centre, the centre itself clear for the dot.
+  const img = overlayImages(COLORS).find((i) => i.id === 'ss-radio');
+  const alpha = (x, y) => img.data[(y * img.width + x) * 4 + 3];
+  const c = img.width / 2;
+  // SDF: MapLibre draws where alpha passes the 0.75 edge (192).
+  const drawn = (x, y) => alpha(Math.round(x), Math.round(y)) >= 192;
+  for (const dx of [7, 10, -7, -10]) assert.ok(drawn(c + dx, c), `arc at ${dx}`);
+  assert.ok(!drawn(c, c), 'the centre is left for the dot');
+  assert.ok(!drawn(c, c - 9), 'nothing straight above');
 });

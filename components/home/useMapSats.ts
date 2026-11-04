@@ -15,6 +15,8 @@ export interface MapTrack {
   orbitClass: string;
   periodMs: number;
   ecefAt: (d: Date) => number[] | null;
+  /** Known radio downlinks (lib/catalog.mjs downlinksFor). */
+  downlinks: ReadonlyArray<unknown>;
 }
 type Shape = MapSat["trackPast"];
 type Split = Pick<MapSat, "trackPast" | "trackFuture" | "trackTicks">;
@@ -87,6 +89,7 @@ export function useMapSats({
         emphasis,
         orbitClass: t.orbitClass,
         tickMin: tickStepMin(t.periodMs),
+        radio: t.downlinks.length > 0,
       });
     }
     return { sats };

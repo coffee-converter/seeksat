@@ -47,6 +47,23 @@
   background: var(--focus-color, var(--map-accent));
   box-shadow: 0 0 0 2px var(--map-ocean);
 }
+/* Known radio downlinks: arcs each side of the dot, as on the map's other
+   dots (lib/map/overlays.mjs ss-radio), and the name moved clear of them. */
+.flat-map__focus--radio::before,
+.flat-map__focus--radio::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1.5px solid transparent;
+  border-left-color: var(--focus-color, var(--map-accent));
+  border-right-color: var(--focus-color, var(--map-accent));
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.flat-map__focus--radio::before { width: 18px; height: 18px; }
+.flat-map__focus--radio::after { width: 26px; height: 26px; }
+.flat-map__focus--radio .flat-map__focus-name { left: calc(50% + 1.2em); }
 .flat-map__focus-name {
   position: absolute;
   left: calc(50% + 0.8em);
@@ -825,6 +842,8 @@
 .map-legend li:has(> .map-legend__swatch--note) { flex-basis: 100%; }
 .map-legend__swatch--observer { display: inline-flex; align-items: center; justify-content: center; height: 18px; color: var(--map-observer); }
 .map-legend__swatch--observer svg { display: block; }
+.map-legend__swatch--radio { display: inline-flex; align-items: center; justify-content: center; height: 18px; color: var(--map-text); }
+.map-legend__swatch--radio svg { display: block; }
 
 /* About section. */
 .home-about {

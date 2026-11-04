@@ -71,3 +71,10 @@ test('the legend ends by saying dots are ground positions, not places in space',
   assert.match(note.label, /ground positions: the point on Earth straight below each satellite/);
   assert.match(note.label, /thousands of km apart in height/);
 });
+
+test('the radio mark is explained only when a listed dot has it', () => {
+  const sat = (noradId, radio) => ({ noradId, name: `S${noradId}`, color: '#ff0000', selected: false, emphasis: 'normal', radio });
+  const keys = (sats) => legendItems({ sats, observer: null, minElevDeg: 0 }).map((i) => i.key);
+  assert.ok(keys([sat(1, true), sat(2, false)]).includes('radio'));
+  assert.ok(!keys([sat(1, false)]).includes('radio'));
+});
