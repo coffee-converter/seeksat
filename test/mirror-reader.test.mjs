@@ -218,7 +218,8 @@ async function searchReader() {
 test('search: exact id first', async () => {
   const r = await (await searchReader()).search('25544');
   assert.equal(r[0].noradId, 25544);
-  assert.deepEqual(Object.keys(r[0]).sort(), ['bands', 'name', 'noradId', 'radio']);
+  assert.deepEqual(Object.keys(r[0]).sort(), ['bands', 'name', 'noradId', 'radio', 'tier']);
+  assert.equal(r[0].tier, 0);
 });
 
 test('search: curated alias beats prefix beats substring', async () => {

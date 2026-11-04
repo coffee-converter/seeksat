@@ -15,6 +15,8 @@ interface Result {
   /** Known radio downlinks, and the bands they are in (lib/radio/bands.mjs). */
   radio?: boolean;
   bands?: string[];
+  /** How well the name matched, lower is better (lib/mirror/fuzzy.mjs rankHits). */
+  tier?: number;
 }
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -47,7 +49,12 @@ export function SearchBar({ onView, onClearFocus }: Props) {
   const myBands = useHomeStore((s) => s.prefs.bands);
   // Radio mode: a result counts as radio only with a downlink this radio can hear.
   const hearable = (r: Result) => r.radio === true && (myBands == null || (r.bands ?? []).some((b) => myBands.includes(b)));
-  const shown = mode === "radio" ? [...results.filter(hearable), ...results.filter((r) => !hearable(r))] : results;
+  // Hearable ones first among equally good name matches: a better match (SDO
+  // for "sdo") stays above weaker ones this radio can hear. Stable, so the
+  // server's order holds inside a group.
+  const shown = mode === "radio"
+    ? [...results].sort((a, b) => (a.tier ?? 0) - (b.tier ?? 0) || (hearable(a) ? 0 : 1) - (hearable(b) ? 0 : 1))
+    : results;
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const addCustom = useHomeStore((s) => s.addCustom);
