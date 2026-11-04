@@ -192,7 +192,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text-code);
-  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  font-family: var(--font-num);
   font-size: 0.9em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

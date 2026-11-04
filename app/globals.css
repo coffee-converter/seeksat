@@ -224,7 +224,7 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
    viewport reliably. vh fallback preserves desktop behavior on older
    browsers without dvh support. */
 html, body { width: 100%; height: 100%; height: 100dvh; background: var(--bg); color: var(--text-plain);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px; line-height: 1.5; }
 /* chart-block:begin */
 /* The triangulate observer cards' polar plots keep their
@@ -269,3 +269,6 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: var(--bg); c
   stroke-width: 0.7;
 }
 /* chart-block:end */
+
+/* Numbers: same face as the text, with equal-width digits so columns line up. */
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }

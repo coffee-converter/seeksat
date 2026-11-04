@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Atkinson_Hyperlegible_Next } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
@@ -7,6 +8,15 @@ import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
 import ThemeSync from "@/components/ThemeSync";
 import SwRegister from "@/components/SwRegister";
 import "./globals.css";
+// Self-hosted by next/font (served from /_next/static/media, same origin).
+// The font has no arrow glyphs (U+2190/2192); those use the system font.
+const atkinson = Atkinson_Hyperlegible_Next({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
+  variable: "--font-atkinson",
+  display: "swap",
+});
+
 const SITE_NAME = "SeekSat";
 // SEO title: ~52 chars (target 50-60) so search results don't truncate
 // and the page reads as more than a bare brand name. SITE_NAME stays the
@@ -121,7 +131,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={atkinson.variable} suppressHydrationWarning>
       <head>
         {/* Sets data-theme on <html> before first paint (no light/dark flash). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

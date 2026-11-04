@@ -63,6 +63,33 @@ function literalsIn(file) {
   return found;
 }
 
+/** Css with tokens, chart blocks, `@media print` blocks and comments blanked (line numbers kept). */
+function liveCss(file) {
+  let css = stripComments(blankRegions(blankRegions(read(file), TOKENS_BEGIN, TOKENS_END), CHART_BEGIN, CHART_END));
+  for (let at = css.indexOf('@media print'); at >= 0; at = css.indexOf('@media print')) {
+    let depth = 0;
+    let i = css.indexOf('{', at);
+    for (; i < css.length; i++) {
+      if (css[i] === '{') depth++;
+      else if (css[i] === '}' && --depth === 0) break;
+    }
+    css = css.slice(0, at) + blank(css.slice(at, i + 1)) + css.slice(i + 1);
+  }
+  return css;
+}
+
+/** Declarations of `property` outside tokens, chart graphics and print: [{ where: "file:line", value }]. */
+function declsIn(file, property) {
+  const css = liveCss(file);
+  const found = [];
+  for (const m of css.matchAll(/[{;]\s*([-\w]+)\s*:\s*([^;{}]*)/g)) {
+    if (m[1] !== property) continue;
+    const line = css.slice(0, m.index + m[0].indexOf(m[1])).split('\n').length;
+    found.push({ where: `${file}:${line}`, value: m[2].trim() });
+  }
+  return found;
+}
+
 test('outside the chart block and the token definitions, no colour literals', () => {
   const found = FILES.flatMap(literalsIn);
   assert.deepEqual(found, [], `colour literals left:\n${found.join('\n')}`);
@@ -398,4 +425,17 @@ test('--line-* tokens resolve per .theme-dark scope, and .theme-dark sets its te
     assert.ok(rule && /\.theme-dark/.test(rule[1]), `${k} is declared in a rule that includes .theme-dark`);
   }
   assert.match(block, /\.theme-dark\s*\{\s*color:\s*var\(--text\);/);
+});
+
+test('font-family uses font tokens only (outside tokens, chart graphics and print)', () => {
+  const found = FILES.flatMap((f) => declsIn(f, 'font-family').filter((d) => !/^(var\(--font-[\w-]+\)|inherit)$/.test(d.value)));
+  assert.deepEqual(found.map((d) => d.where), []);
+});
+
+test('the root layout loads Atkinson Hyperlegible Next through next/font', () => {
+  const src = read('app/layout.tsx');
+  assert.match(src, /Atkinson_Hyperlegible_Next\s*\(/);
+  assert.match(src, /variable:\s*"--font-atkinson"/);
+  assert.match(src, /className=\{atkinson\.variable\}/);
+  assert.doesNotMatch(src, /fonts\.googleapis\.com/);
 });
