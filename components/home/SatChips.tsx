@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import ChipView from "@/components/ui/Chip";
 
 export interface Chip {
@@ -22,9 +23,29 @@ interface Props {
 // One chip per followed satellite, laid over the top of the map. The strip
 // scrolls sideways inside itself, never the page.
 export default function SatChips({ chips, focusId, onFocus, onToggleHidden }: Props) {
+  // Which ends have chips scrolled out of sight ("start", "end"), for the fade.
+  const ref = useRef<HTMLUListElement>(null);
+  const [more, setMore] = useState("");
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => {
+      const start = el.scrollLeft > 1;
+      const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+      setMore([start && "start", end && "end"].filter(Boolean).join(" "));
+    };
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(check) : null;
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", check);
+      ro?.disconnect();
+    };
+  }, [chips.length]);
   if (chips.length === 0) return null;
   return (
-    <ul className="sat-chips" aria-label="Followed satellites">
+    <ul className="sat-chips" aria-label="Followed satellites" ref={ref} data-more={more || undefined}>
       {chips.map((c) => {
         const focused = c.noradId === focusId;
         return (
