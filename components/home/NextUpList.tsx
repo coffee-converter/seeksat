@@ -283,7 +283,14 @@ function PassCard({
             <Button size="sm" title="Add to calendar" onClick={addToCalendar}>
               <span aria-hidden="true">📅</span> Calendar
             </Button>
-            <AlertBell noradId={card.noradId} name={track.shortName} pass={pass} url={() => `/sat/${card.noradId}`} />
+            <AlertBell
+              noradId={card.noradId}
+              name={track.shortName}
+              pass={pass}
+              // A pasted satellite has no page: its reminder opens it on home,
+              // where this device keeps its elements.
+              url={() => (track.record?.source === "pasted" ? `/?focus=${card.noradId}` : `/sat/${card.noradId}`)}
+            />
             <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
           </Disclosure>
         </div>
