@@ -565,13 +565,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       {chartModals}
 
       <AboutSection />
-
-      <footer className="home-footer">
-        <span>
-          built by{" "}
-          <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
-        </span>
-      </footer>
     </>
   );
 }
