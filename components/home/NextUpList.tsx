@@ -235,7 +235,7 @@ function PassCard({
         <PassPath pass={pass} mode={mode} minElevDeg={minElevDeg} timeZone={observer.tz} />
       </PassStats>
       <div className="pass-card__body">
-        {!visual && <RadioPanel track={track} observer={observer} pass={pass} nowMs={nowMs} banded={banded} />}
+        {!visual && <RadioPanel track={track} observer={observer} pass={pass} nowMs={nowMs} banded={banded} onMore={onRadioChart} />}
         {hasMeta && (
           <p className="pass-card__meta">
             {/* Every pass listed in visual mode is visible, so only radio says so. */}

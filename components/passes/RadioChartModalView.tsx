@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Modal from "@/components/ui/Modal";
+import { BANDS, bandOf } from "@/lib/radio/bands.mjs";
+import { uplinkText } from "@/lib/radio/uplink.mjs";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
 import StatTile from "@/components/ui/StatTile";
@@ -16,6 +18,21 @@ import { type ChartRenderResult } from "./SkyChartModalView";
 
 /** A painted radio chart, plus the series and chart options it was painted
  *  from, so the phone layout can draw its own view without recomputing. */
+type PickerLink = { hz: number; label: string; mode?: string | null; uplink?: { hz: number; highHz?: number; mode?: string; tone?: number; invert?: boolean } | null };
+const bandList = BANDS as ReadonlyArray<{ id: string; label: string }>;
+const band = bandOf as (hz: number) => string;
+const upText = uplinkText as (u: PickerLink["uplink"]) => string | null;
+
+/** The picker's options: one per frequency (SatNOGS can list two modes on
+ *  one), grouped by band in frequency order. An arrow marks one with an uplink. */
+function pickerGroups(links: ReadonlyArray<PickerLink>) {
+  const seen = new Set<number>();
+  const unique = [...links].sort((a, b) => a.hz - b.hz).filter((d) => !seen.has(d.hz) && !!seen.add(d.hz));
+  return bandList
+    .map((b) => ({ band: b.id, label: b.label, links: unique.filter((d) => band(d.hz) === b.id) }))
+    .filter((g) => g.links.length > 0);
+}
+
 export interface RadioRenderResult extends ChartRenderResult {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   series?: any;
@@ -57,7 +74,7 @@ export interface RadioChartModalViewProps {
   /** The selected downlink frequency, or null for none. */
   freqHz: number | null;
   /** Known downlinks for the frequency picker. */
-  downlinks: ReadonlyArray<{ hz: number; label: string }>;
+  downlinks: ReadonlyArray<PickerLink>;
   onFreqChange: (hz: number | null) => void;
   onClose: () => void;
   /** Copy button behaviour; defaults to rasterizing the SVG to the
@@ -285,10 +302,14 @@ export default function RadioChartModalView({
                   onChange={(ev) => onFreqChange(ev.target.value ? Number(ev.target.value) : null)}
                 >
                   {downlinks.length === 0 && !freqHz && <option value="">no known downlink</option>}
-                  {downlinks.map((d) => (
-                    <option key={d.hz} value={d.hz}>
-                      {(d.hz / 1e6).toFixed(3)} MHz — {d.label}
-                    </option>
+                  {pickerGroups(downlinks).map((g) => (
+                    <optgroup key={g.band} label={g.label}>
+                      {g.links.map((d) => (
+                        <option key={d.hz} value={d.hz}>
+                          {`${(d.hz / 1e6).toFixed(3)}${d.mode ? ` ${d.mode.toUpperCase()}` : ""}${d.uplink ? " \u2191" : ""} \u2014 ${d.label}`}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                   {/* A freeform frequency (from the input below) that isn't in the
                       catalog matches no <option> above - without this the menu
@@ -319,6 +340,12 @@ export default function RadioChartModalView({
               </Field>
               <span aria-hidden="true">MHz</span>
             </div>
+            {(() => {
+              // The chosen frequency's uplink: what to transmit on, with its tone.
+              const up = downlinks.find((d) => d.hz === freqHz)?.uplink;
+              const text = up ? upText(up) : null;
+              return text ? <p className="chart-modal__uplink">{text.replace(/^Uplink/, "Transmit")}</p> : null;
+            })()}
             {extraControls}
           </>
         )}
