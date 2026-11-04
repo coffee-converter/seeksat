@@ -300,20 +300,6 @@
   .live-clock__dot { animation: none; }
 }
 
-.home-footer {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--sp-8);
-  margin-top: auto;
-  padding: var(--sp-12) var(--sp-2) 0;
-  border-top: var(--line-subtle);
-  color: var(--map-muted);
-  font-size: var(--fs-sm);
-}
-.home-footer a { color: var(--map-muted); text-decoration: underline; text-underline-offset: 2px; }
-.home-footer a:hover,
-.home-footer a:focus-visible { color: var(--map-accent); }
 /* ClockSkewBanner's look, scoped to the home screen and the map shell. */
 .home .clock-skew-banner,
 .map-shell .clock-skew-banner {

@@ -445,13 +445,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       <Downlinks downlinks={data.downlinks} />
       <RawElements raw={data.raw} />
       {usable ? <HowWeCompute /> : null}
-
-      <footer className="home-footer">
-        <span>
-          built by{" "}
-          <a href="https://aaronhanson.dev" target="_blank" rel="noopener">aaronhanson.dev</a>
-        </span>
-      </footer>
     </>
   );
 }
