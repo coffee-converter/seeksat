@@ -62,3 +62,13 @@ test('fetchTransmitters asks SatNOGS DB once, identifies itself, and rejects a f
   await assert.rejects(fetchTransmitters({ fetchImpl: async () => new Response('busy', { status: 503 }) }), /503/);
   await assert.rejects(fetchTransmitters({ fetchImpl: async () => new Response('{"a":1}', { status: 200 }) }), /not a list/);
 });
+
+test('a repeater keeps its uplink, mode, inversion and tone', () => {
+  const out = downlinksFromTransmitters([
+    tx({ norad_cat_id: 27607, type: 'Transceiver', description: 'Mode V/U FM Voice CTCSS 67.0 Hz', downlink_low: 436_795_000, uplink_low: 145_850_000, uplink_mode: 'FM' }),
+    tx({ norad_cat_id: 44909, type: 'Transponder', description: 'Linear', downlink_low: 435_610_000, downlink_high: 435_670_000, uplink_low: 145_935_000, uplink_high: 145_995_000, uplink_mode: 'LSB', invert: true, mode: 'USB' }),
+  ]);
+  assert.deepEqual(out['27607'][0].uplink, { hz: 145_850_000, mode: 'fm', tone: 67 });
+  assert.deepEqual(out['44909'][0].uplink, { hz: 145_935_000, highHz: 145_995_000, mode: 'lsb', invert: true });
+  assert.equal(downlinksFromTransmitters([tx({})])['25544'][0].uplink, undefined);
+});
