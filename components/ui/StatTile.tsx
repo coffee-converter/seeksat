@@ -7,7 +7,7 @@ export interface StatTileProps {
   value: string;
   unit?: string;
   note?: string;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
   /** Makes the whole tile a link (an in-page anchor such as "#passes"). */
   href?: string;
   className?: string;
@@ -16,7 +16,7 @@ export interface StatTileProps {
 /** One dashboard number: a small label, the value large, a short note. */
 export default function StatTile({ label, value, unit, note, size = "md", href, className }: StatTileProps) {
   const flash = useFlash(value);
-  const cls = ["stat-tile", size === "lg" ? "stat-tile--lg" : "", className ?? ""].filter(Boolean).join(" ");
+  const cls = ["stat-tile", size !== "md" ? `stat-tile--${size}` : "", className ?? ""].filter(Boolean).join(" ");
   const body = (
     <>
       <span className="stat-tile__label">{label}</span>

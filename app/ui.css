@@ -206,6 +206,11 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
   .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
 }
+/* sm: a compact bordered tile for a summary row (the radio chart on
+   phones). After the phone rules, so it stays compact there. */
+.stat-tile--sm { gap: var(--sp-2); padding: var(--sp-6) var(--sp-8); border: var(--line-subtle); border-radius: var(--radius-md); }
+.stat-tile--sm .stat-tile__label { font-size: var(--fs-xs); }
+.stat-tile--sm .stat-tile__value { font-size: var(--fs-lg); }
 
 /* Modal: a centred frame over a backdrop ("dialog"), or the whole screen
    ("full"). tone="dark" adds .theme-dark, so the tokens below turn dark. */
@@ -250,9 +255,14 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   padding: var(--sp-6) var(--sp-4);
   border-bottom: var(--line-subtle);
 }
+/* hideTitle: the actions fill the row from the left, Close at the far right. */
+.modal__head--bare .modal__actions { flex: 1 1 auto; margin-left: 0; }
+.modal__head--bare .modal__actions > :last-child { margin-left: auto; }
 .modal__title { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-strong); }
 .modal__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6); margin-left: auto; }
 .modal__body { min-height: 0; overflow-y: auto; }
+/* wide: a chart wider than tall; phones keep the 96vw below. */
+.modal__panel--wide { max-width: 98vw; }
 @media (max-width: 600px) {
   .modal__panel { max-width: 96vw; padding: var(--sp-8) var(--sp-12); }
 }
@@ -288,8 +298,8 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   border: 0;
 }
 
-/* Field: label above the control, hint and error below. The control keeps
-   16px (--fs-input) so iOS does not zoom on focus. */
+/* Field: label above the control, hint and error below. The control is
+   13px, and 16px (--fs-input) on touch so iOS does not zoom on focus. */
 .field { display: flex; flex-direction: column; gap: var(--sp-4); }
 .field__label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
 .field__control {
@@ -301,7 +311,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   border: var(--line-input);
   border-radius: var(--radius-md);
   font: inherit;
-  font-size: var(--fs-input);
+  font-size: var(--fs-md);
 }
 /* A select draws its own chevron, so it matches in every browser: two 5px
    triangles from crossed gradients meet in a "v" 10-15px from the right
@@ -325,8 +335,9 @@ select.field__control {
 .field__error { margin: 0; font-size: var(--fs-sm); line-height: 1.4; }
 .field__hint { color: var(--map-muted); }
 .field__error { color: var(--danger); }
+/* Touch: 16px (--fs-input), so iOS does not zoom on focus. */
 @media (pointer: coarse) {
-  .field__control { min-height: 44px; }
+  .field__control { min-height: 44px; font-size: var(--fs-input); }
 }
 
 /* Surface: the card look. */

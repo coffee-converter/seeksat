@@ -675,9 +675,7 @@
 /* chart-block:end */
 
 /* Chart dialogs (SkyChartModalView, RadioChartModalView): an always-dark
-   library Modal (tone="dark") around the painted PNG. The radio chart is
-   wider than tall, so its panel may take the full width. */
-.modal__panel:has(.chart-modal--radio) { max-width: 98vw; }
+   library Modal (tone="dark") around the painted PNG. */
 .chart-modal { display: flex; flex-direction: column; align-items: center; }
 .chart-modal--radio { align-items: stretch; }
 .chart-modal__img { display: block; width: auto; height: auto; border-radius: var(--radius-md); user-select: none; }
@@ -721,12 +719,7 @@
 }
 .radio-phone__title { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); color: var(--text-strong); }
 .radio-phone__sub { margin: calc(-1 * var(--sp-6)) 0 0; font-size: var(--fs-sm); color: var(--muted); }
-/* One panel split by hairlines, as the satellite page's live tiles. */
-.radio-phone__tiles {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; /* nudge */
-  background: var(--border); border: var(--line-subtle); border-radius: var(--radius-lg); overflow: hidden;
-}
-.radio-phone__tiles > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.radio-phone__tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6); }
 .radio-tune {
   width: 100%; border-collapse: collapse;
   font-size: var(--fs-md); font-variant-numeric: tabular-nums;

@@ -23,12 +23,6 @@ export interface RadioRenderResult extends ChartRenderResult {
   meta?: any;
 }
 
-/** "12.34 kHz" -> value "12.34", unit "kHz"; "45°" stays whole. */
-function splitUnit(text: string): { value: string; unit?: string } {
-  const at = text.lastIndexOf(" ");
-  return at > 0 ? { value: text.slice(0, at), unit: text.slice(at + 1) } : { value: text };
-}
-
 /** Phones get a phone-width chart with HTML tiles instead of the shrunken
  *  desktop image. Matches the modal's own 600 px breakpoint in home.css. */
 const PHONE_QUERY = "(max-width: 600px)";
@@ -189,12 +183,40 @@ export default function RadioChartModalView({
     };
   }, [detail]);
 
+  useEffect(() => {
+    if (!open || visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      onCloseRef.current();
+    };
+  // Until the chart is painted the Modal is not open yet, so Esc is handled
+  // here: it closes, and the page behind (focus on the map) leaves it alone.
+  // Capture, so the page's own Esc listeners see it as handled.
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [open, visible]);
+
+  // "Copied!" reverts after a moment; the timer goes when the dialog closes.
+  const copyTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (open) return;
+    if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = null;
+    setCopyStatus("idle");
+  }, [open]);
+  useEffect(() => () => {
+    if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current);
+  }, []);
+
   const onCopy = async () => {
     if (!svgRef.current) return;
     try {
       await copy(svgRef.current);
       setCopyStatus("copied");
-      window.setTimeout(() => setCopyStatus("idle"), 1400);
+      if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => setCopyStatus("idle"), 1400);
     } catch (e) {
       console.warn("Copy failed:", e);
     }
@@ -234,6 +256,8 @@ export default function RadioChartModalView({
         open={visible}
         onClose={onClose}
         title={title}
+        hideTitle
+        wide
         tone="dark"
         actions={(
           <>
@@ -306,7 +330,7 @@ export default function RadioChartModalView({
               </p>
               <div className="radio-phone__tiles">
                 {phone.tiles.map((t) => (
-                  <StatTile key={t.label} label={t.label} {...splitUnit(t.value)} />
+                  <StatTile key={t.label} size="sm" label={t.label} value={t.value} />
                 ))}
               </div>
               {phone.rows.length > 0 && (

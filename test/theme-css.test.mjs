@@ -501,3 +501,44 @@ test('padding, margin and gap use spacing tokens', () => {
   const found = FILES.flatMap((f) => SPACE_PROPS.flatMap((p) => declsIn(f, p)).filter((d) => !ok(d)));
   assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
 });
+
+// --- Task 9 review (R15-R17) ----------------------------------------------
+
+test('an always-dark dialog panel takes the chart canvas colour', () => {
+  const ui = stripComments(read('app/ui.css'));
+  assert.match(ui, /\.theme-dark\s*>\s*\.modal__panel\s*\{[^}]*background:\s*var\(--modal-dark-bg\);/);
+  assert.ok(THEMES.dark['--modal-dark-bg'], '--modal-dark-bg is a dark token');
+});
+
+test('the radio dialog is wide and untitled through Modal props, not :has()', () => {
+  const src = read('components/passes/RadioChartModalView.tsx');
+  assert.match(src, /<Modal\b[^>]*\bwide\b/);
+  assert.match(src, /<Modal\b[^>]*\bhideTitle\b/);
+  assert.doesNotMatch(read('app/home.css'), /:has\(\.chart-modal/);
+  const modal = read('components/ui/Modal.tsx');
+  assert.match(modal, /hideTitle\?: boolean/);
+  assert.match(modal, /wide\?: boolean/);
+  assert.match(stripComments(read('app/ui.css')), /\.modal__panel--wide\s*\{[^}]*max-width:\s*98vw;/);
+});
+
+test('the radio phone tiles are small StatTiles', () => {
+  assert.match(read('components/ui/StatTile.tsx'), /size\?: "sm" \| "md" \| "lg"/);
+  assert.match(read('components/passes/RadioChartModalView.tsx'), /<StatTile\b[^>]*size="sm"/);
+  const ui = stripComments(read('app/ui.css'));
+  assert.match(ui, /\.stat-tile--sm \.stat-tile__value\s*\{[^}]*font-size:\s*var\(--fs-lg\);/);
+});
+
+test('fields are 13px with a fine pointer and 16px with a coarse one', () => {
+  const ui = stripComments(read('app/ui.css'));
+  assert.match(ui, /\.field__control\s*\{[^}]*font-size:\s*var\(--fs-md\);/);
+  assert.match(ui, /@media \(pointer: coarse\)\s*\{[^@]*\.field__control\s*\{[^}]*font-size:\s*var\(--fs-input\);/);
+});
+
+test('Esc before a chart has painted closes it, before the page sees it', () => {
+  for (const f of ['components/passes/SkyChartModalView.tsx', 'components/passes/RadioChartModalView.tsx']) {
+    const src = read(f);
+    assert.match(src, /if \(!open \|\| visible\) return;/, f);
+    assert.match(src, /e\.stopPropagation\(\)/, f);
+    assert.match(src, /addEventListener\("keydown", onKey, \{ capture: true \}\)/, f);
+  }
+});

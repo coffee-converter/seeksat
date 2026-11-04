@@ -97,13 +97,44 @@ export default function SkyChartModalView({
   }, [open, render, subjectKey]);
 
   const visible = open && renderedKey === subjectKey;
+  // Read through a ref so a caller's inline onClose doesn't re-run the effect below.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  useEffect(() => {
+    if (!open || visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      onCloseRef.current();
+    };
+  // Until the chart is painted the Modal is not open yet, so Esc is handled
+  // here: it closes, and the page behind (focus on the map) leaves it alone.
+  // Capture, so the page's own Esc listeners see it as handled.
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [open, visible]);
+
+  // "Copied!" reverts after a moment; the timer goes when the dialog closes.
+  const copyTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (open) return;
+    if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = null;
+    setCopyStatus("idle");
+  }, [open]);
+  useEffect(() => () => {
+    if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current);
+  }, []);
 
   const onCopy = async () => {
     if (!svgRef.current) return;
     try {
       await copy(svgRef.current);
       setCopyStatus("copied");
-      window.setTimeout(() => setCopyStatus("idle"), 1400);
+      if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => setCopyStatus("idle"), 1400);
     } catch (e) {
       console.warn("Copy failed:", e);
     }
