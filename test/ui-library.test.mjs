@@ -98,7 +98,8 @@ function liveCss(file) {
   return blankPrint(css);
 }
 
-const SCREEN_CSS = ['app/home.css', 'app/sat.css', 'app/globals.css'];
+// The design page's stylesheet is layout only: it places library parts, never restyles them.
+const SCREEN_CSS = ['app/home.css', 'app/sat.css', 'app/globals.css', 'app/design-27b284ec240e9ac9/bible.css'];
 
 /** Selectors that style a control by its tag, as "file:line  selector". */
 function tagSelectors() {

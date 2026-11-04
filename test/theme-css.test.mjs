@@ -7,7 +7,7 @@ import { mapCssVars } from '../lib/ui/map-tokens.mjs';
 // chart block: the sky chart, radio chart and pass-card polar plots keep their
 // literal dark colours in both themes.
 
-const FILES = ['app/globals.css', 'app/home.css', 'app/sat.css', 'app/mcp/mcp.css', 'app/ui.css'];
+const FILES = ['app/globals.css', 'app/home.css', 'app/sat.css', 'app/mcp/mcp.css', 'app/ui.css', 'app/design-27b284ec240e9ac9/bible.css'];
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 const TOKENS_BEGIN = '/* theme-tokens:begin */';

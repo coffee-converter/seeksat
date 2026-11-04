@@ -108,6 +108,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // The design bible reference page: unlisted, kept out of search
+        // (its metadata also sets robots noindex, nofollow).
+        source: "/design-27b284ec240e9ac9",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
         // robots.txt + sitemap.xml - short cache so crawler updates
         // pick up quickly.
         source: "/(robots.txt|sitemap.xml)",
