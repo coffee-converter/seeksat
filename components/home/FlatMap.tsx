@@ -193,6 +193,10 @@ const PRESETS: { id: Preset; label: string }[] = [
 const ZOOM_EPS = 0.01;
 /** How long a Lock on zoom (buttons, keys, double-click, wheel) eases. */
 const LOCK_ZOOM_MS = 250;
+/** How long turning Lock on eases to the satellite before following it. */
+const LOCK_EASE_MS = 600;
+/** Lock on starts with an ease only when the satellite is this far (px) off centre. */
+const LOCK_EASE_PX = 4;
 /** Not following, the focus moves every frame only when it moves more than
  *  this (px) per DOT_MS; slower, the DOT_MS tick places it. */
 const FRAME_PX = 1;
@@ -280,6 +284,9 @@ export default function FlatMap({
   // True while the camera is the home view (not moved by hand since), so a
   // resize or a new observer refits it.
   const atHome = useRef(true);
+  // True once the map has first drawn: home refits after that ease (a new
+  // location, a hidden dot); before it, they jump into the first frame.
+  const settled = useRef(false);
   // Docked beside the panel the page never scrolls, so the map owns wheel and drag.
   const docked = useRef(false);
   // Entering a focus moves once to centre it (the effect near the end).
@@ -377,6 +384,11 @@ export default function FlatMap({
     if (reducedMotion()) map.jumpTo(cam);
     else map.easeTo(cam);
   }, []);
+  /** Refit an untouched home view: eased once the map is on screen, a jump before. */
+  const refitHome = useCallback((map: MlMap) => {
+    if (settled.current) moveTo(map, homeView(map));
+    else map.jumpTo(homeView(map));
+  }, [moveTo, homeView]);
   /** While following, the wheel, double-click and +/- keys are ours (the
    *  handlers in the map effect, eased in the frame loop's jump) and pinch
    *  zooms about the centre (the satellite); otherwise MapLibre's zoom about
@@ -695,6 +707,7 @@ export default function FlatMap({
       // drag, which cooperative gestures never send on a phone. Fold it once the
       // map has drawn, as its info button does; that button still opens it.
       map.once("idle", () => {
+        settled.current = true;
         const attrib = map.getContainer().querySelector(".maplibregl-ctrl-attrib.maplibregl-compact-show");
         if (!attrib) return;
         attrib.classList.remove("maplibregl-compact-show");
@@ -911,12 +924,26 @@ export default function FlatMap({
     syncGestures();
   }, [full, syncGestures]);
   // Lock on keeps zooms about the satellite; off, they follow the pointer again.
+  // Turned on from the focus bar, it first eases to where the satellite will
+  // be when the ease ends, then the frame loop's jumps take over (they wait
+  // for the ease). The Satellite GP preset is already easing there.
   useEffect(() => {
     if (!followOn) zoomGoal.current = null;
     const map = mapRef.current;
     if (map) syncZoomAround(map, followOn);
+    if (map && followOn && !map.isMoving() && !reducedMotion()) {
+      const f = liveFocus(latest.current.sats, trueNow() + LOCK_EASE_MS);
+      if (f) {
+        const c = map.project(map.getCenter());
+        const p = map.project([f.lonDeg, f.latDeg]);
+        if (Math.hypot(p.x - c.x, p.y - c.y) > LOCK_EASE_PX) {
+          atHome.current = false;
+          map.easeTo({ center: [f.lonDeg, f.latDeg], duration: LOCK_EASE_MS });
+        }
+      }
+    }
     frames.current?.wake();
-  }, [followOn, syncZoomAround]);
+  }, [followOn, syncZoomAround, liveFocus]);
 
   const toggleFull = useCallback(() => {
     const shell = shellRef.current;
@@ -998,15 +1025,15 @@ export default function FlatMap({
   const obsLat = observer?.latDeg ?? null;
   useEffect(() => {
     const map = mapRef.current;
-    if (map && atHome.current) map.jumpTo(homeView(map));
-  }, [obsLon, obsLat, homeView]);
+    if (map && atHome.current) refitHome(map);
+  }, [obsLon, obsLat, refitHome]);
   // An untouched flat home view refits when the dots first arrive or the set
   // shown changes, so they are in view; not on every tick as they move.
   const dotsKey = sats.filter((s) => s.emphasis !== "hidden").map((s) => s.noradId).join(",");
   useEffect(() => {
     const map = mapRef.current;
-    if (map && atHome.current && view === "flat") map.jumpTo(homeView(map));
-  }, [dotsKey, view, homeView]);
+    if (map && atHome.current && view === "flat") refitHome(map);
+  }, [dotsKey, view, refitHome]);
 
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
