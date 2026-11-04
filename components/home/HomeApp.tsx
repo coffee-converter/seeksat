@@ -31,6 +31,7 @@ import { useClouds } from "@/lib/sky/use-clouds";
 import { passCloud } from "@/components/passes/CloudBadge";
 import { visualRating } from "@/components/passes/QualityBadge";
 import AboutSection from "./AboutSection";
+import SiteFooter from "./SiteFooter";
 import { usePublishMapScene } from "@/lib/map/scene-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import Button from "@/components/ui/Button";
@@ -573,6 +574,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       {chartModals}
 
       <AboutSection />
+      <SiteFooter />
     </>
   );
 }

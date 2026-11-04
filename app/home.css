@@ -321,6 +321,14 @@
   .live-clock__dot { animation: none; }
 }
 
+/* The foot of the home and satellite pages: one quiet line. */
+.home-footer {
+  margin-top: auto;
+  padding: var(--sp-12) var(--sp-2) 0;
+  border-top: var(--line-subtle);
+  color: var(--map-muted);
+  font-size: var(--fs-sm);
+}
 /* ClockSkewBanner's look, scoped to the home screen and the map shell. */
 .home .clock-skew-banner,
 .map-shell .clock-skew-banner {

@@ -9,6 +9,7 @@ import { mapTokenCss } from "@/lib/ui/map-tokens.mjs";
 import { chartTokenCss } from "@/lib/ui/chart-tokens.mjs";
 import ThemeSync from "@/components/ThemeSync";
 import SwRegister from "@/components/SwRegister";
+import ErrorReporter from "@/components/ErrorReporter";
 import "./globals.css";
 import "./ui.css";
 // Atkinson Hyperlegible Next, variable (wght 200-800), committed under
@@ -167,6 +168,7 @@ export default function RootLayout({
       <body>
         <ThemeSync />
         <SwRegister />
+        <ErrorReporter />
         {children}
         {/* Vercel Web Analytics (page views, top pages, referrers)
             and Speed Insights (Core Web Vitals from real visitors).
