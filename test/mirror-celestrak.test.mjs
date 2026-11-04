@@ -30,7 +30,7 @@ test('fetchGroup sends User-Agent, refuses redirects, returns normalized array',
   assert.equal(out.length, 1);
   assert.equal(out[0].NORAD_CAT_ID, 25544);
   assert.equal(seen.url, groupUrl('active'));
-  assert.equal(seen.o.headers['User-Agent'], 'seeksat/1.0 (https://seeksat.app)');
+  assert.equal(seen.o.headers['User-Agent'], 'seeksat/1.0 (https://seeksat.com)');
   assert.equal(seen.o.redirect, 'manual');
 });
 

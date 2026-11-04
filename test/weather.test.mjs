@@ -70,7 +70,7 @@ test('fetchCloudForecast: upstream calls carry User-Agent and a timeout signal',
   }, () => fetchCloudForecast(10.01, 20.01));
   assert.equal(calls.length, 2);
   for (const c of calls) {
-    assert.equal(c.opts.headers['User-Agent'], 'seeksat/1.0 (https://seeksat.app)');
+    assert.equal(c.opts.headers['User-Agent'], 'seeksat/1.0 (https://seeksat.com)');
     assert.ok(c.opts.signal instanceof AbortSignal);
   }
 });
