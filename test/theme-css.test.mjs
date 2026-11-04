@@ -457,3 +457,15 @@ test('ticking readouts use the numeric class', () => {
     if (existsSync(new URL(`../${f}`, import.meta.url))) assert.match(read(f), /\bnum\b/, f);
   }
 });
+
+test('radius, transition and drop shadow use tokens', () => {
+  const radiusOk = (v) => v.split(/\s+/).every((p) => /^var\(--radius-[\w-]+\)$/.test(p) || p === '0' || p === '50%');
+  const transOk = (v) => v === 'none' || v.split(',').every((p) => /var\(--dur-\w+\)/.test(p) && /var\(--ease\)/.test(p));
+  const shadowOk = (v) => v === 'none' || /^var\(--shadow-(popover|modal)\)$/.test(v) || /^(inset |0 0 0 )/.test(v);
+  const found = FILES.flatMap((f) => [
+    ...declsIn(f, 'border-radius').filter((d) => !radiusOk(d.value)),
+    ...declsIn(f, 'transition').filter((d) => !transOk(d.value)),
+    ...declsIn(f, 'box-shadow').filter((d) => !shadowOk(d.value.replace(/\s*!important$/, ''))),
+  ]);
+  assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
+});

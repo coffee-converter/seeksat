@@ -3,7 +3,7 @@
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; margin-top: 6px; }
 .sat-age { line-height: 1.6; }
 .sat-age__how { margin-left: 8px; font-size: var(--fs-sm); white-space: nowrap; }
-.sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: var(--fs-sm); }
+.sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: var(--radius-lg); font-size: var(--fs-sm); }
 .sat-badge--old { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
 .sat-badge--stale { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
 .sat-how { display: block; margin-top: 2px; color: var(--map-muted); font-size: var(--fs-sm); line-height: 1.4; }
@@ -17,7 +17,7 @@ p.sat-how { margin: 0 0 8px; }
 .sat-raw-head h3 { margin: 0; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-raw pre {
   margin: 6px 0 0; padding: 8px; max-width: 100%; overflow-x: auto;
-  background: var(--code-bg); border: 0; border-radius: 8px;
+  background: var(--code-bg); border: 0; border-radius: var(--radius-lg);
   font-size: var(--fs-sm); user-select: text;
 }
 .sat-passes { margin-bottom: 0; }
@@ -58,16 +58,16 @@ p.sat-how { margin: 0 0 8px; }
 .sat-observers { margin: 12px 0; }
 .sat-observers__title { margin: 0 0 4px; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-observers__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.sat-observers__item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--map-border); border-radius: 999px; }
+.sat-observers__item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--map-border); border-radius: var(--radius-full); }
 .sat-shared {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
-  margin: 10px 0; padding: 10px 12px; border-radius: 8px;
+  margin: 10px 0; padding: 10px 12px; border-radius: var(--radius-lg);
   background: var(--map-footprint); border: 1px solid var(--map-accent);
 }
 .sat-shared__text { margin: 0; color: var(--map-text); line-height: 1.5; }
 .sat-shared-past { margin: 0 0 8px; }
 .sat-pass.pass-row--shared {
-  padding: 8px; border-radius: 6px;
+  padding: 8px; border-radius: var(--radius-md);
   background: var(--map-footprint); box-shadow: inset 3px 0 0 var(--map-accent);
 }
 
@@ -108,7 +108,7 @@ p.sat-how { margin: 0 0 8px; }
 .sat-next {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
   margin-top: 6px; padding: 6px 12px;
-  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: 10px;
+  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: var(--radius-lg);
 }
 .sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .sat-next__text { margin: 0; line-height: 1.4; font-variant-numeric: tabular-nums; }
@@ -123,7 +123,7 @@ p.sat-how { margin: 0 0 8px; }
 .sat-live__summary {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   min-height: 40px; padding: 0 14px;
-  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: 10px;
+  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: var(--radius-lg);
   color: var(--text-heading); font-size: var(--fs-md); font-weight: var(--fw-semibold);
   cursor: pointer; list-style: none;
 }
@@ -147,7 +147,7 @@ p.sat-how { margin: 0 0 8px; }
    widens so every row fills. */
 .sat-dash {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
-  background: var(--map-border); border: 1px solid var(--map-border); border-radius: 10px; overflow: hidden;
+  background: var(--map-border); border: 1px solid var(--map-border); border-radius: var(--radius-lg); overflow: hidden;
 }
 .sat-dash .stat-tile--wide { grid-column: 1 / -1; }
 @media (max-width: 479.98px) {
@@ -176,7 +176,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15;
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
 }
-.stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: 4px; }
+.stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: var(--radius-sm); }
 .stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: var(--fw-medium); letter-spacing: 0; }
 .stat-tile__note { color: var(--map-muted); font-size: var(--fs-xs); line-height: 1.35; }
 .stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: var(--fs-hero); white-space: normal; text-wrap: balance; }
@@ -189,8 +189,8 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .sat-formula {
   padding: 1px 6px;
   background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: var(--line-subtle);
+  border-radius: var(--radius-md);
   color: var(--text-code);
   font-family: var(--font-num);
   font-size: 0.9em;
