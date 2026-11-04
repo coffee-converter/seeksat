@@ -65,3 +65,30 @@ test("selectPass ignores an absurd/out-of-range passTimeMs and falls back", () =
     assert.ok(res.maxAlt > 0);               // rendered a real pass instead
   }
 });
+
+// A GPS-like orbit (12 h period, 55 deg): passes last hours.
+const GPS_TLE = {
+  name: "GPS TEST",
+  line1: "1 24876U 97035A   26060.50000000  .00000010  00000-0  00000+0 0  9001",
+  line2: "2 24876  55.5000 100.0000 0050000  50.0000 310.0000  2.00560000 10001",
+};
+
+test("walkOptsForRecord: LEO keeps the short walk, a 12 h orbit walks up to its period", async () => {
+  const { walkOptsForRecord } = await import("../../lib/og/tle.mjs");
+  assert.equal(walkOptsForRecord(ISS_TLE).maxEdgeMs, 15 * 60 * 1000);
+  const gps = walkOptsForRecord(GPS_TLE);
+  assert.ok(Math.abs(gps.maxEdgeMs - 86_400_000 / 2.0056) < 1000);
+});
+
+test("selectPass charts the whole of an hours-long pass, not 30 minutes of it", async () => {
+  const { walkOptsForRecord } = await import("../../lib/og/tle.mjs");
+  const ecefAt = ecefAtFactory(GPS_TLE);
+  const obs = { name: "Chicago", latDeg: 41.8781, lonDeg: -87.6298 };
+  const epochMs = Date.UTC(2026, 2, 1, 12);
+  let t = epochMs;
+  while (satAltAzDeg(obs, ecefAt(new Date(t))).alt < 30 && t < epochMs + 86_400_000) t += 5 * 60_000;
+  assert.ok(t < epochMs + 86_400_000, "no high pass found in a day");
+  const sel = selectPass({ observers: [obs], passTimeMs: t, mode: "radio", minElevDeg: 10 }, ecefAt,
+    { nowMs: epochMs, walk: walkOptsForRecord(GPS_TLE) });
+  assert.ok(sel.win.endMs - sel.win.startMs > 2 * 3_600_000, `window ${(sel.win.endMs - sel.win.startMs) / 60000} min`);
+});
