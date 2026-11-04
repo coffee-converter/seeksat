@@ -334,7 +334,8 @@
   color: var(--map-text);
   border: 1px solid var(--input-border);
   border-radius: 6px;
-  font: 16px ui-monospace, monospace;
+  font-family: var(--font-code);
+  font-size: 16px;
 }
 .search-bar__paste .search-bar__button { align-self: flex-start; }
 .search-bar__error { margin: 0; color: var(--danger-text); }

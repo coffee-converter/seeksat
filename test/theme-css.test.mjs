@@ -408,7 +408,7 @@ test('scale tokens exist with the spec values', () => {
     '--radius-sm': '4px', '--radius-md': '6px', '--radius-lg': '8px', '--radius-xl': '12px', '--radius-full': '999px',
     '--dur-fast': '120ms', '--dur-base': '200ms', '--dur-slow': '300ms' };
   for (const [k, v] of Object.entries(want)) assert.match(block, new RegExp(`${k}:\\s*${v};`), k);
-  for (const k of ['--font-sans', '--font-num', '--font-brand', '--fs-hero', '--lh-tight', '--lh-body', '--ease', '--line-subtle', '--line-control', '--line-input']) assert.ok(block.includes(`${k}:`), k);
+  for (const k of ['--font-sans', '--font-num', '--font-brand', '--font-code', '--fs-hero', '--lh-tight', '--lh-body', '--ease', '--line-subtle', '--line-control', '--line-input']) assert.ok(block.includes(`${k}:`), k);
   assert.match(block, /prefers-reduced-motion:\s*reduce[\s\S]*--dur-fast:\s*0ms/);
 });
 
@@ -428,8 +428,13 @@ test('--line-* tokens resolve per .theme-dark scope, and .theme-dark sets its te
 });
 
 test('font-family uses font tokens only (outside tokens, chart graphics and print)', () => {
-  const found = FILES.flatMap((f) => declsIn(f, 'font-family').filter((d) => !/^(var\(--font-[\w-]+\)|inherit)$/.test(d.value)));
+  const found = FILES.flatMap((f) => declsIn(f, 'font-family').filter((d) => !/^(var\(--font-(?:sans|num|brand|code)\)|inherit)$/.test(d.value)));
   assert.deepEqual(found.map((d) => d.where), []);
+});
+
+test('no font shorthand outside tokens, chart graphics and print (except inherit)', () => {
+  const found = FILES.flatMap((f) => declsIn(f, 'font').filter((d) => d.value !== 'inherit'));
+  assert.deepEqual(found.map((d) => `${d.where} ${d.value}`), []);
 });
 
 test('the root layout loads Atkinson Hyperlegible Next through next/font', () => {

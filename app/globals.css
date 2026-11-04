@@ -198,6 +198,7 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
   --font-sans: var(--font-atkinson), system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-num: var(--font-sans);
   --font-brand: 'Exo 2', system-ui, sans-serif;
+  --font-code: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --fs-xs: 11px; --fs-sm: 12px; --fs-md: 13px; --fs-lg: 15px; --fs-xl: 18px; --fs-2xl: 24px;
   --fs-hero: min(40px, 9cqi);
   --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
