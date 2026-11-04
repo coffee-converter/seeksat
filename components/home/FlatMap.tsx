@@ -182,7 +182,7 @@ const SHORT_TRACK_PX = 16;
 /** The globe camera buttons, in order. */
 const PRESETS: { id: Preset; label: string }[] = [
   { id: "you", label: "On you" },
-  { id: "sat", label: "On the satellite" },
+  { id: "sat", label: "Satellite GP" },
   { id: "north", label: "North pole" },
   { id: "south", label: "South pole" },
   { id: "night", label: "Night side" },
@@ -282,7 +282,7 @@ export default function FlatMap({
   const docked = useRef(false);
   // Entering a focus moves once to centre it (the effect near the end).
   const centreOn = useRef<number | null>(null);
-  // "On the satellite": the camera stays on the focus until a pan (zooms
+  // "Satellite GP": the camera stays on the focus until a pan (zooms
   // keep it), Reset view, another preset or a new focus stops it. A shared
   // store, so other controls can show and toggle it; the dot loop reads it
   // with getState.
@@ -1317,7 +1317,7 @@ export default function FlatMap({
       <div className="flat-map__zoom">
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>+</button>
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</button>
-        {/* On the globe, On you and On the satellite already do this. */}
+        {/* On the globe, On you and Satellite GP already do this. */}
         {view === "globe" ? null : (
           <button type="button" aria-label="Reset view" onClick={reset}>Reset view</button>
         )}
