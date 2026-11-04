@@ -201,7 +201,7 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
   --fs-input: 16px; /* form controls: iOS zooms anything smaller */
   --fs-hero: min(40px, 9cqi);
   --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
-  --lh-tight: 1.2; --lh-body: 1.5;
+  --lh-tight: 1.2; --lh-snug: 1.4; --lh-body: 1.5;
   --sp-2: 2px; --sp-4: 4px; --sp-6: 6px; --sp-8: 8px; --sp-12: 12px; --sp-16: 16px; --sp-24: 24px; --sp-32: 32px;
   --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px; --radius-full: 999px;
   --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms;
@@ -225,7 +225,7 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
    browsers without dvh support. */
 html, body { width: 100%; height: 100%; height: 100dvh; background: var(--bg); color: var(--text-plain);
   font-family: var(--font-sans);
-  font-size: var(--fs-md); line-height: 1.5; }
+  font-size: var(--fs-md); line-height: var(--lh-body); }
 /* chart-block:begin */
 /* The pass cards' polar plots (components/passes/PolarPlotSvg.tsx) keep
    these literal dark colours; app/home.css retints them in light theme

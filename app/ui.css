@@ -156,7 +156,7 @@
   border-radius: var(--radius-lg);
   color: var(--map-muted);
   font-size: var(--fs-sm);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   white-space: nowrap;
 }
 .badge--warn { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
@@ -208,12 +208,12 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-medium);
 }
 .stat-tile__value {
-  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15;
+  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight);
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
 }
 .stat-tile__num { margin: 0 calc(-1 * var(--sp-4)); padding: 0 var(--sp-4); border-radius: var(--radius-sm); }
 .stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: var(--fw-medium); letter-spacing: 0; }
-.stat-tile__note { color: var(--map-muted); font-size: var(--fs-xs); line-height: 1.35; }
+.stat-tile__note { color: var(--map-muted); font-size: var(--fs-xs); line-height: var(--lh-snug); }
 .stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: var(--fs-hero); white-space: normal; text-wrap: balance; }
 .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); white-space: normal; }
 
@@ -349,7 +349,7 @@ select.field__control {
 .field__control:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .field__control[aria-invalid="true"] { border-color: var(--danger); }
 .field__hint,
-.field__error { margin: 0; font-size: var(--fs-sm); line-height: 1.4; }
+.field__error { margin: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
 .field__hint { color: var(--map-muted); }
 .field__error { color: var(--danger); }
 /* Touch: 16px (--fs-input), so iOS does not zoom on focus. */

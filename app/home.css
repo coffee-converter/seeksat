@@ -232,7 +232,7 @@
   color: var(--text-heading);
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
-  line-height: 1.3;
+  line-height: var(--lh-tight);
 }
 .home-wordmark {
   margin: var(--sp-2) var(--sp-2) 0;
@@ -241,7 +241,7 @@
   font-size: var(--fs-2xl);
   font-weight: 600; /* brand */
   letter-spacing: 0.01em;
-  line-height: 1.2;
+  line-height: var(--lh-tight);
 }
 /* The wordmark row, with a compact clock on the right. */
 .home-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-4) var(--sp-12); }
@@ -260,11 +260,11 @@
 }
 .live-clock__live { color: var(--ok); font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: 0.1em; text-transform: uppercase; }
 .live-clock__time {
-  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.1;
+  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight);
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
 }
 .live-clock__zone { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
-.live-clock__local { min-height: 1.45em; color: var(--map-muted); font-size: var(--fs-md); line-height: 1.45; font-variant-numeric: tabular-nums; }
+.live-clock__local { min-height: 1.4em; color: var(--map-muted); font-size: var(--fs-md); line-height: var(--lh-snug); font-variant-numeric: tabular-nums; }
 .live-clock--compact .live-clock__utc { gap: var(--sp-6); }
 .live-clock--compact .live-clock__time { font-size: var(--fs-xl); }
 .live-clock--compact .live-clock__live { font-size: var(--fs-xs); }
@@ -307,7 +307,7 @@
   border: 1px solid rgba(var(--warn-rgb), 0.32);
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   color: var(--warn-text);
 }
 .home .clock-skew-banner strong,
@@ -338,9 +338,13 @@
 .home-controls__elev { border: var(--line-input); border-radius: var(--radius-md); overflow: hidden; }
 .home-controls__value {
   min-width: 4.5em;
+  /* As tall as the stepper buttons beside it, the value centred. */
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
   padding: 0 var(--sp-8);
-  line-height: 30px;
-  text-align: center;
   border-left: var(--line-input);
   border-right: var(--line-input);
   font-size: var(--fs-md);
@@ -478,7 +482,7 @@
   margin-left: var(--sp-8);
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--muted);
 }
 /* The word and its signal bars take the bar count's colour, red to green. */
@@ -739,7 +743,7 @@
 .radio-tune th[scope="row"] { text-align: left; font-weight: var(--fw-medium); color: var(--text); }
 /* "Closest approach" may wrap, so the table fits a 360 px phone. */
 .radio-tune th[scope="row"] { white-space: normal; }
-.radio-phone__legend { margin: 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--muted); }
+.radio-phone__legend { margin: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); color: var(--muted); }
 .radio-phone__full { align-self: flex-start; }
 .chart-modal--phone .chart-modal__link,
 .chart-modal--phone .chart-modal__hint { display: none; }
@@ -753,7 +757,7 @@
 .chart-modal--full .chart-modal__img--radio { width: 900px; max-width: none; max-height: none; }
 .chart-modal--full .chart-modal__hint { display: block; }
 .radio-phone__about { margin-top: var(--sp-8); }
-.radio-phone__about p { margin: var(--sp-4) 0 0; font-size: var(--fs-sm); line-height: 1.45; color: var(--muted); }
+.radio-phone__about p { margin: var(--sp-4) 0 0; font-size: var(--fs-sm); line-height: var(--lh-snug); color: var(--muted); }
 
 /* Focus bar, above the map while one satellite is focused. */
 .focus-bar {
@@ -859,7 +863,7 @@
   margin-top: var(--sp-16);
   color: var(--map-muted);
   font-size: var(--fs-md);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 .home-about__summary { cursor: pointer; color: var(--map-text); }
 .home-about__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -902,7 +906,7 @@
   border: 1px solid rgba(var(--warn-rgb), 0.32);
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   color: var(--warn-text);
 }
 .map-shell__top .offline-banner--back {
@@ -1149,7 +1153,7 @@
 
 /* Up now: live sky view for the followed satellites. */
 .up-now { margin: 0; }
-.up-now__title { margin: 0 0 var(--sp-8); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: 1.3; color: var(--text-heading); }
+.up-now__title { margin: 0 0 var(--sp-8); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-heading); }
 .up-now__body { display: flex; gap: var(--sp-12); align-items: center; flex-wrap: wrap; }
 .up-now__sky { flex: 0 0 160px; width: 160px; height: 160px; }
 .up-now__horizon { fill: rgba(var(--ink-rgb), 0.03); stroke: var(--map-muted); stroke-width: 1; }
@@ -1315,7 +1319,7 @@
   transform: translateX(-50%);
   color: var(--map-muted);
   font-size: var(--fs-xs);
-  line-height: 1.25;
+  line-height: var(--lh-tight);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

@@ -413,7 +413,7 @@ test('scale tokens exist with the spec values', () => {
     '--radius-sm': '4px', '--radius-md': '6px', '--radius-lg': '8px', '--radius-xl': '12px', '--radius-full': '999px',
     '--dur-fast': '120ms', '--dur-base': '200ms', '--dur-slow': '300ms' };
   for (const [k, v] of Object.entries(want)) assert.match(block, new RegExp(`${k}:\\s*${v};`), k);
-  for (const k of ['--font-sans', '--font-num', '--font-brand', '--font-code', '--fs-hero', '--lh-tight', '--lh-body', '--ease', '--line-subtle', '--line-control', '--line-input']) assert.ok(block.includes(`${k}:`), k);
+  for (const k of ['--font-sans', '--font-num', '--font-brand', '--font-code', '--fs-hero', '--lh-tight', '--lh-snug', '--lh-body', '--ease', '--line-subtle', '--line-control', '--line-input']) assert.ok(block.includes(`${k}:`), k);
   assert.match(block, /prefers-reduced-motion:\s*reduce[\s\S]*--dur-fast:\s*0ms/);
 });
 
@@ -453,6 +453,12 @@ test('the root layout loads Atkinson Hyperlegible Next through next/font', () =>
 test('font-size and font-weight use tokens', () => {
   const ok = (v) => /^var\(--f[sw]-[\w-]+\)$/.test(v) || /^[\d.]+em$/.test(v) || v === 'inherit';
   const found = FILES.flatMap((f) => [...declsIn(f, 'font-size'), ...declsIn(f, 'font-weight')].filter((d) => !ok(d.value) && !d.brand));
+  assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
+});
+
+test('line-height uses tokens (or 1 / normal)', () => {
+  const ok = (v) => /^var\(--lh-[\w-]+\)$/.test(v) || v === '1' || v === 'normal' || v === 'inherit';
+  const found = FILES.flatMap((f) => declsIn(f, 'line-height').filter((d) => !ok(d.value)));
   assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
 });
 

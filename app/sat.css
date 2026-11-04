@@ -1,10 +1,10 @@
 .sat { overflow-wrap: anywhere; }
-.sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15; color: var(--text-strong); }
+.sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-strong); }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); max-width: 100%; margin-top: var(--sp-6); }
-.sat-age { line-height: 1.6; }
+.sat-age { line-height: var(--lh-body); }
 .sat-age__how { margin-left: var(--sp-8); font-size: var(--fs-sm); white-space: nowrap; }
 .sat-age .badge { margin-left: var(--sp-8); }
-.sat-how { display: block; margin-top: var(--sp-2); color: var(--map-muted); font-size: var(--fs-sm); line-height: 1.4; }
+.sat-how { display: block; margin-top: var(--sp-2); color: var(--map-muted); font-size: var(--fs-sm); line-height: var(--lh-snug); }
 p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-diagram { margin: 0; }
 .sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto var(--sp-6); }
@@ -51,7 +51,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
   .sat-pass__rating { justify-self: start; }
 }
-.sat-pass__line2 { margin: var(--sp-6) 0 var(--sp-6); color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: 1.5; }
+.sat-pass__line2 { margin: var(--sp-6) 0 var(--sp-6); color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: var(--lh-body); }
 .sat-pass .pass-card__tag { margin-left: var(--sp-8); }
 .sat-observers { margin: var(--sp-12) 0; }
 .sat-observers__title { margin: 0 0 var(--sp-4); font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
@@ -62,7 +62,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   margin: var(--sp-12) 0; padding: var(--sp-12) var(--sp-12); border-radius: var(--radius-lg);
   background: var(--map-footprint); border: 1px solid var(--map-accent);
 }
-.sat-shared__text { margin: 0; color: var(--map-text); line-height: 1.5; }
+.sat-shared__text { margin: 0; color: var(--map-text); line-height: var(--lh-body); }
 .sat-shared-past { margin: 0 0 var(--sp-8); }
 .sat-pass.pass-row--shared {
   padding: var(--sp-8); border-radius: var(--radius-md);
@@ -111,7 +111,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   background: var(--tile-bg); border: var(--line-subtle); border-radius: var(--radius-lg);
 }
 .sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-6); min-width: 0; }
-.sat-next__text { margin: 0; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.sat-next__text { margin: 0; line-height: var(--lh-snug); font-variant-numeric: tabular-nums; }
 .sat-next__label { color: var(--map-muted); }
 .sat-next__what { color: var(--text-strong); font-weight: var(--fw-semibold); }
 .sat-next .quality,
@@ -149,7 +149,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
    the words between them never read as variables. */
 .sat-orbit-check__lead { margin: 0; color: var(--map-text); }
 .sat-orbit-check__pct { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
-.sat-orbit-check__math { margin: var(--sp-8) 0 0; color: var(--map-muted); line-height: 1.9; }
+.sat-orbit-check__math { margin: var(--sp-8) 0 0; color: var(--map-muted); line-height: var(--lh-body); }
 .sat-formula {
   padding: 1px var(--sp-6); /* nudge */
   background: var(--code-bg);
@@ -184,7 +184,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-how-list { display: grid; gap: var(--sp-12); margin: 0; }
 .sat-how-list__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
 .sat-how-list dt { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
-.sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: var(--fs-md); line-height: 1.5; }
+.sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: var(--fs-md); line-height: var(--lh-body); }
 @media (min-width: 600px) {
   .sat-how-list__row { grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: var(--sp-16); }
 }
