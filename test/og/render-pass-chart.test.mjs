@@ -54,3 +54,19 @@ test("renderPassChartSVG shades the arc by magnitude when the standard magnitude
   const mean = (xs) => xs.reduce((s, x) => s + Number(x), 0) / xs.length;
   assert.ok(mean(faint) < mean(ops));
 });
+
+// A pass that starts and ends on the horizon (min elevation 0) is about half
+// a degree below it geometrically at its edges (the window uses refracted
+// altitude). Its start and end markers still draw, so the direction shows.
+test("start and end markers draw for a horizon-to-horizon pass", () => {
+  const at = ecefAtFactory(ISS_TLE);
+  const sel = selectPass(
+    { observers: [{ name: "Chicago", latDeg: 41.8781, lonDeg: -87.6298 }],
+      passTimeMs: null, mode: "radio", minElevDeg: 0 },
+    at, { nowMs: Date.parse("2026-03-01T00:00:00Z"), scanDays: 5 });
+  const svg = renderPassChartSVG({ ...sel, ecefAt: at });
+  // Three on the chart plus the three info-row diamonds; before, only the
+  // peak drew on the chart.
+  const markers = svg.match(/class="event-marker"/g) ?? [];
+  assert.equal(markers.length, 6);
+});
