@@ -6,6 +6,7 @@ import { MIRROR_GROUPS, fetchGroup, fetchByCatnr } from '@/lib/mirror/celestrak.
 import { CATALOG } from '@/lib/catalog.mjs';
 import { refreshMirror, refreshResponse } from '@/lib/mirror/refresh.mjs';
 import { createBlobSnapshotStore } from '@/lib/mirror/snapshot-store.mjs';
+import { downlinksFromTransmitters, fetchTransmitters } from '@/lib/mirror/satnogs.mjs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,8 @@ export async function GET(req: Request): Promise<Response> {
     fetchGroup,
     pinnedIds: CATALOG.map((s) => s.noradId),
     fetchByCatnr,
+    // Once a day: radio downlinks from SatNOGS DB.
+    fetchDownlinks: async () => downlinksFromTransmitters(await fetchTransmitters()),
     now: Date.now,
   });
   const { status, body } = refreshResponse(result);

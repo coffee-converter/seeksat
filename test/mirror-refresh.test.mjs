@@ -190,3 +190,26 @@ test('a pinned id now back in a group is not requested', async () => {
   const rec = (await store.read()).objects['33591'];
   assert.deepEqual(rec.groups, ['active']);
 });
+
+test('downlinks: fetched on the first run, kept within a day, kept when a fetch fails', async () => {
+  const store = createMemorySnapshotStore(null);
+  const DL = { 25544: [{ hz: 145_800_000, label: 'Voice', mode: 'fm', source: 'satnogs', default: true }] };
+  let asks = 0;
+  const run = (nowMs, fetchDownlinks) => refreshMirror({
+    store, groups: ['active'], fetchGroup: async () => [ISS_OMM], now: () => nowMs, log: quiet, fetchDownlinks,
+  });
+  const first = await run(NOW, async () => { asks++; return DL; });
+  assert.equal(first.downlinkSatellites, 1);
+  assert.deepEqual((await store.read()).downlinks, DL);
+  assert.equal((await store.read()).downlinksFetchedAtMs, NOW);
+  // 4 h later: not asked again.
+  await run(NOW + 4 * HOUR, async () => { asks++; return {}; });
+  assert.equal(asks, 1);
+  assert.deepEqual((await store.read()).downlinks, DL);
+  // A day later it asks; a failure keeps the last set and says so.
+  const failed = await run(NOW + 25 * HOUR, async () => { asks++; throw new Error('SatNOGS down'); });
+  assert.equal(asks, 2);
+  assert.equal(failed.downlinksFailed, true);
+  assert.deepEqual((await store.read()).downlinks, DL);
+  assert.equal((await store.read()).downlinksFetchedAtMs, NOW);
+});

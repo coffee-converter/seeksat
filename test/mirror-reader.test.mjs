@@ -262,3 +262,12 @@ test('GPS satellites are found by GPS, by PRN and by their catalog name', async 
   assert.equal((await ids('PRN 13'))[0], 24876);
   assert.equal((await ids('navstar 43'))[0], 24876);
 });
+
+test('a served record carries the snapshot downlinks for it, and only its own', async () => {
+  const s = snap([rec(25544, 'ISS (ZARYA)'), rec(99999, 'QUIET')]);
+  s.downlinks = { 25544: [{ hz: 145_800_000, label: 'Voice', mode: 'fm', source: 'satnogs', default: true }] };
+  const { reader } = make({ store: createMemorySnapshotStore(s) });
+  assert.equal((await reader.getRecord(25544)).downlinks[0].hz, 145_800_000);
+  assert.equal((await reader.getSnapshotRecord(25544)).downlinks.length, 1);
+  assert.equal((await reader.getRecord(99999)).downlinks, undefined);
+});
