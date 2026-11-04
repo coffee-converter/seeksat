@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel, compassPoint, elevationScale, pointingMarks, withUplink } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel, compassPoint, elevationScale, pointingMarks, withUplink, radioChartCaption, RADIO_ROLE_COLORS } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -287,4 +287,48 @@ test('tuneLabel shows the receive frequency to the precision the step needs', ()
   assert.equal(tuneLabel(435.605e6, 5), '435.610');
   assert.equal(tuneLabel(435.605e6, -2.5), '435.6025');
   assert.equal(tuneLabel(145.8e6, 0), '145.800');
+});
+
+// ---- a geosynchronous day: several crossings, no rise or set, slow rates ----
+
+// Elevation 40 ± 30 deg over two cycles: crosses 30 deg four times.
+const DAY0 = Date.UTC(2026, 10, 4, 0, 0, 0);
+const DAY_SAMPLES = Array.from({ length: 289 }, (_, i) => {
+  const el = 40 + 30 * Math.sin((i / 288) * 4 * Math.PI);
+  return { tMs: DAY0 + i * 300_000, elDeg: el, azDeg: 200 + el / 2, dopplerHz: 1500 * Math.cos((i / 288) * 4 * Math.PI) };
+});
+
+test('elevationMarks finds every crossing, not just the first each way', () => {
+  const at30 = elevationMarks(DAY_SAMPLES, [30]);
+  assert.equal(at30.length, 4);
+  assert.deepEqual(at30.map((m) => m.leg), ['set', 'rise', 'set', 'rise']);
+  // A single pass still gives one each way.
+  const pass = Array.from({ length: 61 }, (_, i) => ({ tMs: i * 1000, elDeg: 60 - Math.abs(i - 30) * 2, dopplerHz: 1000 - i * 30 }));
+  assert.deepEqual(elevationMarks(pass, [30]).map((m) => m.leg), ['rise', 'set']);
+});
+
+test('pointingMarks with no edges has no rise or set', () => {
+  const marks = pointingMarks(DAY_SAMPLES, 5, { edges: false });
+  assert.ok(marks.every((m) => m.at !== 'rise' && m.at !== 'set'), marks.map((m) => m.at).join());
+  assert.equal(marks.filter((m) => m.at === 'peak').length, 1);
+  assert.equal(pointingMarks(DAY_SAMPLES, 5)[0].at, 'rise');
+});
+
+test('the caption of a 24-hour window says it never sets', () => {
+  const series = { samples: DAY_SAMPLES, summary: { dopplerPeakToPeakHz: 3000 } };
+  assert.match(radioChartCaption(series, { freqHz: 2.2e9, day: true }), /^24 hours; it never sets here/);
+  assert.match(radioChartCaption(series, { freqHz: 2.2e9 }), /^Swing is horizon-to-horizon/);
+});
+
+test('slow rates keep two significant figures', () => {
+  assert.equal(fmtTick(0.0042), '0.0042');
+  assert.equal(fmtTick(0.25), '0.25');
+  const tiles = statTiles({ samples: DAY_SAMPLES, summary: { dopplerPeakToPeakHz: 3000, maxDopplerRateHzPerSec: 0.153, closestRangeM: 3.6e7, maxAngRateDegPerSec: 0.0041 } }, { freqHz: 2.2e9 });
+  assert.equal(tiles.find((t) => t.label === 'max Doppler rate').value, '0.15 Hz/s');
+  assert.equal(tiles.find((t) => t.label === 'max angular rate').value, '0.0041°/s');
+});
+
+test('approaching is blue and receding red, as blueshift and redshift', () => {
+  assert.equal(RADIO_ROLE_COLORS.approach, '#7eb8ff');
+  assert.equal(RADIO_ROLE_COLORS.recede, '#ff7b6b');
 });

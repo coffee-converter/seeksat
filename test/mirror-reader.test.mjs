@@ -287,6 +287,9 @@ test('radio-mode search: satellites with downlinks first, and downlink words fin
   assert.deepEqual(plain.map((r) => [r.noradId, r.radio]), [[70001, false], [70002, true], [70003, true]]);
   const radio = await reader.search('alphasat', 20, { radio: true });
   assert.deepEqual(radio.map((r) => r.noradId), [70002, 70003, 70001]);
+  // A whole-name match outranks weaker matches with downlinks.
+  const exact = await reader.search('alphasat a', 20, { radio: true });
+  assert.equal(exact[0].noradId, 70001);
   // A downlink word: by mode or by a word in the label; not a name search.
   const ids = async (q) => (await reader.search(q, 20, { radio: true })).map((r) => r.noradId).filter((id) => id >= 70000);
   assert.deepEqual(await ids('sstv'), [70002]);
