@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { dashboardValues, formatNumber } from "@/lib/sat/numbers.mjs";
 import { useFlash } from "@/lib/ui/use-flash";
-import StatTile from "./StatTile";
+import StatTile from "@/components/ui/StatTile";
 import type { SatPageData } from "./SatApp";
 
 export type Live = NonNullable<SatPageData["live"]>;

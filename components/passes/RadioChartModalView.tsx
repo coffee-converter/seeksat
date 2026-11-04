@@ -1,6 +1,6 @@
 "use client";
 
-import { useFocusTrap } from "./useFocusTrap";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
 import {

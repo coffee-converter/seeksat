@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cx, buttonClass, badgeClass, segmentedNext } from '../lib/ui/classes.mjs';
+import { cx, buttonClass, badgeClass, segmentedNext, modalClass } from '../lib/ui/classes.mjs';
 
 test('buttonClass defaults and modifiers', () => {
   assert.equal(buttonClass(), 'btn');
@@ -21,3 +21,8 @@ test('segmentedNext moves with arrows, wraps, and jumps with Home and End', () =
   assert.equal(segmentedNext(v, 'light', 'a'), 'light');
 });
 test('cx drops falsy parts', () => assert.equal(cx('a', false, null, 'b', undefined, ''), 'a b'));
+
+test('modalClass', () => {
+  assert.equal(modalClass(), 'modal');
+  assert.equal(modalClass({ size: 'full', tone: 'dark' }), 'modal modal--full theme-dark');
+});

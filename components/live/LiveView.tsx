@@ -1,6 +1,6 @@
 "use client";
 
-import { useFocusTrap } from "@/components/passes/useFocusTrap";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { useEffect, useMemo, useRef, useState } from "react";
 import LiveDial from "@/components/live/LiveDial";
 import { radioSeries } from "@/lib/passes/charts.js";

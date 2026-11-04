@@ -135,3 +135,202 @@
 .qbars--b3 { color: var(--q3); }
 .qbars--b4 { color: var(--q4); }
 .qbars--b5 { color: var(--q5); }
+
+/* StatTile: one dashboard number (moved from sat.css). */
+.stat-tile {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 12px 14px 13px; background: var(--tile-bg); color: inherit; text-decoration: none;
+  container-type: inline-size; overflow-wrap: normal;
+}
+a.stat-tile:hover { background: var(--tile-hover); }
+a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.stat-tile__label {
+  color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-medium);
+}
+.stat-tile__value {
+  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
+}
+.stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: var(--radius-sm); }
+.stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: var(--fw-medium); letter-spacing: 0; }
+.stat-tile__note { color: var(--map-muted); font-size: var(--fs-xs); line-height: 1.35; }
+.stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: var(--fs-hero); white-space: normal; text-wrap: balance; }
+.stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); white-space: normal; }
+
+@media (max-width: 479.98px) {
+  .stat-tile { padding: 10px 12px 11px; }
+  .stat-tile__value { font-size: var(--fs-2xl); }
+  .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
+  .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
+}
+
+/* Modal: a centred frame over a backdrop ("dialog"), or the whole screen
+   ("full"). tone="dark" adds .theme-dark, so the tokens below turn dark. */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--map-text);
+}
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(6px);
+}
+.modal__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  max-width: min(98vw, 98vh);
+  max-height: 98vh;
+  padding: var(--sp-4) var(--sp-6);
+  background: var(--bg);
+  border: var(--line-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+}
+.modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-4);
+  border-bottom: var(--line-subtle);
+}
+.modal__title { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-strong); }
+.modal__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6); margin-left: auto; }
+.modal__body { min-height: 0; overflow-y: auto; }
+@media (max-width: 600px) {
+  .modal__panel { max-width: 96vw; padding: var(--sp-8) var(--sp-12); }
+}
+/* The live view's takeover: no backdrop, the page colour, scrolls inside. */
+.modal--full { display: block; overflow-y: auto; background: var(--bg); }
+.modal--full .modal__backdrop { display: none; }
+.modal--full .modal__panel {
+  max-width: 560px;
+  max-height: none;
+  margin: 0 auto;
+  padding: var(--sp-16) var(--sp-16) var(--sp-32);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  gap: var(--sp-12);
+}
+.modal--full .modal__head { border-bottom: 0; padding: 0; align-items: flex-start; }
+.modal--full .modal__title { font-size: var(--fs-2xl); }
+
+/* Field: label above the control, hint and error below. The control keeps
+   16px (--fs-input) so iOS does not zoom on focus. */
+.field { display: flex; flex-direction: column; gap: var(--sp-4); }
+.field__label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+.field__control {
+  width: 100%;
+  min-height: 32px;
+  padding: var(--sp-6) var(--sp-8);
+  background: var(--input-bg);
+  color: var(--map-text);
+  border: var(--line-input);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--fs-input);
+}
+.field__control:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.field__control[aria-invalid="true"] { border-color: var(--danger); }
+.field__hint,
+.field__error { margin: 0; font-size: var(--fs-sm); line-height: 1.4; }
+.field__hint { color: var(--map-muted); }
+.field__error { color: var(--danger); }
+@media (pointer: coarse) {
+  .field__control { min-height: 44px; }
+}
+
+/* Surface: the card look. */
+.surface {
+  background: var(--panel);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--map-text);
+}
+.surface--padded { padding: var(--sp-12); }
+
+/* Disclosure: a "⋯" button and the actions it reveals. The wrapper and panel
+   are display: contents, so the revealed actions join the row they sit in. */
+.disclosure,
+.disclosure__panel { display: contents; }
+.disclosure__panel[hidden] { display: none; }
+.disclosure__toggle { min-width: 40px; font-size: var(--fs-xl); font-weight: var(--fw-semibold); line-height: 1; }
+
+/* Details: a native fold with a chevron. */
+.details__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  min-height: 40px;
+  padding: 0 var(--sp-12);
+  background: var(--tile-bg);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--text-heading);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+.details__summary::-webkit-details-marker { display: none; }
+.details__summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--map-muted);
+  border-bottom: 2px solid var(--map-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+.details[open] > .details__summary { margin-bottom: var(--sp-8); }
+.details[open] > .details__summary::after { transform: translateY(2px) rotate(-135deg); }
+.details__summary:hover { background: var(--tile-hover); }
+.details__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Chip: a pill with a dot and a name, and optionally an eye. --chip-color
+   sets the dot and the focus ring. */
+.chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
+}
+.chip--focus {
+  border-color: var(--chip-color, var(--map-accent));
+  box-shadow: inset 0 0 0 1px var(--chip-color, var(--map-accent));
+}
+.chip button {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  background: none;
+  color: var(--map-text);
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.chip__name { gap: var(--sp-6); padding: 0 var(--sp-4) 0 var(--sp-12); white-space: nowrap; }
+.chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chip-color, var(--map-accent));
+}
+.chip__eye { padding: 0 var(--sp-8) 0 var(--sp-6); color: var(--map-muted); border-radius: 0 var(--radius-full) var(--radius-full) 0; }
+.chip__eye:hover { color: var(--map-text); }
+.chip button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-full); }
+.chip--hidden { opacity: 0.5; }
+.chip--hidden .chip__name { text-decoration: line-through; }

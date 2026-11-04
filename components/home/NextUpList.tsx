@@ -24,7 +24,7 @@ import { sharedCloudNote, type CloudBadge as CloudLevel } from "@/lib/sky/cloud-
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
-import MoreToggle from "@/components/passes/MoreToggle";
+import Disclosure from "@/components/ui/Disclosure";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
 export type Track = ReturnType<typeof makeTrack>;
@@ -274,14 +274,14 @@ function PassCard({
           {track.record?.source !== "pasted" && (
             <Link className="home-chip" href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
           )}
-          <MoreToggle id={`card-more-${card.noradId}`} open={moreOpen} onToggle={onToggleMore} label={`the ${card.name} pass`}>
+          <Disclosure id={`card-more-${card.noradId}`} open={moreOpen} onToggle={onToggleMore} label={`the ${card.name} pass`}>
             {visual ? radioButton : skyButton}
             <button type="button" className="home-chip" title="Add to calendar" onClick={addToCalendar}>
               <span aria-hidden="true">📅</span> Calendar
             </button>
             <AlertBell noradId={card.noradId} name={track.shortName} pass={pass} url={() => `/sat/${card.noradId}`} />
             <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
-          </MoreToggle>
+          </Disclosure>
         </div>
       </div>
     </li>

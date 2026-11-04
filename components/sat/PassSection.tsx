@@ -21,7 +21,7 @@ import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
-import MoreToggle from "@/components/passes/MoreToggle";
+import Disclosure from "@/components/ui/Disclosure";
 import PassStats, { passTime } from "@/components/passes/PassStats";
 import { passWords } from "@/lib/passes/pass-words.mjs";
 import { shareUrl } from "@/lib/share/share-link.mjs";
@@ -453,7 +453,7 @@ export default function PassSection({
                                   <button type="button" className="home-chip home-chip--live" onClick={(e) => openChart("live", row.pass, e)}>Live</button>
                                 )}
                                 <button type="button" className="home-chip" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</button>
-                                <MoreToggle
+                                <Disclosure
                                   id={moreId}
                                   open={open}
                                   onToggle={() => toggleRow(row.key)}
@@ -478,7 +478,7 @@ export default function PassSection({
                                       url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, null)}
                                     />
                                   )}
-                                </MoreToggle>
+                                </Disclosure>
                               </div>
                             </li>
                           );
