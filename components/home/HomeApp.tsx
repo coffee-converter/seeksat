@@ -37,7 +37,7 @@ import Button from "@/components/ui/Button";
 
 const CARD_REFRESH_MS = 10 * 60_000;
 
-const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, Track>;
+const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[], bands: string[] | null) => Map<number, Track>;
 const layersOf = mapLayers as (o: {
   followed: number[]; hidden: number[]; focusId: number | null; viewing: number | null;
 }) => Layer[];
@@ -126,8 +126,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const allTracks = useMemo(() => {
     const all = new Map(shownRecords);
     if (viewing && !all.has(viewing.noradId as number)) all.set(viewing.noradId as number, viewing);
-    return buildTracks(all, prefs.custom);
-  }, [shownRecords, viewing, prefs.custom]);
+    return buildTracks(all, prefs.custom, prefs.bands);
+  }, [shownRecords, viewing, prefs.custom, prefs.bands]);
   const shownMissing = useMemo(
     () => missing.filter((id) => prefs.following.includes(id)),
     [missing, prefs.following],

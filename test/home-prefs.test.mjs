@@ -70,6 +70,7 @@ test('valid object round-trips', () => {
     skyType: 'suburban',
     observers: [{ id: 'obs-2', name: 'FN31', latDeg: 41.5, lonDeg: -72.7 }],
     hidden: [41866],
+    bands: ['2m', '70cm'],
   };
   assert.deepEqual(parsePrefs(JSON.parse(JSON.stringify(p))), p);
 });
@@ -166,4 +167,10 @@ test('skyType defaults to suburban and is sanitised', () => {
   assert.equal(defaultPrefs().skyType, 'suburban');
   assert.equal(parsePrefs({ skyType: 'nonsense' }).skyType, 'suburban');
   assert.equal(parsePrefs({ skyType: 'dark' }).skyType, 'dark');
+});
+
+test('bands default to every band, and keep only known ones', () => {
+  assert.equal(defaultPrefs().bands, null);
+  assert.equal(parsePrefs('{}').bands, null);
+  assert.deepEqual(parsePrefs(JSON.stringify({ bands: ['70cm', 'bogus', '2m'] })).bands, ['2m', '70cm']);
 });

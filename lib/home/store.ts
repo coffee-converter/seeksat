@@ -45,6 +45,8 @@ export interface Prefs {
   observers: ExtraObserver[];
   /** Followed ids not drawn on the map unless focused. */
   hidden: number[];
+  /** The bands the radio covers (lib/radio/bands.mjs BAND_IDS), or null for all. */
+  bands: string[] | null;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SatApiRecord = Record<string, any>;

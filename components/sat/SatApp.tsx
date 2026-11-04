@@ -57,7 +57,7 @@ const pageLayersOf = satPageLayers as (o: {
   followed: number[]; hidden: number[]; pageId: number;
 }) => Layer[];
 type HomeTrack = MapTrack & { record?: { source?: string } };
-const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[]) => Map<number, HomeTrack>;
+const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[], bands: string[] | null) => Map<number, HomeTrack>;
 
 export default function SatApp({ data, shared: sharedIn = null }: { data: SatPageData; shared?: SharedBlob | null }) {
   const router = useRouter();
@@ -115,11 +115,13 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
 
   const track = useMemo(() => {
     try {
-      return (makeTrack as (r: unknown, e: unknown) => unknown)(data.record, resolveSatellite(data.noradId));
+      return (makeTrack as (r: unknown, e: unknown, o: { bands: string[] | null }) => unknown)(
+        data.record, resolveSatellite(data.noradId), { bands: prefs.bands },
+      );
     } catch {
       return null;
     }
-  }, [data.record, data.noradId]);
+  }, [data.record, data.noradId, prefs.bands]);
 
   const liveNow = useMemo(() => {
     if (!track) return null;
@@ -207,11 +209,11 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
 
   const mapTracks = useMemo(() => {
     const out = new Map<number, HomeTrack>(
-      followedTracks(buildTracks(records, prefs.custom), prefs.following) as Map<number, HomeTrack>,
+      followedTracks(buildTracks(records, prefs.custom, prefs.bands), prefs.following) as Map<number, HomeTrack>,
     );
     if (track && usable) out.set(data.noradId, track as HomeTrack);
     return out;
-  }, [records, prefs.custom, prefs.following, track, usable, data.noradId]);
+  }, [records, prefs.custom, prefs.following, prefs.bands, track, usable, data.noradId]);
   const theme = useResolvedTheme();
   const colors = useMemo(() => {
     const pal: string[] = SAT_PALETTES[theme];
