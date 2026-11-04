@@ -196,6 +196,10 @@ const PRESETS: { id: Preset; label: string }[] = [
 ];
 /** Zoom slack before the map counts as zoomed in past its home view. */
 const ZOOM_EPS = 0.01;
+/** The sky turns 0.25 deg a minute, about 0.1 px a second at the globe's
+ *  field of view on a screen 800 px tall: a redraw this often keeps each
+ *  step under half a pixel. */
+const STAR_TICK_MS = 5_000;
 /** How long a shared link's camera waits for the map and its satellite. */
 const SHARED_CAMERA_MS = 20_000;
 /** How long a Lock on zoom (buttons, keys, double-click, mouse wheel) eases. */
@@ -280,6 +284,7 @@ export default function FlatMap({
 }: Props) {
   const view: View = projectionId === "flat" ? "flat" : "globe";
   const glRef = useRef<HTMLDivElement>(null);
+  const starsRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   // True between a style's load and the next setStyle: the overlay sources exist.
   const styleReady = useRef(false);
@@ -536,6 +541,66 @@ export default function FlatMap({
   const mapInView = useRef(true);
   const pushWaiting = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  // The star field behind the globe: true positions for the camera and the
+  // moment (lib/map/stars.mjs), loaded only when a spherical view shows.
+  // Redrawn as the camera moves, and every STAR_TICK_MS as the Earth turns.
+  useEffect(() => {
+    const map = mapRef.current;
+    const canvas = starsRef.current;
+    if (!mapReady || !map || !canvas || view === "flat") return;
+    let alive = true;
+    let draw: (() => void) | null = null;
+    let frame: number | undefined;
+    const schedule = () => {
+      if (frame !== undefined || !draw) return;
+      frame = requestAnimationFrame(() => { frame = undefined; draw?.(); });
+    };
+    void Promise.all([import("@/lib/map/stars.mjs"), import("@/lib/map/star-data.mjs"), import("@/lib/coords.js")]).then(([stars, data, coords]) => {
+      if (!alive) return;
+      const field = stars.starField(data.STARS);
+      const style = Array.from({ length: field.n }, (_, i) => stars.starStyle(field.mag[i]));
+      draw = () => {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        if (!w || !h) return;
+        const dpr = window.devicePixelRatio || 1;
+        if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+          canvas.width = Math.round(w * dpr);
+          canvas.height = Math.round(h * dpr);
+        }
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        const c = map.getCenter();
+        const placed = stars.projectStars(field, {
+          lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(),
+          width: w, height: h, gmstRad: coords.gmstFromDate(new Date(trueNow())),
+        });
+        // Faintest first, so bright stars sit on top.
+        for (let k = placed.length - 1; k >= 0; k--) {
+          const { i, x, y } = placed[k];
+          const { r, alpha } = style[i];
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = field.color[i];
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      };
+      draw();
+    });
+    map.on("move", schedule);
+    map.on("resize", schedule);
+    const tick = window.setInterval(schedule, STAR_TICK_MS);
+    return () => {
+      alive = false;
+      map.off("move", schedule);
+      map.off("resize", schedule);
+      window.clearInterval(tick);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, [mapReady, view]);
   /** Put the focus marker at f, or hide it when the track cannot place it. */
   const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
     const mark = focusMark.current;
@@ -1437,6 +1502,8 @@ export default function FlatMap({
     {/* Both spherical views show space around the Earth. */}
     <div className={`flat-map${view !== "flat" ? " flat-map--globe" : ""}`}>
       {/* MapLibre owns this element and its children. */}
+      {/* Stars behind the globe, under MapLibre's canvas (clear in space). */}
+      {view !== "flat" ? <canvas className="flat-map__stars" ref={starsRef} aria-hidden="true" /> : null}
       <div className="flat-map__gl" ref={glRef} />
       <div className="flat-map__grid-labels" ref={gridLabelsRef} aria-hidden="true" />
       {noMap ? (

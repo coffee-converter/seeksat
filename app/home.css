@@ -21,6 +21,10 @@
   position: absolute;
   inset: 0;
 }
+/* The star field, under the map's canvas; dark themes only (light space is
+   a pale grey, where stars would not show). */
+.flat-map__stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+:root[data-theme="light"] .flat-map__stars { display: none; }
 /* The lat/lon values on the map's left and bottom edges (FlatMap places them). */
 .flat-map__grid-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .flat-map__grid-label {
