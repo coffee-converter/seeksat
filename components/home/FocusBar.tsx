@@ -31,13 +31,13 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
   const following = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
   return (
-    <div className="focus-bar" role="region" aria-label="Focused satellite">
+    <div className={mode === "page" ? "focus-bar focus-bar--page" : "focus-bar"} role="region" aria-label="Focused satellite">
       {/* Phones drop "Viewing" and the star's word (still read out), so the bar is one row. */}
       <p className="focus-bar__title" title={text.title}>
         <span className="focus-bar__lead">Viewing </span>{name}
       </p>
       <div className="focus-bar__actions">
-        <Button size="sm" on={followed} disabled={!followed && Boolean(blocked)} onClick={onToggleFollow}>
+        <Button size="sm" className="focus-bar__follow" on={followed} disabled={!followed && Boolean(blocked)} onClick={onToggleFollow}>
           {followed ? "★" : "☆"}<span className="focus-bar__word"> {followed ? "Following" : "Follow"}</span>
         </Button>
         {mode === "page" ? (

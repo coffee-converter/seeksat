@@ -801,6 +801,10 @@
   .focus-bar__title { flex: 1 1 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
   .focus-bar__lead { display: none; }
   .focus-bar__actions { flex: none; flex-wrap: nowrap; }
+  /* A satellite page has Follow under its title and its details just below
+     the map, so the bar keeps only Lock on and Close. */
+  .focus-bar--page .focus-bar__follow,
+  .focus-bar--page .focus-bar__details { display: none; }
   .focus-bar__word {
     position: absolute; width: 1px; height: 1px; padding: 0;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
@@ -1088,12 +1092,12 @@
   }
 }
 
-/* Satellite page on phones: a shorter map and a folded legend, so the title
-   and the next pass line are on the first screen. */
+/* Satellite page on phones: a folded legend, and a map tall enough to see
+   past its controls with the title just below it. */
 @media (max-width: 699.98px) {
   .map-shell.sat .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
-    height: max(220px, 45vh);
-    height: max(220px, 45svh);
+    height: max(220px, 55vh);
+    height: max(220px, 55svh);
   }
   .map-shell.sat .flat-map-shell--fill .map-legend__toggle { display: inline-flex; margin-top: var(--sp-6); }
   .map-shell.sat .flat-map-shell--fill .map-legend-box:not(.map-legend-box--open) .map-legend { display: none; }
