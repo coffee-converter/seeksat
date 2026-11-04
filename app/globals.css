@@ -75,13 +75,13 @@
   --tile-hover: #1c222c;
   --flash-bg: rgba(143, 180, 230, 0.24);
   --flash-text: #ffffff;
-  /* The always-dark chart dialogs (Modal tone="dark"): the painted charts'
-     own canvas colour (lib/pass-finder/polar-modal-frame.js, radio-chart.js),
-     so the chart image sits on its panel without a visible edge. */
-  --modal-dark-bg: #0a0e1a;
+  /* --modal-dark-bg, the always-dark chart dialogs' panel (Modal tone="dark"),
+     is generated from the charts' canvas colour (lib/ui/chart-tokens.mjs,
+     inlined by app/layout.tsx). */
   /* Map chrome and legend. --map-ocean, --map-land, --map-night and
      --map-observer are generated from lib/map/*.mjs (lib/ui/map-tokens.mjs,
-     inlined by app/layout.tsx). The rest keep in step with lib/map/overlays.mjs. */
+     inlined by app/layout.tsx). The map modules hold no copy of the rest:
+     only the stylesheet paints them. */
   /* Space behind the globe: darker than night-side land, so the Earth's edge shows. */
   --map-space: #000000;
   --map-footprint: rgba(143, 180, 230, 0.16);
@@ -227,8 +227,9 @@ html, body { width: 100%; height: 100%; height: 100dvh; background: var(--bg); c
   font-family: var(--font-sans);
   font-size: var(--fs-md); line-height: 1.5; }
 /* chart-block:begin */
-/* The triangulate observer cards' polar plots keep their
-   literal dark colours in both themes (test/theme-css.test.mjs skips this block). */
+/* The pass cards' polar plots (components/passes/PolarPlotSvg.tsx) keep
+   these literal dark colours; app/home.css retints them in light theme
+   (test/theme-css.test.mjs skips this block). */
 .polar-plot {
   display: block;
   margin: 4px auto 2px;

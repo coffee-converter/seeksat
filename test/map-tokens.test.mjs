@@ -27,3 +27,12 @@ test('mapTokenCss uses the theme-token selectors', () => {
   assert.ok(css.includes(":root[data-theme='light']{"));
   assert.ok(css.includes(`--map-night:${overlayColors('light').night}`));
 });
+
+test('the legend draws the observer in the map\'s own observer colour', () => {
+  const css = read('app/home.css');
+  assert.match(css, /\.map-legend__swatch--observer\s*\{[^}]*color:\s*var\(--map-observer\)/);
+});
+
+test('no stylesheet token claims to keep in step with a JS copy', () => {
+  assert.doesNotMatch(read('app/globals.css'), /keep in step/i);
+});

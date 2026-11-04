@@ -16,7 +16,7 @@ import Surface from "@/components/ui/Surface";
 import NightToggle from "@/components/NightToggle";
 
 export type Cell = { value: string; resolved: string; kind: "color" | "channels" | "shadow" | "other"; inherited: boolean };
-export type ColorRow = { name: string; source: "globals.css" | "map-tokens.mjs"; dark: Cell; light: Cell };
+export type ColorRow = { name: string; source: "globals.css" | "map-tokens.mjs" | "chart-tokens.mjs"; dark: Cell; light: Cell };
 export type ColorGroup = { title: string; rows: ColorRow[] };
 export type Swatch = { name: string; value: string };
 export type Palette = { title: string; source: string; note?: string; columns: { label: string; swatches: Swatch[] }[] };
@@ -233,7 +233,7 @@ export default function DesignBible({ data }: { data: BibleData }) {
                   <li key={r.name} className="bible__token">
                     <span className="bible__token-name">
                       <Code>{r.name}</Code>
-                      {r.source === "map-tokens.mjs" ? <span className="bible__resolved">from lib/ui/map-tokens.mjs</span> : null}
+                      {r.source !== "globals.css" ? <span className="bible__resolved">from lib/ui/{r.source}</span> : null}
                     </span>
                     <ColorCell cell={r.dark} theme="Dark" />
                     <ColorCell cell={r.light} theme="Light" />

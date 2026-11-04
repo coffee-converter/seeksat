@@ -22,7 +22,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-passlist { list-style: none; margin: 0; padding: 0; }
 .sat-show-all { margin-top: var(--sp-12); }
 .sat-zone { margin: var(--sp-4) 0 var(--sp-8); }
-.sat-pass { padding: var(--sp-8) 0; border-bottom: 1px solid var(--map-border); }
+.sat-pass { padding: var(--sp-8) 0; border-bottom: var(--line-subtle); }
 /* Passes under day headings: the same Starts, Max and Lasts columns and
    rating pill as the home cards, then where to look below. */
 .sat-day-group + .sat-day-group { margin-top: var(--sp-16); }
@@ -32,7 +32,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   font-size: var(--fs-md);
   font-weight: var(--fw-semibold);
   color: var(--map-muted);
-  border-bottom: 1px solid var(--map-border);
+  border-bottom: var(--line-subtle);
 }
 .sat-day__list { list-style: none; margin: 0; padding: 0; }
 .sat-pass__head {
@@ -56,7 +56,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-observers { margin: var(--sp-12) 0; }
 .sat-observers__title { margin: 0 0 var(--sp-4); font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-observers__list { list-style: none; margin: var(--sp-8) 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-8); }
-.sat-observers__item { display: inline-flex; align-items: center; gap: var(--sp-6); padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-12); border: 1px solid var(--map-border); border-radius: var(--radius-full); }
+.sat-observers__item { display: inline-flex; align-items: center; gap: var(--sp-6); padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-12); border: var(--line-subtle); border-radius: var(--radius-full); }
 .sat-shared {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8) var(--sp-12);
   margin: var(--sp-12) 0; padding: var(--sp-12) var(--sp-12); border-radius: var(--radius-lg);
@@ -86,7 +86,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-bar__in {
   position: absolute; left: -8px; right: -8px; top: 0;
   display: flex; align-items: center; gap: var(--sp-12); min-width: 0;
-  padding: var(--sp-6) var(--sp-12); background: var(--bg); border-bottom: 1px solid var(--map-border);
+  padding: var(--sp-6) var(--sp-12); background: var(--bg); border-bottom: var(--line-subtle);
 }
 .sat-bar .sat-bar__close { min-width: 40px; min-height: 40px; }
 .sat-bar__x { font-size: var(--fs-xl); line-height: 1; }
@@ -108,7 +108,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-next {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-12);
   margin-top: var(--sp-6); padding: var(--sp-6) var(--sp-12);
-  background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: var(--radius-lg);
+  background: var(--tile-bg); border: var(--line-subtle); border-radius: var(--radius-lg);
 }
 .sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-6); min-width: 0; }
 .sat-next__text { margin: 0; line-height: 1.4; font-variant-numeric: tabular-nums; }
@@ -130,7 +130,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
    widens so every row fills. */
 .sat-dash {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; /* nudge */
-  background: var(--map-border); border: 1px solid var(--map-border); border-radius: var(--radius-lg); overflow: hidden;
+  background: var(--map-border); border: var(--line-subtle); border-radius: var(--radius-lg); overflow: hidden;
 }
 .sat-dash .stat-tile--wide { grid-column: 1 / -1; }
 @media (max-width: 479.98px) {
@@ -167,7 +167,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-etable { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-24); margin: 0; }
 .sat-etable__row {
   display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-12);
-  padding: var(--sp-6) 0; border-bottom: 1px solid var(--map-border);
+  padding: var(--sp-6) 0; border-bottom: var(--line-subtle);
 }
 .sat-etable dt { color: var(--map-muted); }
 .sat-etable dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; text-align: right; }

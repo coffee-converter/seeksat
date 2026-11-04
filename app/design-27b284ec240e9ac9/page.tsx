@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { mapCssVars } from "@/lib/ui/map-tokens.mjs";
+import { chartCssVars } from "@/lib/ui/chart-tokens.mjs";
 import { readTokenBlock } from "@/lib/ui/token-block.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 import { CANVAS_COLORS } from "@/lib/map/overlays.mjs";
@@ -64,8 +65,9 @@ function bibleData(): BibleData {
   const scaleVars = Object.fromEntries(scale);
   const mapDark = mapCssVars("dark");
   const mapLight = mapCssVars("light");
+  const chart: Vars = chartCssVars();
   // The dark block also matches :root, so light inherits what it leaves out.
-  const dark: Vars = { ...scaleVars, ...darkOwn, ...mapDark };
+  const dark: Vars = { ...scaleVars, ...darkOwn, ...mapDark, ...chart };
   const light: Vars = { ...dark, ...lightOwn, ...mapLight };
 
   const names = [...new Set([...Object.keys(darkOwn), ...Object.keys(lightOwn)])];
@@ -78,6 +80,10 @@ function bibleData(): BibleData {
   const mapGroup = groups.find((g) => g.title === "Map and timeline")!;
   for (const name of Object.keys(mapDark)) {
     mapGroup.rows.push({ name, source: "map-tokens.mjs", dark: cell(name, dark, mapDark), light: cell(name, light, mapLight) });
+  }
+  const dialogGroup = groups.find((g) => g.title === "Dialogs")!;
+  for (const name of Object.keys(chart)) {
+    dialogGroup.rows.push({ name, source: "chart-tokens.mjs", dark: cell(name, dark, chart), light: cell(name, light, chart) });
   }
 
   const swatches = (o: Record<string, string | number>) => Object.entries(o).map(([name, value]) => ({ name, value: String(value) }));
