@@ -13,7 +13,38 @@ import { shellClassFor } from "@/lib/map/shell-route.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
 import { useHomeStore, watchPrefs } from "@/lib/home/store";
 import { useFollow } from "@/lib/map/follow-store";
+import { setPendingCamera } from "@/lib/map/share-camera";
+import { parseView, stripView } from "@/lib/share/view-link.mjs";
+import { currentViewUrl } from "@/lib/share/current-view";
+import ShareButton from "@/components/sat/ShareButton";
+import Button from "@/components/ui/Button";
 import SiteHeader from "./SiteHeader";
+
+type ParsedView = {
+  projection: string; lock: boolean; zoom: number | null; center: [number, number] | null;
+  following: number[] | null; hidden: number[]; mode: "radio" | "visual" | null; freqHz: number | null;
+};
+const parseViewOf = parseView as (search: string) => ParsedView | null;
+
+/** Above the panel while a shared view is shown: keep it, or go back. */
+function SharedViewBanner() {
+  const shared = useHomeStore((s) => s.shared);
+  const keep = useHomeStore((s) => s.keepShared);
+  const leave = useHomeStore((s) => s.leaveShared);
+  if (!shared) return null;
+  const n = shared.following?.length ?? 0;
+  return (
+    <div className="sat-shared shared-view" role="status">
+      <p className="sat-shared__text">
+        {`You're looking at a shared map${shared.following ? ` with ${n} satellite${n === 1 ? "" : "s"}` : ""}. Your own list is unchanged.`}
+      </p>
+      <div className="shared-view__actions">
+        <Button onClick={keep}>Keep this view</Button>
+        <Button variant="quiet" onClick={leave}>Back to mine</Button>
+      </div>
+    </div>
+  );
+}
 
 const noop = () => {};
 
@@ -31,6 +62,26 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     useFollow.getState().setFollowing(false);
   }, [pathname]);
+
+  // A shared link's view (lib/share/view-link.mjs): laid over the prefs until
+  // kept, its camera handed to the map. The parameters then leave the address
+  // bar, so a reload or a copied address is the visitor's own view again.
+  useEffect(() => {
+    const v = parseViewOf(window.location.search);
+    if (!v) return;
+    useHomeStore.getState().applyShared({
+      projection: v.projection,
+      ...(v.following ? { following: v.following, hidden: v.hidden } : {}),
+      ...(v.mode ? { mode: v.mode } : {}),
+    });
+    if (v.zoom != null || v.lock) {
+      setPendingCamera({ view: v.projection, zoom: v.zoom, center: v.center, lock: v.lock, at: Date.now() });
+    }
+    const { pathname: path, search, hash } = window.location;
+    window.history.replaceState(window.history.state, "", path + stripView(search) + hash);
+    // Once, on the page the link opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A new page starts at the top of the panel, but the first render does not.
   const first = useRef(true);
@@ -62,10 +113,16 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
             onSelect={scene?.onSelect ?? noop}
             top={scene?.top ?? null}
             chips={scene?.chips ?? null}
+            share={<ShareButton url={() => currentViewUrl()} title="SeekSat map" size="overlay" />}
           />
         </>
       )}
-      panel={children}
+      panel={(
+        <>
+          <SharedViewBanner />
+          {children}
+        </>
+      )}
     />
   );
 }

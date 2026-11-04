@@ -13,6 +13,7 @@ import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.m
 import { PROJECTIONS, MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { useFollow } from "@/lib/map/follow-store";
+import { peekPendingCamera, registerCameraReader, setPendingCamera } from "@/lib/map/share-camera";
 import Button from "@/components/ui/Button";
 import Segmented from "@/components/ui/Segmented";
 
@@ -73,6 +74,8 @@ interface Props {
   /** Sized by its container (MapShell): docked full height on desktop, with the
    *  focus bar and a collapsible legend laid over the map. */
   fill?: boolean;
+  /** The Share button, after the zoom and full screen buttons. */
+  share?: React.ReactNode;
 }
 
 export type FlatMapProps = Props;
@@ -193,6 +196,8 @@ const PRESETS: { id: Preset; label: string }[] = [
 ];
 /** Zoom slack before the map counts as zoomed in past its home view. */
 const ZOOM_EPS = 0.01;
+/** How long a shared link's camera waits for the map and its satellite. */
+const SHARED_CAMERA_MS = 20_000;
 /** How long a Lock on zoom (buttons, keys, double-click, mouse wheel) eases. */
 const LOCK_ZOOM_MS = 250;
 /** After a Lock on zoom arrives, how long to wait for another (a trackpad
@@ -271,6 +276,7 @@ export default function FlatMap({
   top = null,
   chips = null,
   fill = false,
+  share = null,
 }: Props) {
   const view: View = projectionId === "flat" ? "flat" : "globe";
   const glRef = useRef<HTMLDivElement>(null);
@@ -1111,6 +1117,43 @@ export default function FlatMap({
     else pushWaiting.current = true;
   }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, liveFocus]);
 
+  // A Share button reads the camera: none while it is the untouched home view
+  // (each visitor gets their own), else the zoom and, unless locked, the centre.
+  useEffect(() => registerCameraReader(() => {
+    const map = mapRef.current;
+    if (!map) return null;
+    const lock = useFollow.getState().following;
+    if (atHome.current && !lock) return { zoom: null, center: null, lock: false };
+    const c = map.getCenter().wrap();
+    return { zoom: discZoom(latest.current.view, map.getZoom(), c.lat), center: [c.lng, c.lat], lock };
+  }), []);
+  // A shared link's camera, once the map shows its view (and, to lock on,
+  // the focus has a position). Dropped if that takes too long.
+  useEffect(() => {
+    const cam = peekPendingCamera();
+    const map = mapRef.current;
+    if (!cam || !map || !mapReady) return;
+    if (Date.now() - cam.at > SHARED_CAMERA_MS) {
+      setPendingCamera(null);
+      return;
+    }
+    if (cam.view !== view) return;
+    const f = cam.lock ? liveFocus(latest.current.sats) : null;
+    if (cam.lock && !f) return;
+    const center: [number, number] | null = f ? [f.lonDeg, f.latDeg] : cam.center;
+    if (!center) {
+      setPendingCamera(null);
+      return;
+    }
+    setPendingCamera(null);
+    centreOn.current = null;
+    atHome.current = false;
+    const zoom = cam.zoom == null ? map.getZoom()
+      : view === "globe" ? cam.zoom + Math.log2(Math.cos((Math.min(Math.abs(center[1]), 85.05) * Math.PI) / 180)) : cam.zoom;
+    map.jumpTo({ center, zoom });
+    if (cam.lock) setFollowing(true);
+  }, [sats, view, mapReady, liveFocus, setFollowing]);
+
   // Between props, move the other dots and the GeoJSON footprint every
   // DOT_MS, and the focus while the frame loop idles. Nothing here sets
   // React state. It stops while the tab is hidden or the map is out of view.
@@ -1414,6 +1457,7 @@ export default function FlatMap({
         <Button variant="overlay" iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
           {"⛶"}
         </Button>
+        {share}
       </div>
       <table className="sr-only">
         <caption>Current satellite positions</caption>

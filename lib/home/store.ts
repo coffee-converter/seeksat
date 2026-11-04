@@ -8,7 +8,7 @@ import { create } from "zustand";
 import {
   addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, toggleHiddenIn, unfollowIn,
 } from "./actions.mjs";
-import { PREFS_KEY, defaultPrefs, loadPrefs, parsePrefs, savePrefs } from "./prefs.mjs";
+import { MAX_FOLLOWING, PREFS_KEY, defaultPrefs, loadPrefs, parsePrefs, savePrefs } from "./prefs.mjs";
 import { localStore } from "../safe-storage.mjs";
 import { DEFAULT_PROJECTION, defaultProjectionFor } from "../map/view.mjs";
 import { fetchRecords } from "./records.mjs";
@@ -48,6 +48,10 @@ export interface Prefs {
   /** The bands the radio covers (lib/radio/bands.mjs BAND_IDS), or null for all. */
   bands: string[] | null;
 }
+/** The parts of a shared view laid over the prefs (lib/share/view-link.mjs). */
+export type SharedView = Partial<Pick<Prefs, "following" | "hidden" | "mode" | "projection">>;
+const SHARED_KEYS = ["following", "hidden", "mode", "projection"] as const;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SatApiRecord = Record<string, any>;
 
@@ -72,6 +76,14 @@ interface HomeState {
   focusId: number | null;
   /** The record of a focused satellite that is not followed, opened from search. */
   viewing: SatApiRecord | null;
+  /** A shared view laid over the prefs, never saved unless kept. */
+  shared: SharedView | null;
+  /** The visitor's own prefs while a shared view is shown. */
+  own: Prefs | null;
+  applyShared: (view: SharedView) => void;
+  /** Make the shared view the visitor's own (pasted satellites stay). */
+  keepShared: () => void;
+  leaveShared: () => void;
   hydrate: () => void;
   setPrefs: (patch: Partial<Prefs>) => void;
   loadRecords: () => Promise<void>;
@@ -100,6 +112,38 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   generatedAtMs: null,
   focusId: null,
   viewing: null,
+  shared: null,
+  own: null,
+
+  applyShared: (view) => {
+    get().hydrate();
+    const own = get().own ?? get().prefs;
+    const shared = { ...(get().shared ?? {}), ...view };
+    set({ own, shared, prefs: { ...own, ...shared } });
+    void get().loadRecords();
+  },
+
+  keepShared: () => {
+    const { shared, own } = get();
+    if (!shared || !own) return;
+    set({ shared: null, own: null, prefs: own });
+    const kept = withPasted(shared.following ?? own.following, own);
+    get().setPrefs({
+      ...shared,
+      following: kept,
+      custom: own.custom.filter((c) => kept.includes(c.noradId)),
+      hidden: (shared.hidden ?? own.hidden).filter((id) => kept.includes(id)),
+    });
+    void get().loadRecords();
+  },
+
+  leaveShared: () => {
+    const { own } = get();
+    if (!own) return;
+    // A satellite pasted during the shared view stays followed.
+    set({ shared: null, own: null, prefs: { ...own, following: withPasted(own.following, own) } });
+    void get().loadRecords();
+  },
 
   hydrate: () => {
     if (get().hydrated) return;
@@ -116,6 +160,24 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     // Apply the patch to what is saved now, not to this tab's copy: another
     // tab may have changed other settings since this one loaded.
     const { projection: savedProjection = null, ...saved } = storedPrefs() ?? {};
+    const shared = get().shared;
+    const ownNow = get().own;
+    if (shared && ownNow) {
+      // A shared view takes its own parts of the patch; the rest is saved.
+      const over: SharedView = {};
+      const rest: Partial<Prefs> = {};
+      for (const [k, v] of Object.entries(patch)) {
+        if ((SHARED_KEYS as readonly string[]).includes(k)) (over as Record<string, unknown>)[k] = v;
+        else (rest as Record<string, unknown>)[k] = v;
+      }
+      const nextShared = { ...shared, ...over };
+      const own = { ...ownNow, ...saved, ...rest, projection: ownNow.projection } as Prefs;
+      set({ shared: nextShared, own, prefs: { ...own, ...nextShared } });
+      if (Object.keys(rest).length) {
+        lastSaveFailed = !savePrefs(get().projectionChosen ? own : { ...own, projection: savedProjection });
+      }
+      return;
+    }
     const prefs = { ...get().prefs, ...saved, ...patch };
     const projectionChosen = get().projectionChosen || "projection" in patch;
     set({ prefs, projectionChosen });
@@ -212,6 +274,12 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   },
 }));
 
+/** A following list with the visitor's pasted satellites added back, capped. */
+function withPasted(following: number[], own: Prefs): number[] {
+  const pasted = own.custom.map((c) => c.noradId).filter((id) => !following.includes(id));
+  return [...following, ...pasted].slice(0, MAX_FOLLOWING);
+}
+
 // True when this tab's last save did not land (storage full): its copy is
 // then newer than storage, so it stands.
 let lastSaveFailed = false;
@@ -241,6 +309,11 @@ export function watchPrefs(win: Pick<Window, "addEventListener" | "removeEventLi
     const st = useHomeStore.getState();
     if (!st.hydrated) return;
     const { projection: _p, ...rest } = parsePrefs(e.key === null ? null : e.newValue) as Prefs;
+    if (st.shared && st.own) {
+      const own = { ...st.own, ...rest };
+      useHomeStore.setState({ own, prefs: { ...own, ...st.shared } });
+      return;
+    }
     useHomeStore.setState({ prefs: { ...st.prefs, ...rest } });
     // A satellite followed over there needs its record here too.
     if (rest.following.some((id) => !st.prefs.following.includes(id))) void useHomeStore.getState().loadRecords();

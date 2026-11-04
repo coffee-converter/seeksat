@@ -13,7 +13,8 @@ import HowWeCompute from "./HowWeCompute";
 import OrbitDiagram from "./OrbitDiagram";
 import Downlinks from "./Downlinks";
 import ShareButton from "./ShareButton";
-import { shareUrl } from "@/lib/share/share-link.mjs";
+import { currentViewUrl, setLinkFreq } from "@/lib/share/current-view";
+import { parseView } from "@/lib/share/view-link.mjs";
 import PassSection, { type NextPassReport, type PassSectionHandle, type PassSettings } from "./PassSection";
 import NextPassLine, { nextPassWhen } from "./NextPassLine";
 import RawElements from "./RawElements";
@@ -79,14 +80,19 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const clouds = useClouds(settings.observer, settings.mode === "visual");
   // The radio chart's picked frequency (a shared view's, until one is picked).
   const pickedFreq = useRef<number | null>(sharedIn ? shared?.freqHz ?? null : null);
-  const headerLink = () => shareUrl(window.location.origin, {
-    noradId: data.noradId,
-    observers: [settings.observer, ...settings.observers].map((o) => ({ name: o!.name, latDeg: o!.latDeg, lonDeg: o!.lonDeg })),
-    passMs: null,
-    mode: settings.mode,
-    freqHz: pickedFreq.current,
-    minElevDeg: settings.minElevDeg,
-  }) as string;
+  // A shared link's radio frequency (?f=), read before the shell clears it.
+  const [linkFreq, setLinkFreqState] = useState<number | null>(null);
+  useEffect(() => {
+    const hz = (parseView(window.location.search) as { freqHz: number | null } | null)?.freqHz ?? null;
+    if (hz != null) {
+      pickedFreq.current = hz;
+      setLinkFreqState(hz);
+    }
+    setLinkFreq(pickedFreq.current);
+    return () => setLinkFreq(null);
+  }, []);
+  // The view on screen, with no location (lib/share/current-view.ts).
+  const headerLink = () => currentViewUrl();
   const onModeChange = useCallback((mode: PassSettings["mode"]) => {
     if (shared) setShared((s) => (s ? { ...s, mode } : s));
     else setPrefs({ mode });
@@ -189,10 +195,11 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     toggleHidden(id);
     if (id === data.noradId && hiding) onClose();
   }, [toggleHidden, data.noradId, onClose]);
-  // Old Show all links carried ?map=all; drop it from the URL.
+  // Old Show all links carried ?map=all; drop it from the URL. (A shared
+  // view's map=globe|flat is the shell's to read.)
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (!url.searchParams.has("map")) return;
+    if (url.searchParams.get("map") !== "all") return;
     url.searchParams.delete("map");
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
   }, []);
@@ -415,8 +422,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         skyType={prefs.skyType}
         onSkyTypeChange={onSkyTypeChange}
         sharedPassMs={shared?.passTimeMs ?? null}
-        preferredFreqHz={shared?.freqHz ?? null}
-        onFreqPicked={(hz) => { pickedFreq.current = hz; }}
+        preferredFreqHz={shared?.freqHz ?? linkFreq}
+        onFreqPicked={(hz) => { pickedFreq.current = hz; setLinkFreq(hz); }}
         onNextPass={setNextPass}
         clouds={clouds}
       />
