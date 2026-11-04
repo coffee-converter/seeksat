@@ -181,9 +181,12 @@ test('zooming in goes to street level', () => {
   assert.ok(MAX_ZOOM >= 14);
 });
 
-test('the flat map zooms out only until the whole world fits across', () => {
-  assert.equal(minZoomFor('flat', { width: 1024, height: 900, latDeg: 40 }), 1);
+test('the flat map zooms out until the whole world is in frame, whichever side fills first', () => {
+  // Tall: the width fills.
   assert.equal(minZoomFor('flat', { width: 512, height: 900, latDeg: 0 }), 0);
+  // Wide: the height fills, so both poles show.
+  assert.equal(minZoomFor('flat', { width: 2048, height: 1024, latDeg: 40 }), 1);
+  assert.equal(minZoomFor('flat', { width: 1024, height: 900, latDeg: 40 }), Math.log2(900 / 512));
 });
 
 test('the globe zooms out only until the whole Earth is in frame', () => {
