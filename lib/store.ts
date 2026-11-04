@@ -16,6 +16,7 @@
 //   - MANIFEST_OVERRIDES_KEY: { [manifestId]: AttemptData } overlay
 //     applied on top of the read-only /data/<file>.json payloads.
 
+import { localStore } from "./safe-storage.mjs";
 import { create } from "zustand";
 import type {
   AttemptData,
@@ -155,9 +156,10 @@ export const useTriangulateStore = create<TriangulateState>((set, get) => ({
 // data survives the migration) ---------------------------------------
 
 export function loadUserAttempts(): UserAttemptEntry[] {
-  if (typeof localStorage === "undefined") return [];
+  const store = localStore();
+  if (!store) return [];
   try {
-    const raw = localStorage.getItem(USER_ATTEMPTS_KEY);
+    const raw = store.getItem(USER_ATTEMPTS_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw);
     if (!Array.isArray(list)) return [];
@@ -168,25 +170,28 @@ export function loadUserAttempts(): UserAttemptEntry[] {
 }
 
 export function saveUserAttempts(list: UserAttemptEntry[]): void {
-  if (typeof localStorage === "undefined") return;
+  const store = localStore();
+  if (!store) return;
   // Drop transient `source` flag before serializing - it's derived
   // when loading.
   const serializable = list.map(({ source: _s, ...rest }) => rest);
-  localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable));
+  try { store.setItem(USER_ATTEMPTS_KEY, JSON.stringify(serializable)); } catch { /* full or blocked */ }
 }
 
 export function loadManifestOverrides(): Record<string, AttemptData> {
-  if (typeof localStorage === "undefined") return {};
+  const store = localStore();
+  if (!store) return {};
   try {
-    return JSON.parse(localStorage.getItem(MANIFEST_OVERRIDES_KEY) || "{}");
+    return JSON.parse(store.getItem(MANIFEST_OVERRIDES_KEY) || "{}");
   } catch {
     return {};
   }
 }
 
 export function saveManifestOverride(id: string, data: AttemptData): void {
-  if (typeof localStorage === "undefined") return;
+  const store = localStore();
+  if (!store) return;
   const all = loadManifestOverrides();
   all[id] = data;
-  localStorage.setItem(MANIFEST_OVERRIDES_KEY, JSON.stringify(all));
+  try { store.setItem(MANIFEST_OVERRIDES_KEY, JSON.stringify(all)); } catch { /* full or blocked */ }
 }

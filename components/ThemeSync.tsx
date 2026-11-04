@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect } from "react";
 import { applyMode, readMode, syncTheme } from "@/lib/ui/theme.mjs";
+import { localStore } from "@/lib/safe-storage.mjs";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -15,7 +16,7 @@ export default function ThemeSync() {
   useIsoLayoutEffect(() => {
     const mq = window.matchMedia(DARK_QUERY);
     const before = document.documentElement.dataset.theme;
-    const theme = syncTheme(document, window.localStorage, mq);
+    const theme = syncTheme(document, localStore(), mq);
     if (before !== theme) window.dispatchEvent(new CustomEvent("seeksat:theme", { detail: theme }));
     const onChange = () => {
       if (readMode() !== "auto") return;
