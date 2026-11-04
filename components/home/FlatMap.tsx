@@ -515,6 +515,10 @@ export default function FlatMap({
   }, []);
   // A pending leave from a tap on the focused dot; a double-click cancels it.
   const leaveTimer = useRef<number | undefined>(undefined);
+  // Whether the map is on screen (a stacked map scrolls away on phones), and
+  // whether a props push waited for it to come back.
+  const mapInView = useRef(true);
+  const pushWaiting = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   /** Put the focus marker at f, or hide it when the track cannot place it. */
   const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
@@ -784,15 +788,31 @@ export default function FlatMap({
         // A tap on the focused satellite leaves it, unless it was the first
         // click of a double-click (a zoom): MapLibre sends a click for each.
         if (best === focusId) {
+          // The second click of a double that already cancelled the leave.
+          if (performance.now() - leaveCancelledAt < DBLCLICK_MS) return;
           window.clearTimeout(leaveTimer.current);
-          leaveTimer.current = window.setTimeout(() => latest.current.onSelect(null), DBLCLICK_MS);
+          leaveTimer.current = window.setTimeout(() => {
+            leaveTimer.current = undefined;
+            latest.current.onSelect(null);
+          }, DBLCLICK_MS);
         } else latest.current.onSelect(best);
       });
-      // A second click or tap, or any zoom, means it was not a plain tap: on
-      // touch MapLibre's double-tap zoom stops the second click and dblclick.
-      const cancelLeave = () => window.clearTimeout(leaveTimer.current);
+      // A second click or tap, or a zoom by hand, means it was not a plain
+      // tap: on touch MapLibre's double-tap zoom stops the second click and
+      // dblclick, and with Lock on no double-tap zoom stops the second click.
+      // Lock on's own jumps change the globe's zoom with latitude, so only a
+      // zoom with an originalEvent counts.
+      let leaveCancelledAt = -Infinity;
+      const cancelLeave = () => {
+        if (leaveTimer.current === undefined) return;
+        window.clearTimeout(leaveTimer.current);
+        leaveTimer.current = undefined;
+        leaveCancelledAt = performance.now();
+      };
       map.on("dblclick", cancelLeave);
-      map.on("zoomstart", cancelLeave);
+      map.on("zoomstart", (e: { originalEvent?: Event }) => {
+        if (e.originalEvent) cancelLeave();
+      });
       map.on("touchstart", cancelLeave);
       // Moves by hand (drag, wheel, touch, keys) leave the home view; ours
       // carry no originalEvent. A single wheel tick starts its move without
@@ -1078,7 +1098,10 @@ export default function FlatMap({
         moveTo(map, { center: [at.lonDeg, at.latDeg] });
       }
     }
-    push();
+    // Out of view (a phone scrolled down to the list), the push waits until
+    // the map shows again.
+    if (mapInView.current) push();
+    else pushWaiting.current = true;
   }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, liveFocus]);
 
   // Between props, move the other dots and the GeoJSON footprint every
@@ -1106,18 +1129,21 @@ export default function FlatMap({
       id = undefined;
     };
     // On phones the stacked map scrolls away under the list: no ticks then.
-    let inView = true;
     const start = () => {
       stop();
-      if (document.hidden || !inView) return;
+      if (document.hidden || !mapInView.current) return;
       // Back in view: catch up now rather than on the next tick.
+      if (pushWaiting.current) {
+        pushWaiting.current = false;
+        push();
+      }
       tick();
       id = window.setInterval(tick, DOT_MS);
     };
     const el = glRef.current;
     const io = el && typeof IntersectionObserver === "function"
       ? new IntersectionObserver((entries) => {
-        inView = entries[entries.length - 1].isIntersecting;
+        mapInView.current = entries[entries.length - 1].isIntersecting;
         start();
       })
       : null;
@@ -1129,7 +1155,7 @@ export default function FlatMap({
       io?.disconnect();
       stop();
     };
-  }, [liveSats, refreshNight]);
+  }, [liveSats, refreshNight, push]);
 
   // Every frame while a satellite is focused, the map is made and in view, the
   // tab shows, and the dot moves visibly per frame (or Lock on is on): place
