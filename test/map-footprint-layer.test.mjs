@@ -22,10 +22,17 @@ test('the layer is a 2d custom layer', () => {
   assert.equal(layer.renderingMode, '2d');
 });
 
+// A MapLibre map as the layer sees it: a globe at world zoom unless told otherwise.
+const fakeMap = (onRepaint = () => {}, { type = 'globe', zoom = 3 } = {}) => ({
+  triggerRepaint: onRepaint,
+  getProjection: () => ({ type }),
+  getZoom: () => zoom,
+});
+
 test('setFootprint repaints only when what is drawn changes', () => {
   const layer = createFootprintLayer();
   let repaints = 0;
-  layer.onAdd({ triggerRepaint: () => repaints++ });
+  layer.onAdd(fakeMap(() => repaints++));
   const fp = (lon, lat, radiusDeg = 20, color = '#ff9b54') => ({ center: [lon, lat], radiusDeg, color });
   layer.setFootprint(fp(10, 80));
   assert.equal(repaints, 1);
@@ -46,7 +53,7 @@ test('setFootprint repaints only when what is drawn changes', () => {
 test('a move across the date line counts as small', () => {
   const layer = createFootprintLayer();
   let repaints = 0;
-  layer.onAdd({ triggerRepaint: () => repaints++ });
+  layer.onAdd(fakeMap(() => repaints++));
   layer.setFootprint({ center: [179.998, 0], radiusDeg: 20, color: '#ffffff' });
   layer.setFootprint({ center: [-179.998, 0], radiusDeg: 20, color: '#ffffff' });
   assert.equal(repaints, 1);
@@ -63,7 +70,7 @@ test('a shader that does not compile logs once, calls onFail once and draws noth
     drawElements: () => draws++,
   };
   const layer = createFootprintLayer({ onFail: () => fails++ });
-  layer.onAdd({ triggerRepaint() {} });
+  layer.onAdd(fakeMap());
   layer.setFootprint({ center: [0, 80], radiusDeg: 20, color: '#ffffff' });
   const args = {
     shaderData: { variantName: 'globe', vertexShaderPrelude: '', define: '#define GLOBE' },
@@ -87,11 +94,32 @@ test('nothing draws while the globe morphs toward Mercator', () => {
   let compiled = 0;
   const gl = { createShader: () => compiled++ };
   const layer = createFootprintLayer();
-  layer.onAdd({ triggerRepaint() {} });
+  layer.onAdd(fakeMap());
   layer.setFootprint({ center: [0, 80], radiusDeg: 20, color: '#ffffff' });
   layer.render(gl, {
     shaderData: { variantName: 'globe', vertexShaderPrelude: '', define: '' },
     defaultProjectionData: { projectionTransition: 0.99 },
   });
   assert.equal(compiled, 0);
+});
+
+test('the altitude drift of a frame does not rebuild or repaint', () => {
+  const layer = createFootprintLayer();
+  let repaints = 0;
+  layer.onAdd(fakeMap(() => repaints++));
+  layer.setFootprint({ center: [10, 50], radiusDeg: 20, color: '#ffffff' });
+  layer.setFootprint({ center: [10, 50], radiusDeg: 20.0004, color: '#ffffff' });
+  assert.equal(repaints, 1);
+});
+
+test('no repaints where the cap is not drawn: Mercator, or zoomed past the full globe', () => {
+  for (const opts of [{ type: 'mercator', zoom: 3 }, { type: 'globe', zoom: 13 }]) {
+    const layer = createFootprintLayer();
+    let repaints = 0;
+    layer.onAdd(fakeMap(() => repaints++, opts));
+    layer.setFootprint({ center: [10, 50], radiusDeg: 20, color: '#ffffff' });
+    layer.setFootprint({ center: [11, 50], radiusDeg: 20, color: '#ffffff' });
+    layer.setFootprint(null);
+    assert.equal(repaints, 0, JSON.stringify(opts));
+  }
 });
