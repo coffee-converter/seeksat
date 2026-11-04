@@ -25,7 +25,7 @@
 .flat-map__grid-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .flat-map__grid-label {
   position: absolute; left: 0; top: 0;
-  font-size: 9px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs); line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums;
   color: var(--map-grid-label);
   text-shadow: 0 0 2px var(--map-land), 0 0 2px var(--map-land);
 }
@@ -52,8 +52,8 @@
   left: calc(50% + 0.8em);
   top: 50%;
   transform: translateY(-50%);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
   line-height: 1;
   white-space: nowrap;
   color: var(--focus-color, var(--map-accent));
@@ -94,8 +94,8 @@
 }
 .flat-map__view {
   font: inherit;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   line-height: 1;
   color: var(--map-muted);
   background: none;
@@ -155,7 +155,7 @@
   color: var(--map-text);
   border: 1px solid var(--chip-border);
   border-radius: 7px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   cursor: pointer;
 }
 .flat-map__zoom button:hover { background: var(--btn-hover); }
@@ -184,7 +184,7 @@
   color: var(--map-text);
   border: 1px solid var(--chip-border);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 .flat-map__presets button:hover:not(:disabled) { background: var(--btn-hover); }
@@ -259,7 +259,7 @@
   border-radius: 7px;
   font: inherit;
   /* 16px or more stops iOS Safari zooming the page on focus. */
-  font-size: 16px;
+  font-size: var(--fs-input);
 }
 .search-bar__input::placeholder { color: var(--map-muted); }
 .search-bar__button {
@@ -316,7 +316,7 @@
   color: var(--map-muted);
   border: 1px solid transparent;
   border-radius: 6px;
-  font-size: 20px;
+  font-size: var(--fs-xl);
   line-height: 1;
   cursor: pointer;
 }
@@ -335,7 +335,7 @@
   border: 1px solid var(--input-border);
   border-radius: 6px;
   font-family: var(--font-code);
-  font-size: 16px;
+  font-size: var(--fs-input);
 }
 .search-bar__paste .search-bar__button { align-self: flex-start; }
 .search-bar__error { margin: 0; color: var(--danger-text); }
@@ -351,21 +351,21 @@
   padding: 8px 8px 24px;
   color: var(--map-text);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 .home-heading {
   margin: 0 0 8px;
   color: var(--text-heading);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
   line-height: 1.3;
 }
 .home-wordmark {
   margin: 2px 2px 0;
   color: var(--map-accent);
   font-family: var(--font-brand);
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--fs-2xl);
+  font-weight: 600; /* brand */
   letter-spacing: 0.01em;
   line-height: 1.2;
 }
@@ -384,18 +384,18 @@
   align-self: baseline; flex: none; width: 8px; height: 8px; border-radius: 50%;
   background: var(--ok); animation: live-pulse 2s ease-out infinite;
 }
-.live-clock__live { color: var(--ok); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.live-clock__live { color: var(--ok); font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: 0.1em; text-transform: uppercase; }
 .live-clock__time {
-  color: var(--text-strong); font-size: 28px; font-weight: 600; line-height: 1.1;
+  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.1;
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
 }
-.live-clock__zone { color: var(--map-muted); font-size: 12px; font-weight: 600; }
-.live-clock__local { min-height: 1.45em; color: var(--map-muted); font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.live-clock__zone { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.live-clock__local { min-height: 1.45em; color: var(--map-muted); font-size: var(--fs-md); line-height: 1.45; font-variant-numeric: tabular-nums; }
 .live-clock--compact .live-clock__utc { gap: 6px; }
-.live-clock--compact .live-clock__time { font-size: 18px; }
-.live-clock--compact .live-clock__live { font-size: 10px; }
-.live-clock--compact .live-clock__zone { font-size: 11px; }
-.live-clock--compact .live-clock__local { font-size: 11px; }
+.live-clock--compact .live-clock__time { font-size: var(--fs-xl); }
+.live-clock--compact .live-clock__live { font-size: var(--fs-xs); }
+.live-clock--compact .live-clock__zone { font-size: var(--fs-xs); }
+.live-clock--compact .live-clock__local { font-size: var(--fs-xs); }
 @keyframes live-pulse {
   0% { box-shadow: 0 0 0 0 rgba(var(--ok-rgb), 0.55); }
   70% { box-shadow: 0 0 0 7px rgba(var(--ok-rgb), 0); }
@@ -420,7 +420,7 @@
   padding: 12px 2px 0;
   border-top: 1px solid var(--map-border);
   color: var(--map-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .home-footer a { color: var(--map-muted); text-decoration: underline; text-underline-offset: 2px; }
 .home-footer a:hover,
@@ -432,12 +432,12 @@
   background: rgba(var(--warn-rgb), 0.08);
   border: 1px solid rgba(var(--warn-rgb), 0.32);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.4;
   color: var(--warn-text);
 }
 .home .clock-skew-banner strong,
-.map-shell .clock-skew-banner strong { color: var(--warn); font-weight: 600; }
+.map-shell .clock-skew-banner strong { color: var(--warn); font-weight: var(--fw-semibold); }
 .home-note { margin: 0; color: var(--map-muted); }
 .home-error { margin: 0; color: var(--danger-text); }
 
@@ -453,11 +453,11 @@
   border: 1px solid var(--btn-line);
   border-radius: 7px;
   font: inherit;
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   cursor: pointer;
   white-space: nowrap;
 }
-.home-chip { padding: 4px 10px; font-size: 13px; }
+.home-chip { padding: 4px 10px; font-size: var(--fs-md); }
 .home-button:hover:not(:disabled),
 .home-chip:hover:not(:disabled) { background: var(--btn-hover); }
 .home-button:disabled,
@@ -467,7 +467,7 @@
   background: var(--primary);
   color: var(--primary-text);
   border-color: var(--primary);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .home-button--primary:hover:not(:disabled),
 .home-chip--live:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
@@ -492,7 +492,7 @@
 .home-chip--quiet { color: var(--map-muted); border-color: transparent; }
 .home-chip--quiet:hover:not(:disabled) { color: var(--map-text); }
 /* The "⋯" toggle is outlined like its neighbours; the glyph is set larger. */
-.more-toggle { min-width: 40px; font-size: 18px; font-weight: 700; line-height: 1; }
+.more-toggle { min-width: 40px; font-size: var(--fs-xl); font-weight: var(--fw-semibold); line-height: 1; }
 .home-input {
   flex: 1;
   min-width: 0;
@@ -502,7 +502,7 @@
   border: 1px solid var(--input-border);
   border-radius: 7px;
   font: inherit;
-  font-size: 16px;
+  font-size: var(--fs-input);
 }
 .home-input::placeholder { color: var(--map-muted); }
 .home-link {
@@ -538,7 +538,7 @@
 .home-controls__mode,
 .home-controls__elev { display: flex; align-items: center; }
 /* What the elevation setting does, on its own line under the controls. */
-.home-controls__hint { flex: 1 0 100%; margin: 0; color: var(--map-muted); font-size: 12px; }
+.home-controls__hint { flex: 1 0 100%; margin: 0; color: var(--map-muted); font-size: var(--fs-sm); }
 .home-controls__mode {
   padding: 2px;
   background: var(--input-bg);
@@ -557,7 +557,7 @@
   text-align: center;
   border-left: 1px solid var(--input-border);
   border-right: 1px solid var(--input-border);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 .home-controls__pending { visibility: hidden; }
@@ -585,12 +585,12 @@
   border: 1px solid var(--input-border);
   border-radius: 7px;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .home-controls__sky:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .home-controls__sky:disabled { opacity: 0.6; }
 @media (pointer: coarse) {
-  .home-controls__sky { font-size: 16px; }
+  .home-controls__sky { font-size: var(--fs-input); }
 }
 .home-controls__place {
   flex: 1 0 100%;
@@ -600,12 +600,12 @@
   gap: 8px;
   min-width: 0;
   max-width: 100%;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: var(--text-strong);
 }
-.home-controls__label { color: var(--map-muted); font-size: 12px; font-weight: 400; }
-.home-controls__place .home-link { font-weight: 400; }
-.home-controls__place .home-controls__sky { margin-left: auto; align-self: center; font-weight: 400; }
+.home-controls__label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-regular); }
+.home-controls__place .home-link { font-weight: var(--fw-regular); }
+.home-controls__place .home-controls__sky { margin-left: auto; align-self: center; font-weight: var(--fw-regular); }
 .home-controls__name {
   min-width: 0;
   overflow: hidden;
@@ -653,7 +653,7 @@
 
 /* Next up cards. */
 /* One cloud line for the list when every pass shares the forecast. */
-.next-up__note { margin: -4px 0 8px; color: var(--map-muted); font-size: 13px; }
+.next-up__note { margin: -4px 0 8px; color: var(--map-muted); font-size: var(--fs-md); }
 .next-up__list {
   display: flex;
   flex-direction: column;
@@ -684,10 +684,10 @@
   flex-direction: column;
   gap: 4px;
 }
-.pass-card__headline { margin: 0; color: var(--text-strong); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.pass-card__headline { margin: 0; color: var(--text-strong); font-size: var(--fs-lg); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
 /* Peak magnitude (visual mode, known brightness): beside "max 47°". */
 .pass-mag { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pass-card__mag { color: var(--map-text); font-size: 14px; font-weight: 500; }
+.pass-card__mag { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-medium); }
 .pass-card__meta {
   display: flex;
   flex-wrap: wrap;
@@ -695,7 +695,7 @@
   gap: 0 10px;
   margin: 0;
   color: var(--map-muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 /* The row's gap spaces the badges, so a wrapped one lines up at the left. */
@@ -705,8 +705,8 @@
 .pass-card__tag {
   margin-left: 8px;
   color: var(--teal);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
 /* Pass quality and cloud cover: quiet text, a coloured word. The word carries
    it, the colour backs it up; the quality word follows its signal bars. */
@@ -714,8 +714,8 @@
 .cloud {
   display: inline-block;
   margin-left: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
   line-height: 1.5;
   color: var(--muted);
 }
@@ -759,14 +759,14 @@
 /* Where the elements came from: a quieter cue than "visible". */
 .pass-card__tag--elements {
   color: var(--map-muted);
-  font-weight: 400;
+  font-weight: var(--fw-regular);
   white-space: nowrap;
 }
 .pass-card__tag--viewing { color: var(--map-accent); }
 /* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
 .pass-card__fact { white-space: nowrap; }
 /* Where to look, in words. It may wrap on a phone; a time never breaks. */
-.pass-card__words { margin: 0; color: var(--map-text); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pass-card__words { margin: 0; color: var(--map-text); font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
 /* A pass card: the name and rating on top, the plot beside three stat
    columns (Starts, Max, Lasts) that sit in the same place on every card,
    then where to look, the facts and the buttons. */
@@ -798,23 +798,23 @@
   font-variant-numeric: tabular-nums;
 }
 .pass-card__stat { min-width: 0; }
-.pass-card__stat dt { font-size: 12px; color: var(--map-muted); }
+.pass-card__stat dt { font-size: var(--fs-sm); color: var(--map-muted); }
 .pass-card__stat dd { margin: 0; }
 .pass-card__stat-value {
   color: var(--text-strong);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
-.pass-card__stat-sub { color: var(--map-muted); font-size: 12px; }
-.pass-card__stat-sub--live { color: var(--map-accent); font-weight: 600; }
+.pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
 /* The rating as a pill, so it reads at a glance; the cloud word sits beside it.
    Home cards, satellite page rows and the next pass line all use it. */
 .rating-pill .quality {
   padding: 1px 9px;
   border-radius: 999px;
   background: color-mix(in srgb, currentColor 15%, transparent);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 /* "Best in the next 24 hours": one quiet tile-like button above Next up. */
 .best-pass {
@@ -826,20 +826,20 @@
   border: 1px solid var(--map-border);
   border-radius: 10px;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-md);
   text-align: left;
   cursor: pointer;
 }
 .best-pass:hover { background: var(--btn-hover); }
 .best-pass:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .best-pass__label { color: var(--map-muted); }
-.best-pass__what { color: var(--text-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
+.best-pass__what { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 .best-pass .quality,
 .best-pass .cloud { margin-left: 0; }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .more-panel { display: contents; }
 .more-panel[hidden] { display: none; }
-.more-panel__note { flex: 1 0 100%; margin: 2px 0 0; font-size: 13px; color: var(--map-muted); }
+.more-panel__note { flex: 1 0 100%; margin: 2px 0 0; font-size: var(--fs-md); color: var(--map-muted); }
 
 /* chart-block:begin */
 /* The sky and radio chart modals keep their literal dark colours in both
@@ -1197,12 +1197,12 @@
   border: 1px solid var(--map-border);
   border-radius: 8px;
 }
-.focus-bar__title { flex: 1 1 auto; min-width: 0; margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.focus-bar__title { flex: 1 1 auto; min-width: 0; margin: 0; font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
 .focus-bar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.focus-bar__close { min-width: 40px; min-height: 40px; font-size: 18px; line-height: 1; }
+.focus-bar__close { min-width: 40px; min-height: 40px; font-size: var(--fs-xl); line-height: 1; }
 /* Details jumps to the drawer title, which only sits below the map under 1100 px. */
 @media (min-width: 1100px) { .focus-bar__details { display: none; } }
-.focus-bar__note { flex-basis: 100%; margin: 0; color: var(--map-muted); font-size: 13px; }
+.focus-bar__note { flex-basis: 100%; margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
 
 /* Satellite chips over the top of the map. The strip scrolls sideways inside
    itself and never widens the page. */
@@ -1226,7 +1226,7 @@
   background: var(--chip-bg);
   border: 1px solid var(--chip-border);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .sat-chip--focus {
   border-color: var(--sat-color, var(--map-accent));
@@ -1291,7 +1291,7 @@
   margin: 8px 0 0;
   padding: 0;
   color: var(--map-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .map-legend li { display: flex; align-items: center; gap: 6px; }
 /* Every swatch fills the same 22 px slot, so the labels line up. */
@@ -1325,7 +1325,7 @@
 .home-about {
   margin-top: 16px;
   color: var(--map-muted);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 .home-about summary { cursor: pointer; color: var(--map-text); }
@@ -1344,7 +1344,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
   min-height: 100%;
   color: var(--map-text);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 .map-shell__top {
   grid-area: top;
@@ -1369,7 +1369,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
   background: rgba(var(--warn-rgb), 0.08);
   border: 1px solid rgba(var(--warn-rgb), 0.32);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.4;
   color: var(--warn-text);
 }
@@ -1379,7 +1379,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
   color: var(--map-text);
 }
 /* HomeApp's "Satellite data is ... old." line, under the top bar and banner. */
-.map-shell__top .saved-age { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--map-muted); }
+.map-shell__top .saved-age { grid-column: 1 / -1; margin: 0; font-size: var(--fs-sm); color: var(--map-muted); }
 .map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
 .map-shell__end { grid-area: clock; justify-self: end; display: flex; align-items: center; gap: 12px; }
 /* ThemeToggle (components/ThemeToggle.tsx): segmented from 700 px, one cycling
@@ -1390,7 +1390,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
   background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px;
 }
 .theme-toggle__opt, .theme-toggle__cycle {
-  font: inherit; font-size: 12.5px; font-weight: 500; line-height: 1; color: var(--map-muted); background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium); line-height: 1; color: var(--map-muted); background: none; border: 0; cursor: pointer;
   padding: 7px 10px; min-height: 32px; border-radius: 6px;
 }
 .theme-toggle[data-night="true"] { opacity: 0.55; }
@@ -1408,7 +1408,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
    under 700 px. */
 .night-toggle {
   display: inline-flex; align-items: center; gap: 6px;
-  font: inherit; font-size: 12.5px; font-weight: 500; line-height: 1; white-space: nowrap;
+  font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium); line-height: 1; white-space: nowrap;
   color: var(--map-muted); background: none; cursor: pointer;
   border: 1px solid var(--btn-line); border-radius: 8px; padding: 0 10px; min-height: 38px;
 }
@@ -1557,7 +1557,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
     border: 1px solid var(--chip-border);
     border-radius: 7px;
     font: inherit;
-    font-size: 13px;
+    font-size: var(--fs-md);
     cursor: pointer;
   }
   .map-shell.sat .flat-map-shell--fill .map-legend__toggle[aria-expanded="true"] { border-color: var(--btn-line); }
@@ -1643,7 +1643,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
     border: 1px solid var(--chip-border);
     border-radius: 7px;
     font: inherit;
-    font-size: 13px;
+    font-size: var(--fs-md);
     cursor: pointer;
   }
   .flat-map-shell--fill .map-legend__toggle:hover { background: var(--btn-hover); }
@@ -1667,24 +1667,24 @@ a.home-chip { display: inline-block; text-decoration: none; }
 
 /* Up now: live sky view for the followed satellites. */
 .up-now { margin: 0; }
-.up-now__title { margin: 0 0 8px; font-size: 15px; font-weight: 650; line-height: 1.3; color: var(--text-heading); }
+.up-now__title { margin: 0 0 8px; font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: 1.3; color: var(--text-heading); }
 .up-now__body { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .up-now__sky { flex: 0 0 160px; width: 160px; height: 160px; }
 .up-now__horizon { fill: rgba(var(--ink-rgb), 0.03); stroke: var(--map-muted); stroke-width: 1; }
 .up-now__ring { fill: none; stroke: var(--map-border); stroke-width: 1; stroke-dasharray: 2 3; }
-.up-now__dir { fill: var(--map-muted); font-size: 10px; }
+.up-now__dir { fill: var(--map-muted); font-size: var(--fs-xs); }
 .up-now__dot { stroke: var(--bg); stroke-width: 1.5; }
-.up-now__list { flex: 1; min-width: 140px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.up-now__list { flex: 1; min-width: 140px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
 .up-now__item { display: flex; align-items: center; gap: 8px; }
 .up-now__swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 
 /* Inline note beside a pass reminder bell. */
-.alert-note { font-size: 12px; color: var(--map-muted); align-self: center; }
+.alert-note { font-size: var(--fs-sm); color: var(--map-muted); align-self: center; }
 
 /* Paste elements: a + on phones, so the search field gets the width. */
 .search-bar__paste-short { display: none; }
 @media (max-width: 599px) {
-  .search-bar__paste-button { min-width: 44px; padding-left: 0; padding-right: 0; font-size: 20px; line-height: 1; }
+  .search-bar__paste-button { min-width: 44px; padding-left: 0; padding-right: 0; font-size: var(--fs-xl); line-height: 1; }
   .search-bar__paste-full { display: none; }
   .search-bar__paste-short { display: inline; }
 }
@@ -1701,13 +1701,13 @@ a.home-chip { display: inline-block; text-decoration: none; }
   border-left: 3px solid var(--accent);
   border-radius: 8px;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-md);
   text-align: left;
   cursor: pointer;
 }
 .next-strip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.next-strip__label { font-weight: 700; color: var(--text-heading); }
-.next-strip__text { flex: 1 1 auto; min-width: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.next-strip__label { font-weight: var(--fw-semibold); color: var(--text-heading); }
+.next-strip__text { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 .next-strip .quality,
 .next-strip .cloud { margin-left: 0; flex: none; }
 @media (min-width: 1100px) {
@@ -1738,35 +1738,35 @@ a.home-chip { display: inline-block; text-decoration: none; }
   display: flex; flex-direction: column; gap: 12px;
 }
 .live-view__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.live-view__title { margin: 0; font-size: 22px; color: var(--text-strong); }
-.live-view__sub { margin: 2px 0 0; color: var(--map-muted); font-size: 13px; }
-.live-view__status { margin: 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+.live-view__title { margin: 0; font-size: var(--fs-2xl); color: var(--text-strong); }
+.live-view__sub { margin: 2px 0 0; color: var(--map-muted); font-size: var(--fs-md); }
+.live-view__status { margin: 0; font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
 .live-view__status strong { color: var(--text-strong); }
 .live-view__status span { color: var(--map-muted); }
-.live-view__turn { margin: -4px 0 0; text-align: center; font-size: 20px; font-weight: 700; color: var(--accent); }
+.live-view__turn { margin: -4px 0 0; text-align: center; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--accent); }
 .live-dial { margin: 0; }
 .live-dial svg { display: block; width: 100%; max-width: 340px; height: auto; margin: 0 auto; }
 .live-dial__horizon { fill: var(--panel); stroke: var(--map-muted); stroke-width: 1.2; }
 .live-dial__ring { fill: none; stroke: var(--map-border); stroke-width: 1; stroke-dasharray: 3 4; }
 .live-dial__ahead { stroke: var(--map-muted); stroke-width: 1; stroke-dasharray: 2 3; }
-.live-dial__card { fill: var(--map-muted); font-size: 12px; font-weight: 700; }
+.live-dial__card { fill: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
 .live-dial__track { fill: none; stroke: var(--map-muted); stroke-width: 2; stroke-linejoin: round; opacity: 0.6; }
 .live-dial__arrow { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
 .live-dial__sat { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
-.live-dial__caption { margin-top: 4px; text-align: center; font-size: 12px; color: var(--map-muted); }
+.live-dial__caption { margin-top: 4px; text-align: center; font-size: var(--fs-sm); color: var(--map-muted); }
 .live-view__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
 .live-view__nums div { padding: 10px 12px; background: var(--panel); border-radius: 10px; }
-.live-view__nums dt { font-size: 12px; color: var(--map-muted); }
-.live-view__nums dd { margin: 2px 0 0; font-size: clamp(16px, 5vw, 22px); font-weight: 700; color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.live-view__nums dt { font-size: var(--fs-sm); color: var(--map-muted); }
+.live-view__nums dd { margin: 2px 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .live-view__radio { padding: 12px 14px; background: var(--panel); border-radius: 10px; }
 .live-view__radio .home-note { margin: 4px 0 0; }
 .live-view__tune { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.live-view__tune-label { font-size: 13px; color: var(--map-muted); }
-.live-view__tune-mhz { font-size: 30px; font-weight: 700; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.live-view__tune-label { font-size: var(--fs-md); color: var(--map-muted); }
+.live-view__tune-mhz { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; }
 .live-view__doppler { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
 .live-view__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 380px) {
-  .live-view__tune-mhz { font-size: 26px; }
+  .live-view__tune-mhz { font-size: var(--fs-2xl); }
 }
 
 /* Next 24 hours: a strip per satellite, one bar per pass. The SVG holds the
@@ -1776,7 +1776,7 @@ a.home-chip { display: inline-block; text-decoration: none; }
 .timeline__rows { position: relative; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .timeline__row,
 .timeline__axis { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 8px; align-items: center; }
-.timeline__name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--map-text); }
+.timeline__name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-md); color: var(--map-text); }
 .timeline__swatch { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-color); }
 .timeline__name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .timeline__strip {
@@ -1843,22 +1843,22 @@ a.home-chip { display: inline-block; text-decoration: none; }
   left: calc(var(--x) * 100%);
   transform: translateX(-50%);
   color: var(--map-muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   line-height: 1.25;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .timeline__tick--start { transform: none; }
 .timeline__tick--end { transform: translateX(-100%); }
-.timeline__day { color: var(--map-text); font-weight: 600; }
-.timeline__note { margin: 6px 0 0; color: var(--map-muted); font-size: 13px; }
+.timeline__day { color: var(--map-text); font-weight: var(--fw-semibold); }
+.timeline__note { margin: 6px 0 0; color: var(--map-muted); font-size: var(--fs-md); }
 /* Under 600 px (a phone, or the side panel on a wide screen) the name sits
    above its strip, so the strip keeps the full width. */
 @container (max-width: 599.98px) {
   .timeline__rows { gap: 2px; }
   .timeline__row,
   .timeline__axis { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
-  .timeline__name { font-size: 12px; }
+  .timeline__name { font-size: var(--fs-sm); }
   .timeline__ticks { grid-column: 1; }
 }
 @media print {

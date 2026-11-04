@@ -36,12 +36,12 @@ export default function LiveClock({
       <p className="live-clock__utc">
         <span className="live-clock__dot" aria-hidden="true" />
         <span className="live-clock__live">Live</span>
-        <time className="live-clock__time" dateTime={nowMs == null ? undefined : new Date(nowMs).toISOString()}>
+        <time className="live-clock__time num" dateTime={nowMs == null ? undefined : new Date(nowMs).toISOString()}>
           {utc}
         </time>
         <span className="live-clock__zone">UTC</span>
       </p>
-      <p className="live-clock__local">{local || "\u00a0"}</p>
+      <p className="live-clock__local num">{local || "\u00a0"}</p>
     </div>
   );
 }

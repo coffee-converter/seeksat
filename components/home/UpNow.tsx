@@ -53,7 +53,7 @@ export default function UpNow({ tracks, observer, colors, nowMs, focusId }: Prop
             );
           })}
         </svg>
-        <ul className="up-now__list">
+        <ul className="up-now__list num">
           {up.map((s) => (
             <li key={s.noradId} className="up-now__item">
               <span className="up-now__swatch" style={{ background: s.color ?? "var(--accent)" }} aria-hidden="true" />

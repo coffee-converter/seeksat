@@ -150,7 +150,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
         {turn && <p className="live-view__turn">{turn}</p>}
         {compassNote && <p className="home-note">{compassNote}</p>}
         {live && live.azDeg != null && live.elDeg != null && (
-          <dl className="live-view__nums">
+          <dl className="live-view__nums num">
             <div><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></div>
             <div><dt>Elevation</dt><dd>{`${Math.round(live.elDeg)}°`}</dd></div>
             <div><dt>Range</dt><dd>{`${Math.round(live.rangeKm!).toLocaleString()} km`}</dd></div>
@@ -165,9 +165,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
             <>
               <p className="live-view__tune">
                 <span className="live-view__tune-label">{live.phase === "before" ? "At rise, tune" : "Tune"}</span>
-                <span className="live-view__tune-mhz">{`${((freqHz + live.dopplerHz) / 1e6).toFixed(4)} MHz`}</span>
+                <span className="live-view__tune-mhz num">{`${((freqHz + live.dopplerHz) / 1e6).toFixed(4)} MHz`}</span>
               </p>
-              <p className="live-view__doppler">
+              <p className="live-view__doppler num">
                 {`Doppler ${live.dopplerHz >= 0 ? "+" : ""}${(live.dopplerHz / 1000).toFixed(1)} kHz`}
                 {live.phase === "during" && live.rateHzPerSec != null && (Math.abs(live.rateHzPerSec) < 1
                   ? ", steady"

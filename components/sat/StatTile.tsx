@@ -20,7 +20,7 @@ export default function StatTile({ label, value, unit, note, size = "md", href, 
   const body = (
     <>
       <span className="stat-tile__label">{label}</span>
-      <span className="stat-tile__value">
+      <span className="stat-tile__value num">
         <span className={flash ? `stat-tile__num ${flash}` : "stat-tile__num"}>{value}</span>
         {unit ? <span className="stat-tile__unit">{` ${unit}`}</span> : null}
       </span>

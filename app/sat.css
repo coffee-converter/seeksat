@@ -1,24 +1,24 @@
 .sat { overflow-wrap: anywhere; }
-.sat-title { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.15; color: var(--text-strong); }
+.sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15; color: var(--text-strong); }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; margin-top: 6px; }
 .sat-age { line-height: 1.6; }
-.sat-age__how { margin-left: 8px; font-size: 12px; white-space: nowrap; }
-.sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
+.sat-age__how { margin-left: 8px; font-size: var(--fs-sm); white-space: nowrap; }
+.sat-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: var(--fs-sm); }
 .sat-badge--old { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
 .sat-badge--stale { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
-.sat-how { display: block; margin-top: 2px; color: var(--map-muted); font-size: 12px; line-height: 1.4; }
+.sat-how { display: block; margin-top: 2px; color: var(--map-muted); font-size: var(--fs-sm); line-height: 1.4; }
 p.sat-how { margin: 0 0 8px; }
 .sat-diagram { margin: 0; }
 .sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto 6px; }
-.sat-diagram-label { fill: var(--map-muted); font-size: 10px; }
+.sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); }
 .sat-list { margin: 0; padding-left: 18px; }
 .sat-raw { margin-bottom: 10px; }
 .sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.sat-raw-head h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-heading); }
+.sat-raw-head h3 { margin: 0; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-raw pre {
   margin: 6px 0 0; padding: 8px; max-width: 100%; overflow-x: auto;
   background: var(--code-bg); border: 0; border-radius: 8px;
-  font-size: 12px; user-select: text;
+  font-size: var(--fs-sm); user-select: text;
 }
 .sat-passes { margin-bottom: 0; }
 .sat-passlist { list-style: none; margin: 0; padding: 0; }
@@ -31,8 +31,8 @@ p.sat-how { margin: 0 0 8px; }
 .sat-day {
   margin: 0;
   padding: 6px 0 4px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
   color: var(--map-muted);
   border-bottom: 1px solid var(--map-border);
 }
@@ -53,10 +53,10 @@ p.sat-how { margin: 0 0 8px; }
   .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
   .sat-pass__rating { justify-self: start; }
 }
-.sat-pass__line2 { margin: 6px 0 6px; color: var(--map-muted); font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.5; }
+.sat-pass__line2 { margin: 6px 0 6px; color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: 1.5; }
 .sat-pass .pass-card__tag { margin-left: 8px; }
 .sat-observers { margin: 12px 0; }
-.sat-observers__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--text-heading); }
+.sat-observers__title { margin: 0 0 4px; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-observers__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .sat-observers__item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--map-border); border-radius: 999px; }
 .sat-shared {
@@ -73,7 +73,7 @@ p.sat-how { margin: 0 0 8px; }
 
 /* Header: who it is, then Follow and Share. The clock lives in the shell's top bar. */
 .sat-top { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.sat-back { align-self: flex-start; display: inline-flex; align-items: center; font-size: 14px; text-decoration: none; }
+.sat-back { align-self: flex-start; display: inline-flex; align-items: center; font-size: var(--fs-md); text-decoration: none; }
 .sat-back:hover { text-decoration: underline; }
 
 /* Title bar: pinned over the content once .sat-top has scrolled away. The
@@ -90,7 +90,7 @@ p.sat-how { margin: 0 0 8px; }
   display: flex; align-items: center; gap: 10px; min-width: 0;
   padding: 6px 12px; background: var(--bg); border-bottom: 1px solid var(--map-border);
 }
-.sat-bar__name { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sat-bar__name { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-semibold); color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sat-bar__when { flex: 0 0 auto; color: var(--map-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Under 1100 the window scrolls: sit under what the header keeps pinned
    (measured by HeaderPinned; the fallback is the usual header). */
@@ -113,7 +113,7 @@ p.sat-how { margin: 0 0 8px; }
 .sat-next__main { flex: 1 1 14em; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .sat-next__text { margin: 0; line-height: 1.4; font-variant-numeric: tabular-nums; }
 .sat-next__label { color: var(--map-muted); }
-.sat-next__what { color: var(--text-strong); font-weight: 600; }
+.sat-next__what { color: var(--text-strong); font-weight: var(--fw-semibold); }
 .sat-next .quality,
 .sat-next .cloud { margin-left: 0; }
 
@@ -124,7 +124,7 @@ p.sat-how { margin: 0 0 8px; }
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   min-height: 40px; padding: 0 14px;
   background: var(--tile-bg); border: 1px solid var(--map-border); border-radius: 10px;
-  color: var(--text-heading); font-size: 14px; font-weight: 600;
+  color: var(--text-heading); font-size: var(--fs-md); font-weight: var(--fw-semibold);
   cursor: pointer; list-style: none;
 }
 .sat-live__summary::-webkit-details-marker { display: none; }
@@ -170,21 +170,21 @@ p.sat-how { margin: 0 0 8px; }
 a.stat-tile:hover { background: var(--tile-hover); }
 a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .stat-tile__label {
-  color: var(--map-muted); font-size: 12px; font-weight: 500;
+  color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-medium);
 }
 .stat-tile__value {
-  color: var(--text-strong); font-size: min(30px, 16.5cqi); font-weight: 600; line-height: 1.15;
+  color: var(--text-strong); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: 1.15;
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap;
 }
 .stat-tile__num { margin: 0 -3px; padding: 0 3px; border-radius: 4px; }
-.stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: 500; letter-spacing: 0; }
-.stat-tile__note { color: var(--map-muted); font-size: 11px; line-height: 1.35; }
-.stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: min(40px, 9cqi); white-space: normal; text-wrap: balance; }
-.stat-tile--wide .stat-tile__value { font-size: min(24px, 6cqi); white-space: normal; }
+.stat-tile__unit { color: var(--map-muted); font-size: 0.5em; font-weight: var(--fw-medium); letter-spacing: 0; }
+.stat-tile__note { color: var(--map-muted); font-size: var(--fs-xs); line-height: 1.35; }
+.stat-tile--lg .stat-tile__value { color: var(--text-heading); font-size: var(--fs-hero); white-space: normal; text-wrap: balance; }
+.stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); white-space: normal; }
 /* Orbit check: a plain sentence, then the vis-viva formulas set as code, so
    the words between them never read as variables. */
 .sat-orbit-check__lead { margin: 0; color: var(--map-text); }
-.sat-orbit-check__pct { color: var(--text-strong); font-weight: 700; font-variant-numeric: tabular-nums; }
+.sat-orbit-check__pct { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 .sat-orbit-check__math { margin: 8px 0 0; color: var(--map-muted); line-height: 1.9; }
 .sat-formula {
   padding: 1px 6px;
@@ -199,9 +199,9 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 }
 @media (max-width: 479.98px) {
   .stat-tile { padding: 10px 12px 11px; }
-  .stat-tile__value { font-size: min(24px, 16.5cqi); }
-  .stat-tile--lg .stat-tile__value { font-size: min(30px, 9.5cqi); }
-  .stat-tile--wide .stat-tile__value { font-size: min(20px, 7cqi); }
+  .stat-tile__value { font-size: var(--fs-2xl); }
+  .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
+  .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
 }
 
 /* Mean elements: label and value pairs, one column on phones. */
@@ -225,8 +225,8 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .sat-how-section { padding-top: 4px; }
 .sat-how-list { display: grid; gap: 10px; margin: 0; }
 .sat-how-list__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
-.sat-how-list dt { color: var(--map-text); font-size: 13px; font-weight: 600; }
-.sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: 13px; line-height: 1.5; }
+.sat-how-list dt { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.sat-how-list dd { margin: 0; max-width: 72ch; color: var(--map-muted); font-size: var(--fs-md); line-height: 1.5; }
 @media (min-width: 600px) {
   .sat-how-list__row { grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: 16px; }
 }
@@ -234,13 +234,13 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 /* Docked (1100 px and up) the panel is 380 px wide, whatever the viewport:
    two tile columns, one column of elements, and stacked How-we-compute rows. */
 @media (min-width: 1100px) {
-  .map-shell__panel .sat-title { font-size: 24px; }
+  .map-shell__panel .sat-title { font-size: var(--fs-2xl); }
   .map-shell__panel .sat-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .map-shell__panel .sat-dash .stat-tile--wide,
   .map-shell__panel .sat-dash__sun { grid-column: 1 / -1; }
-  .map-shell__panel .stat-tile__value { font-size: min(24px, 16.5cqi); }
-  .map-shell__panel .stat-tile--lg .stat-tile__value { font-size: min(30px, 9.5cqi); }
-  .map-shell__panel .stat-tile--wide .stat-tile__value { font-size: min(20px, 7cqi); }
+  .map-shell__panel .stat-tile__value { font-size: var(--fs-2xl); }
+  .map-shell__panel .stat-tile--lg .stat-tile__value { font-size: var(--fs-hero); }
+  .map-shell__panel .stat-tile--wide .stat-tile__value { font-size: var(--fs-2xl); }
   .map-shell__panel .sat-etable { grid-template-columns: minmax(0, 1fr); }
   .map-shell__panel .sat-how-list__row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .map-shell__panel .sat-diagram svg { max-width: 300px; }

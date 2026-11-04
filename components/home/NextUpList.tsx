@@ -256,7 +256,7 @@ function PassCard({
       </div>
       <PassStats pass={pass} nowMs={nowMs} timeZone={observer.tz} mag={mag} />
       <div className="pass-card__body">
-        <p className="pass-card__words">{words}</p>
+        <p className="pass-card__words num">{words}</p>
         {hasMeta && (
           <p className="pass-card__meta">
             {/* Every pass listed in visual mode is visible, so only radio says so. */}

@@ -1,29 +1,29 @@
 .mcp-doc {
   max-width: 760px; margin: 0 auto; padding: 56px 22px 96px;
   color: var(--text); background: var(--bg); min-height: 100vh;
-  font-family: var(--font-sans); font-size: 15px; line-height: 1.65;
+  font-family: var(--font-sans); font-size: var(--fs-lg); line-height: 1.65;
 }
 .mcp-doc h1 {
-  font-family: var(--font-brand); font-weight: 600;
-  font-size: 30px; letter-spacing: 0.01em; margin: 0 0 8px;
+  font-family: var(--font-brand); font-weight: var(--fw-semibold);
+  font-size: var(--fs-2xl); letter-spacing: 0.01em; margin: 0 0 8px;
 }
 .mcp-doc h1 .seek { color: var(--wordmark-dim); }
 .mcp-doc h1 .sat { color: var(--accent); }
 .mcp-doc .lede { opacity: 0.8; margin: 0 0 8px; }
-.mcp-doc h2 { font-size: 18px; margin: 40px 0 12px; color: var(--text-heading); }
+.mcp-doc h2 { font-size: var(--fs-xl); margin: 40px 0 12px; color: var(--text-heading); }
 .mcp-doc p { margin: 0 0 12px; }
 .mcp-doc pre {
   background: var(--code-bg); border: 1px solid rgba(var(--ink-rgb), 0.12);
   border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 0 0 14px;
 }
-.mcp-doc pre code { font-family: var(--font-code); font-size: 13px; line-height: 1.5; color: var(--text-code); }
+.mcp-doc pre code { font-family: var(--font-code); font-size: var(--fs-md); line-height: 1.5; color: var(--text-code); }
 .mcp-doc table { width: 100%; border-collapse: collapse; margin: 0 0 12px; }
 .mcp-doc th, .mcp-doc td {
   text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(var(--ink-rgb), 0.1);
   vertical-align: top;
 }
-.mcp-doc th { opacity: 0.6; font-weight: 600; }
-.mcp-doc td code { color: var(--accent); font-family: var(--font-code); font-size: 13px; white-space: nowrap; }
+.mcp-doc th { opacity: 0.6; font-weight: var(--fw-semibold); }
+.mcp-doc td code { color: var(--accent); font-family: var(--font-code); font-size: var(--fs-md); white-space: nowrap; }
 .mcp-doc ul { padding-left: 18px; margin: 0 0 12px; }
 .mcp-doc li { margin: 0 0 8px; }
 .mcp-doc footer { margin-top: 48px; opacity: 0.7; }

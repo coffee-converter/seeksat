@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 // Every page colour comes from a theme token (app/globals.css), except the
 // chart block: the sky chart, radio chart and pass-card polar plots keep their
@@ -81,11 +81,12 @@ function liveCss(file) {
 /** Declarations of `property` outside tokens, chart graphics and print: [{ where: "file:line", value }]. */
 function declsIn(file, property) {
   const css = liveCss(file);
+  const src = read(file).split('\n');
   const found = [];
   for (const m of css.matchAll(/[{;]\s*([-\w]+)\s*:\s*([^;{}]*)/g)) {
     if (m[1] !== property) continue;
     const line = css.slice(0, m.index + m[0].indexOf(m[1])).split('\n').length;
-    found.push({ where: `${file}:${line}`, value: m[2].trim() });
+    found.push({ where: `${file}:${line}`, value: m[2].trim(), brand: (src[line - 1] || '').includes('/* brand */') });
   }
   return found;
 }
@@ -402,7 +403,7 @@ test('globals.css carries no triangulate rules', () => {
 
 test('scale tokens exist with the spec values', () => {
   const block = regions(read('app/globals.css'), TOKENS_BEGIN, TOKENS_END).join('\n');
-  const want = { '--fs-xs': '11px', '--fs-sm': '12px', '--fs-md': '13px', '--fs-lg': '15px', '--fs-xl': '18px', '--fs-2xl': '24px',
+  const want = { '--fs-xs': '11px', '--fs-sm': '12px', '--fs-md': '13px', '--fs-lg': '15px', '--fs-xl': '18px', '--fs-2xl': '24px', '--fs-input': '16px',
     '--fw-regular': '400', '--fw-medium': '500', '--fw-semibold': '600',
     '--sp-2': '2px', '--sp-4': '4px', '--sp-6': '6px', '--sp-8': '8px', '--sp-12': '12px', '--sp-16': '16px', '--sp-24': '24px', '--sp-32': '32px',
     '--radius-sm': '4px', '--radius-md': '6px', '--radius-lg': '8px', '--radius-xl': '12px', '--radius-full': '999px',
@@ -443,4 +444,16 @@ test('the root layout loads Atkinson Hyperlegible Next through next/font', () =>
   assert.match(src, /variable:\s*"--font-atkinson"/);
   assert.match(src, /className=\{atkinson\.variable\}/);
   assert.doesNotMatch(src, /fonts\.googleapis\.com/);
+});
+
+test('font-size and font-weight use tokens', () => {
+  const ok = (v) => /^var\(--f[sw]-[\w-]+\)$/.test(v) || /^[\d.]+em$/.test(v) || v === 'inherit';
+  const found = FILES.flatMap((f) => [...declsIn(f, 'font-size'), ...declsIn(f, 'font-weight')].filter((d) => !ok(d.value) && !d.brand));
+  assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
+});
+
+test('ticking readouts use the numeric class', () => {
+  for (const f of ['components/ui/StatTile.tsx', 'components/sat/StatTile.tsx', 'components/LiveClock.tsx', 'components/live/LiveView.tsx', 'components/home/NextUpList.tsx', 'components/home/UpNow.tsx']) {
+    if (existsSync(new URL(`../${f}`, import.meta.url))) assert.match(read(f), /\bnum\b/, f);
+  }
 });

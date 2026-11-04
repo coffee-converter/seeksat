@@ -37,7 +37,7 @@ export function OrbitCheck({ live }: { live: Live }) {
       <h2 id="sat-orbit-check-title" className="home-heading">Orbit check</h2>
       <p className="sat-orbit-check__lead">
         The live speed and distance fit this orbit to{" "}
-        <Flashing className="sat-orbit-check__pct" value={within} />.
+        <Flashing className="sat-orbit-check__pct num" value={within} />.
       </p>
       <p className="sat-orbit-check__math">
         Vis-viva: <code className="sat-formula">v²r/GM = <Flashing className="" value={a} /></code>
