@@ -129,7 +129,7 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
   return (
     <section className="location-prompt" aria-labelledby={`${uid}-title`}>
       <h2 id={`${uid}-title`} className="home-heading">Where are you?</h2>
-      <p className="location-prompt__hint">Passes are worked out for your location. It stays on this device.</p>
+      <p className="location-prompt__hint">SeekSat shows where satellites are now and when they pass over you. Your location stays on this device.</p>
       <Button variant="primary" disabled={gpsBusy} onClick={useDevice}>
         {gpsBusy ? "Finding you..." : "Use my location"}
       </Button>
@@ -138,7 +138,7 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
           <input
             type="text"
             autoComplete="off"
-            placeholder='Place, "lat, lon" or grid square (EN52ve)'
+            placeholder='Place, "lat, lon" or grid (EN52ve)'
             value={text}
             onChange={(e) => {
               setText(e.target.value);

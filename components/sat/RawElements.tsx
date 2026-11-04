@@ -31,7 +31,8 @@ function Block({ title, text }: { title: string; text: string }) {
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
-      <pre ref={ref}>{text}</pre>
+      {/* Focusable, so the keyboard can scroll a long line. */}
+      <pre ref={ref} tabIndex={0} aria-label={title}>{text}</pre>
     </div>
   );
 }

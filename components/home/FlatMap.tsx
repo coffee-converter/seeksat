@@ -310,6 +310,9 @@ export default function FlatMap({
   const followOn = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
   const [legendOpen, setLegendOpen] = useState(false);
+  // Phones: whether the View button has the globe camera buttons open.
+  const [viewsOpen, setViewsOpen] = useState(false);
+  const presetsId = useId();
   const legendId = useId();
 
   // Latest props, read by map event handlers without re-binding them.
@@ -1342,6 +1345,9 @@ export default function FlatMap({
     moveTo(map, homeView(map));
   };
   const focusNow = focusOf(sats);
+  // Only the views that can go somewhere: On you needs a location, Satellite
+  // GP a satellite.
+  const presetsNow = PRESETS.filter((p) => (p.id !== "you" || observer) && (p.id !== "sat" || focusNow));
   const goTo = (p: Preset) => {
     const map = mapRef.current;
     if (!map) return;
@@ -1416,7 +1422,7 @@ export default function FlatMap({
   const shellClass = `flat-map-shell${fill ? " flat-map-shell--fill" : ""}${full ? " flat-map-shell--full" : ""}`;
 
   return (
-    <div className={shellClass} ref={shellRef}>
+    <div className={shellClass} ref={shellRef} role="region" aria-label="Satellite map">
     {fill ? (
       // These lay over the top of the map: the chips row first, the focus bar
       // under it, so opening the focus bar never moves the chips.
@@ -1437,15 +1443,22 @@ export default function FlatMap({
       ) : null}
       {fill ? null : chipRow}
       {view === "globe" ? (
-        <div className="flat-map__presets" role="group" aria-label="Globe camera">
-          {PRESETS.map((p) => (
+        <div
+          id={presetsId}
+          className={`flat-map__presets${viewsOpen ? " flat-map__presets--open" : ""}`}
+          role="group"
+          aria-label="Globe camera"
+        >
+          {presetsNow.map((p) => (
             <Button
               key={p.id}
               variant="overlay"
               size="sm"
-              disabled={(p.id === "you" && !observer) || (p.id === "sat" && !focusNow)}
               pressed={p.id === "sat" ? followOn : undefined}
-              onClick={() => goTo(p.id)}
+              onClick={() => {
+                setViewsOpen(false);
+                goTo(p.id);
+              }}
             >
               {p.label}
             </Button>
@@ -1453,6 +1466,18 @@ export default function FlatMap({
         </div>
       ) : null}
       <div className="flat-map__zoom">
+        {/* Phones: one View button opens the globe camera buttons above this row. */}
+        {view === "globe" ? (
+          <Button
+            variant="overlay"
+            className="flat-map__view-pick"
+            aria-expanded={viewsOpen}
+            aria-controls={presetsId}
+            onClick={() => setViewsOpen((o) => !o)}
+          >
+            View
+          </Button>
+        ) : null}
         <Button variant="overlay" iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
         <Button variant="overlay" iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
         {/* On the globe, On you and Satellite GP already do this. */}

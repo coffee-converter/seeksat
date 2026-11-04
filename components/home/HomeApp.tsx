@@ -453,23 +453,30 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     shellClass: hydrated && !location ? "home-first-visit" : undefined,
   }, focusSynced);
 
+  // Mode, minimum elevation and sky type do nothing until there is a location,
+  // so a first visit shows them after the location card and popular list.
+  const firstVisit = hydrated && !location;
+  const controls = (
+    <HomeControls
+      ready={hydrated}
+      mode={prefs.mode}
+      minElevDeg={prefs.minElevDeg}
+      skyType={prefs.skyType}
+      locationName={location && !changingLocation ? location.name : null}
+      onModeChange={(mode) => setPrefs({ mode })}
+      onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
+      onSkyTypeChange={(skyType) => setPrefs({ skyType })}
+      onChangeLocation={() => setChangingLocation(true)}
+    />
+  );
+
   return (
     <>
       <Suspense fallback={null}>
         <FocusParam onSynced={onFocusSynced} />
       </Suspense>
       <ClockSkewBanner />
-      <HomeControls
-        ready={hydrated}
-        mode={prefs.mode}
-        minElevDeg={prefs.minElevDeg}
-        skyType={prefs.skyType}
-        locationName={location && !changingLocation ? location.name : null}
-        onModeChange={(mode) => setPrefs({ mode })}
-        onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
-        onSkyTypeChange={(skyType) => setPrefs({ skyType })}
-        onChangeLocation={() => setChangingLocation(true)}
-      />
+      {!firstVisit && controls}
 
       {status === "error" && (
         <div className="home-banner" role="alert">
@@ -489,6 +496,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             />
           )}
           {!location && <PopularList names={popularNames} />}
+          {firstVisit && controls}
         </>
       ) : observer && (
         <>
