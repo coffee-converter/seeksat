@@ -8,7 +8,7 @@ import LiveDial from "@/components/live/LiveDial";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
-import { uplinkDopplerHz } from "@/lib/radio/uplink.mjs";
+import { needsTone, uplinkDopplerHz } from "@/lib/radio/uplink.mjs";
 import { turnHint, headingFromOrientation } from "@/lib/live/heading.mjs";
 import { compass } from "@/lib/sat/pass-rows.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
@@ -32,6 +32,7 @@ const build = radioSeries as (a: Record<string, unknown>) => { series: { samples
 
 /** An uplink as lib/catalog.mjs and lib/mirror/satnogs.mjs store it. */
 export type Uplink = { hz: number; highHz?: number; mode?: string; tone?: number; invert?: boolean };
+const toneMissing = needsTone as (u: Uplink) => boolean;
 const upShift = uplinkDopplerHz as (down: number | null, downHz: number | null, upHz: number) => number | null;
 
 type OrientationCtor = { requestPermission?: () => Promise<"granted" | "denied"> };
@@ -42,13 +43,15 @@ interface Props {
   downlinkLabel: string | null;
   /** The chosen downlink's uplink, when it is a repeater or transponder. */
   uplink: Uplink | null;
+  /** The chosen downlink's mode ("fm", "lrpt"), shown beside its frequency. */
+  downlinkMode?: string | null;
   onChart: (kind: "sky" | "radio") => void;
   onClose: () => void;
 }
 
 // The pass right now: where to point, how long until it rises, peaks or
 // sets, and where to tune. Sampled once (1 s steps), read four times a second.
-export default function LiveView({ subject, freqHz, downlinkLabel, uplink, onChart, onClose }: Props) {
+export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downlinkMode = null, onChart, onClose }: Props) {
   const { track, obs, pass, minElevDeg } = subject;
   const samples = useMemo(() => build({
     track, obs, anchorMs: (pass as { peakMs: number }).peakMs, minElevDeg, freqHz, purpose: "csv",
@@ -156,8 +159,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, onCha
           ) : tune === "tune" && live && live.dopplerHz != null && freqHz != null ? (
             <>
               <p className="live-view__tune">
-                <span className="live-view__tune-label">{live.phase === "before" ? "At rise, tune" : "Tune"}</span>
+                <span className="live-view__tune-label">{live.phase === "before" ? "At rise, listen" : "Listen"}</span>
                 <span className="live-view__tune-mhz num">{`${((freqHz + live.dopplerHz) / 1e6).toFixed(4)} MHz`}</span>
+                {downlinkMode && <span className="live-view__tune-mode">{downlinkMode.toUpperCase()}</span>}
               </p>
               <p className="live-view__doppler num">
                 {`Doppler ${live.dopplerHz >= 0 ? "+" : ""}${(live.dopplerHz / 1000).toFixed(1)} kHz`}
@@ -177,10 +181,11 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, onCha
                     <p className="live-view__tune">
                       <span className="live-view__tune-label">{live.phase === "before" ? "At rise, transmit" : "Transmit"}</span>
                       <span className="live-view__tune-mhz num">{`${((upHz + shift) / 1e6).toFixed(4)} MHz`}</span>
+                      {uplink.mode && <span className="live-view__tune-mode">{uplink.mode.toUpperCase()}</span>}
                     </p>
                     <p className="live-view__doppler num">
                       {`Uplink ${shift >= 0 ? "+" : "−"}${Math.abs(shift / 1000).toFixed(1)} kHz`}
-                      {uplink.tone != null && ` · ${uplink.tone.toFixed(1)} Hz tone`}
+                      {uplink.tone != null ? ` · ${uplink.tone.toFixed(1)} Hz tone` : toneMissing(uplink) ? " · tone not listed" : ""}
                       {uplink.invert && " · inverting: tune down as you transmit up"}
                     </p>
                   </>

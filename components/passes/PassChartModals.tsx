@@ -135,6 +135,7 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
           freqHz={freqHz}
           downlinkLabel={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.label ?? null}
           uplink={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.uplink ?? null}
+          downlinkMode={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.mode ?? null}
           onChart={onChartChange}
           onClose={onClose}
         />

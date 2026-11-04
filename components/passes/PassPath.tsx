@@ -4,10 +4,13 @@
 // satellite page's pass rows.
 
 import { useMemo } from "react";
+import type React from "react";
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import { dopplerHzAt, passPath } from "@/lib/passes/pass-words.mjs";
+import { needsTone } from "@/lib/radio/uplink.mjs";
 import { formatPassDuration } from "@/lib/passes/format.mjs";
 import Surface from "@/components/ui/Surface";
+import Button from "@/components/ui/Button";
 import { passTime as cardTime } from "@/components/passes/PassStats";
 
 type Pass = {
@@ -16,6 +19,7 @@ type Pass = {
 };
 type Track = { ecefAt: (d: Date) => number[] | null; downlinks: ReadonlyArray<unknown> };
 type Observer = { latDeg: number; lonDeg: number; elevM?: number; tz?: string };
+const toneMissing = needsTone as (u: unknown) => boolean;
 const duration = (ms: number) => (formatPassDuration as (s: number) => string)(ms / 1000);
 
 /** "9m ≥ 10°", under Lasts on a radio card: short enough for a phone's
@@ -63,8 +67,10 @@ const linkOf = defaultDownlink as (track: Track) => Link | null;
 /** Radio mode: what to listen on and transmit on for this pass. The Doppler
  *  runs from rise (or now, for a pass already up) to set; the live view has
  *  the moment-by-moment figures. */
-export function RadioPanel({ track, observer, pass, nowMs, banded }: {
+export function RadioPanel({ track, observer, pass, nowMs, banded, onMore }: {
   track: Track; observer: Observer; pass: Pass; nowMs: number; banded: boolean;
+  /** Opens the radio chart, whose picker lists every frequency. */
+  onMore?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const link = linkOf(track);
   const swing = useMemo(() => {
@@ -82,8 +88,13 @@ export function RadioPanel({ track, observer, pass, nowMs, banded }: {
       </Surface>
     );
   }
+  // Other frequencies besides this one (one per frequency, as the picker lists them).
+  const moreCount = new Set((track.downlinks as ReadonlyArray<{ hz: number }>).map((d) => d.hz)).size - 1;
   const up = link.uplink;
-  const upNote = up ? [up.tone != null ? `${up.tone.toFixed(1)} Hz tone` : null, up.invert ? "inverting" : null].filter(Boolean).join(", ") : "";
+  const upNote = up ? [
+    up.tone != null ? `${up.tone.toFixed(1)} Hz tone` : toneMissing(up) ? "tone not listed" : null,
+    up.invert ? "inverting" : null,
+  ].filter(Boolean).join(", ") : "";
   return (
     <Surface padded="sm" className="pass-card__radio">
       <dl className="radio-rows">
@@ -98,6 +109,11 @@ export function RadioPanel({ track, observer, pass, nowMs, banded }: {
           </>
         )}
       </dl>
+      {onMore && moreCount > 0 && (
+        <Button variant="link" size="sm" className="pass-card__radio-more" onClick={onMore}>
+          {`+${moreCount} more ${moreCount === 1 ? "frequency" : "frequencies"}`}
+        </Button>
+      )}
     </Surface>
   );
 }

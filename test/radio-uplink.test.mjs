@@ -14,6 +14,7 @@ test('uplinkText: a channel with its tone, a passband, an inverting transponder'
   assert.equal(uplinkText({ hz: 145_850_000, mode: 'fm', tone: 67 }), 'Uplink 145.850 MHz FM, 67.0 Hz tone');
   assert.equal(uplinkText({ hz: 145_935_000, highHz: 145_995_000, mode: 'lsb', invert: true }), 'Uplink 145.935–145.995 MHz LSB, inverting');
   assert.equal(uplinkText({ hz: 435_000_000 }), 'Uplink 435.000 MHz');
+  assert.equal(uplinkText({ hz: 145_850_000, mode: 'fm' }), 'Uplink 145.850 MHz FM, tone not listed');
   assert.equal(uplinkText(null), null);
 });
 
