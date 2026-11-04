@@ -9,6 +9,7 @@ import { mapTokenCss } from "@/lib/ui/map-tokens.mjs";
 import { chartTokenCss } from "@/lib/ui/chart-tokens.mjs";
 import ThemeSync from "@/components/ThemeSync";
 import SwRegister from "@/components/SwRegister";
+import ErrorReporter from "@/components/ErrorReporter";
 import "./globals.css";
 import "./ui.css";
 // Atkinson Hyperlegible Next, variable (wght 200-800), committed under
@@ -38,14 +39,14 @@ const atkinsonExt = localFont({
 });
 
 const SITE_NAME = "SeekSat";
-// SEO title: ~52 chars (target 50-60) so search results don't truncate
+// SEO title: ~57 chars (target 50-60) so search results don't truncate
 // and the page reads as more than a bare brand name. SITE_NAME stays the
 // short brand for og:site_name, the title template, and applicationName.
-const SITE_TITLE = "SeekSat - Satellite & ISS Pass Forecasts for Any Sky";
-// Meta description: ~146 chars (target 110-160). The longer marketing
+const SITE_TITLE = "SeekSat - Track Any Satellite: Live Map, Passes & Doppler";
+// Meta description: ~139 chars (target 110-160). The longer marketing
 // blurb was 198 chars and got truncated in results.
 const SITE_DESCRIPTION =
-  "Track any satellite and find its passes from where you are, for radio or watching, with honest live numbers and polar sky charts.";
+  "Track any satellite live and see when it passes over you: sky charts for watching, Doppler and pointing charts for radio. Free, no sign-up.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -56,10 +57,10 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: [
-    "satellite tracking", "ISS pass", "satellite forecast",
+    "satellite tracking", "satellite tracker", "live satellite map", "ISS pass", "satellite forecast",
     "satellite pass", "ham radio satellite", "amateur radio satellite",
     "visual satellite", "ground station", "polar plot", "sky chart",
-    "satellite visibility",
+    "satellite visibility", "NORAD", "Doppler", "geostationary",
   ],
   authors: [{ name: SITE_NAME }],
   // Canonical link element - points search engines at the apex URL
@@ -72,9 +73,8 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     url: "/",
     locale: "en_US",
-    // /og.png is a 1200×630 image that doesn't exist yet - drop one
-    // in public/og.png to populate. Until it exists, social previews
-    // fall back to whatever the platform scrapes from the page.
+    // /og.png: the 1200×630 default card, written by
+    // scripts/build-og-image.mjs (satellite pages get their own, /api/og).
     images: [{
       url: "/og.png",
       width: 1200,
@@ -167,6 +167,7 @@ export default function RootLayout({
       <body>
         <ThemeSync />
         <SwRegister />
+        <ErrorReporter />
         {children}
         {/* Vercel Web Analytics (page views, top pages, referrers)
             and Speed Insights (Core Web Vitals from real visitors).

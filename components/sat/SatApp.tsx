@@ -38,6 +38,7 @@ import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import SatChips, { type Chip } from "@/components/home/SatChips";
 import { CATALOG } from "@/lib/catalog.mjs";
 import Button from "@/components/ui/Button";
+import SiteFooter from "@/components/home/SiteFooter";
 import { cx, linkClass } from "@/lib/ui/classes.mjs";
 
 export type SatPageData = ReturnType<typeof satPageData>;
@@ -445,6 +446,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       <Downlinks downlinks={data.downlinks} />
       <RawElements raw={data.raw} />
       {usable ? <HowWeCompute /> : null}
+      <SiteFooter />
     </>
   );
 }
