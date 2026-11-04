@@ -39,21 +39,25 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-pass__head {
   display: grid;
   grid-template-columns: minmax(0, 26em) auto;
-  grid-template-areas: "stats rating";
+  grid-template-areas: "stats rating" "path .";
   justify-content: space-between;
   align-items: start;
   gap: var(--sp-6) var(--sp-12);
 }
 .sat-pass__stats { grid-area: stats; }
+.sat-pass__path { grid-area: path; }
 .sat-pass__rating { grid-area: rating; justify-self: end; }
 .sat-pass__rating .quality,
 .sat-pass__rating .cloud { margin-left: 0; }
 @media (max-width: 600px) {
-  .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
+  .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats" "path"; }
   .sat-pass__rating { justify-self: start; }
 }
-.sat-pass__line2 { margin: var(--sp-6) 0 var(--sp-6); color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: var(--lh-body); }
-.sat-pass .pass-card__tag { margin-left: var(--sp-8); }
+/* The radio panel, tags and buttons under the head, evenly spaced. */
+.sat-pass > .pass-card__radio,
+.sat-pass > .pass-card__actions { margin-top: var(--sp-8); }
+.sat-pass__line2 { margin: var(--sp-8) 0 0; color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: var(--lh-body); }
+.sat-pass__line2 .pass-card__tag:first-child { margin-left: 0; }
 .sat-observers { margin: var(--sp-12) 0; }
 .sat-observers__title { margin: 0 0 var(--sp-4); font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-observers__list { list-style: none; margin: var(--sp-8) 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-8); }

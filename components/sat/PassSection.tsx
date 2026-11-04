@@ -22,8 +22,8 @@ import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
 import Disclosure from "@/components/ui/Disclosure";
-import PassStats, { passTime } from "@/components/passes/PassStats";
-import { passWords } from "@/lib/passes/pass-words.mjs";
+import PassStats from "@/components/passes/PassStats";
+import { PassPath, RadioPanel, aboveTenText } from "@/components/passes/PassPath";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 import Button from "@/components/ui/Button";
@@ -51,12 +51,13 @@ type View =
   | { kind: "rows"; rows: Row[] }
   | { kind: "message" | "stationary"; text: string };
 type Track = { name: string; shortName: string; noradId: number };
+/** The page's track as the radio panel reads it (lib/sat/track.mjs). */
+type RadioTrack = Parameters<typeof RadioPanel>[0]["track"];
 
 const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) => View;
 const bearings = directionText as (pass: { startAzDeg: number; endAzDeg: number }) => string;
 const rowOpen = isRowOpen as (key: string, sharedKey: string | null, toggled: ReadonlySet<string>) => boolean;
 const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
-const wordsOf = passWords as (pass: object, o: { timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string; startTime?: boolean }) => string;
 const groupRows = (rows: Row[], nowMs: number, timeZone?: string) =>
   (groupRowsByDay as (r: Row[], n: number, tz?: string, l?: string) => Array<{ heading: string; rows: Row[] }>)(rows, nowMs, timeZone);
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
@@ -123,6 +124,8 @@ export default function PassSection({
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
+  // Bands narrowed in radio mode change the radio panel's "none" wording.
+  const banded = useHomeStore((s) => s.prefs.bands) != null;
   const [changingLocation, setChangingLocation] = useState(false);
   const shared = settings.isShared;
   const { mode, minElevDeg } = settings;
@@ -426,9 +429,10 @@ export default function PassSection({
                           const visual = mode === "visual";
                           const rating = visual ? visualRating(rated, { skyType, cloud: passCloud(clouds, rated, bucketMs) }) : undefined;
                           const mag = visual ? peakMagText(rated) : null;
+                          // Under Lasts: brightness when watching, time above 10° for radio.
                           // The pass as of now, so a pass already up reads Ends and Left.
-                          const statPass = { ...(row.pass as NextPass & { peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number }), inProgress: row.inProgress };
-                          const words = wordsOf(statPass, { timeZone: observer?.tz, mode, minElevDeg, clock: passTime, startTime: false });
+                          const statPass = { ...(row.pass as NextPass & { peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number; msAbove10?: number }), inProgress: row.inProgress };
+                          const lastSub = visual ? mag : aboveTenText(statPass);
                           return (
                             <li
                               key={row.key}
@@ -436,24 +440,33 @@ export default function PassSection({
                               className={row.key === sharedKey ? "sat-pass pass-row--shared" : "sat-pass"}
                             >
                               <div className="sat-pass__head">
-                                <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={mag} weekday={false} className="sat-pass__stats" />
+                                {/* The path strip says where it peaks, so Max keeps only the height. */}
+                                <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={lastSub} maxSub={null} weekday={false} className="sat-pass__stats" />
                                 <span className="rating-pair sat-pass__rating">
                                   <QualityBadge pass={rated} rating={rating} maxShown pill />
                                   {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
                                 </span>
+                                <PassPath pass={statPass} mode={mode} minElevDeg={minElevDeg} timeZone={observer?.tz} className="sat-pass__path" />
                               </div>
-                              <p className="sat-pass__line2">
-                                <span title={row.azLabel}>{words}</span>
-                                {row.key === sharedKey && <span className="pass-card__tag">shared pass</span>}
-                                {!visual && row.visible && <span className="pass-card__tag">visible</span>}
-                                {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
-                              </p>
+                              {!visual && track && observer && (
+                                <RadioPanel track={track as unknown as RadioTrack} observer={observer} pass={statPass} nowMs={nowMs} banded={banded} />
+                              )}
+                              {(row.key === sharedKey || (!visual && row.visible) || row.runsPastEnd) && (
+                                <p className="sat-pass__line2">
+                                  {row.key === sharedKey && <span className="pass-card__tag">shared pass</span>}
+                                  {!visual && row.visible && <span className="pass-card__tag">visible</span>}
+                                  {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
+                                </p>
+                              )}
                               {row.key === oldNote?.key && <p className="sat-how">{oldNote.text}</p>}
                               <div className="pass-card__actions">
                                 {liveOk(row.pass, bucketMs) && (
                                   <Button size="sm" variant="primary" onClick={(e) => openChart("live", row.pass, e)}><span className="live-dot" aria-hidden="true" />Live</Button>
                                 )}
-                                <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>
+                                {/* The chart for the mode leads; the other waits under More, as on the home cards. */}
+                                {visual
+                                  ? <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>
+                                  : <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>}
                                 <Disclosure
                                   id={moreId}
                                   open={open}
@@ -461,7 +474,9 @@ export default function PassSection({
                                   label={`the ${row.timesLabel} pass`}
                                 >
                                   <p className="more-panel__note">{bearings(row.pass as Pass & { startAzDeg: number; endAzDeg: number })}</p>
-                                  <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>
+                                  {visual
+                                    ? <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>
+                                    : <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>}
                                   {track && (
                                     <ShareButton
                                       url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, pickedFreq.current)}

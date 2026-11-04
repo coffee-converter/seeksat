@@ -455,7 +455,7 @@ test('line-height uses tokens (or 1 / normal)', () => {
 });
 
 test('ticking readouts use the numeric class', () => {
-  for (const f of ['components/ui/StatTile.tsx', 'components/sat/StatTile.tsx', 'components/LiveClock.tsx', 'components/live/LiveView.tsx', 'components/home/NextUpList.tsx', 'components/home/UpNow.tsx']) {
+  for (const f of ['components/ui/StatTile.tsx', 'components/sat/StatTile.tsx', 'components/LiveClock.tsx', 'components/live/LiveView.tsx', 'components/passes/PassPath.tsx', 'components/home/UpNow.tsx']) {
     if (existsSync(new URL(`../${f}`, import.meta.url))) assert.match(read(f), /\bnum\b/, f);
   }
 });

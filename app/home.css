@@ -516,17 +516,12 @@
 .pass-card__tag--viewing { color: var(--map-accent); }
 /* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
 /* Where to look, in words. It may wrap on a phone; a time never breaks. */
-/* Where the pass goes, as columns: Rises SW 3:48 · Peaks NW 3:55 · Sets NE 4:02. */
-.pass-path {
-  display: grid;
-  grid-template-columns: repeat(var(--pass-path-cols, 3), minmax(0, 1fr));
-  gap: var(--sp-8);
-  margin: 0;
-}
+/* Where the pass goes, in the stat columns under Starts, Max and Lasts. */
+.pass-path { display: grid; row-gap: 0; margin: 0; }
 .pass-path__step dt { color: var(--map-muted); font-size: var(--fs-sm); }
-.pass-path__step dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); white-space: nowrap; }
+.pass-path__dir { color: var(--map-text); font-weight: var(--fw-semibold); }
+.pass-path__step dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* Radio mode: what to listen and transmit on, as a small table. */
-.pass-card__radio { margin-top: var(--sp-4); }
 .radio-rows {
   display: grid;
   grid-template-columns: auto auto minmax(0, 1fr);
@@ -545,11 +540,12 @@
 .pass-card--pass {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
-  grid-template-areas: "top top" "plot stats" "body body";
+  grid-template-areas: "top top" "plot stats" "plot path" "body body";
   column-gap: var(--sp-12);
   row-gap: var(--sp-8);
   align-items: center;
 }
+.pass-card--pass .pass-card__path { grid-area: path; }
 .pass-card--pass .pass-card__top {
   grid-area: top;
   display: flex;
@@ -560,15 +556,17 @@
   min-width: 0;
 }
 .pass-card--pass .pass-card__plot { grid-area: plot; padding: 0; }
-.pass-card--pass .pass-card__body { grid-area: body; gap: var(--sp-6); }
+.pass-card--pass .pass-card__body { grid-area: body; gap: var(--sp-8); }
 .pass-card__stats {
   grid-area: stats;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--sp-8);
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
+/* The stats and the path strip under them share columns, so they line up. */
+.pass-card__stats,
+.pass-path { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--sp-8); }
 .pass-card__stat { min-width: 0; }
 .pass-card__stat dt { font-size: var(--fs-sm); color: var(--map-muted); }
 .pass-card__stat dd { margin: 0; }
@@ -586,7 +584,7 @@
 .best-pass__what { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 .best-pass .quality,
 .best-pass .cloud { margin-left: 0; }
-.pass-card__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-4); }
+.pass-card__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; font-size: var(--fs-md); color: var(--map-muted); }
 
 /* chart-block:begin */
