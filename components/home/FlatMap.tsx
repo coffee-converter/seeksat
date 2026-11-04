@@ -200,8 +200,8 @@ const ZOOM_EPS = 0.01;
  *  field of view on a screen 800 px tall: a redraw this often keeps each
  *  step under half a pixel. */
 const STAR_TICK_MS = 5_000;
-/** How strongly it shows: faint, a glow you notice only when you look for it. */
-const MILKY_WAY_ALPHA = 0.32;
+/** How strongly it shows: subtle, the core no more than a soft grey cloud. */
+const MILKY_WAY_ALPHA = 0.2;
 /** How long a shared link's camera waits for the map and its satellite. */
 const SHARED_CAMERA_MS = 20_000;
 /** How long a Lock on zoom (buttons, keys, double-click, mouse wheel) eases. */
