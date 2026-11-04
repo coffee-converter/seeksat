@@ -541,8 +541,9 @@ export default function FlatMap({
   const mapInView = useRef(true);
   const pushWaiting = useRef(false);
   const [mapReady, setMapReady] = useState(false);
-  // The star field behind the globe: true positions for the camera and the
-  // moment (lib/map/stars.mjs), loaded only when a spherical view shows.
+  // The star field behind the globe, with the Sun, Moon and bright planets:
+  // true positions for the camera and the moment (lib/map/stars.mjs),
+  // loaded only when a spherical view shows.
   // Redrawn as the camera moves, and every STAR_TICK_MS as the Earth turns.
   useEffect(() => {
     const map = mapRef.current;
@@ -555,7 +556,10 @@ export default function FlatMap({
       if (frame !== undefined || !draw) return;
       frame = requestAnimationFrame(() => { frame = undefined; draw?.(); });
     };
-    void Promise.all([import("@/lib/map/stars.mjs"), import("@/lib/map/star-data.mjs"), import("@/lib/coords.js")]).then(([stars, data, coords]) => {
+    void Promise.all([
+      import("@/lib/map/stars.mjs"), import("@/lib/map/star-data.mjs"), import("@/lib/coords.js"),
+      import("@/lib/pass-finder/sun.js"), import("@/lib/pass-finder/moon.js"), import("@/lib/pass-finder/planets.js"),
+    ]).then(([stars, data, coords, sun, moon, planets]) => {
       if (!alive) return;
       const field = stars.starField(data.STARS);
       const style = Array.from({ length: field.n }, (_, i) => stars.starStyle(field.mag[i]));
@@ -572,10 +576,9 @@ export default function FlatMap({
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
         const c = map.getCenter();
-        const placed = stars.projectStars(field, {
-          lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(),
-          width: w, height: h, gmstRad: coords.gmstFromDate(new Date(trueNow())),
-        });
+        const now = new Date(trueNow());
+        const cam = { lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(), width: w, height: h };
+        const placed = stars.projectStars(field, { ...cam, gmstRad: coords.gmstFromDate(now) });
         // Faintest first, so bright stars sit on top.
         for (let k = placed.length - 1; k >= 0; k--) {
           const { i, x, y } = placed[k];
@@ -587,6 +590,23 @@ export default function FlatMap({
           ctx.fill();
         }
         ctx.globalAlpha = 1;
+        // The Moon, the Sun and the bright planets, over the stars. The camera
+        // distance from public values, as MapLibre derives it: half the
+        // height over tan(fov / 2) to the map's centre, and a 512 px tile world.
+        const camToCenterPx = h / 2 / Math.tan((cam.fovDeg * Math.PI) / 360);
+        const worldSizePx = 512 * 2 ** map.getZoom();
+        stars.drawBodies(ctx, stars.skyBodies({
+          sunEcef: sun.sunPositionEcef(now),
+          moonEcef: moon.moonPositionEcef(now),
+          moonKm: moon.moonDistanceKm(now),
+          camDistKm: stars.cameraDistanceKm(camToCenterPx, worldSizePx, c.lat),
+          planets: planets.PLANET_NAMES.map((n: string) => ({
+            name: n,
+            dirEcef: planets.planetPositionEcef(n, now),
+            mag: planets.planetApparentMagnitude(n, now) ?? 99,
+            color: (planets.PLANET_STYLE as Record<string, { color: string }>)[n].color,
+          })),
+        }, cam));
       };
       draw();
     });

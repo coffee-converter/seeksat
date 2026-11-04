@@ -56,3 +56,45 @@ test('projection: the sky turns with sidereal time', () => {
   const mean = moved.reduce((s, v) => s + v, 0) / moved.length;
   assert.ok(Math.abs(mean) > 10, `${mean} px in 10 minutes`);
 });
+
+import { skyBodies, cameraDistanceKm, PLANET_MAG_LIMIT } from '../lib/map/stars.mjs';
+
+// Camera over lon 0, lat 0 looking along -x: directions near -x are in view.
+const view = { lonDeg: 0, latDeg: 0, fovDeg: 36.87, width: 1000, height: 800 };
+const unit = (v) => { const n = Math.hypot(...v); return v.map((x) => x / n); };
+
+test('camera distance from MapLibre pixels: centre distance plus the globe radius', () => {
+  const worldSize = 2 * Math.PI * 300; // globe radius 300 px at the equator
+  assert.ok(Math.abs(cameraDistanceKm(900, worldSize, 0) - 4 * 6371) < 1e-6);
+});
+
+test('the Moon: phase from the Sun-Moon-camera angle, lit limb toward the Sun', () => {
+  const moonEcef = unit([-1, 0.25, 0]);
+  const base = { moonEcef, moonKm: 384_400, camDistKm: 4 * 6371, planets: [] };
+  // Sun behind the camera (full), beside the Moon (half), beyond it (new).
+  const full = skyBodies({ ...base, sunEcef: unit([1, -0.25, 0]) }, view).find((b) => b.kind === 'moon');
+  assert.ok(full.lit > 0.99, `${full.lit}`);
+  const half = skyBodies({ ...base, sunEcef: [0, 0, 1] }, view).find((b) => b.kind === 'moon');
+  assert.ok(Math.abs(half.lit - 0.5) < 0.05, `${half.lit}`);
+  // Sun toward +z (north, up the frame): the lit limb points up (canvas angle -90 deg).
+  assert.ok(Math.abs(half.limb + Math.PI / 2) < 0.1, `${half.limb}`);
+  // About half a degree across: ~10 px at this field of view.
+  assert.ok(half.r > 4 && half.r < 6, `${half.r}`);
+});
+
+test('the Moon shifts against the stars as the camera comes closer (parallax)', () => {
+  const sky = { moonEcef: unit([-1, 0.25, 0]), moonKm: 384_400, sunEcef: [0, 0, 1], planets: [] };
+  const far = skyBodies({ ...sky, camDistKm: 1e9 }, view).find((b) => b.kind === 'moon');
+  const near = skyBodies({ ...sky, camDistKm: 6 * 6371 }, view).find((b) => b.kind === 'moon');
+  assert.ok(Math.abs(near.x - far.x) > 10, `${far.x} -> ${near.x}`);
+});
+
+test('planets fainter than the faintest star, and bodies behind the camera, are left out', () => {
+  const sky = { moonEcef: unit([1, 0, 0]), moonKm: 384_400, camDistKm: 4 * 6371, sunEcef: unit([1, 0.1, 0]),
+    planets: [
+      { name: 'jupiter', dirEcef: unit([-1, -0.1, 0.05]), mag: -2.0, color: '#dec79c' },
+      { name: 'faint', dirEcef: unit([-1, 0.1, 0.05]), mag: PLANET_MAG_LIMIT + 0.5, color: '#fff' },
+    ] };
+  const b = skyBodies(sky, view);
+  assert.deepEqual(b.map((x) => x.kind + (x.name ? `:${x.name}` : '')), ['planet:jupiter']);
+});
