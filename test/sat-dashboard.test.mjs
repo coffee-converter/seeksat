@@ -25,7 +25,7 @@ test('dashboardValues: keys, labels, units and notes in order', () => {
     ['radius', "From Earth's center", 'km', 'distance, from SGP4'],
     ['lat', 'Latitude', '', 'below the satellite'],
     ['lon', 'Longitude', '', 'below the satellite'],
-    ['sun', 'Sunlight', '', "Earth's shadow and penumbra"],
+    ['sun', 'Sunlight', '', "Earth's shadow and atmosphere"],
   ]);
 });
 
