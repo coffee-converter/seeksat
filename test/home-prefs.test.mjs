@@ -174,3 +174,11 @@ test('bands default to every band, and keep only known ones', () => {
   assert.equal(parsePrefs('{}').bands, null);
   assert.deepEqual(parsePrefs(JSON.stringify({ bands: ['70cm', 'bogus', '2m'] })).bands, ['2m', '70cm']);
 });
+
+test('new visitors follow the ISS, Tiangong, Hubble and SO-50, all curated', async () => {
+  const { POPULAR_IDS } = await import('../lib/home/prefs.mjs');
+  const { CATALOG } = await import('../lib/catalog.mjs');
+  assert.deepEqual(POPULAR_IDS, [25544, 48274, 20580, 27607]);
+  assert.deepEqual(defaultPrefs().following, POPULAR_IDS);
+  for (const id of POPULAR_IDS) assert.ok(CATALOG.some((c) => c.noradId === id), String(id));
+});

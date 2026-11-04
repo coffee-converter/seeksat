@@ -518,7 +518,9 @@
 /* Where to look, in words. It may wrap on a phone; a time never breaks. */
 /* Where the pass goes, in the stat columns under Starts, Max and Lasts. */
 .pass-path__step dt { color: var(--map-muted); font-size: var(--fs-sm); }
-.pass-path__dir { color: var(--map-text); font-weight: var(--fw-semibold); }
+/* "Below 10°" stays whole; its compass point may drop to the next line. */
+.pass-path__label { white-space: nowrap; }
+.pass-path__dir { color: var(--map-text); font-weight: var(--fw-semibold); white-space: nowrap; }
 .pass-path__step dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* Radio mode: what to listen and transmit on, as a small table. */
 .radio-rows {
@@ -566,8 +568,9 @@
 /* Starts, Max and Lasts, and the path strip under them, in one grid: each
    column as wide as its widest cell, the columns spread evenly across. */
 .pass-card__stats { grid-template-columns: repeat(3, auto); justify-content: space-between; column-gap: var(--sp-12); row-gap: var(--sp-8); }
-.pass-card__stat { min-width: 0; }
-.pass-card__stat dt { font-size: var(--fs-sm); color: var(--map-muted); }
+/* No min-width: 0 here: a squeezed column broke "Max" into letters. The
+   grid's own minimum keeps each column as wide as its longest word. */
+.pass-card__stat dt { font-size: var(--fs-sm); color: var(--map-muted); white-space: nowrap; }
 .pass-card__stat dd { margin: 0; }
 .pass-card__stat-value {
   color: var(--text-strong);

@@ -47,7 +47,7 @@ export function PassPath({ pass, mode, minElevDeg, timeZone }: {
     <>
       {steps.map((st) => (
         <div key={st.key} className="pass-path__step" style={{ gridColumn: COLUMN[st.key], gridRow: 2 }}>
-          <dt>{st.label} <span className="pass-path__dir">{st.dir}</span></dt>
+          <dt><span className="pass-path__label">{st.label}</span> <span className="pass-path__dir">{st.dir}</span></dt>
           <dd className="num">{cardTime(st.ms, timeZone)}</dd>
         </div>
       ))}
