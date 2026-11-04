@@ -19,6 +19,7 @@ const NOT_FETCHED = new Set([
   'https://claude.ai', // MCP docs: link to connect the server
   'https://api.open-meteo.com', // server-only, via the MCP route
   'https://api.met.no', // server-only, via the MCP route
+  'https://db.satnogs.org', // credit link; the transmitter list is fetched server-side by the refresh cron
 ]);
 
 test('production CSP drops the globe-era origins and eval', () => {
