@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel, compassPoint, elevationScale, directionMarks, withUplink } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel, compassPoint, elevationScale, pointingMarks, withUplink } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -167,15 +167,38 @@ test('elevationScale runs from the horizon to a round top, never past 90', () =>
   assert.equal(s(-0.4), 30);
 });
 
-test('directionMarks gives rise, highest and set', () => {
+test('elevationScale leaves headroom above the peak for its label', () => {
+  // 36 degrees in a 30-unit panel with 5 units clear needs a top of 43.2.
+  const s = elevationScale([0, 36], 30, 5);
+  assert.equal(s.hi, 50);
+  assert.ok(s(36) >= 5);
+  // A near-overhead pass may need a top past the zenith.
+  assert.ok(elevationScale([0, 85], 30, 5).hi > 90);
+  assert.equal(elevationScale([0, 70], 30, 5).hi, 90);
+});
+
+test('pointingMarks sit on the time ticks, the highest point in place of the nearest', () => {
+  // 0..100 s, peaking at 45 s: ticks at 0, 25, 50, 75, 100; 50 becomes 45.
+  const samples = Array.from({ length: 101 }, (_, t) => ({
+    tMs: t * 1000, azDeg: 200 - t, elDeg: 36 - Math.abs(t - 45) * 0.8 - 0.2,
+  }));
+  const marks = pointingMarks(samples, 5);
+  assert.deepEqual(marks.map((m) => [m.at, m.tMs]),
+    [['rise', 0], ['up', 25000], ['peak', 45000], ['down', 75000], ['set', 100000]]);
+  assert.equal(marks[2].azDeg, 155);
+  // Below the horizon reads as on it.
+  assert.equal(marks[0].elDeg, 0);
+  assert.deepEqual(pointingMarks([], 5), []);
+});
+
+test('pointingMarks with three ticks gives rise, highest and set', () => {
   const samples = [
-    { tMs: 0, azDeg: 200, elDeg: -0.2 },
+    { tMs: 0, azDeg: 200, elDeg: 0 },
     { tMs: 1, azDeg: 150, elDeg: 40 },
     { tMs: 2, azDeg: 80, elDeg: 0.1 },
   ];
-  assert.deepEqual(directionMarks(samples).map((m) => [m.at, m.azDeg, m.elDeg]),
-    [['rise', 200, 0], ['peak', 150, 40], ['set', 80, 0.1]]);
-  assert.deepEqual(directionMarks([]), []);
+  assert.deepEqual(pointingMarks(samples, 3).map((m) => [m.at, m.azDeg]),
+    [['rise', 200], ['peak', 150], ['set', 80]]);
 });
 
 test('withUplink adds the transmit shift only when the link has an uplink', () => {

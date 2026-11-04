@@ -105,7 +105,7 @@ test('the phone chart has no title, tiles, caption or methods text', () => {
 
 test('the phone chart keeps the 10 and 30 degree dots but not their labels', () => {
   const { svg } = compactOverflows({ ...BASE, freqHz: 437.8e6 }, 437.8e6);
-  assert.equal(svg.querySelectorAll('circle').length, 4);
+  assert.equal(svg.querySelector('[data-layer="dopplerHz"]').querySelectorAll('circle').length, 4);
   assert.ok(!/10° \+/.test(texts(svg)));
 });
 
