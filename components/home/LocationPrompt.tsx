@@ -42,6 +42,7 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
   };
   useEffect(() => () => {
     if (giveUp.current) clearTimeout(giveUp.current);
+    attempt.current += 1;
   }, []);
 
   const save = (location: HomeLocation) => {
@@ -108,9 +109,13 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
       });
       return;
     }
+    // A later choice (GPS, another search) or closing the prompt wins over
+    // this answer when it comes back.
+    const mine = ++attempt.current;
     setTextBusy(true);
     const found = await geocodeOne(parsed.query);
     setTextBusy(false);
+    if (attempt.current !== mine) return;
     if (!found || !Number.isFinite(found.latDeg) || !Number.isFinite(found.lonDeg)) {
       setMessage(`No place found for "${typed}".`);
       return;
