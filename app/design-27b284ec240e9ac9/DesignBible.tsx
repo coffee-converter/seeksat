@@ -13,6 +13,7 @@ import RatingBars from "@/components/ui/RatingBars";
 import Segmented from "@/components/ui/Segmented";
 import StatTile from "@/components/ui/StatTile";
 import Surface from "@/components/ui/Surface";
+import { surfaceClass } from "@/lib/ui/classes.mjs";
 import NightToggle from "@/components/NightToggle";
 import { LABEL as MODE_LABEL, useThemeMode, type Mode } from "@/components/ThemeToggle";
 
@@ -423,9 +424,13 @@ export default function DesignBible({ data }: { data: BibleData }) {
             </div>
           </Specimen>
 
-          <Specimen title="Surface" note="The card look, padded or flush.">
+          <Specimen
+            title="Surface"
+            note="The card look: padded, compact or flush; an accent edge (the context sets --surface-accent); selected; and surfaceClass({ interactive }) on a whole-card button."
+          >
             <div className="bible__grid">
               <Surface><p>Padded surface.</p></Surface>
+              <Surface padded="sm"><p>Compact padding (sm).</p></Surface>
               <Surface padded={false}>
                 <ul className="bible__flush">
                   <li>Flush surface:</li>
@@ -433,6 +438,12 @@ export default function DesignBible({ data }: { data: BibleData }) {
                   <li>edge to edge.</li>
                 </ul>
               </Surface>
+              <Surface accent className="bible__accent"><p>Accent edge, as on a pass card.</p></Surface>
+              <Surface selected><p>Selected.</p></Surface>
+              <Surface accent selected className="bible__accent"><p>Accent and selected.</p></Surface>
+              <button type="button" className={`bible__tap ${surfaceClass({ padded: "sm", interactive: true })}`}>
+                Interactive: the whole card is a button.
+              </button>
             </div>
           </Specimen>
 

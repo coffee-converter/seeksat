@@ -154,5 +154,7 @@
 .bible__flush { list-style: none; }
 .bible__flush li { padding: var(--sp-8) var(--sp-12); border-top: var(--line-subtle); }
 .bible__flush li:first-child { border-top: 0; }
+.bible__accent { --surface-accent: var(--accent); }
+.bible__tap { color: inherit; }
 .bible__modal-body { display: flex; flex-direction: column; gap: var(--sp-12); max-width: 480px; padding: var(--sp-8) var(--sp-4); }
 .bible__modal-body--wide { width: min(900px, 92vw); max-width: none; }
