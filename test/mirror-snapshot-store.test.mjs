@@ -27,7 +27,7 @@ test('blob store writes with exact options and reads back', async () => {
   };
   const fetchImpl = async (url) => {
     assert.equal(url, 'https://x/blob');
-    return { ok: true, arrayBuffer: async () => stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.byteLength) };
+    return new Response(stored);
   };
   const store = createBlobSnapshotStore({ blob, fetchImpl });
   await store.write(snap);
