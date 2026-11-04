@@ -12,8 +12,9 @@ import RadioMark from "@/components/ui/RadioMark";
 interface Result {
   noradId: number;
   name: string;
-  /** Known radio downlinks. */
+  /** Known radio downlinks, and the bands they are in (lib/radio/bands.mjs). */
   radio?: boolean;
+  bands?: string[];
 }
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -43,6 +44,10 @@ export function SearchBar({ onView, onClearFocus }: Props) {
   const following = useHomeStore((s) => s.prefs.following);
   // Radio mode ranks satellites with known downlinks first and marks them.
   const mode = useHomeStore((s) => s.prefs.mode);
+  const myBands = useHomeStore((s) => s.prefs.bands);
+  // Radio mode: a result counts as radio only with a downlink this radio can hear.
+  const hearable = (r: Result) => r.radio === true && (myBands == null || (r.bands ?? []).some((b) => myBands.includes(b)));
+  const shown = mode === "radio" ? [...results.filter(hearable), ...results.filter((r) => !hearable(r))] : results;
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
   const addCustom = useHomeStore((s) => s.addCustom);
@@ -137,7 +142,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
       setOpen(true);
       setActive((i) => (i <= 0 ? results.length - 1 : i - 1));
     } else if (e.key === "Enter" && open) {
-      const r = results[active >= 0 ? active : 0];
+      const r = shown[active >= 0 ? active : 0];
       if (r) {
         e.preventDefault();
         choose(r);
@@ -213,7 +218,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
         className="search-bar__list"
         hidden={!listVisible}
       >
-        {results.map((r, i) => {
+        {shown.map((r, i) => {
           const followed = following.includes(r.noradId);
           return (
             <li
@@ -227,7 +232,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
             >
               <span className="search-bar__name">
                 {r.name} <span className="search-bar__id">{r.noradId}</span>
-                {mode === "radio" && r.radio && <RadioMark className="search-bar__radio" label="known downlinks" />}
+                {mode === "radio" && hearable(r) && <RadioMark className="search-bar__radio" label="known downlinks" />}
               </span>
               {/* Out of the tab order: the focus bar has the same toggle for keyboards. */}
               <Button
