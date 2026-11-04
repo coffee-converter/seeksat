@@ -164,8 +164,9 @@ const DOT_MS = 200;
 const DOCKED_QUERY = "(min-width: 1100px)";
 /** A tap this close to a dot (in px, either axis) selects it. */
 const HIT_PX = 22;
-// How long a tap on the focused dot waits to see if it is a double-click.
-const DBLCLICK_MS = 300;
+// How long a tap on the focused dot waits to see if it is a double-click:
+// MapLibre's double-tap window, and about the usual double-click setting.
+const DBLCLICK_MS = 500;
 // The lat/lon labels sit this far in from the map's left and bottom edges,
 // placed where lines cross those edges, sampled this often along them.
 const GRID_INSET_PX = 6;
@@ -787,7 +788,12 @@ export default function FlatMap({
           leaveTimer.current = window.setTimeout(() => latest.current.onSelect(null), DBLCLICK_MS);
         } else latest.current.onSelect(best);
       });
-      map.on("dblclick", () => window.clearTimeout(leaveTimer.current));
+      // A second click or tap, or any zoom, means it was not a plain tap: on
+      // touch MapLibre's double-tap zoom stops the second click and dblclick.
+      const cancelLeave = () => window.clearTimeout(leaveTimer.current);
+      map.on("dblclick", cancelLeave);
+      map.on("zoomstart", cancelLeave);
+      map.on("touchstart", cancelLeave);
       // Moves by hand (drag, wheel, touch, keys) leave the home view; ours
       // carry no originalEvent. A single wheel tick starts its move without
       // one, so the wheel handler is asked too.
@@ -898,6 +904,7 @@ export default function FlatMap({
     })();
     return () => {
       alive = false;
+      window.clearTimeout(leaveTimer.current);
       window.removeEventListener("mouseup", letGo);
       window.removeEventListener("blur", letGo);
       window.removeEventListener("contextmenu", letGo);
@@ -1047,6 +1054,8 @@ export default function FlatMap({
   useEffect(() => {
     centreOn.current = selectedId;
     setFollowing(false);
+    // A pending leave was for the previous selection.
+    window.clearTimeout(leaveTimer.current);
   }, [selectedId, setFollowing]);
   // The parent's clock tick passes new props each second. The frame loop
   // moves the cap while it runs; paused, or with no focus, this does.
