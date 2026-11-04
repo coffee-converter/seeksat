@@ -89,20 +89,12 @@ test('the dark style has no Natural Earth raster', () => {
   assert.ok(!style.layers.some((l) => l.source === 'ne2_shaded'));
 });
 
-test('the --map-ocean and --map-land tokens match the basemap', async () => {
-  const { readFileSync } = await import('node:fs');
-  const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
-  const block = (selector) => {
-    const at = css.indexOf(`${selector} {`);
-    assert.ok(at >= 0, selector);
-    return css.slice(at, css.indexOf('}', at));
-  };
-  const token = (body, name) => new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'i').exec(body)?.[1].toLowerCase();
-  for (const [theme, selector] of [['dark', ":root, :root[data-theme='dark'], .theme-dark"], ['light', ":root[data-theme='light']"]]) {
-    const body = block(selector);
+test('the --map-ocean and --map-land tokens come from the basemap', async () => {
+  const { mapCssVars } = await import('../lib/ui/map-tokens.mjs');
+  for (const theme of ['dark', 'light']) {
     const { water, land } = basemapColors(theme);
-    assert.equal(token(body, '--map-ocean'), water, `${theme} --map-ocean`);
-    assert.equal(token(body, '--map-land'), land, `${theme} --map-land`);
+    assert.equal(mapCssVars(theme)['--map-ocean'], water, `${theme} --map-ocean`);
+    assert.equal(mapCssVars(theme)['--map-land'], land, `${theme} --map-land`);
   }
 });
 

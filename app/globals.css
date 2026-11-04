@@ -79,14 +79,11 @@
      own canvas colour (lib/pass-finder/polar-modal-frame.js, radio-chart.js),
      so the chart image sits on its panel without a visible edge. */
   --modal-dark-bg: #0a0e1a;
-  /* Map chrome and legend. The swatches keep in step with lib/map/overlays.mjs. */
-  /* Ocean and land match the basemap's water and land (lib/map/basemap.mjs
-     basemapColors). */
-  --map-ocean: #0e1116;
-  --map-land: #1b1e24;
+  /* Map chrome and legend. --map-ocean, --map-land, --map-night and
+     --map-observer are generated from lib/map/*.mjs (lib/ui/map-tokens.mjs,
+     inlined by app/layout.tsx). The rest keep in step with lib/map/overlays.mjs. */
   /* Space behind the globe: darker than night-side land, so the Earth's edge shows. */
   --map-space: #000000;
-  --map-night: rgba(3, 5, 12, 0.24);
   --map-footprint: rgba(143, 180, 230, 0.16);
   /* The timeline strip: daylight lifted, night sunk, clearly apart. */
   --timeline-day: #2a3344;
@@ -163,13 +160,10 @@
   --tile-hover: #f3f5f8;
   --flash-bg: rgba(44, 90, 153, 0.16);
   --flash-text: #0b1220;
-  --map-ocean: #c2c8ca;
-  --map-land: #ebe9e1;
   /* A shade firmer than --border: the light land and panels are close in tone. */
   --map-edge: #c3ccd8;
   --map-grid-label: #343d4b;
   --map-space: #b4bfcf;
-  --map-night: rgba(20, 30, 60, 0.1);
   --map-footprint: rgba(44, 90, 153, 0.14);
   --timeline-day: #e4e8ee;
   --timeline-night: #b7c0cc;

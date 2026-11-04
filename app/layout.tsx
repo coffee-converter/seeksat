@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
 import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
+import { mapTokenCss } from "@/lib/ui/map-tokens.mjs";
 import ThemeSync from "@/components/ThemeSync";
 import SwRegister from "@/components/SwRegister";
 import "./globals.css";
@@ -141,6 +142,9 @@ export default function RootLayout({
             is available document-wide (e.g. the on-scene corner mark)
             with no extra network fetch or flash of fallback text. */}
         <style dangerouslySetInnerHTML={{ __html: EXO2_FONT_FACE }} />
+        {/* Map colours (--map-ocean, --map-land, --map-night, --map-observer)
+            generated from the map modules, so the legend and the map agree. */}
+        <style dangerouslySetInnerHTML={{ __html: mapTokenCss() }} />
       </head>
       <body>
         <ThemeSync />

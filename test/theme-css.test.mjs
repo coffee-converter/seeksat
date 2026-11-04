@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
+import { mapCssVars } from '../lib/ui/map-tokens.mjs';
 
 // Every page colour comes from a theme token (app/globals.css), except the
 // chart block: the sky chart, radio chart and pass-card polar plots keep their
@@ -126,7 +127,10 @@ function parseTokens() {
     if (/data-theme='dark'/.test(sel)) themes.dark = { ...themes.dark, ...vars };
   }
   // The dark block also matches :root, so light inherits what it leaves out.
-  return { dark: themes.dark, light: themes.dark && themes.light && { ...themes.dark, ...themes.light } };
+  // The map colours come from lib/ui/map-tokens.mjs, not the stylesheet.
+  const dark = themes.dark && { ...themes.dark, ...mapCssVars('dark') };
+  const light = themes.light && { ...themes.light, ...mapCssVars('light') };
+  return { dark, light: dark && light && { ...dark, ...light } };
 }
 
 const THEMES = parseTokens();
