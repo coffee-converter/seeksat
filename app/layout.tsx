@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next } from "next/font/google";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
@@ -11,13 +11,30 @@ import ThemeSync from "@/components/ThemeSync";
 import SwRegister from "@/components/SwRegister";
 import "./globals.css";
 import "./ui.css";
-// Self-hosted by next/font (served from /_next/static/media, same origin).
-// The font has no arrow glyphs (U+2190/2192); those use the system font.
-const atkinson = Atkinson_Hyperlegible_Next({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
+// Atkinson Hyperlegible Next, variable (wght 200-800), committed under
+// app/fonts/ (OFL; see app/fonts/README.md) and served by next/font from
+// /_next/static/media, same origin. Split as Google Fonts splits it: latin is
+// preloaded; latin-ext loads only when a page uses one of its characters.
+// The unicode ranges match scripts/build-atkinson-web.py (next/font needs
+// literal options). The font has no arrow glyphs (U+2190/2192); those use the
+// system font.
+const atkinson = localFont({
+  src: "./fonts/AtkinsonHyperlegibleNext-latin.woff2",
+  weight: "200 800",
   variable: "--font-atkinson",
   display: "swap",
+  declarations: [{ prop: "unicode-range", value: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD" }],
+});
+// No metric fallback face of its own: one would cover every character and
+// shadow the latin face behind it in --font-sans.
+const atkinsonExt = localFont({
+  src: "./fonts/AtkinsonHyperlegibleNext-latin-ext.woff2",
+  weight: "200 800",
+  variable: "--font-atkinson-ext",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF" }],
 });
 
 const SITE_NAME = "SeekSat";
@@ -134,7 +151,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={atkinson.variable} suppressHydrationWarning>
+    <html lang="en" className={`${atkinson.variable} ${atkinsonExt.variable}`} suppressHydrationWarning>
       <head>
         {/* Sets data-theme on <html> before first paint (no light/dark flash). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

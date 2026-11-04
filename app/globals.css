@@ -191,9 +191,11 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
 /* A dark island inside a light page takes its text colour from the dark
    tokens. Kept apart from the token block so :root does not set color. */
 .theme-dark { color: var(--text); }
-/* Scale tokens: the same in both themes. --font-atkinson is set by next/font. */
+/* Scale tokens: the same in both themes. --font-atkinson and
+   --font-atkinson-ext are set by next/font (app/layout.tsx). Latin-ext comes
+   first: its unicode-range sends every other character on to latin. */
 :root {
-  --font-sans: var(--font-atkinson), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-atkinson-ext), var(--font-atkinson), system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-num: var(--font-sans);
   --font-brand: 'Exo 2', system-ui, sans-serif;
   --font-code: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;

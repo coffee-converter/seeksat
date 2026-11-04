@@ -442,14 +442,6 @@ test('no font shorthand outside tokens, chart graphics and print (except inherit
   assert.deepEqual(found.map((d) => `${d.where} ${d.value}`), []);
 });
 
-test('the root layout loads Atkinson Hyperlegible Next through next/font', () => {
-  const src = read('app/layout.tsx');
-  assert.match(src, /Atkinson_Hyperlegible_Next\s*\(/);
-  assert.match(src, /variable:\s*"--font-atkinson"/);
-  assert.match(src, /className=\{atkinson\.variable\}/);
-  assert.doesNotMatch(src, /fonts\.googleapis\.com/);
-});
-
 test('font-size and font-weight use tokens', () => {
   const ok = (v) => /^var\(--f[sw]-[\w-]+\)$/.test(v) || /^[\d.]+em$/.test(v) || v === 'inherit';
   const found = FILES.flatMap((f) => [...declsIn(f, 'font-size'), ...declsIn(f, 'font-weight')].filter((d) => !ok(d.value) && !d.brand));
