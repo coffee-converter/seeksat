@@ -165,3 +165,11 @@ test('every manifest PNG icon exists at its stated size', () => {
     assert.equal(pngSize(files[icon.src]), icon.sizes, icon.src);
   }
 });
+
+test('sw.js never saves an /api/sats answer marked no-store, live or warmed', () => {
+  const sw = read('public/sw.js');
+  // Both places that save a fetched answer ask heldBack first.
+  const saves = sw.match(/if \(saveable\(res\)[^\n]*/g) ?? [];
+  assert.equal(saves.length, 2);
+  for (const line of saves) assert.match(line, /!heldBack\(res, isPage\)/);
+});

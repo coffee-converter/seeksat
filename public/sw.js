@@ -167,6 +167,12 @@ async function put(request, res, isPage) {
   else if (new URL(request.url).pathname === '/api/sats') await trim(cache, (u) => u.pathname === '/api/sats', MAX_SATS);
 }
 
+// An /api/sats answer marked no-store holds ids the server could not look
+// up just then; the last good copy is kept for offline instead.
+function heldBack(res, isPage) {
+  return !isPage && /no-store/.test(res.headers.get('cache-control') ?? '');
+}
+
 async function networkFirst(event, isPage) {
   const { request } = event;
   try {
@@ -174,10 +180,7 @@ async function networkFirst(event, isPage) {
     // would answer offline for an hour, unmarked. Ask the network for data;
     // pages keep their own navigation request.
     const res = await (isPage ? fetch(request) : fetch(request, { cache: 'no-cache' }));
-    // An /api/sats answer marked no-store holds ids the server could not
-    // look up just then; keep the last good copy for offline instead.
-    const noStore = !isPage && /no-store/.test(res.headers.get('cache-control') ?? '');
-    if (saveable(res) && !noStore) event.waitUntil(put(request, res.clone(), isPage).catch(() => {}));
+    if (saveable(res) && !heldBack(res, isPage)) event.waitUntil(put(request, res.clone(), isPage).catch(() => {}));
     return res;
   } catch (err) {
     const cache = await caches.open(cacheFor(request.url, isPage));
@@ -213,7 +216,7 @@ async function warm(url, mode) {
   const cache = await caches.open(cacheFor(url, isPage));
   if (strategy === 'cache-first' && (await cache.match(url, { ignoreVary: true }))) return;
   const res = await fetch(url, { credentials: 'same-origin' });
-  if (saveable(res)) await put(new Request(url), res, isPage);
+  if (saveable(res) && !heldBack(res, isPage)) await put(new Request(url), res, isPage);
 }
 
 self.addEventListener('install', (event) => {
