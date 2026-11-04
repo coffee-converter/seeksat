@@ -168,8 +168,9 @@ test('every manifest PNG icon exists at its stated size', () => {
 
 test('sw.js never saves an /api/sats answer marked no-store, live or warmed', () => {
   const sw = read('public/sw.js');
-  // Both places that save a fetched answer ask heldBack first.
-  const saves = sw.match(/if \(saveable\(res\)[^\n]*/g) ?? [];
-  assert.equal(saves.length, 2);
-  for (const line of saves) assert.match(line, /!heldBack\(res, isPage\)/);
+  // Network-first answers and warm-up refetches can be /api/sats; both ask
+  // heldBack before saving. (Cache-first holds static files only.)
+  const network = sw.slice(sw.indexOf('async function networkFirst'), sw.indexOf('async function cacheFirst'));
+  const warm = sw.slice(sw.indexOf('async function warm'));
+  for (const body of [network, warm]) assert.match(body, /if \(saveable\(res\) && !heldBack\(res, isPage\)\)/);
 });
