@@ -190,8 +190,11 @@ const PRESETS: { id: Preset; label: string }[] = [
 ];
 /** Zoom slack before the map counts as zoomed in past its home view. */
 const ZOOM_EPS = 0.01;
-/** How long a Lock on zoom (buttons, keys, double-click, wheel) eases. */
+/** How long a Lock on zoom (buttons, keys, double-click, mouse wheel) eases. */
 const LOCK_ZOOM_MS = 250;
+/** After a Lock on zoom arrives, how long to wait for another (a trackpad
+ *  pinch is a stream of them) before the end-of-zoom work runs once. */
+const LOCK_SETTLE_MS = 150;
 /** How long turning Lock on eases to the satellite before following it. */
 const LOCK_EASE_MS = 600;
 /** Lock on starts with an ease only when the satellite is this far (px) off centre. */
@@ -211,14 +214,15 @@ const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(n
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 const reducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-/** A wheel event's zoom change, as MapLibre's scroll zoom works it out. */
-function wheelZoom(e: WheelEvent): number {
+/** A wheel event's zoom change, as MapLibre's scroll zoom works it out, and
+ *  whether it came from a mouse wheel (eased) or a trackpad (applied at once). */
+function wheelZoom(e: WheelEvent): { dz: number; wheel: boolean } {
   let d = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 40 : e.deltaY;
   if (e.shiftKey) d /= 4;
-  if (!d) return 0;
+  if (!d) return { dz: 0, wheel: false };
   const wheel = Math.abs(d) > WHEEL_STEP && (d % WHEEL_STEP === 0 || Math.abs(d) >= 50);
   const scale = 2 / (1 + Math.exp(-Math.abs(d * (wheel ? WHEEL_RATE : TRACKPAD_RATE))));
-  return d < 0 ? Math.log2(scale) : -Math.log2(scale);
+  return { dz: d < 0 ? Math.log2(scale) : -Math.log2(scale), wheel };
 }
 /** A Lock on zoom at a time: the zoom, and whether it has arrived. */
 function goalAt(g: ZoomGoal, now: number): { zoom: number; done: boolean } {
@@ -413,11 +417,11 @@ export default function FlatMap({
   const frames = useRef<Frames | null>(null);
   /** Following, zoom by dz through the frame loop rather than a MapLibre ease
    *  (followJump waits out an ease, so the satellite would drift off centre). */
-  const lockZoomBy = useCallback((map: MlMap, dz: number) => {
+  const lockZoomBy = useCallback((map: MlMap, dz: number, ms = LOCK_ZOOM_MS) => {
     const g = zoomGoal.current;
     const to = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), (g?.to ?? map.getZoom()) + dz));
     atHome.current = false;
-    zoomGoal.current = { from: map.getZoom(), to, t0: performance.now(), dur: reducedMotion() ? 0 : LOCK_ZOOM_MS };
+    zoomGoal.current = { from: map.getZoom(), to, t0: performance.now(), dur: reducedMotion() ? 0 : ms };
     frames.current?.wake();
   }, []);
   /** Following, jump to the focus f (and to zoom, when given): no easing, and
@@ -852,8 +856,11 @@ export default function FlatMap({
           return;
         }
         e.preventDefault();
-        const dz = wheelZoom(e);
-        if (dz) lockZoomBy(map, dz);
+        const { dz, wheel } = wheelZoom(e);
+        // A trackpad pinch sends a stream of small steps: each lands on the
+        // next frame, as MapLibre's own trackpad zoom does. Easing each one
+        // left the zoom trailing the fingers.
+        if (dz) lockZoomBy(map, dz, wheel ? LOCK_ZOOM_MS : 0);
       };
       const onKey = (e: KeyboardEvent) => {
         if (!useFollow.getState().following || e.altKey || e.ctrlKey || e.metaKey) return;
@@ -1112,6 +1119,7 @@ export default function FlatMap({
     const map = mapRef.current;
     if (!hasFocus || !mapReady || !map) return;
     let id: number | undefined;
+    let settle: number | undefined;
     // On phones the stacked map scrolls away: no frames then.
     let inView = true;
     // Whether the dot moves over FRAME_PX per DOT_MS at this camera.
@@ -1144,11 +1152,16 @@ export default function FlatMap({
       if (followJump(map, f, z?.zoom)) {
         map.redraw();
         if (z?.done) {
-          // Its own jumps skip zoomend's and moveend's work: do it once, at the end.
+          // Its own jumps skip zoomend's and moveend's work: do it once, when
+          // no further zoom follows.
           zoomGoal.current = null;
-          syncGestures();
-          push();
-          measure();
+          window.clearTimeout(settle);
+          settle = window.setTimeout(() => {
+            if (zoomGoal.current) return;
+            syncGestures();
+            push();
+            measure();
+          }, LOCK_SETTLE_MS);
         }
       }
     };
@@ -1198,6 +1211,7 @@ export default function FlatMap({
     map.on("zoomend", remeasure);
     document.addEventListener("visibilitychange", sync);
     return () => {
+      window.clearTimeout(settle);
       document.removeEventListener("visibilitychange", sync);
       map.off("zoomend", remeasure);
       io?.disconnect();
