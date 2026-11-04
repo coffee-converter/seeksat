@@ -78,14 +78,21 @@ export default function SkyChartModalView({
           if (result) URL.revokeObjectURL(result.blobUrl);
           return;
         }
-        if (!result) return;
+        // No chart means nothing would ever show: close rather than leave
+        // the modal open but invisible.
+        if (!result) {
+          onCloseRef.current();
+          return;
+        }
         // Revoke previous URL before adopting the new one.
         if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = result.blobUrl;
         setPng(result);
         setRenderedKey(subjectKey);
       } catch (e) {
-        if (!cancelled) console.warn("Polar modal render failed:", e);
+        if (cancelled) return;
+        console.warn("Polar modal render failed:", e);
+        onCloseRef.current();
       } finally {
         document.body.style.cursor = "";
       }

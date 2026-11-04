@@ -145,7 +145,10 @@ export default function RadioChartModalView({
         setDetail(result.series && result.meta ? { series: result.series, meta: result.meta } : null);
         setRenderedKey(subjectKey);
       } catch (e) {
-        if (!cancelled) console.warn("Radio modal render failed:", e);
+        if (cancelled) return;
+        console.warn("Radio modal render failed:", e);
+        // As with no series: close rather than stay open but invisible.
+        onCloseRef.current();
       } finally {
         document.body.style.cursor = "";
       }
