@@ -1,8 +1,13 @@
 import { formatNumber } from "@/lib/sat/numbers.mjs";
 import { linkClass } from "@/lib/ui/classes.mjs";
 import { SATNOGS_URL } from "@/lib/mirror/satnogs.mjs";
+import { uplinkText } from "@/lib/radio/uplink.mjs";
 
-export interface Downlink { hz: number; label: string; mode?: string | null; duty?: string; source?: string }
+export interface Downlink {
+  hz: number; label: string; mode?: string | null; duty?: string; source?: string;
+  uplink?: { hz: number; highHz?: number; mode?: string; tone?: number; invert?: boolean } | null;
+}
+const upText = uplinkText as (u: Downlink["uplink"]) => string | null;
 
 /** ", FM" after the label, unless the label already names the mode as a word
  *  ("passband" must not count as SSB). */
@@ -25,6 +30,7 @@ export default function Downlinks({ downlinks }: { downlinks: ReadonlyArray<Down
           {downlinks.map((d) => (
             <li key={`${d.hz}-${d.label}-${d.mode ?? ""}`}>
               {`${formatNumber(d.hz / 1e6, 3)} MHz, ${d.label}${modeNote(d)}${d.duty ? ` (${d.duty})` : ""}`}
+              {d.uplink && <><br /><span className="sat-list__sub">{upText(d.uplink)}</span></>}
             </li>
           ))}
         </ul>

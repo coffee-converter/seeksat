@@ -10,6 +10,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto var(--sp-6); }
 .sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); }
 .sat-list { margin: 0; padding-left: var(--sp-16); }
+.sat-list__sub { color: var(--muted); font-size: var(--fs-sm); }
 .sat-raw { margin-bottom: var(--sp-12); }
 .sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
 .sat-raw-head h3 { margin: 0; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }

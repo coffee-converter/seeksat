@@ -87,7 +87,7 @@ const wordsOf = passWords as (pass: Pass, o: {
   timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string; startTime?: boolean;
 }) => string;
 const dopplerAt = riseDopplerHz as (track: Track, obs: HomeObserver, pass: Pass, hz: number) => number | null;
-const downlinkOf = defaultDownlink as (track: Track) => { hz: number } | null;
+const downlinkOf = defaultDownlink as (track: Track) => { hz: number; uplink?: { hz: number; tone?: number } } | null;
 const elevRating = passQuality as (pass: Pass) => Quality;
 type Best = { noradId: number; name: string; pass: Pass; rating: Quality };
 const bestOf = bestPass as unknown as (cards: Card[], o: { rate: (card: Card, pass: Pass) => Quality; nowMs: number; hours: number }) => Best | null;
@@ -112,6 +112,14 @@ function riseDopplerText(track: Track, observer: HomeObserver, pass: Pass): stri
   const khz = Math.abs(hz / 1000).toFixed(1);
   const sign = hz < 0 && khz !== "0.0" ? "−" : "+";
   return `${(link.hz / 1e6).toFixed(3)} MHz, ${sign}${khz} kHz at rise`;
+}
+
+/** "Uplink 145.850 MHz · 67.0 Hz tone" for the default downlink's repeater or
+ *  transponder; the live view gives the Doppler-corrected uplink. */
+function uplinkFactText(track: Track): string | null {
+  const up = downlinkOf(track)?.uplink;
+  if (!up) return null;
+  return `Uplink ${(up.hz / 1e6).toFixed(3)} MHz${up.tone != null ? ` · ${up.tone.toFixed(1)} Hz tone` : ""}`;
 }
 
 function ElementTags({ track, nowMs }: { track: Track | undefined; nowMs: number }) {
@@ -214,7 +222,8 @@ function PassCard({
   // Radio mode, nothing to tune to: say so, so a missing frequency is not
   // read as a missing feature.
   const noDownlink = !visual && track.downlinks.length === 0;
-  const hasMeta = (!visual && pass.visible) || above != null || tune != null || noDownlink || viewing != null ||
+  const uplinkFact = visual ? null : uplinkFactText(track);
+  const hasMeta = (!visual && pass.visible) || above != null || tune != null || uplinkFact != null || noDownlink || viewing != null ||
     (elementTags(track, nowMs) as string[]).length > 0;
 
   // Paints with the clock of the render that changed paintKey.
@@ -270,6 +279,7 @@ function PassCard({
             {!visual && pass.visible && <span className="pass-card__tag">visible</span>}
             {above && <span className="pass-card__fact">{above}</span>}
             {tune && <span className="pass-card__fact">{tune}</span>}
+            {uplinkFact && <span className="pass-card__fact">{uplinkFact}</span>}
             {noDownlink && <span className="pass-card__fact">No known downlink</span>}
             <ElementTags track={track} nowMs={nowMs} />
             <ViewingTag viewing={viewing} />

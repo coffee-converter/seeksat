@@ -8,6 +8,7 @@ import LiveDial from "@/components/live/LiveDial";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
+import { uplinkDopplerHz } from "@/lib/radio/uplink.mjs";
 import { turnHint, headingFromOrientation } from "@/lib/live/heading.mjs";
 import { compass } from "@/lib/sat/pass-rows.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
@@ -29,19 +30,25 @@ const NO_READING_MS = 3000;
 const point = compass as (az: number) => string;
 const build = radioSeries as (a: Record<string, unknown>) => { series: { samples: Sample[] } } | null;
 
+/** An uplink as lib/catalog.mjs and lib/mirror/satnogs.mjs store it. */
+export type Uplink = { hz: number; highHz?: number; mode?: string; tone?: number; invert?: boolean };
+const upShift = uplinkDopplerHz as (down: number | null, downHz: number | null, upHz: number) => number | null;
+
 type OrientationCtor = { requestPermission?: () => Promise<"granted" | "denied"> };
 
 interface Props {
   subject: ChartSubject;
   freqHz: number | null;
   downlinkLabel: string | null;
+  /** The chosen downlink's uplink, when it is a repeater or transponder. */
+  uplink: Uplink | null;
   onChart: (kind: "sky" | "radio") => void;
   onClose: () => void;
 }
 
 // The pass right now: where to point, how long until it rises, peaks or
 // sets, and where to tune. Sampled once (1 s steps), read four times a second.
-export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onClose }: Props) {
+export default function LiveView({ subject, freqHz, downlinkLabel, uplink, onChart, onClose }: Props) {
   const { track, obs, pass, minElevDeg } = subject;
   const samples = useMemo(() => build({
     track, obs, anchorMs: (pass as { peakMs: number }).peakMs, minElevDeg, freqHz, purpose: "csv",
@@ -159,6 +166,26 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
                   : `, ${live.rateHzPerSec < 0 ? "falling" : "rising"} ${Math.abs(Math.round(live.rateHzPerSec))} Hz/s`)}
                 {downlinkLabel && ` · ${downlinkLabel}`}
               </p>
+              {uplink && (() => {
+                // A passband is worked from its centre: listen at the downlink
+                // centre, transmit at the uplink centre (inverting or not).
+                const upHz = uplink.highHz ? (uplink.hz + uplink.highHz) / 2 : uplink.hz;
+                const shift = upShift(live.dopplerHz, freqHz, upHz);
+                if (shift == null) return null;
+                return (
+                  <>
+                    <p className="live-view__tune">
+                      <span className="live-view__tune-label">{live.phase === "before" ? "At rise, transmit" : "Transmit"}</span>
+                      <span className="live-view__tune-mhz num">{`${((upHz + shift) / 1e6).toFixed(4)} MHz`}</span>
+                    </p>
+                    <p className="live-view__doppler num">
+                      {`Uplink ${shift >= 0 ? "+" : "−"}${Math.abs(shift / 1000).toFixed(1)} kHz`}
+                      {uplink.tone != null && ` · ${uplink.tone.toFixed(1)} Hz tone`}
+                      {uplink.invert && " · inverting: tune down as you transmit up"}
+                    </p>
+                  </>
+                );
+              })()}
               <p className="home-note">{"Predicted. The satellite's own offset is unknown."}</p>
             </>
           ) : (
