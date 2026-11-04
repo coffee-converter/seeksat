@@ -491,7 +491,6 @@
 .home-button--primary.home-chip--on:hover:not(:disabled) { background: var(--btn-hover); }
 .home-chip--quiet { color: var(--map-muted); border-color: transparent; }
 .home-chip--quiet:hover:not(:disabled) { color: var(--map-text); }
-
 .home-input {
   flex: 1;
   min-width: 0;

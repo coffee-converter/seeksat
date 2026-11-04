@@ -31,16 +31,19 @@ export default function Modal({ open, onClose, title, size = "dialog", tone = "p
   const titleId = useId();
   // Declared before the focus effect: the trap notes the opener first.
   useFocusTrap(ref, open);
+  // Latest onClose, so an inline callback never re-runs the effects below.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+      if (e.key === "Escape") { e.preventDefault(); onCloseRef.current(); }
     };
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [open, onClose]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -52,13 +55,13 @@ export default function Modal({ open, onClose, title, size = "dialog", tone = "p
   if (!open) return null;
   return (
     <div ref={ref} className={cx(modalClass({ size, tone }))} role="dialog" aria-modal="true" aria-labelledby={labelledBy ?? titleId}>
-      <div className="modal__backdrop" onClick={onClose} />
+      <div className="modal__backdrop" onClick={() => onCloseRef.current()} />
       <div className="modal__panel">
         <header className="modal__head">
           <h2 id={titleId} className="modal__title">{title}</h2>
           <div className="modal__actions">
             {actions}
-            <Button ref={closeRef} variant="quiet" tone="danger" iconOnly aria-label="Close" onClick={onClose}>
+            <Button ref={closeRef} variant="quiet" tone="danger" iconOnly aria-label="Close" onClick={() => onCloseRef.current()}>
               <span aria-hidden="true">✕</span>
             </Button>
           </div>

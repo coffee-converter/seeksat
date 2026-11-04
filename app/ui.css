@@ -264,6 +264,13 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .disclosure,
 .disclosure__panel { display: contents; }
 .disclosure__panel[hidden] { display: none; }
+/* Open: the filled segment, as the old .home-chip--on did. */
+.disclosure .btn[aria-expanded="true"],
+.disclosure .btn[aria-expanded="true"]:hover:not(:disabled) {
+  background: var(--seg-on);
+  border-color: var(--seg-on);
+  color: var(--seg-on-text);
+}
 .disclosure__toggle { min-width: 40px; font-size: var(--fs-xl); font-weight: var(--fw-semibold); line-height: 1; }
 
 /* Details: a native fold with a chevron. */

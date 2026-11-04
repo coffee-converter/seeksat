@@ -24,7 +24,6 @@ export function Disclosure({ id, open, onToggle, label, children }: DisclosurePr
       <Button
         size="sm"
         className="disclosure__toggle"
-        pressed={open}
         aria-expanded={open}
         aria-controls={id}
         aria-label={`${word} actions for ${label}`}

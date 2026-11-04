@@ -25,7 +25,7 @@ export default function Field({ label, hint, error, children }: Props) {
         id,
         className: cx("field__control", children.props.className),
         "aria-describedby": described || undefined,
-        "aria-invalid": error ? true : undefined,
+        "aria-invalid": error ? true : children.props["aria-invalid"],
       })}
       {hint ? <p id={hintId} className="field__hint">{hint}</p> : null}
       {error ? <p id={errorId} className="field__error" role="alert">{error}</p> : null}
