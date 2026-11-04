@@ -10,7 +10,7 @@ import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
-import { PROJECTIONS, MAX_ZOOM, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
+import { PROJECTIONS, MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { useFollow } from "@/lib/map/follow-store";
 import Button from "@/components/ui/Button";
@@ -158,7 +158,6 @@ type ZoomGoal = { from: number; to: number; t0: number; dur: number };
 /** The frame loop's controls while a satellite is focused (the frame effect). */
 type Frames = { running: () => boolean; wake: () => void; tick: () => void; measure: () => void };
 
-const NIGHT_REFRESH_MS = 60_000;
 /** How often the other dots and the GeoJSON footprint move; the focus moves every frame. */
 const DOT_MS = 200;
 /** Where MapShell docks the map beside the panel (keep in step with home.css). */
@@ -536,10 +535,11 @@ export default function FlatMap({
     }
   }, []);
 
-  /** Night bands, rebuilt at most every NIGHT_REFRESH_MS; true when rebuilt. */
-  const refreshNight = useCallback((): boolean => {
+  /** Night bands, rebuilt once they would have moved about a pixel at this
+   *  zoom (nightRefreshMs); true when rebuilt. */
+  const refreshNight = useCallback((zoom: number): boolean => {
     const now = Date.now();
-    if (night.current && now - night.current.at < NIGHT_REFRESH_MS) return false;
+    if (night.current && now - night.current.at < nightRefreshMs(zoom)) return false;
     night.current = { at: now, data: buildData({ nightDate: new Date(now) })["ss-night"] };
     return true;
   }, []);
@@ -564,7 +564,7 @@ export default function FlatMap({
     const map = mapRef.current;
     if (!map || !styleReady.current) return;
     const data = sourceData(map, false);
-    if (refreshNight()) data["ss-night"] = night.current?.data;
+    if (refreshNight(map.getZoom())) data["ss-night"] = night.current?.data;
     else delete data["ss-night"];
     setOverlayData(map, data);
   }, [sourceData, refreshNight]);
@@ -721,7 +721,7 @@ export default function FlatMap({
       map.on("style.load", () => {
         styleReady.current = true;
         const colors = overlayColors(themeRef.current);
-        refreshNight();
+        refreshNight(map.getZoom());
         const data = sourceData(map, true);
         data["ss-night"] = night.current?.data;
         addOverlays(map, {
@@ -1074,13 +1074,15 @@ export default function FlatMap({
       frames.current?.tick();
       const map = mapRef.current;
       if (!map || !styleReady.current) return;
-      // Only what moves: the dots, and the focus footprint while there is one.
-      // The observer, night bands and an emptied footprint go with push().
+      // Only what moves: the dots, the focus footprint while there is one,
+      // and the night bands when due. The observer and an emptied footprint
+      // go with push().
       const data = buildData({ sats: liveSats(), tracks: false });
       const footprint = data["ss-footprint"] as { features: unknown[] };
       setOverlayData(map, {
         "ss-sats": data["ss-sats"],
         ...(footprint.features.length > 0 && { "ss-footprint": footprint }),
+        ...(refreshNight(map.getZoom()) && { "ss-night": night.current?.data }),
       });
     };
     const stop = () => {
@@ -1097,7 +1099,7 @@ export default function FlatMap({
       document.removeEventListener("visibilitychange", start);
       stop();
     };
-  }, [liveSats]);
+  }, [liveSats, refreshNight]);
 
   // Every frame while a satellite is focused, the map is made and in view, the
   // tab shows, and the dot moves visibly per frame (or Lock on is on): place

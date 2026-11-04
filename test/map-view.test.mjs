@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECTIONS, DEFAULT_PROJECTION, defaultProjectionFor, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
+import { PROJECTIONS, DEFAULT_PROJECTION, defaultProjectionFor, migrateProjection, nightRefreshMs, NIGHT_REFRESH_MIN_MS, NIGHT_REFRESH_MAX_MS, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
 
 test('the view list is globe and Mercator, flat by default', () => {
   assert.deepEqual(PROJECTIONS, [
@@ -234,4 +234,12 @@ test('defaultProjectionFor: globe on a narrow portrait screen, Mercator elsewher
   assert.equal(defaultProjectionFor({ width: 820, height: 1180 }), 'flat'); // tablet portrait
   assert.equal(defaultProjectionFor({ width: 1280, height: 800 }), 'flat');
   assert.equal(defaultProjectionFor({ width: 0, height: 0 }), 'flat');
+});
+
+test('nightRefreshMs: about a pixel per step, between 2 s and a minute', () => {
+  assert.equal(nightRefreshMs(0), NIGHT_REFRESH_MAX_MS);
+  assert.equal(nightRefreshMs(15), NIGHT_REFRESH_MIN_MS);
+  // Zoom 5: 360 / (512 * 32) deg per px, swept at 240 s a degree.
+  assert.equal(nightRefreshMs(5), (360 / (512 * 32)) * 240_000);
+  for (let z = 0; z < 15; z++) assert.ok(nightRefreshMs(z + 1) <= nightRefreshMs(z), String(z));
 });
