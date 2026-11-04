@@ -1,6 +1,6 @@
 # SeekSat design bible
 
-Date: 2026-11-03. Branch: any-satellite-data-layer.
+Date: 2026-11-03. Branch: develop (renamed from any-satellite-data-layer).
 
 ## Intent
 
@@ -29,7 +29,7 @@ living reference page inside SeekSat that shows all of it.
   - Checked in the font files: Next has a `tnum` feature (tabular figures)
     and a marked zero, so ticking numbers line up without a mono.
 - **One component library**, one source, screens pick variants.
-- **Same branch:** built on `any-satellite-data-layer`, before go-live,
+- **Same branch:** built on `develop`, before go-live,
   following Aaron's order (review, bible, go live).
 - **The bible page lives in SeekSat** at an unlisted, hard-to-guess URL,
   not indexed and not crawled.
