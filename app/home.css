@@ -169,7 +169,9 @@
   .flat-map .flat-map__presets:not(.flat-map__presets--open) { display: none; }
   /* Above the row's taller touch buttons, clear of the map credits button. */
   .flat-map .flat-map__presets { bottom: 58px; right: 52px; }
-  .flat-map .maplibregl-ctrl-bottom-right { bottom: 40px; right: 0; }
+  /* The row stops short of the right edge: the credits take the corner,
+     level with it (opened, they lay over the row until closed). */
+  .flat-map .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }
 }
 
 /* Full screen: the native API when present, else this class (iPhone Safari). */
