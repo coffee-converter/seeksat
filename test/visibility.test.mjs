@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { satAltitudeDeg, sunAltitudeDeg, satIlluminated, sunlitFraction, isVisibleAtAll } from '../lib/pass-finder/visibility.js';
+import { satAltitudeDeg, sunAltitudeDeg, satIlluminated, sunlitFraction, grazingRay, isVisibleAtAll } from '../lib/pass-finder/visibility.js';
 import { magnitudeAt } from '../lib/pass-finder/ratings.js';
 import { geodeticToEcef } from '../lib/coords.js';
 
@@ -114,21 +114,21 @@ test('isVisibleAtAll: ISS too low for one observer -> false', () => {
 });
 
 // A circular orbit in the Sun's plane (Sun along +X), walked from the dusk
-// terminator into Earth's shadow: seconds from the first dimming to full
-// shadow (penumbra) and to the old cylinder edge.
+// terminator into Earth's shadow: seconds from 90% to 10% sunlight (the
+// visible fade) and from first dimming to full shadow.
 function shadowEntry(altKm) {
   const r = 6_378_137 + altKm * 1000;
   const w = Math.sqrt(3.986004418e14 / r ** 3);
-  let first = null, umbra = null, cylinder = null;
+  let first = null, p90 = null, p10 = null, umbra = null;
   for (let t = 0; umbra === null; t += 0.1) {
     const th = Math.PI / 2 + w * t;
-    const p = [r * Math.cos(th), r * Math.sin(th), 0];
-    const f = sunlitFraction(p, [1, 0, 0]);
-    if (f < 1 && first === null) first = t;
+    const f = sunlitFraction([r * Math.cos(th), r * Math.sin(th), 0], [1, 0, 0]);
+    if (first === null && f < 1) first = t;
+    if (p90 === null && f <= 0.9) p90 = t;
+    if (p10 === null && f <= 0.1) p10 = t;
     if (f === 0) umbra = t;
-    if (cylinder === null && p[0] < 0 && Math.abs(p[1]) < 6_371_000) cylinder = t;
   }
-  return { penumbraS: umbra - first, cylinderS: cylinder - first };
+  return { fadeS: p10 - p90, totalS: umbra - first };
 }
 
 test('sunlitFraction: full sunlight on the day side, none deep in the shadow', () => {
@@ -137,25 +137,47 @@ test('sunlitFraction: full sunlight on the day side, none deep in the shadow', (
   assert.equal(sunlitFraction([0, 6_778_137, 0], [1, 0, 0]), 1);
 });
 
-test('sunlitFraction: falls steadily through the penumbra', () => {
+test('sunlitFraction: falls steadily into the shadow', () => {
   const r = 6_778_137;
   let prev = 1;
-  for (let deg = 110; deg <= 115; deg += 0.05) {
+  for (let deg = 105; deg <= 120; deg += 0.02) {
     const th = (deg * Math.PI) / 180;
     const f = sunlitFraction([r * Math.cos(th), r * Math.sin(th), 0], [1, 0, 0]);
-    assert.ok(f <= prev + 1e-12 && f >= 0 && f <= 1, `deg=${deg} f=${f}`);
+    assert.ok(f <= prev + 1e-9 && f >= 0 && f <= 1, `deg=${deg} f=${f}`);
     prev = f;
   }
   assert.equal(prev, 0);
 });
 
-test('sunlitFraction: the penumbra takes seconds in low orbit, minutes in GEO', () => {
+test('sunlitFraction: the fade takes seconds in low orbit, minutes in GEO', () => {
   const leo = shadowEntry(400);
-  assert.ok(leo.penumbraS > 4 && leo.penumbraS < 15, `ISS ${leo.penumbraS}s`);
+  assert.ok(leo.fadeS > 4 && leo.fadeS < 20, `ISS fade ${leo.fadeS}s`);
+  assert.ok(leo.totalS > leo.fadeS && leo.totalS < 90, `ISS total ${leo.totalS}s`);
   const geo = shadowEntry(35_786);
-  assert.ok(geo.penumbraS > 90 && geo.penumbraS < 180, `GEO ${geo.penumbraS}s`);
-  // The old cylinder edge sits inside GEO's penumbra, not at its start.
-  assert.ok(geo.cylinderS > 30 && geo.cylinderS < geo.penumbraS, `GEO cylinder ${geo.cylinderS}s`);
+  assert.ok(geo.fadeS > 60 && geo.fadeS < 240, `GEO fade ${geo.fadeS}s`);
+});
+
+test('grazingRay: air dims and bends low rays, not high ones', () => {
+  assert.deepEqual(grazingRay(5_000), { trans: 0, bend: 0 });
+  const low = grazingRay(10_000), mid = grazingRay(25_000), high = grazingRay(50_000);
+  assert.ok(low.trans < 0.1 && mid.trans > low.trans && high.trans > 0.99, `${low.trans} ${mid.trans} ${high.trans}`);
+  // About 70' of bending at sea level, scaled by density: ~24' at 10 km.
+  const arcmin = (rad) => (rad * 180 * 60) / Math.PI;
+  assert.ok(arcmin(low.bend) > 20 && arcmin(low.bend) < 30, `${arcmin(low.bend)}'`);
+  assert.ok(arcmin(high.bend) < 0.2);
+  assert.deepEqual(grazingRay(90_000), { trans: 1, bend: 0 });
+});
+
+test('sunlitFraction: refraction lights a GEO satellite just inside the geometric shadow', () => {
+  // GEO, Sun along +X, satellite placed so the whole Sun sits just below the
+  // floor height (10 km) as seen from it: geometry alone says dark.
+  const r = 42_164_000;
+  const R = 6_378_137; // equator
+  const uFloor = Math.asin((R + 10_000) / r);
+  const c = uFloor - 0.00465 - 0.001; // top of the Sun's disc (a ≈ 0.00465) 0.001 rad behind
+  const p = [-r * Math.cos(c), r * Math.sin(c), 0];
+  const f = sunlitFraction(p, [1, 0, 0]);
+  assert.ok(f > 0 && f < 0.05, `f=${f}`);
 });
 
 test('satIlluminated: any direct sunlight counts, the umbra does not', () => {
