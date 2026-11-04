@@ -262,3 +262,13 @@ test('tx_freq_hz is the uplink corrected the other way, scaled to its frequency'
 test('tx_freq_hz is empty without an uplink', () => {
   assert.equal(cell(radioPassCsv(SAMPLES, META), 'tx_freq_hz'), '');
 });
+
+test('a 24-hour window says so and names its edges start and end, not AOS and LOS', () => {
+  const csv = radioPassCsv(SAMPLES, { ...META, day: true });
+  assert.match(csv, /^# SeekSat radio prediction, 24 hours/m);
+  assert.match(csv, /^# start_utc:/m);
+  assert.match(csv, /^# end_utc:/m);
+  assert.match(csv, /^# never_sets:\s+yes/m);
+  assert.doesNotMatch(csv, /aos_utc|los_utc/);
+  assert.match(radioPassCsv(SAMPLES, META), /^# aos_utc:/m);
+});

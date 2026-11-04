@@ -45,6 +45,7 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
   // A chosen frequency sticks while the same satellite is reopened; a new
   // satellite resets it to the preferred frequency, else its default downlink.
   const [freqFor, setFreqFor] = useState<number | null>(noradId);
+  const [radioDay, setRadioDay] = useState(false);
   if (noradId !== freqFor) {
     // Adjusting state during render avoids one paint at the old frequency.
     setFreqFor(noradId);
@@ -68,6 +69,7 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
     const { track, obs, pass, minElevDeg, jointWindow } = subject;
     const built = radioSeries({
       track, obs, anchorMs: pass.peakMs, minElevDeg, freqHz, jointWindow, purpose,
+      day: pass.day ? { startMs: pass.startMs, endMs: pass.endMs } : null,
     });
     return built ? { built, track, obs } : null;
   }, [subject, freqHz]);
@@ -76,6 +78,9 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
     const r = buildRadio("chart");
     if (!r) return null;
     const { built, track, obs } = r;
+    // A geosynchronous satellite that never sets is charted over a day even
+    // from a pass row; the title follows.
+    setRadioDay(Boolean(built.day));
     const meta = radioChartOptions(built, { track, obs });
     paintRadioChart(svg, built.series, meta);
     const blob = await svgToPngBlob(svg);
@@ -106,12 +111,14 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
 
   const subjectKey = subject ? `${subject.track.noradId}:${subject.pass.startMs}` : "";
   const subjectName = subject?.track.shortName ?? "";
+  const span = subject?.pass.day ? "next 24 hours" : "pass";
+  const radioSpan = subject?.pass.day ? "next 24 hours" : radioDay ? "over 24 hours" : "pass";
 
   return (
     <>
       <SkyChartModalView
         open={chart === "sky" && !!subject}
-        title={`Sky chart: ${subjectName} pass`}
+        title={`Sky chart: ${subjectName} ${span}`}
         subjectKey={subjectKey}
         render={renderSky}
         onClose={onClose}
@@ -119,7 +126,7 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
       />
       <RadioChartModalView
         open={chart === "radio" && !!subject}
-        title={`Radio chart: ${subjectName} pass`}
+        title={`Radio chart: ${subjectName} ${radioSpan}`}
         subjectKey={subjectKey}
         render={renderRadio}
         csv={radioCsv}

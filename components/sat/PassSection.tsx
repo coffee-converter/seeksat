@@ -30,6 +30,7 @@ import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 import Button from "@/components/ui/Button";
 
 // The chart painters load on the first chart open, not with the page.
+const DAY_MS = 86_400_000;
 const PassChartModals = dynamic(() => import("@/components/passes/PassChartModals"), { ssr: false });
 
 type Pass = { startMs: number; endMs: number; [k: string]: unknown };
@@ -290,6 +291,14 @@ export default function PassSection({
     if (firstEnd != null && !failed && !inFlight.current && nowMs >= firstEnd) setTick((t) => t + 1);
   }, [nowMs, firstEnd, failed]);
 
+  // A geosynchronous satellite always above the horizon here: its pointing
+  // over the day, for the 24-hour charts.
+  const alwaysUp = useMemo(() => {
+    const r = result as { kind?: string; visible?: boolean; pointing?: { azDeg: number | null; elMinDeg: number | null; elMaxDeg: number | null }[] } | null;
+    const p = r?.kind === "stationary" && r.visible ? r.pointing?.[0] : null;
+    return p && p.elMaxDeg != null ? p : null;
+  }, [result]);
+
   // The subject is captured at open, so the clock never repaints an open chart.
   const [subject, setSubject] = useState<ChartSubject | null>(null);
   const [chart, setChart] = useState<ChartKind | null>(null);
@@ -304,6 +313,14 @@ export default function PassSection({
     setChart(kind);
   };
   useImperativeHandle(ref, () => ({ openChart }));
+  /** The 24-hour window from now, shaped as a pass, for a satellite that never sets. */
+  const dayPass = (p: { azDeg: number | null; elMaxDeg: number | null }): Pass => {
+    const startMs = trueNow();
+    return {
+      startMs, endMs: startMs + DAY_MS, peakMs: startMs, durationMs: DAY_MS,
+      maxElevDeg: p.elMaxDeg ?? 0, startAzDeg: p.azDeg, endAzDeg: null, day: true,
+    } as Pass;
+  };
   const onClose = useCallback(() => {
     setChart(null);
     trigger.current?.focus();
@@ -518,7 +535,16 @@ export default function PassSection({
                 )}
                 </>
               ) : (
-                <p className="home-note">{view.text}</p>
+                <>
+                  <p className="home-note">{view.text}</p>
+                  {/* Never sets here: no pass to chart, so chart the next 24 hours. */}
+                  {alwaysUp && (
+                    <div className="sat-day-charts">
+                      <Button size="sm" onClick={(e) => openChart("radio", dayPass(alwaysUp), e)}>Radio chart, next 24 h</Button>
+                      <Button size="sm" onClick={(e) => openChart("sky", dayPass(alwaysUp), e)}>Sky chart, next 24 h</Button>
+                    </div>
+                  )}
+                </>
               )}
               {view.kind === "rows" && (
                 <p className="print-only sat-print-foot" suppressHydrationWarning>

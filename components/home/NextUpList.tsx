@@ -42,6 +42,8 @@ export interface HomeObserver {
 }
 
 export interface Pass {
+  /** A 24-hour window standing in for a pass, for a satellite that never sets. */
+  day?: boolean;
   startMs: number;
   endMs: number;
   peakMs: number;
