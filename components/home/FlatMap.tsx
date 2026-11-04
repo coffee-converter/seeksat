@@ -1386,6 +1386,9 @@ export default function FlatMap({
           value={view}
           onChange={onProjectionChange}
         />
+        {/* Share sends the whole view, so it sits with the map type; phones
+            keep it in the bottom row (one shown at a time, by width). */}
+        {share ? <span className="flat-map__share flat-map__share--top">{share}</span> : null}
       </div>
     </div>
   );
@@ -1442,31 +1445,34 @@ export default function FlatMap({
         </p>
       ) : null}
       {fill ? null : chipRow}
-      {view === "globe" ? (
-        <div
-          id={presetsId}
-          className={`flat-map__presets${viewsOpen ? " flat-map__presets--open" : ""}`}
-          role="group"
-          aria-label="Globe camera"
-        >
-          {presetsNow.map((p) => (
-            <Button
-              key={p.id}
-              variant="overlay"
-              size="sm"
-              pressed={p.id === "sat" ? followOn : undefined}
-              onClick={() => {
-                setViewsOpen(false);
-                goTo(p.id);
-              }}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
-      ) : null}
+      {/* Where to look. The globe's camera views, or the flat map's way back
+          to its home view. Phones fold them behind View in the bottom row. */}
+      <div
+        id={presetsId}
+        className={`flat-map__presets${viewsOpen ? " flat-map__presets--open" : ""}`}
+        role="group"
+        aria-label={view === "globe" ? "Globe camera" : "Map view"}
+      >
+        {view === "globe" ? presetsNow.map((p) => (
+          <Button
+            key={p.id}
+            variant="overlay"
+            size="sm"
+            pressed={p.id === "sat" ? followOn : undefined}
+            onClick={() => {
+              setViewsOpen(false);
+              goTo(p.id);
+            }}
+          >
+            {p.label}
+          </Button>
+        )) : (
+          <Button variant="overlay" size="sm" onClick={reset}>Reset view</Button>
+        )}
+      </div>
+      {/* How close: full screen above + and - at the bottom right. Phones lay
+          this out as one row: View (or Reset view), +, -, full screen, Share. */}
       <div className="flat-map__zoom">
-        {/* Phones: one View button opens the globe camera buttons above this row. */}
         {view === "globe" ? (
           <Button
             variant="overlay"
@@ -1477,17 +1483,15 @@ export default function FlatMap({
           >
             View
           </Button>
-        ) : null}
-        <Button variant="overlay" iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
-        <Button variant="overlay" iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
-        {/* On the globe, On you and Satellite GP already do this. */}
-        {view === "globe" ? null : (
-          <Button variant="overlay" onClick={reset}>Reset view</Button>
+        ) : (
+          <Button variant="overlay" className="flat-map__view-pick" onClick={reset}>Reset view</Button>
         )}
-        <Button variant="overlay" iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
+        <Button variant="overlay" iconOnly className="flat-map__full" aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
           {"⛶"}
         </Button>
-        {share}
+        <Button variant="overlay" iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
+        <Button variant="overlay" iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
+        {share ? <span className="flat-map__share flat-map__share--row">{share}</span> : null}
       </div>
       <table className="sr-only">
         <caption>Current satellite positions</caption>
