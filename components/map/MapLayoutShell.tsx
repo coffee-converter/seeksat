@@ -26,15 +26,16 @@ type ParsedView = {
 };
 const parseViewOf = parseView as (search: string) => ParsedView | null;
 
-/** Above the panel while a shared view is shown: keep it, or go back. */
-function SharedViewBanner() {
+/** While a shared view is shown: keep it, or go back. Docked it heads the
+ *  panel; narrower it sits above the map, where it is seen (app/sat.css). */
+function SharedViewBanner({ at }: { at: "map" | "panel" }) {
   const shared = useHomeStore((s) => s.shared);
   const keep = useHomeStore((s) => s.keepShared);
   const leave = useHomeStore((s) => s.leaveShared);
   if (!shared) return null;
   const n = shared.following?.length ?? 0;
   return (
-    <div className="sat-shared shared-view" role="status">
+    <div className={`sat-shared shared-view shared-view--${at}`} role="status">
       <p className="sat-shared__text">
         {`You're looking at a shared map${shared.following ? ` with ${n} satellite${n === 1 ? "" : "s"}` : ""}. Your own list is unchanged.`}
       </p>
@@ -101,6 +102,7 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
       offlineFromCache={scene?.offlineFromCache ?? false}
       map={(
         <>
+          <SharedViewBanner at="map" />
           {scene?.above}
           <FlatMap
             fill
@@ -119,7 +121,7 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
       )}
       panel={(
         <>
-          <SharedViewBanner />
+          <SharedViewBanner at="panel" />
           {children}
         </>
       )}
