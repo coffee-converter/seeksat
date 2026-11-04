@@ -9,8 +9,8 @@ interface Props {
   url: string | (() => string);
   title: string;
   label?: string;
-  /** "chip" for a pass row, "button" for the page header. */
-  size?: "chip" | "button";
+  /** "chip" for a small button, "button" for the page header, "overlay" on the map. */
+  size?: "chip" | "button" | "overlay";
 }
 
 type State = { kind: "idle" } | { kind: "copied" } | { kind: "manual"; url: string };
@@ -41,10 +41,14 @@ export default function ShareButton({ url, title, label = "Share", size = "chip"
 
   return (
     <>
-      <Button size={size === "chip" ? "sm" : "md"} onClick={onClick}>
-        {label}
+      <Button
+        size={size === "chip" ? "sm" : "md"}
+        variant={size === "overlay" ? "overlay" : undefined}
+        onClick={onClick}
+      >
+        {state.kind === "copied" ? "Link copied" : label}
       </Button>
-      {state.kind === "copied" && <span className="home-note" role="status">Link copied</span>}
+      <span className="sr-only" role="status">{state.kind === "copied" ? "Link copied" : ""}</span>
       {state.kind === "manual" && (
         <Field label="Copy this link:">
           <input type="text" readOnly value={state.url} onFocus={(e) => e.currentTarget.select()} />

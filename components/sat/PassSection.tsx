@@ -20,7 +20,6 @@ import { liveAvailable } from "@/lib/live/live-state.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import AlertBell from "@/components/AlertBell";
-import ShareButton from "@/components/sat/ShareButton";
 import Disclosure from "@/components/ui/Disclosure";
 import PassStats from "@/components/passes/PassStats";
 import { defaultDownlink } from "@/lib/catalog.mjs";
@@ -310,9 +309,7 @@ export default function PassSection({
     trigger.current?.focus();
   }, []);
 
-  const pickedFreq = useRef<number | null>(preferredFreqHz);
   const onFreqChange = useCallback((hz: number | null) => {
-    pickedFreq.current = hz;
     onFreqPicked?.(hz);
   }, [onFreqPicked]);
 
@@ -494,12 +491,6 @@ export default function PassSection({
                                   {visual
                                     ? <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>
                                     : <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>}
-                                  {track && (
-                                    <ShareButton
-                                      url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, pickedFreq.current)}
-                                      title={`${track.name} pass`}
-                                    />
-                                  )}
                                   <Button size="sm" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
                                     <span aria-hidden="true">{"📅"}</span> Calendar
                                   </Button>
