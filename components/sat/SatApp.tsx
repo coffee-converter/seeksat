@@ -356,7 +356,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         {data.note ? <p className="home-note">{data.note}</p> : null}
         <div className="sat-follow">
           <Button
-            variant={following ? "secondary" : "primary"}
+            variant="primary"
+            on={following}
+            pressedLook="accent"
             disabled={!following && Boolean(blocked)}
             onClick={toggleFollow}
           >

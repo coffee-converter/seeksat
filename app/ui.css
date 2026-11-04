@@ -36,24 +36,33 @@
 .btn--quiet { color: var(--map-muted); border-color: transparent; }
 .btn--quiet:hover:not(:disabled) { color: var(--map-text); }
 
-.btn[aria-pressed="true"] {
+/* .btn--on: the same look without aria-pressed (the label says the state). */
+.btn[aria-pressed="true"],
+.btn.btn--on {
   background: var(--seg-on);
   border-color: var(--seg-on);
   color: var(--seg-on-text);
 }
-.btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--seg-on); }
+.btn[aria-pressed="true"]:hover:not(:disabled),
+.btn.btn--on:hover:not(:disabled) { background: var(--seg-on); }
 /* A main action that is on (Following), or pressedLook="accent" (Night
    vision, beside the theme control): accent outline on the card colour. */
 .btn--primary[aria-pressed="true"],
 .btn--primary[aria-pressed="true"]:hover:not(:disabled),
 .btn--accent-pressed[aria-pressed="true"],
-.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled) {
+.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled),
+.btn--primary.btn--on,
+.btn--primary.btn--on:hover:not(:disabled),
+.btn--accent-pressed.btn--on,
+.btn--accent-pressed.btn--on:hover:not(:disabled) {
   background: var(--panel);
   border-color: var(--accent);
   color: var(--accent);
 }
 .btn--primary[aria-pressed="true"]:hover:not(:disabled),
-.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled) { background: var(--btn-hover); }
+.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled),
+.btn--primary.btn--on:hover:not(:disabled),
+.btn--accent-pressed.btn--on:hover:not(:disabled) { background: var(--btn-hover); }
 
 /* Overlay: on the map imagery, so it has an opaque panel backing and the chip
    edge. Hover and pressed (a filled segment) are the shared rules; open

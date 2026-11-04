@@ -12,6 +12,11 @@ test('buttonClass overlay variant and the accent pressed look', () => {
   assert.equal(buttonClass({ pressedLook: 'accent' }), 'btn btn--accent-pressed');
   assert.equal(buttonClass({ pressedLook: 'fill' }), 'btn');
 });
+test('buttonClass on: the pressed look without aria-pressed', () => {
+  assert.equal(buttonClass({ on: true }), 'btn btn--on');
+  assert.equal(buttonClass({ variant: 'primary', on: true, pressedLook: 'accent' }), 'btn btn--primary btn--accent-pressed btn--on');
+  assert.equal(buttonClass({ on: false }), 'btn');
+});
 test('badgeClass', () => {
   assert.equal(badgeClass(), 'badge');
   assert.equal(badgeClass('warn'), 'badge badge--warn');
