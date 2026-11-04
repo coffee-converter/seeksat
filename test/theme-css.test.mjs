@@ -546,3 +546,24 @@ test('Esc before a chart has painted closes it, before the page sees it', () => 
     assert.match(src, /addEventListener\("keydown", onKey, \{ capture: true \}\)/, f);
   }
 });
+
+// --- Task 11 review -----------------------------------------------------------
+
+test('a done primary button keeps its readable text on the fill', () => {
+  const ui = stripComments(read('app/ui.css'));
+  assert.match(ui, /\.btn--primary\.btn--done\s*\{[^}]*color:\s*var\(--primary-text\);/);
+  assert.match(ui, /\.btn--primary\.btn--done:hover:not\(:disabled\)\s*\{[^}]*color:\s*var\(--primary-text\);/);
+  // After the generic done rule, so it is the one that applies.
+  assert.ok(ui.indexOf('.btn--primary.btn--done') > ui.indexOf('.btn--done,'));
+});
+
+test('a link button never takes the filled pressed or on look', () => {
+  const ui = stripComments(read('app/ui.css'));
+  for (const sel of [/\.btn\.btn--link\[aria-pressed="true"\]/, /\.btn\.btn--link\.btn--on/]) {
+    const m = ui.match(new RegExp(`${sel.source}[^{]*\\{([^}]*)\\}`));
+    assert.ok(m, `${sel} rule exists`);
+    assert.match(m[1], /background:\s*none;/);
+    assert.match(m[1], /color:\s*var\(--link\);/);
+  }
+  assert.match(ui, /\.btn\.btn--link\[aria-pressed="true"\]:hover:not\(:disabled\)/);
+});

@@ -91,6 +91,23 @@
 .btn--danger:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
 .btn--done,
 .btn--done:hover:not(:disabled) { color: var(--teal); border-color: var(--teal); }
+/* A filled main action keeps its text readable on the fill when done; the
+   label change (Copied, Saved) carries the cue. */
+.btn--primary.btn--done { color: var(--primary-text); border-color: var(--primary); }
+.btn--primary.btn--done:hover:not(:disabled) { color: var(--primary-text); border-color: var(--primary-hover); }
+
+/* A link never fills: pressed or on, it stays link text with a firmer underline
+   (beats the fill and accent-outline rules above, hover included). */
+.btn.btn--link[aria-pressed="true"],
+.btn.btn--link.btn--on {
+  background: none;
+  border: 0;
+  color: var(--link);
+  font-weight: var(--fw-semibold);
+  text-decoration-thickness: 2px;
+}
+.btn.btn--link[aria-pressed="true"]:hover:not(:disabled),
+.btn.btn--link.btn--on:hover:not(:disabled) { background: none; border: 0; color: var(--link); }
 
 @media (pointer: coarse) {
   .btn { min-height: 44px; }

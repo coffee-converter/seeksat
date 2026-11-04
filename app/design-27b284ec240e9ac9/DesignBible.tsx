@@ -346,7 +346,7 @@ export default function DesignBible({ data }: { data: BibleData }) {
             </Specimen>
           ))}
           <p className="bible__note">
-            Pressed sets aria-pressed (a toggle; click it). On shows the same look without aria-pressed, for a label that already says its state. Icon-only buttons must carry an aria-label.
+            Pressed sets aria-pressed (a toggle; click it). On shows the same look without aria-pressed, for a label that already says its state. A link never fills: pressed or on, it turns bold with a firmer underline. Done on a primary keeps the fill and its text; the label change carries the cue. Icon-only buttons must carry an aria-label.
           </p>
 
           <Specimen title="Segmented" note="A radiogroup: one tab stop, arrow keys move and select.">
