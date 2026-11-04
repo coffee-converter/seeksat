@@ -41,7 +41,13 @@ async function removeWorker(sw: ServiceWorkerContainer) {
 export default function SwRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    const sw = navigator.serviceWorker;
+    // Firefox with site data blocked throws on reading it: no worker then.
+    let sw: ServiceWorkerContainer;
+    try {
+      sw = navigator.serviceWorker;
+    } catch {
+      return;
+    }
     if (process.env.NEXT_PUBLIC_SW_OFF === "1") {
       void removeWorker(sw);
       return;
