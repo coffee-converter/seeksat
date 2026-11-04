@@ -562,7 +562,6 @@ export default function FlatMap({
     ]).then(([stars, data, coords, sun, moon, planets]) => {
       if (!alive) return;
       const field = stars.starField(data.STARS);
-      const style = Array.from({ length: field.n }, (_, i) => stars.starStyle(field.mag[i]));
       draw = () => {
         const w = canvas.clientWidth, h = canvas.clientHeight;
         if (!w || !h) return;
@@ -579,17 +578,7 @@ export default function FlatMap({
         const now = new Date(trueNow());
         const cam = { lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(), width: w, height: h };
         const placed = stars.projectStars(field, { ...cam, gmstRad: coords.gmstFromDate(now) });
-        // Faintest first, so bright stars sit on top.
-        for (let k = placed.length - 1; k >= 0; k--) {
-          const { i, x, y } = placed[k];
-          const { r, alpha } = style[i];
-          ctx.globalAlpha = alpha;
-          ctx.fillStyle = field.color[i];
-          ctx.beginPath();
-          ctx.arc(x, y, r, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
+        stars.drawStars(ctx, field, placed);
         // The Moon, the Sun and the bright planets, over the stars. The camera
         // distance from public values, as MapLibre derives it: half the
         // height over tan(fov / 2) to the map's centre, and a 512 px tile world.

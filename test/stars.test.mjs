@@ -7,9 +7,9 @@ import { gmstFromDate } from '../lib/coords.js';
 const field = starField(STARS);
 const cam = { width: 1000, height: 800, fovDeg: 36.87 };
 
-test('the catalogue: complete to magnitude 5.5, brightest first, Sirius leading', () => {
+test('the catalogue: complete to magnitude 6, brightest first, Sirius leading', () => {
   assert.equal(field.n, STAR_COUNT);
-  assert.ok(STAR_COUNT > 2800 && STAR_COUNT < 3000);
+  assert.ok(STAR_COUNT > 5000 && STAR_COUNT < 5200);
   assert.equal(Math.round(field.mag[0] * 100) / 100, -1.46);
   for (let i = 1; i < field.n; i++) assert.ok(field.mag[i] >= field.mag[i - 1]);
 });
@@ -97,4 +97,23 @@ test('planets fainter than the faintest star, and bodies behind the camera, are 
     ] };
   const b = skyBodies(sky, view);
   assert.deepEqual(b.map((x) => x.kind + (x.name ? `:${x.name}` : '')), ['planet:jupiter']);
+});
+
+import { drawStars, GLOW_MAG } from '../lib/map/stars.mjs';
+
+test('drawStars: a halo only for the brightest, then every dot, bright ones last', () => {
+  const calls = [];
+  const ctx = {
+    globalAlpha: 1, fillStyle: '',
+    createRadialGradient: () => ({ addColorStop() {} }),
+    beginPath() {}, fill() {},
+    arc(x, y, r) { calls.push({ x, r }); },
+  };
+  const f = starField([6752, -1672, -146, 0, 5000, 1000, 300, 65, 5100, 1100, 550, 120]);
+  const placed = [{ i: 0, x: 1, y: 0 }, { i: 1, x: 2, y: 0 }, { i: 2, x: 3, y: 0 }];
+  drawStars(ctx, f, placed);
+  // Two faint dots, then Sirius's halo and dot.
+  assert.deepEqual(calls.map((c) => c.x), [3, 2, 1, 1]);
+  assert.ok(calls[2].r > calls[3].r * 2.5);
+  assert.ok(f.mag[0] < GLOW_MAG && f.mag[1] > GLOW_MAG);
 });

@@ -8,7 +8,7 @@ Keeps stars to MAG_LIMIT; J2000 positions; B-V where given.
 """
 import sys
 
-MAG_LIMIT = 5.5
+MAG_LIMIT = 6.0
 OUT = 'lib/map/star-data.mjs'
 
 stars = []
