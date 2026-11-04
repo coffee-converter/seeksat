@@ -11,7 +11,7 @@ import FlatMap from "@/components/home/FlatMap";
 import MapShell from "@/components/MapShell";
 import { shellClassFor } from "@/lib/map/shell-route.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
-import { useHomeStore } from "@/lib/home/store";
+import { useHomeStore, watchPrefs } from "@/lib/home/store";
 import { useFollow } from "@/lib/map/follow-store";
 import SiteHeader from "./SiteHeader";
 
@@ -22,6 +22,10 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
   const scene = useMapScene((s) => s.scene);
   const projection = useHomeStore((s) => s.prefs.projection);
   const setPrefs = useHomeStore((s) => s.setPrefs);
+
+  // Settings changed in another tab apply here too, so this tab never saves
+  // over them with its older copy.
+  useEffect(() => watchPrefs(), []);
 
   // Lock on is off whenever a page loads, including a hop between satellites.
   useEffect(() => {

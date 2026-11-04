@@ -8,7 +8,8 @@ import { create } from "zustand";
 import {
   addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, toggleHiddenIn, unfollowIn,
 } from "./actions.mjs";
-import { defaultPrefs, loadPrefs, savePrefs } from "./prefs.mjs";
+import { PREFS_KEY, defaultPrefs, loadPrefs, parsePrefs, savePrefs } from "./prefs.mjs";
+import { localStore } from "../safe-storage.mjs";
 import { DEFAULT_PROJECTION, defaultProjectionFor } from "../map/view.mjs";
 import { fetchRecords } from "./records.mjs";
 
@@ -110,7 +111,9 @@ export const useHomeStore = create<HomeState>((set, get) => ({
 
   setPrefs: (patch) => {
     get().hydrate();
-    const prefs = { ...get().prefs, ...patch };
+    // Apply the patch to what is saved now, not to this tab's copy: another
+    // tab may have changed other settings since this one loaded.
+    const prefs = { ...get().prefs, ...savedPrefs(), ...patch };
     const projectionChosen = get().projectionChosen || "projection" in patch;
     set({ prefs, projectionChosen });
     savePrefs(projectionChosen ? prefs : { ...prefs, projection: null });
@@ -204,6 +207,29 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     get().setPrefs({ observers: removeObserverFrom(get().prefs, id).observers });
   },
 }));
+
+/** The saved prefs without the projection (each tab keeps its own view
+ *  until it is picked), or nothing when storage is out of reach, so this
+ *  tab's copy stands. */
+function savedPrefs(): Partial<Prefs> {
+  if (!localStore()) return {};
+  const { projection: _p, ...rest } = loadPrefs() as Prefs;
+  return rest;
+}
+
+/** Take in prefs another tab saved; returns a cleanup. The map's projection
+ *  stays this tab's, so another tab never switches the view under it. */
+export function watchPrefs(win: Pick<Window, "addEventListener" | "removeEventListener"> = window): () => void {
+  const onStorage = (e: StorageEvent) => {
+    if (e.key !== null && e.key !== PREFS_KEY) return;
+    const st = useHomeStore.getState();
+    if (!st.hydrated) return;
+    const { projection: _p, ...rest } = parsePrefs(e.key === null ? null : e.newValue) as Prefs;
+    useHomeStore.setState({ prefs: { ...st.prefs, ...rest } });
+  };
+  win.addEventListener("storage", onStorage);
+  return () => win.removeEventListener("storage", onStorage);
+}
 
 /** Wire to document.visibilitychange from the component; returns a cleanup. */
 export function watchVisibility(
