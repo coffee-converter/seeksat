@@ -44,7 +44,9 @@ test('old projection prefs migrate', () => {
   assert.equal(parsePrefs(JSON.stringify({ projection: 'polar-north' })).projection, 'globe');
   assert.equal(parsePrefs(JSON.stringify({ projection: 'winkel3' })).projection, 'flat');
   assert.equal(parsePrefs(JSON.stringify({ projection: 'globe' })).projection, 'globe');
-  assert.equal(defaultPrefs().projection, 'flat');
+  // No saved choice: null, so the store picks the device default.
+  assert.equal(defaultPrefs().projection, null);
+  assert.equal(parsePrefs('{}').projection, null);
 });
 
 test('custom entries are validated and capped', () => {

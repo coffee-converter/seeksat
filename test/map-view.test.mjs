@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECTIONS, DEFAULT_PROJECTION, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
+import { PROJECTIONS, DEFAULT_PROJECTION, defaultProjectionFor, migrateProjection, homeCamera, homeCentresFocus, presetCamera, minZoomFor, easeZoom, MAX_ZOOM } from '../lib/map/view.mjs';
 
 test('the view list is globe and Mercator, flat by default', () => {
   assert.deepEqual(PROJECTIONS, [
     { id: 'globe', label: 'Globe' },
     { id: 'flat', label: 'Mercator' },
   ]);
-  assert.equal(DEFAULT_PROJECTION, 'flat');
+  assert.equal(DEFAULT_PROJECTION, 'flat'); // the fallback; phones start on the globe (defaultProjectionFor)
 });
 
 test('a saved Satellite\'s view (satview) loads as the globe', () => {
@@ -36,12 +36,13 @@ test('migrateProjection maps every old value', () => {
     satellite: 'globe',
     flat: 'flat',
     globe: 'globe',
-    nonsense: 'flat',
+    nonsense: null,
+    toString: null,
   };
   for (const [from, to] of Object.entries(table)) assert.equal(migrateProjection(from), to, from);
-  assert.equal(migrateProjection(undefined), 'flat');
-  assert.equal(migrateProjection(null), 'flat');
-  assert.equal(migrateProjection(42), 'flat');
+  assert.equal(migrateProjection(undefined), null);
+  assert.equal(migrateProjection(null), null);
+  assert.equal(migrateProjection(42), null);
 });
 
 const size = { width: 1024, height: 400 };
@@ -221,4 +222,13 @@ test('a preset ease always changes the zoom number, by a hair when it would not'
   assert.ok(Math.abs(z - south) < 1e-5);
   assert.equal(easeZoom(1, 2.5), 2.5);
   assert.equal(easeZoom(2.5, 1), 1);
+});
+
+test('defaultProjectionFor: globe on a narrow portrait screen, Mercator elsewhere', () => {
+  assert.equal(defaultProjectionFor({ width: 360, height: 780 }), 'globe');
+  assert.equal(defaultProjectionFor({ width: 600, height: 900 }), 'globe');
+  assert.equal(defaultProjectionFor({ width: 780, height: 360 }), 'flat'); // phone on its side
+  assert.equal(defaultProjectionFor({ width: 820, height: 1180 }), 'flat'); // tablet portrait
+  assert.equal(defaultProjectionFor({ width: 1280, height: 800 }), 'flat');
+  assert.equal(defaultProjectionFor({ width: 0, height: 0 }), 'flat');
 });

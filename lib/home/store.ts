@@ -9,6 +9,7 @@ import {
   addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, toggleHiddenIn, unfollowIn,
 } from "./actions.mjs";
 import { defaultPrefs, loadPrefs, savePrefs } from "./prefs.mjs";
+import { DEFAULT_PROJECTION, defaultProjectionFor } from "../map/view.mjs";
 import { fetchRecords } from "./records.mjs";
 
 export interface HomeLocation {
@@ -35,6 +36,8 @@ export interface Prefs {
   custom: CustomElements[];
   mode: "radio" | "visual";
   minElevDeg: number;
+  /** In the store, always the view to draw. Saved only once the visitor
+   *  picks one (projectionChosen); until then storage holds null. */
   projection: string;
   /** The sky type the visual rating uses (lib/sky/visual-rating.mjs SKY_TYPES). */
   skyType: string;
@@ -51,6 +54,8 @@ const viewGuard = createLoadGuard();
 interface HomeState {
   prefs: Prefs;
   hydrated: boolean;
+  /** False while prefs.projection is the device default, not a saved choice. */
+  projectionChosen: boolean;
   records: Map<number, SatApiRecord>;
   missing: number[];
   status: "idle" | "loading" | "ready" | "error";
@@ -80,8 +85,9 @@ interface HomeState {
 }
 
 export const useHomeStore = create<HomeState>((set, get) => ({
-  prefs: defaultPrefs() as Prefs,
+  prefs: { ...defaultPrefs(), projection: DEFAULT_PROJECTION } as Prefs,
   hydrated: false,
+  projectionChosen: false,
   records: new Map(),
   missing: [],
   status: "idle",
@@ -94,14 +100,20 @@ export const useHomeStore = create<HomeState>((set, get) => ({
 
   hydrate: () => {
     if (get().hydrated) return;
-    set({ prefs: loadPrefs() as Prefs, hydrated: true });
+    const loaded = loadPrefs() as Omit<Prefs, "projection"> & { projection: string | null };
+    // Resolved once per page load: the map persists across pages, so a later
+    // resize or rotation never switches the view by itself.
+    const projection = loaded.projection
+      ?? (typeof window === "undefined" ? DEFAULT_PROJECTION : defaultProjectionFor({ width: window.innerWidth, height: window.innerHeight }));
+    set({ prefs: { ...loaded, projection }, projectionChosen: loaded.projection != null, hydrated: true });
   },
 
   setPrefs: (patch) => {
     get().hydrate();
     const prefs = { ...get().prefs, ...patch };
-    set({ prefs });
-    savePrefs(prefs);
+    const projectionChosen = get().projectionChosen || "projection" in patch;
+    set({ prefs, projectionChosen });
+    savePrefs(projectionChosen ? prefs : { ...prefs, projection: null });
   },
 
   loadRecords: async () => {
