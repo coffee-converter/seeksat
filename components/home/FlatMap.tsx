@@ -428,7 +428,12 @@ export default function FlatMap({
    *  (followJump waits out an ease, so the satellite would drift off centre). */
   const lockZoomBy = useCallback((map: MlMap, dz: number, ms = LOCK_ZOOM_MS) => {
     const g = zoomGoal.current;
-    const to = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), (g?.to ?? map.getZoom()) + dz));
+    // The globe's minimum zoom is set for the equator; MapLibre lowers it by
+    // the centre's latitude (the same disc needs less zoom there), so near a
+    // pole the raw minimum would be a zoom in.
+    const lat = Math.min(Math.abs(map.getCenter().lat), 85.051129);
+    const floor = map.getMinZoom() + (latest.current.view === "globe" ? Math.log2(Math.cos((lat * Math.PI) / 180)) : 0);
+    const to = Math.min(map.getMaxZoom(), Math.max(floor, (g?.to ?? map.getZoom()) + dz));
     atHome.current = false;
     zoomGoal.current = { from: map.getZoom(), to, t0: performance.now(), dur: reducedMotion() ? 0 : ms };
     frames.current?.wake();
