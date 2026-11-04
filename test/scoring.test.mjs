@@ -207,9 +207,10 @@ test('peakMagnitudeInWindow: returns brightest magnitude (most negative)', () =>
     if (t >= 25_000 && t <= 35_000) return ISS_OVERHEAD; // overhead → brightest
     return [EARTH_R, 2_000_000, 0]; // farther + lower → dimmer
   };
-  // Use a midnight date so the observer is in dark sky (otherwise the
-  // observer might be on the night side of Earth and see the unlit hemi).
-  const midnight = Date.UTC(2025, 2, 20, 0, 0, 0);
+  // Dawn at longitude 0: the Sun is on the horizon, so the satellite overhead
+  // is sunlit and half lit as seen from below. (At midnight it is in Earth's
+  // shadow and has no magnitude; at noon the observer sees its unlit side.)
+  const midnight = Date.UTC(2025, 2, 20, 6, 0, 0);
   const w = { startMs: midnight, endMs: midnight + 60_000 };
   // Re-shape ecefAtFn using the shifted timestamps
   const fn = (date) => {

@@ -25,7 +25,7 @@ test('dashboardValues: keys, labels, units and notes in order', () => {
     ['radius', "From Earth's center", 'km', 'distance, from SGP4'],
     ['lat', 'Latitude', '', 'below the satellite'],
     ['lon', 'Longitude', '', 'below the satellite'],
-    ['sun', 'Sunlight', '', "Earth's shadow, no refraction"],
+    ['sun', 'Sunlight', '', "Earth's shadow and penumbra"],
   ]);
 });
 
@@ -49,4 +49,13 @@ test('dashboardValues: southern and western hemispheres, in shadow', () => {
   assert.equal(v.lat, '27.767° S');
   assert.equal(v.lon, '176.494° W');
   assert.equal(v.sun, 'In shadow');
+});
+
+test('dashboardValues: the Sunlight tile reads partly lit in the penumbra', () => {
+  const sun = (litFraction) => dashboardValues({ ...liveNumbers(iss, new Date(SUNLIT_MS)), litFraction }, orbitElements(iss)).find((r) => r.key === 'sun').value;
+  assert.equal(sun(1), 'Sunlit');
+  assert.equal(sun(0.42), 'Partly lit, 42%');
+  assert.equal(sun(0.001), 'Partly lit, 1%');
+  assert.equal(sun(0.9999), 'Partly lit, 99%');
+  assert.equal(sun(0), 'In shadow');
 });

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { satAltitudeDeg, sunAltitudeDeg, satIlluminated, isVisibleAtAll } from '../lib/pass-finder/visibility.js';
+import { satAltitudeDeg, sunAltitudeDeg, satIlluminated, sunlitFraction, isVisibleAtAll } from '../lib/pass-finder/visibility.js';
+import { magnitudeAt } from '../lib/pass-finder/ratings.js';
 import { geodeticToEcef } from '../lib/coords.js';
 
 const close = (a, b, eps) => Math.abs(a - b) < eps;
@@ -110,4 +111,69 @@ test('isVisibleAtAll: ISS too low for one observer -> false', () => {
   const satEcef = ecefA.map(c => c * scale);
   const d = new Date(Date.UTC(2026, 5, 21, 6, 0, 0));
   assert.equal(isVisibleAtAll([a, b], satEcef, d), false);
+});
+
+// A circular orbit in the Sun's plane (Sun along +X), walked from the dusk
+// terminator into Earth's shadow: seconds from the first dimming to full
+// shadow (penumbra) and to the old cylinder edge.
+function shadowEntry(altKm) {
+  const r = 6_378_137 + altKm * 1000;
+  const w = Math.sqrt(3.986004418e14 / r ** 3);
+  let first = null, umbra = null, cylinder = null;
+  for (let t = 0; umbra === null; t += 0.1) {
+    const th = Math.PI / 2 + w * t;
+    const p = [r * Math.cos(th), r * Math.sin(th), 0];
+    const f = sunlitFraction(p, [1, 0, 0]);
+    if (f < 1 && first === null) first = t;
+    if (f === 0) umbra = t;
+    if (cylinder === null && p[0] < 0 && Math.abs(p[1]) < 6_371_000) cylinder = t;
+  }
+  return { penumbraS: umbra - first, cylinderS: cylinder - first };
+}
+
+test('sunlitFraction: full sunlight on the day side, none deep in the shadow', () => {
+  assert.equal(sunlitFraction([6_778_137, 0, 0], [1, 0, 0]), 1);
+  assert.equal(sunlitFraction([-6_778_137, 1000, 1000], [1, 0, 0]), 0);
+  assert.equal(sunlitFraction([0, 6_778_137, 0], [1, 0, 0]), 1);
+});
+
+test('sunlitFraction: falls steadily through the penumbra', () => {
+  const r = 6_778_137;
+  let prev = 1;
+  for (let deg = 110; deg <= 115; deg += 0.05) {
+    const th = (deg * Math.PI) / 180;
+    const f = sunlitFraction([r * Math.cos(th), r * Math.sin(th), 0], [1, 0, 0]);
+    assert.ok(f <= prev + 1e-12 && f >= 0 && f <= 1, `deg=${deg} f=${f}`);
+    prev = f;
+  }
+  assert.equal(prev, 0);
+});
+
+test('sunlitFraction: the penumbra takes seconds in low orbit, minutes in GEO', () => {
+  const leo = shadowEntry(400);
+  assert.ok(leo.penumbraS > 4 && leo.penumbraS < 15, `ISS ${leo.penumbraS}s`);
+  const geo = shadowEntry(35_786);
+  assert.ok(geo.penumbraS > 90 && geo.penumbraS < 180, `GEO ${geo.penumbraS}s`);
+  // The old cylinder edge sits inside GEO's penumbra, not at its start.
+  assert.ok(geo.cylinderS > 30 && geo.cylinderS < geo.penumbraS, `GEO cylinder ${geo.cylinderS}s`);
+});
+
+test('satIlluminated: any direct sunlight counts, the umbra does not', () => {
+  const r = 6_778_137;
+  for (let deg = 105; deg <= 120; deg += 0.05) {
+    const th = (deg * Math.PI) / 180;
+    const p = [r * Math.cos(th), r * Math.sin(th), 0];
+    assert.equal(satIlluminated(p, [1, 0, 0]), sunlitFraction(p, [1, 0, 0]) > 0);
+  }
+});
+
+test('magnitudeAt: half the Sun covered dims by 0.75 mag; the umbra gives none', () => {
+  const obs = { latDeg: 0, lonDeg: 0 };
+  const sat = [6_778_137, 0, 0];
+  const sun = [0, 1, 0];
+  const full = magnitudeAt(obs, sat, sun, -1.8, 1);
+  const half = magnitudeAt(obs, sat, sun, -1.8, 0.5);
+  assert.ok(Math.abs(half - full - 2.5 * Math.log10(2)) < 1e-9);
+  assert.equal(magnitudeAt(obs, sat, sun, -1.8), full);
+  assert.equal(magnitudeAt(obs, sat, sun, -1.8, 0), null);
 });
