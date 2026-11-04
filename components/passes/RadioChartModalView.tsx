@@ -1,7 +1,12 @@
 "use client";
 
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
+import StatTile from "@/components/ui/StatTile";
+import { Details } from "@/components/ui/Disclosure";
+import { cx } from "@/lib/ui/classes.mjs";
 import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
 import {
   formatZoneAbbr, paintRadioChartCompact, radioChartCaption, radioChartHeading,
@@ -16,6 +21,12 @@ export interface RadioRenderResult extends ChartRenderResult {
   series?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   meta?: any;
+}
+
+/** "12.34 kHz" -> value "12.34", unit "kHz"; "45°" stays whole. */
+function splitUnit(text: string): { value: string; unit?: string } {
+  const at = text.lastIndexOf(" ");
+  return at > 0 ? { value: text.slice(0, at), unit: text.slice(at + 1) } : { value: text };
 }
 
 /** Phones get a phone-width chart with HTML tiles instead of the shrunken
@@ -64,10 +75,10 @@ export interface RadioChartModalViewProps {
   extraControls?: ReactNode;
 }
 
-// Fullscreen radio-pass (Doppler + angular-rate + signal) modal chrome.
-// Same shape as SkyChartModalView: `render` does the imperative SVG
-// paint into our svgRef + returns a blob URL we can hand to the img /
-// download anchor. Close from: ✕ button, backdrop click, Escape key.
+// Fullscreen radio-pass (Doppler + angular-rate + signal) dialog, always
+// dark. Same shape as SkyChartModalView: `render` does the imperative SVG
+// paint into our offscreen svgRef + returns a blob URL we hand to the img /
+// download anchor. The Modal closes on Close, backdrop click and Escape.
 // Copy + Save both use the same SVG, just to a different destination.
 export default function RadioChartModalView({
   open, title, subjectKey, render, csv, freqHz, downlinks, onFreqChange, onClose,
@@ -80,9 +91,9 @@ export default function RadioChartModalView({
   const [detail, setDetail] = useState<{ series: RadioRenderResult["series"]; meta: RadioRenderResult["meta"] } | null>(null);
   // Phones: show the full desktop image in a scroll box instead of the phone view.
   const [fullSize, setFullSize] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  // The painted PNG, shown in the img and saved by the link.
+  const [png, setPng] = useState<ChartRenderResult | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   // Modal stays hidden until the SVG + PNG blob are ready - matches
   // the legacy flow (cursor: progress; then reveal). Without this, a
@@ -106,7 +117,7 @@ export default function RadioChartModalView({
         URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = null;
       }
-      if (imgRef.current) imgRef.current.removeAttribute("src");
+      setPng(null);
       setRenderedKey(null);
       setDetail(null);
       setFullSize(false);
@@ -136,11 +147,7 @@ export default function RadioChartModalView({
         // Revoke previous URL before adopting the new one.
         if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = result.blobUrl;
-        if (imgRef.current) imgRef.current.src = result.blobUrl;
-        if (linkRef.current) {
-          linkRef.current.href = result.blobUrl;
-          linkRef.current.download = result.filename;
-        }
+        setPng({ blobUrl: result.blobUrl, filename: result.filename });
         setDetail(result.series && result.meta ? { series: result.series, meta: result.meta } : null);
         setRenderedKey(subjectKey);
       } catch (e) {
@@ -181,30 +188,6 @@ export default function RadioChartModalView({
       methods: radioMethodsNote(series, meta),
     };
   }, [detail]);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, visible);
-
-  // Escape closes; only attached while open.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      // Handled here: the page behind (focus on the map) leaves it alone.
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    // Capture, so the page's own Esc listeners see it as handled.
-    window.addEventListener("keydown", onKey, { capture: true });
-    return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [open, onClose]);
-
-  // Move focus into the modal once it becomes visible so keyboard
-  // users can tab through the controls without first having to tab
-  // through the entire underlying page.
-  useEffect(() => {
-    if (visible) closeBtnRef.current?.focus();
-  }, [visible]);
 
   const onCopy = async () => {
     if (!svgRef.current) return;
@@ -240,184 +223,153 @@ export default function RadioChartModalView({
   };
 
   return (
-    <div
-      id="radio-modal"
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      hidden={!visible}
-    >
-      <div className="radio-modal-backdrop" onClick={onClose} />
-      <div className={`radio-modal-content${phoneView ? " is-phone" : ""}${phoneView && fullSize ? " is-full" : ""}`}>
-        <div className="radio-modal-actions">
-          <button
-            ref={closeBtnRef}
-            className="radio-modal-close"
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            ✕
-          </button>
-          <button
-            className={`radio-modal-copy${copyStatus === "copied" ? " copied" : ""}`}
-            type="button"
-            title="Copy image to clipboard"
-            onClick={onCopy}
-          >
-            {copyStatus === "copied" ? "Copied!" : "Copy"}
-          </button>
-          <button
-            className="radio-modal-save"
-            type="button"
-            title="Download as PNG"
-            onClick={() => linkRef.current?.click()}
-          >
-            Save PNG
-          </button>
-          <button
-            className="radio-modal-csv"
-            type="button"
-            title="Download 1s-step Doppler series as CSV"
-            onClick={onCsv}
-          >
-            CSV
-          </button>
-          {onSkyChart && (
-            <button
-              className="radio-modal-polar"
-              type="button"
-              title="Sky chart for this pass - where to point"
-              onClick={onSkyChart}
-            >
-              Sky chart
-            </button>
-          )}
-          <select
-            className="radio-freq-select"
-            value={freqHz ?? ""}
-            onChange={(ev) => onFreqChange(ev.target.value ? Number(ev.target.value) : null)}
-          >
-            {downlinks.length === 0 && !freqHz && <option value="">no known downlink</option>}
-            {downlinks.map((d) => (
-              <option key={d.hz} value={d.hz}>
-                {(d.hz / 1e6).toFixed(3)} MHz — {d.label}
-              </option>
-            ))}
-            {/* A freeform frequency (from the input below) that isn't in the
-                catalog matches no <option> above - without this the select
-                silently falls back to its first option while the chart
-                keeps using the typed frequency, which looks like the
-                picker desynced from the chart. */}
-            {freqHz != null && !downlinks.some((d) => d.hz === freqHz) && (
-              <option value={freqHz}>
-                custom — {(freqHz / 1e6).toFixed(3)} MHz
-              </option>
+    <>
+      <svg
+        ref={svgRef}
+        className="radio-modal-svg"
+        viewBox="0 0 320 250"
+        aria-hidden="true"
+      />
+      <Modal
+        open={visible}
+        onClose={onClose}
+        title={title}
+        tone="dark"
+        actions={(
+          <>
+            <Button size="sm" done={copyStatus === "copied"} title="Copy image to clipboard" onClick={onCopy}>
+              {copyStatus === "copied" ? "Copied!" : "Copy"}
+            </Button>
+            <Button size="sm" title="Download as PNG" onClick={() => linkRef.current?.click()}>
+              Save PNG
+            </Button>
+            <Button size="sm" title="Download 1s-step Doppler series as CSV" onClick={onCsv}>
+              CSV
+            </Button>
+            {onSkyChart && (
+              <Button size="sm" title="Sky chart for this pass - where to point" onClick={onSkyChart}>
+                Sky chart
+              </Button>
             )}
-          </select>
-          <label className="radio-field">
-            <span>Custom</span>
-            <input
-              className="radio-freq-input"
-              type="number"
-              step="0.001"
-              placeholder="000.000"
-              aria-label="Custom downlink frequency in MHz"
-              onBlur={(ev) => {
-                const mhz = Number(ev.target.value);
-                if (Number.isFinite(mhz) && mhz > 1) onFreqChange(Math.round(mhz * 1e6));
-              }}
-            />
-            <span>MHz</span>
-          </label>
-          {extraControls}
-        </div>
-        {phoneView && phone && (
-          <div className="radio-phone">
-            <h2 className="radio-phone-title">{phone.heading.title}</h2>
-            <p className="radio-phone-sub">
-              {/* Non-breaking hyphens, so the date never splits across lines. */}
-              {phone.heading.sub.replace(/(\d{4})-(\d{2})-(\d{2})/, "$1\u2011$2\u2011$3")}
-            </p>
-            <dl className="radio-phone-tiles">
-              {phone.tiles.map((t) => (
-                <div key={t.label}>
-                  <dt>{t.label}</dt>
-                  <dd>{t.value}</dd>
-                </div>
-              ))}
-            </dl>
-            {phone.rows.length > 0 && (
-              <table className="radio-tune">
-                <caption>Tune at</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">When</th>
-                    <th scope="col">Time ({phone.zone})</th>
-                    <th scope="col">Tune (MHz)</th>
-                    <th scope="col">Doppler</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {phone.rows.map((r) => (
-                    <tr key={r.label}>
-                      <th scope="row">{r.label}</th>
-                      <td>{r.time}</td>
-                      <td>{r.tune}</td>
-                      <td>{r.offset}</td>
-                    </tr>
+            <div className="chart-modal__freq">
+              <Field label="Downlink frequency" hideLabel>
+                <select
+                  value={freqHz ?? ""}
+                  onChange={(ev) => onFreqChange(ev.target.value ? Number(ev.target.value) : null)}
+                >
+                  {downlinks.length === 0 && !freqHz && <option value="">no known downlink</option>}
+                  {downlinks.map((d) => (
+                    <option key={d.hz} value={d.hz}>
+                      {(d.hz / 1e6).toFixed(3)} MHz — {d.label}
+                    </option>
                   ))}
-                </tbody>
-              </table>
-            )}
-            <svg
-              ref={phoneSvgRef}
-              className="radio-phone-svg"
-              role="img"
-              aria-label={`${phone.heading.title}: Doppler, signal and angular rate over the pass`}
-            />
-            {phone.caption && <p className="radio-phone-legend">{phone.caption}</p>}
-            <button
-              type="button"
-              className="radio-phone-full"
-              aria-expanded={fullSize}
-              onClick={() => setFullSize((v) => !v)}
-            >
-              {fullSize ? "Fit to screen" : "Open full size"}
-            </button>
-          </div>
+                  {/* A freeform frequency (from the input below) that isn't in the
+                      catalog matches no <option> above - without this the menu
+                      silently falls back to its first option while the chart
+                      keeps using the typed frequency, which looks like the
+                      picker desynced from the chart. */}
+                  {freqHz != null && !downlinks.some((d) => d.hz === freqHz) && (
+                    <option value={freqHz}>
+                      custom — {(freqHz / 1e6).toFixed(3)} MHz
+                    </option>
+                  )}
+                </select>
+              </Field>
+            </div>
+            <div className="chart-modal__custom">
+              <span aria-hidden="true">Custom</span>
+              <Field label="Custom downlink frequency in MHz" hideLabel>
+                <input
+                  className="chart-modal__mhz"
+                  type="number"
+                  step="0.001"
+                  placeholder="000.000"
+                  onBlur={(ev) => {
+                    const mhz = Number(ev.target.value);
+                    if (Number.isFinite(mhz) && mhz > 1) onFreqChange(Math.round(mhz * 1e6));
+                  }}
+                />
+              </Field>
+              <span aria-hidden="true">MHz</span>
+            </div>
+            {extraControls}
+          </>
         )}
-        <svg
-          ref={svgRef}
-          className="radio-modal-svg"
-          viewBox="0 0 320 250"
-          aria-hidden="true"
-        />
-        <a
-          ref={linkRef}
-          className="radio-modal-png-link"
-          download="radio-pass.png"
-          href="#"
-          // Block accidental real left-clicks on the image (right-click
-          // → "Save image as" is the intended UX). isTrusted is false
-          // for programmatic .click() calls, so the Save PNG button
-          // still triggers the download.
-          onClick={(ev) => { if (ev.isTrusted) ev.preventDefault(); }}
-        >
-          <img ref={imgRef} className="radio-modal-png" alt="Radio pass chart" />
-        </a>
-        {phoneView && phone && (
-          <details className="radio-phone-about">
-            <summary>About this prediction</summary>
-            <p>{phone.methods}</p>
-          </details>
-        )}
-        <p className="radio-modal-hint">
-          <span className="chart-hint--mouse">Right-click the image to save · click outside or press Esc to close.</span>
-          <span className="chart-hint--touch">Press and hold the image to save · tap outside to close.</span>
-        </p>
-      </div>
-    </div>
+      >
+        <div className={cx("chart-modal", "chart-modal--radio", phoneView && "chart-modal--phone", phoneView && fullSize && "chart-modal--full")}>
+          {phoneView && phone && (
+            <div className="radio-phone">
+              <h3 className="radio-phone__title">{phone.heading.title}</h3>
+              <p className="radio-phone__sub">
+                {/* Non-breaking hyphens, so the date never splits across lines. */}
+                {phone.heading.sub.replace(/(\d{4})-(\d{2})-(\d{2})/, "$1\u2011$2\u2011$3")}
+              </p>
+              <div className="radio-phone__tiles">
+                {phone.tiles.map((t) => (
+                  <StatTile key={t.label} label={t.label} {...splitUnit(t.value)} />
+                ))}
+              </div>
+              {phone.rows.length > 0 && (
+                <table className="radio-tune">
+                  <caption>Tune at</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">When</th>
+                      <th scope="col">Time ({phone.zone})</th>
+                      <th scope="col">Tune (MHz)</th>
+                      <th scope="col">Doppler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {phone.rows.map((r) => (
+                      <tr key={r.label}>
+                        <th scope="row">{r.label}</th>
+                        <td>{r.time}</td>
+                        <td>{r.tune}</td>
+                        <td>{r.offset}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <svg
+                ref={phoneSvgRef}
+                className="radio-phone-svg"
+                role="img"
+                aria-label={`${phone.heading.title}: Doppler, signal and angular rate over the pass`}
+              />
+              {phone.caption && <p className="radio-phone__legend">{phone.caption}</p>}
+              <div className="radio-phone__full">
+                <Button size="sm" aria-expanded={fullSize} onClick={() => setFullSize((v) => !v)}>
+                  {fullSize ? "Fit to screen" : "Open full size"}
+                </Button>
+              </div>
+            </div>
+          )}
+          <a
+            ref={linkRef}
+            className="chart-modal__link"
+            download={png?.filename ?? "radio-pass.png"}
+            href={png?.blobUrl ?? "#"}
+            // Block accidental real left-clicks on the image (right-click
+            // → "Save image as" is the intended UX). isTrusted is false
+            // for programmatic .click() calls, so the Save PNG button
+            // still triggers the download.
+            onClick={(ev) => { if (ev.isTrusted) ev.preventDefault(); }}
+          >
+            {png && <img className="chart-modal__img chart-modal__img--radio" src={png.blobUrl} alt="Radio pass chart" />}
+          </a>
+          {phoneView && phone && (
+            <Details summary="About this prediction" className="radio-phone__about">
+              <p>{phone.methods}</p>
+            </Details>
+          )}
+          <p className="chart-modal__hint">
+            <span className="chart-hint--mouse">Right-click the image to save · click outside or press Esc to close.</span>
+            <span className="chart-hint--touch">Press and hold the image to save · tap outside to close.</span>
+          </p>
+        </div>
+      </Modal>
+    </>
   );
 }

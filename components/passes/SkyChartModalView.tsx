@@ -1,7 +1,8 @@
 "use client";
 
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
 import { copySvgPngToClipboard } from "@/lib/pass-finder/polar-png.js";
 import { POLAR_CAPTION } from "./PolarPlotSvg";
 
@@ -29,18 +30,20 @@ export interface SkyChartModalViewProps {
   onRadioChart?: () => void;
 }
 
-// Fullscreen sky-chart (polar plot) modal chrome. `render` does the
-// imperative SVG paint into our svgRef + returns a blob URL we can hand
-// to the img / download anchor. Close from: ✕ button, backdrop click,
-// Escape key. Copy + Save both use the same SVG, just to a different
+// Fullscreen sky-chart (polar plot) dialog, always dark. `render` does the
+// imperative SVG paint into our svgRef (offscreen, outside the dialog, so it
+// can paint before the dialog opens) + returns a blob URL we hand to the
+// img / download anchor. The Modal closes on Close, backdrop click and
+// Escape. Copy + Save both use the same SVG, just to a different
 // destination.
 export default function SkyChartModalView({
   open, title, subjectKey, render, onClose, copy = copySvgPngToClipboard, onRadioChart,
 }: SkyChartModalViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const headingId = useId();
+  // The painted PNG, shown in the img and saved by the link.
+  const [png, setPng] = useState<ChartRenderResult | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   // Modal stays hidden until the SVG + PNG blob are ready - matches
   // the legacy flow (cursor: progress; then reveal). Without this, a
@@ -61,7 +64,7 @@ export default function SkyChartModalView({
         URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = null;
       }
-      if (imgRef.current) imgRef.current.removeAttribute("src");
+      setPng(null);
       setRenderedKey(null);
       return;
     }
@@ -79,11 +82,7 @@ export default function SkyChartModalView({
         // Revoke previous URL before adopting the new one.
         if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = result.blobUrl;
-        if (imgRef.current) imgRef.current.src = result.blobUrl;
-        if (linkRef.current) {
-          linkRef.current.href = result.blobUrl;
-          linkRef.current.download = result.filename;
-        }
+        setPng(result);
         setRenderedKey(subjectKey);
       } catch (e) {
         if (!cancelled) console.warn("Polar modal render failed:", e);
@@ -98,30 +97,6 @@ export default function SkyChartModalView({
   }, [open, render, subjectKey]);
 
   const visible = open && renderedKey === subjectKey;
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, visible);
-
-  // Escape closes; only attached while open.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      // Handled here: the page behind (focus on the map) leaves it alone.
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    // Capture, so the page's own Esc listeners see it as handled.
-    window.addEventListener("keydown", onKey, { capture: true });
-    return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [open, onClose]);
-
-  // Move focus into the modal once it becomes visible so keyboard
-  // users can tab through Copy / Save / Close without first having
-  // to tab through the entire underlying page.
-  useEffect(() => {
-    if (visible) closeBtnRef.current?.focus();
-  }, [visible]);
 
   const onCopy = async () => {
     if (!svgRef.current) return;
@@ -135,78 +110,57 @@ export default function SkyChartModalView({
   };
 
   return (
-    <div
-      id="polar-modal"
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      hidden={!visible}
-    >
-      <div className="polar-modal-backdrop" onClick={onClose} />
-      <div className="polar-modal-content">
-        <div className="polar-modal-actions">
-          <p className="polar-modal-caption">{POLAR_CAPTION}</p>
-          <button
-            ref={closeBtnRef}
-            className="polar-modal-close"
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
+    <>
+      <svg
+        ref={svgRef}
+        className="polar-modal-svg"
+        viewBox="-24 -68 248 278"
+        aria-hidden="true"
+      />
+      <Modal
+        open={visible}
+        onClose={onClose}
+        // The toolbar shows what the chart is; the dialog is named by the heading below.
+        title={POLAR_CAPTION}
+        labelledBy={headingId}
+        tone="dark"
+        actions={(
+          <>
+            <Button size="sm" done={copyStatus === "copied"} title="Copy image to clipboard" onClick={onCopy}>
+              {copyStatus === "copied" ? "Copied!" : "Copy"}
+            </Button>
+            <Button size="sm" title="Download as PNG" onClick={() => linkRef.current?.click()}>
+              Save PNG
+            </Button>
+            {onRadioChart && (
+              <Button size="sm" title="Doppler + signal chart for this pass" onClick={onRadioChart}>
+                Doppler
+              </Button>
+            )}
+          </>
+        )}
+      >
+        <div className="chart-modal">
+          <h2 id={headingId} className="sr-only">{title}</h2>
+          <a
+            ref={linkRef}
+            className="chart-modal__link"
+            download={png?.filename ?? "iss-pass.png"}
+            href={png?.blobUrl ?? "#"}
+            // Block accidental real left-clicks on the image (right-click
+            // → "Save image as" is the intended UX). isTrusted is false
+            // for programmatic .click() calls, so the Save PNG button
+            // still triggers the download.
+            onClick={(ev) => { if (ev.isTrusted) ev.preventDefault(); }}
           >
-            ✕
-          </button>
-          <button
-            className={`polar-modal-copy${copyStatus === "copied" ? " copied" : ""}`}
-            type="button"
-            title="Copy image to clipboard"
-            onClick={onCopy}
-          >
-            {copyStatus === "copied" ? "Copied!" : "Copy"}
-          </button>
-          <button
-            className="polar-modal-save"
-            type="button"
-            title="Download as PNG"
-            onClick={() => linkRef.current?.click()}
-          >
-            Save PNG
-          </button>
-          {onRadioChart && (
-            <button
-              className="polar-modal-radio"
-              type="button"
-              title="Doppler + signal chart for this pass"
-              onClick={onRadioChart}
-            >
-              Doppler
-            </button>
-          )}
+            {png && <img className="chart-modal__img chart-modal__img--sky" src={png.blobUrl} alt="Pass sky chart" />}
+          </a>
+          <p className="chart-modal__hint">
+            <span className="chart-hint--mouse">Right-click the image to save · click outside or press Esc to close.</span>
+            <span className="chart-hint--touch">Press and hold the image to save · tap outside to close.</span>
+          </p>
         </div>
-        <svg
-          ref={svgRef}
-          className="polar-modal-svg"
-          viewBox="-24 -68 248 278"
-          aria-hidden="true"
-        />
-        <a
-          ref={linkRef}
-          className="polar-modal-png-link"
-          download="iss-pass.png"
-          href="#"
-          // Block accidental real left-clicks on the image (right-click
-          // → "Save image as" is the intended UX). isTrusted is false
-          // for programmatic .click() calls, so the Save PNG button
-          // still triggers the download.
-          onClick={(ev) => { if (ev.isTrusted) ev.preventDefault(); }}
-        >
-          <img ref={imgRef} className="polar-modal-png" alt="Pass sky chart" />
-        </a>
-        <p className="polar-modal-hint">
-          <span className="chart-hint--mouse">Right-click the image to save · click outside or press Esc to close.</span>
-          <span className="chart-hint--touch">Press and hold the image to save · tap outside to close.</span>
-        </p>
-      </div>
-    </div>
+      </Modal>
+    </>
   );
 }

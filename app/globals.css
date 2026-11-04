@@ -75,6 +75,10 @@
   --tile-hover: #1c222c;
   --flash-bg: rgba(143, 180, 230, 0.24);
   --flash-text: #ffffff;
+  /* The always-dark chart dialogs (Modal tone="dark"): the painted charts'
+     own canvas colour (lib/pass-finder/polar-modal-frame.js, radio-chart.js),
+     so the chart image sits on its panel without a visible edge. */
+  --modal-dark-bg: #0a0e1a;
   /* Map chrome and legend. The swatches keep in step with lib/map/overlays.mjs. */
   /* Ocean and land match the basemap's water and land (lib/map/basemap.mjs
      basemapColors). */

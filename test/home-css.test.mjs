@@ -11,7 +11,10 @@ test('.flat-map declares vh before the svh override', () => {
   const svh = block.indexOf('height: max(220px, 50svh);');
   assert.ok(vh >= 0 && svh > vh);
 });
-test('coarse pointers get 16px chart inputs', () => {
-  const re = (sel) => new RegExp(`@media \\(pointer: coarse\\)\\s*\\{\\s*${sel}\\s*\\{\\s*font-size: 16px;\\s*\\}\\s*\\}`);
-  assert.match(read('app/home.css'), re('\\.radio-freq-select, \\.radio-freq-input'));
+test('the radio chart inputs are library fields, 16px so phones do not zoom', () => {
+  const src = read('components/passes/RadioChartModalView.tsx');
+  assert.match(src, /<Field label="Downlink frequency" hideLabel>\s*<select\b/);
+  assert.match(src, /<Field label="Custom downlink frequency in MHz" hideLabel>\s*<input\b/);
+  assert.match(read('app/ui.css'), /\.field__control \{[^}]*font-size: var\(--fs-input\);/);
+  assert.match(read('app/globals.css'), /--fs-input: 16px;/);
 });

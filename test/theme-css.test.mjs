@@ -96,22 +96,20 @@ test('outside the chart block and the token definitions, no colour literals', ()
   assert.deepEqual(found, [], `colour literals left:\n${found.join('\n')}`);
 });
 
-test('the chart block holds the chart rules, and none sit outside it', () => {
-  const home = read('app/home.css');
-  const globals = read('app/globals.css');
-  const chart = [...regions(home, CHART_BEGIN, CHART_END), ...regions(globals, CHART_BEGIN, CHART_END)].join('\n');
-  for (const sel of ['.polar-modal-content', '.radio-modal-content', '.radio-freq-select', '.pass-card__plot .polar-plot', '.polar-plot .horizon']) {
-    assert.ok(chart.includes(sel), `${sel} is in the chart block`);
-  }
+test('the chart block holds only chart graphics', () => {
+  const chart = [...regions(read('app/home.css'), CHART_BEGIN, CHART_END), ...regions(read('app/globals.css'), CHART_BEGIN, CHART_END)].join('\n');
+  for (const sel of ['.polar-modal-svg', '.radio-modal-svg', '.pass-card__plot .polar-plot', '.polar-plot .horizon']) assert.ok(chart.includes(sel), sel);
+  assert.doesNotMatch(chart, /\b(button|select|input|summary)\b|-backdrop|-actions|-close|-content\s*\{/, 'modal chrome lives in the library');
+  // The chart graphics stay in the block.
   for (const file of FILES) {
     const outside = stripComments(blankRegions(read(file), CHART_BEGIN, CHART_END));
-    assert.doesNotMatch(outside, /\.(?:polar-modal|radio-modal|radio-|polar-plot)[\w-]*/, `${file}: chart selectors outside the block`);
+    assert.doesNotMatch(outside, /\.(?:polar-modal|radio-modal|polar-plot)[\w-]*/, `${file}: chart graphics outside the block`);
   }
-  // The modals paint their own opaque dark background, whatever the page.
-  for (const sel of ['.polar-modal-content', '.radio-modal-content']) {
-    const rule = chart.match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`))[1];
-    assert.match(rule, /background:\s*#[0-9a-fA-F]{6};/, `${sel} has an opaque dark background`);
-  }
+});
+
+test('chart modals render dark through the library', () => {
+  for (const f of ['components/passes/SkyChartModalView.tsx', 'components/passes/RadioChartModalView.tsx']) assert.match(read(f), /tone="dark"/, f);
+  assert.match(read('components/live/LiveView.tsx'), /size="full"/);
 });
 
 // --- Token values and contrast -------------------------------------------

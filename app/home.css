@@ -575,10 +575,11 @@
 .more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; font-size: var(--fs-md); color: var(--map-muted); }
 
 /* chart-block:begin */
-/* The sky and radio chart modals keep their literal dark colours in both
-   themes, on their own dark backgrounds (test/theme-css.test.mjs skips this
-   block). The pass-card polar plot does too in dark theme; in light theme it
-   takes a light disc from the tokens. */
+/* Chart graphics only: the painted sky and radio charts keep their literal
+   dark colours in both themes (test/theme-css.test.mjs skips this block). The
+   pass-card polar plot does too in dark theme; in light theme it takes a
+   light disc from the tokens. The dialogs around the charts are library
+   Modals, styled below the block. */
 /* The card's polar plot (PolarPlotSvg). Scoped to the card. The painter sets
    --sky-shade (the sky at the pass peak) and strokes the arc in currentColor. */
 .pass-card__plot .polar-plot {
@@ -631,92 +632,12 @@
   stroke-width: 0.6;
 }
 
-/* Sky chart and radio chart modals (SkyChartModalView, RadioChartModalView).
-   This file is the chart style source. */
-#polar-modal,
-#radio-modal {
-  position: fixed; inset: 0; z-index: 5000;
-  display: flex; align-items: center; justify-content: center;
-}
-#polar-modal[hidden],
-#radio-modal[hidden] { display: none; }
-.polar-modal-backdrop,
-.radio-modal-backdrop {
-  position: absolute; inset: 0;
-  background: rgba(4, 6, 14, 0.78);
-  backdrop-filter: blur(6px);
-}
-.polar-modal-content {
-  position: relative;
-  /* Opaque: the same colour the 0.95 tint gave over the dark backdrop, so the
-     chart looks the same on a light page. */
-  background: #0a0e1a;
-  border: 1px solid rgba(100, 140, 255, 0.35);
-  border-radius: 12px;
-  padding: 2px 3px 2px;
-  max-width: min(98vw, 98vh);
-  max-height: 98vh;
-  display: flex; flex-direction: column; align-items: center; gap: 0;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
-}
-/* A toolbar row above the image, as in the radio modal, so the buttons never
-   cover the chart's own header on a narrow screen. */
-.polar-modal-actions {
-  align-self: stretch;
-  display: flex; flex-direction: row; align-items: center; justify-content: flex-end;
-  flex-wrap: wrap; gap: 6px;
-  padding: 6px 4px;
-  border-bottom: 1px solid rgba(126, 184, 255, 0.16);
-  margin-bottom: 6px;
-}
-.polar-modal-actions .polar-modal-close { order: 99; }
-/* What the chart shows, at the toolbar's left: the sky seen looking up. */
-.polar-modal-caption {
-  margin: 0 auto 0 4px;
-  color: #cfe0ff; font-size: 12px; font-weight: 600;
-}
-.polar-modal-actions button,
-.radio-modal-actions button {
-  background: transparent; border: 1px solid rgba(255,255,255,0.12);
-  color: #cfe0ff; cursor: pointer; font-size: 12px;
-  padding: 4px 10px; border-radius: 6px;
-  font-family: inherit;
-}
-.polar-modal-actions button:hover,
-.radio-modal-actions button:hover {
-  background: rgba(126,184,255,0.14); border-color: rgba(126,184,255,0.4);
-}
-.polar-modal-actions .polar-modal-close,
-.radio-modal-actions .radio-modal-close { color: #8899bb; }
-.polar-modal-actions .polar-modal-close:hover,
-.radio-modal-actions .radio-modal-close:hover {
-  background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.4);
-}
-.polar-modal-copy.copied,
-.radio-modal-copy.copied {
-  background: rgba(127,229,209,0.18); color: #7fe5d1;
-  border-color: rgba(127,229,209,0.5);
-}
-.polar-modal-actions .polar-modal-radio,
-.radio-modal-actions .radio-modal-polar {
-  color: #7eb8ff;
-  border-color: rgba(126, 184, 255, 0.35);
-  background: rgba(126, 184, 255, 0.08);
-}
 /* The SVGs are painted offscreen and rasterized into the PNG <img>. */
 .polar-modal-svg {
   position: absolute;
   left: -10000px; top: -10000px;
   width: 800px; height: 800px;
   pointer-events: none;
-}
-.polar-modal-png {
-  display: block;
-  width: auto; height: auto;
-  max-width: min(96vw, 1400px);
-  max-height: calc(94vh - 48px);
-  border-radius: 6px;
-  user-select: none;
 }
 .polar-modal-svg .horizon {
   fill: rgba(4, 8, 20, 0.85);
@@ -743,180 +664,103 @@
   fill: #8aa0c8; font-size: 3.2px; opacity: 0.85;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.polar-modal-hint {
-  font-size: 10px; color: #6a7a9a; letter-spacing: 0.06em;
-}
-.chart-hint--touch { display: none; }
-@media (hover: none) {
-  .chart-hint--mouse { display: none; }
-  .chart-hint--touch { display: inline; }
-}
-@media (pointer: coarse) {
-  .polar-modal-actions button,
-  .radio-modal-actions button { min-height: 32px; min-width: 32px; }
-}
-.radio-modal-content {
-  position: relative;
-  /* Opaque: the same colour the 0.95 tint gave over the dark backdrop, so the
-     chart looks the same on a light page. */
-  background: #0a0e1a;
-  border: 1px solid rgba(100, 140, 255, 0.35);
-  border-radius: 12px;
-  padding: 2px 3px 2px;
-  max-width: 98vw;
-  max-height: 98vh;
-  overflow: auto;
-  display: flex; flex-direction: column; align-items: stretch; gap: 0;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
-}
-.radio-modal-actions {
-  align-self: stretch;
-  display: flex; flex-direction: row; align-items: center;
-  flex-wrap: wrap; gap: 6px;
-  padding: 6px 4px;
-  border-bottom: 1px solid rgba(126, 184, 255, 0.16);
-  margin-bottom: 6px;
-}
-.radio-modal-actions .radio-modal-close { margin-left: auto; order: 99; }
-.radio-field {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; color: #8aa0c8;
-}
-.radio-freq-select, .radio-freq-input {
-  /* The input tier in the dark Slate values (the modal is always dark):
-     a well, a 3:1 edge and, on the menu, an inset chevron. */
-  background-color: #19202a; border: 1px solid #626d7e;
-  color: #e4e8ee; font-size: 11px; padding: 4px 6px; border-radius: 7px;
-  font-family: inherit;
-}
-.radio-freq-select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 24px;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #96a0ae 50%),
-    linear-gradient(135deg, #96a0ae 50%, transparent 50%);
-  background-position: calc(100% - 13px) 55%, calc(100% - 8px) 55%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
-}
-.radio-freq-select:focus-visible, .radio-freq-input:focus-visible { outline: 2px solid #8fb4e6; outline-offset: 1px; }
-.radio-freq-input { width: 74px; }
-@media (pointer: coarse) {
-  .radio-freq-select, .radio-freq-input { font-size: 16px; }
-}
 .radio-modal-svg {
   position: absolute;
   left: -10000px; top: -10000px;
   width: 900px; height: 703px;
   pointer-events: none;
 }
-.radio-modal-png {
-  display: block;
-  width: 100%; height: auto;
+/* The phone radio chart (paintRadioChartCompact), drawn at the dialog's width. */
+.radio-phone-svg { display: block; width: 100%; height: auto; }
+/* chart-block:end */
+
+/* Chart dialogs (SkyChartModalView, RadioChartModalView): an always-dark
+   library Modal (tone="dark") around the painted PNG. The radio chart is
+   wider than tall, so its panel may take the full width. */
+.modal__panel:has(.chart-modal--radio) { max-width: 98vw; }
+.chart-modal { display: flex; flex-direction: column; align-items: center; }
+.chart-modal--radio { align-items: stretch; }
+.chart-modal__img { display: block; width: auto; height: auto; border-radius: var(--radius-md); user-select: none; }
+.chart-modal__img--sky { max-width: min(96vw, 1400px); max-height: calc(94vh - 64px); }
+.chart-modal__img--radio {
+  width: 100%;
   max-width: min(96vw, 1400px);
   max-height: 82vh;
   object-fit: contain;
   align-self: center;
-  border-radius: 6px;
-  user-select: none;
 }
-.radio-modal-hint {
-  font-size: 10px; color: #6a7a9a; letter-spacing: 0.06em;
-  text-align: center; padding-top: 6px;
+.chart-modal__hint {
+  margin: 0;
+  padding-top: var(--sp-6);
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  letter-spacing: 0.06em;
+  text-align: center;
 }
+.chart-hint--touch { display: none; }
+@media (hover: none) {
+  .chart-hint--mouse { display: none; }
+  .chart-hint--touch { display: inline; }
+}
+/* The radio chart's frequency menu and custom MHz field, in the toolbar. */
+.chart-modal__custom { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-xs); color: var(--muted); }
+.chart-modal__mhz { width: 96px; }
 @media (max-width: 600px) {
-  .polar-modal-content,
-  .radio-modal-content {
-    padding: 10px 12px 8px;
-    max-width: 96vw;
-    max-width: 96dvw;
-  }
-  .polar-modal-png,
-  .radio-modal-png {
-    max-width: 92vw;
-    max-width: 92dvw;
-  }
-  .polar-modal-actions,
-  .radio-modal-actions { gap: 4px; padding: 4px 2px; }
-  .polar-modal-actions button,
-  .radio-modal-actions button { font-size: 11px; padding: 3px 8px; }
-  .radio-field { font-size: 10px; max-width: 100%; min-width: 0; }
-  /* A long downlink name would push the menu past the modal's edge. */
-  .radio-freq-select { max-width: 100%; min-width: 0; flex: 1 1 auto; }
+  .chart-modal__img { max-width: 92vw; max-width: 92dvw; }
+  .chart-modal__custom { max-width: 100%; min-width: 0; }
+  /* A long downlink name would push the menu past the dialog's edge. */
+  .chart-modal__freq { max-width: 100%; min-width: 0; flex: 1 1 auto; }
 }
-/* Radio chart on phones (RadioChartModalView): a phone-width chart with HTML
-   heading, tiles and a tune table, in place of the shrunken desktop image.
-   .is-phone is only set at 600 px or less. */
+/* Radio chart on phones: a phone-width chart with a heading, tiles and a tune
+   table, in place of the shrunken desktop image. --phone is only set at
+   600 px or less. */
 .radio-phone {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 2px 2px 4px;
-  color: #cfe0ff;
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-2) var(--sp-2) var(--sp-4);
+  color: var(--text);
 }
-.radio-phone-title { margin: 0; font-size: 16px; font-weight: 700; color: #e6eeff; }
-.radio-phone-sub { margin: -6px 0 0; font-size: 12px; color: #b8c4dc; }
-.radio-phone-tiles {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0;
+.radio-phone__title { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); color: var(--text-strong); }
+.radio-phone__sub { margin: calc(-1 * var(--sp-6)) 0 0; font-size: var(--fs-sm); color: var(--muted); }
+/* One panel split by hairlines, as the satellite page's live tiles. */
+.radio-phone__tiles {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; /* nudge */
+  background: var(--border); border: var(--line-subtle); border-radius: var(--radius-lg); overflow: hidden;
 }
-.radio-phone-tiles div {
-  display: flex; flex-direction: column-reverse; gap: 1px;
-  padding: 6px 8px; border-radius: 6px;
-  background: rgba(126, 184, 255, 0.06);
-  border: 1px solid rgba(126, 184, 255, 0.18);
-}
-.radio-phone-tiles dt { font-size: 11px; color: #8aa0c8; }
-.radio-phone-tiles dd {
-  margin: 0; font-size: 15px; font-weight: 700; color: #e6eeff;
-  font-variant-numeric: tabular-nums;
-}
+.radio-phone__tiles > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 .radio-tune {
   width: 100%; border-collapse: collapse;
-  font-size: 13px; font-variant-numeric: tabular-nums;
+  font-size: var(--fs-md); font-variant-numeric: tabular-nums;
 }
 .radio-tune caption {
-  text-align: left; padding-bottom: 4px;
-  font-size: 12px; font-weight: 600; color: #cfe0ff;
+  text-align: left; padding-bottom: var(--sp-4);
+  font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text);
 }
 .radio-tune th,
 .radio-tune td {
-  padding: 4px 3px; text-align: right; white-space: nowrap;
-  border-top: 1px solid rgba(126, 184, 255, 0.12);
+  padding: var(--sp-4) var(--sp-2); text-align: right; white-space: nowrap;
+  border-top: var(--line-subtle);
 }
-.radio-tune td { color: #e6eeff; }
-.radio-tune thead th { border-top: 0; font-size: 11px; font-weight: 500; color: #8aa0c8; }
+.radio-tune td { color: var(--text-strong); }
+.radio-tune thead th { border-top: 0; font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--muted); }
 .radio-tune thead th:first-child,
-.radio-tune th[scope="row"] { text-align: left; font-weight: 500; color: #b8c4dc; }
+.radio-tune th[scope="row"] { text-align: left; font-weight: var(--fw-medium); color: var(--text); }
 /* "Closest approach" may wrap, so the table fits a 360 px phone. */
 .radio-tune th[scope="row"] { white-space: normal; }
-.radio-phone-svg { display: block; width: 100%; height: auto; }
-.radio-phone-legend { margin: 0; font-size: 12px; line-height: 1.4; color: #8aa0c8; }
-.radio-phone-full {
-  align-self: flex-start;
-  min-height: 32px; padding: 4px 12px; border-radius: 6px;
-  background: transparent; border: 1px solid rgba(126, 184, 255, 0.35);
-  color: #cfe0ff; font: inherit; font-size: 12px; cursor: pointer;
-}
-.radio-phone-full:focus-visible { outline: 2px solid #8fb4e6; outline-offset: 1px; }
-.radio-modal-content.is-phone .radio-modal-png-link,
-.radio-modal-content.is-phone .radio-modal-hint { display: none; }
+.radio-phone__legend { margin: 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--muted); }
+.radio-phone__full { align-self: flex-start; }
+.chart-modal--phone .chart-modal__link,
+.chart-modal--phone .chart-modal__hint { display: none; }
 /* Open full size: the desktop image at its natural width, to pan and zoom. */
-.radio-modal-content.is-full .radio-modal-png-link {
+.chart-modal--full .chart-modal__link {
   display: block; overflow: auto; max-height: 70vh; max-height: 70dvh;
   /* A scrolling flex item would otherwise shrink to nothing in the column. */
   flex: none;
-  margin-top: 8px; border-radius: 6px;
+  margin-top: var(--sp-8); border-radius: var(--radius-md);
 }
-.radio-modal-content.is-full .radio-modal-png {
-  width: 900px; max-width: none; max-height: none;
-}
-.radio-modal-content.is-full .radio-modal-hint { display: block; }
-.radio-phone-about { margin-top: 8px; font-size: 12px; color: #8aa0c8; }
-.radio-phone-about summary {
-  display: flex; align-items: center; min-height: 32px;
-  color: #cfe0ff; cursor: pointer;
-}
-.radio-phone-about p { margin: 4px 0 0; line-height: 1.45; }
-/* chart-block:end */
+.chart-modal--full .chart-modal__img--radio { width: 900px; max-width: none; max-height: none; }
+.chart-modal--full .chart-modal__hint { display: block; }
+.radio-phone__about { margin-top: var(--sp-8); }
+.radio-phone__about p { margin: var(--sp-4) 0 0; font-size: var(--fs-sm); line-height: 1.45; color: var(--muted); }
 
 /* Focus bar, above the map while one satellite is focused. */
 .focus-bar {
@@ -1370,21 +1214,10 @@
 }
 
 /* Live pass view (components/live): full screen, readable at arm's length. */
-.live-view {
-  position: fixed; inset: 0; z-index: 5000;
-  overflow-y: auto;
-  background: var(--bg);
-  color: var(--map-text);
-}
-.live-view__inner {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: var(--sp-16) var(--sp-16) var(--sp-32);
-  display: flex; flex-direction: column; gap: var(--sp-12);
-}
-.live-view__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); }
-.live-view__title { margin: 0; font-size: var(--fs-2xl); color: var(--text-strong); }
-.live-view__sub { margin: var(--sp-2) 0 0; color: var(--map-muted); font-size: var(--fs-md); }
+/* Inside a full-size library Modal, which gives the 560 px column and the title. */
+.live-view { display: flex; flex-direction: column; gap: var(--sp-12); }
+/* Sits under the Modal's title, as its subtitle. */
+.live-view__sub { margin: calc(-1 * var(--sp-8)) 0 0; color: var(--map-muted); font-size: var(--fs-md); }
 .live-view__status { margin: 0; font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
 .live-view__status strong { color: var(--text-strong); }
 .live-view__status span { color: var(--map-muted); }

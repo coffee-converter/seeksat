@@ -8,17 +8,6 @@ import { ROOT } from './helpers/import-graph.mjs';
 // components/ui is the library itself; Triangulate is out of scope.
 const SKIP = ['components/ui', 'components/triangulate', 'components/TriangulateApp.tsx'];
 
-// Task 9 moves the chart modals and the live view onto the library; until
-// then they keep their own controls. Remove each entry as Task 9 lands.
-const TASK_9 = [
-  'components/passes/SkyChartModalView.tsx',
-  'components/passes/RadioChartModalView.tsx',
-  'components/passes/PassChartModals.tsx',
-  'components/live/LiveView.tsx',
-];
-
-const pending = (file) => TASK_9.includes(file);
-
 // Raw <input type="checkbox|range|radio"> allowed outside components/ui (none yet).
 const INPUT_ALLOW = [];
 
@@ -55,7 +44,6 @@ function firstClass(src, at) {
 function rawControls() {
   const found = [];
   for (const file of SOURCES) {
-    if (pending(file)) continue;
     const src = read(file);
     for (const m of src.matchAll(/<(button|select|textarea|input)\b/g)) {
       const at = m.index;
@@ -75,7 +63,6 @@ function rawControls() {
 function filesMatching(re) {
   const found = [];
   for (const file of [...SOURCES, 'app/globals.css', 'app/home.css', 'app/sat.css']) {
-    if (pending(file)) continue;
     read(file).split('\n').forEach((l, i) => { if (re.test(l)) found.push(`${file}:${i + 1}`); });
   }
   return found;
@@ -117,7 +104,6 @@ const SCREEN_CSS = ['app/home.css', 'app/sat.css', 'app/globals.css'];
 function tagSelectors() {
   const found = [];
   for (const file of SCREEN_CSS) {
-    if (pending(file)) continue;
     const css = liveCss(file);
     for (const m of css.matchAll(/([^{}]+)\{/g)) {
       const sels = m[1].trim();

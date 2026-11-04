@@ -75,7 +75,10 @@ test('tuneMode says what the radio block shows in each phase', () => {
 
 test('LiveView handles Esc before the page does, and announces only the phase', () => {
   const src = readFileSync(new URL('../components/live/LiveView.tsx', import.meta.url), 'utf8');
-  assert.match(src, /addEventListener\("keydown", onKey, \{ capture: true \}\)/);
+  // The library Modal owns Esc, in the capture phase.
+  assert.match(src, /<Modal\b/);
+  const modal = readFileSync(new URL('../components/ui/Modal.tsx', import.meta.url), 'utf8');
+  assert.match(modal, /addEventListener\("keydown", onKey, \{ capture: true \}\)/);
   assert.doesNotMatch(src, /className="live-view__status" aria-live/);
   assert.match(src, /className="sr-only" aria-live="polite">\{phaseText\}/);
 });

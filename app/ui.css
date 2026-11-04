@@ -237,8 +237,13 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-modal);
 }
+/* An always-dark dialog holds a painted chart: the panel takes the chart's
+   canvas colour, so the image has no visible edge. */
+.theme-dark > .modal__panel { background: var(--modal-dark-bg); }
+/* When the actions do not fit beside the title (a phone), they wrap below it. */
 .modal__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-8);
@@ -265,6 +270,8 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   box-shadow: none;
   gap: var(--sp-12);
 }
+/* The takeover scrolls as a whole, so the body is not its own scroller. */
+.modal--full .modal__body { overflow: visible; }
 .modal--full .modal__head { border-bottom: 0; padding: 0; align-items: flex-start; }
 .modal--full .modal__title { font-size: var(--fs-2xl); }
 

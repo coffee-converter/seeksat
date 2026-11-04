@@ -1,7 +1,8 @@
 "use client";
 
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
 import LiveDial from "@/components/live/LiveDial";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
@@ -105,18 +106,6 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
     setCompassOn(true);
   };
 
-  // Esc closes; focus starts on the close button.
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };
-    // Capture, so the page's own Esc (clear focus) never sees this one.
-    window.addEventListener("keydown", onKey, { capture: true });
-    return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [onClose]);
-
   const live = samples.length ? stateAt(samples, now) : null;
   const status = !live ? "This pass can't be shown live."
     : live.phase === "before" ? `Rises in ${clock(live.msToRise!)} in the ${point(live.azDeg!)}`
@@ -124,20 +113,15 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
         : "This pass is over.";
   const peak = live && live.msToPeak != null ? `Peak ${Math.round(live.peakElDeg)}° in ${clock(live.msToPeak)}` : null;
   const turn = live && live.azDeg != null && heading != null ? hint(live.azDeg, heading).text : null;
-  const titleId = "live-view-title";
   const tune = tuneOf(live, freqHz);
   // Screen readers hear the phase change, not every tick of the countdown.
   const phaseText = !live ? "" : live.phase === "before" ? "Not up yet." : live.phase === "during" ? "The satellite is up." : "This pass is over.";
+  // The Modal traps focus, closes on Esc (before the page's own Esc) and
+  // starts focus on Close.
   return (
-    <div ref={dialogRef} className="live-view" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      <div className="live-view__inner">
-        <header className="live-view__head">
-          <div>
-            <h2 id={titleId} className="live-view__title">{`${track.shortName} live`}</h2>
-            <p className="live-view__sub">{`From ${obs.name}`}</p>
-          </div>
-          <button ref={closeRef} type="button" className="btn btn--sm" onClick={onClose}>Close</button>
-        </header>
+    <Modal open onClose={onClose} title={`${track.shortName} live`} size="full">
+      <div className="live-view">
+        <p className="live-view__sub">{`From ${obs.name}`}</p>
         <p className="sr-only" aria-live="polite">{phaseText}</p>
         <p className="live-view__status">
           <strong>{status}</strong>{peak && <span>{` · ${peak}`}</span>}
@@ -182,12 +166,12 @@ export default function LiveView({ subject, freqHz, downlinkLabel, onChart, onCl
         </section>
         <div className="live-view__actions">
           {hasOrientation && !compassOn && (
-            <button type="button" className="btn btn--sm" onClick={startCompass}>Use phone compass</button>
+            <Button size="sm" onClick={startCompass}>Use phone compass</Button>
           )}
-          <button type="button" className="btn btn--sm" onClick={() => onChart("sky")}>Sky chart</button>
-          <button type="button" className="btn btn--sm" onClick={() => onChart("radio")}>Radio chart</button>
+          <Button size="sm" onClick={() => onChart("sky")}>Sky chart</Button>
+          <Button size="sm" onClick={() => onChart("radio")}>Radio chart</Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
