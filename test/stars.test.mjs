@@ -118,7 +118,7 @@ test('drawStars: a halo only for the brightest, then every dot, bright ones last
   assert.ok(f.mag[0] < GLOW_MAG && f.mag[1] > GLOW_MAG);
 });
 
-import { renderMilkyWay, skyFloor, globeRadiusPx, milkyWayStep } from '../lib/map/stars.mjs';
+import { renderMilkyWay, skyFloor, globeRadiusPx, milkyWayStep, MILKY_WAY_CURVE } from '../lib/map/stars.mjs';
 
 // A synthetic sky map: dark at 20 everywhere, one bright block at RA 0h,
 // Dec 0 (the image's centre, which is RA 0h with RA increasing left).
@@ -141,7 +141,9 @@ test('Milky Way: the map lands where the camera looks, dark sky stays clear', ()
   const ow = 20, oh = 16, out = new Uint8ClampedArray(ow * oh * 4);
   renderMilkyWay(sky, floor, out, ow, oh, 5, cam, 0);
   const a = (i, j) => out[(j * ow + i) * 4 + 3];
-  assert.ok(a(10, 8) > 200, `centre ${a(10, 8)}`);
+  // Brightness (220 - 20) / (255 - 20), curved, is the opacity.
+  const want = ((200 / 235) ** MILKY_WAY_CURVE) * 255;
+  assert.ok(Math.abs(a(10, 8) - want) < 2, `centre ${a(10, 8)} vs ${want}`);
   assert.equal(a(0, 0), 0);
   // Behind the globe nothing is computed.
   renderMilkyWay(sky, floor, out, ow, oh, 5, cam, 0, 30);
