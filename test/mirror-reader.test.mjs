@@ -247,3 +247,18 @@ test('noradIds lists snapshot ids ascending, [] without a snapshot', async () =>
   const empty = make({ store: createMemorySnapshotStore(null) });
   assert.deepEqual(await empty.reader.noradIds(), []);
 });
+
+test('GPS satellites are found by GPS, by PRN and by their catalog name', async () => {
+  const store = createMemorySnapshotStore(snap([
+    rec(24876, 'GPS BIIR-2 (PRN 13)', { altName: 'NAVSTAR 43 (USA 132)', groups: ['active', 'gps-ops'] }),
+    rec(40294, 'GPS BIIF-9 (PRN 26)', { altName: 'NAVSTAR 73 (USA 260)', groups: ['active', 'gps-ops'] }),
+    rec(100956, 'CPSAT'),
+    rec(43450, 'APSTAR-6C'),
+  ]));
+  const { reader } = make({ store });
+  const ids = async (q) => (await reader.search(q)).map((r) => r.noradId);
+  const gps = await ids('GPS');
+  assert.deepEqual(gps.slice(0, 2).sort(), [24876, 40294]);
+  assert.equal((await ids('PRN 13'))[0], 24876);
+  assert.equal((await ids('navstar 43'))[0], 24876);
+});

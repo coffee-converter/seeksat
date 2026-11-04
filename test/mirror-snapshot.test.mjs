@@ -60,3 +60,43 @@ test('encode/decode round trip and version check', () => {
   const bad = encodeSnapshot({ version: 2, generatedAtMs: 0, objects: {} });
   assert.throws(() => decodeSnapshot(bad), /version/);
 });
+
+// GPS satellites: 'active' names them by catalog name (NAVSTAR 43 (USA 132)),
+// 'gps-ops' by the name people search for (GPS BIIR-2  (PRN 13)).
+const navstar = { ...ISS_OMM, NORAD_CAT_ID: 24876, OBJECT_NAME: 'NAVSTAR 43 (USA 132)' };
+const gpsName = { ...navstar, OBJECT_NAME: 'GPS BIIR-2  (PRN 13)' };
+
+test('a GPS satellite takes its gps-ops name and keeps the catalog name as altName', () => {
+  for (const results of [{ active: ok(navstar), 'gps-ops': ok(gpsName) }, { 'gps-ops': ok(gpsName), active: ok(navstar) }]) {
+    const r = buildSnapshot({ results, previous: null, nowMs: NOW }).objects['24876'];
+    assert.equal(r.name, 'GPS BIIR-2 (PRN 13)'); // spaces collapsed
+    assert.equal(r.altName, 'NAVSTAR 43 (USA 132)');
+  }
+});
+
+test('a refresh that skips gps-ops keeps the GPS name from the last one', () => {
+  const first = buildSnapshot({ results: { active: ok(navstar), 'gps-ops': ok(gpsName) }, previous: null, nowMs: NOW });
+  const next = buildSnapshot({
+    results: { active: ok({ ...navstar, EPOCH: '2026-03-03T00:00:00.000000' }), 'gps-ops': { ok: false } },
+    previous: first, nowMs: NOW + 4 * 3_600_000,
+  });
+  const r = next.objects['24876'];
+  assert.equal(r.name, 'GPS BIIR-2 (PRN 13)');
+  assert.equal(r.altName, 'NAVSTAR 43 (USA 132)');
+  assert.ok(r.groups.includes('gps-ops'));
+});
+
+test('a satellite gps-ops no longer lists goes back to its catalog name', () => {
+  const first = buildSnapshot({ results: { active: ok(navstar), 'gps-ops': ok(gpsName) }, previous: null, nowMs: NOW });
+  const next = buildSnapshot({
+    results: { active: ok(navstar), 'gps-ops': ok(other) }, previous: first, nowMs: NOW + 4 * 3_600_000,
+  });
+  assert.equal(next.objects['24876'].name, 'NAVSTAR 43 (USA 132)');
+  assert.equal(next.objects['24876'].altName, undefined);
+});
+
+test('an object outside the name groups gets no altName', () => {
+  const r = buildSnapshot({ results: { active: ok({ ...other, OBJECT_NAME: 'SOME  SAT' }) }, previous: null, nowMs: NOW }).objects['99999'];
+  assert.equal(r.name, 'SOME  SAT');
+  assert.equal(r.altName, undefined);
+});
