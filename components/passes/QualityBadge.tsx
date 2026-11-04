@@ -3,6 +3,7 @@ import { formatMag, visualQuality } from "@/lib/sky/visual-rating.mjs";
 import { ratingShort } from "@/lib/passes/pass-words.mjs";
 import type { CloudBadge } from "@/lib/sky/cloud-badge.mjs";
 import RatingBars from "@/components/ui/RatingBars";
+import Badge from "@/components/ui/Badge";
 
 /** `cause` (visual ratings only) is what held the rating below Good. */
 export type Quality = { level: "good" | "ok" | "low"; label: string; reason: string; cause?: string | null; bars?: number };
@@ -44,16 +45,22 @@ const BAR_COUNT = 5;
  *  green) only backs them up. Below Good it says why in a few words ("Poor:
  *  faint", "Fair: 14° up"); the
  *  tooltip keeps the full reason. `rating` (visual mode) replaces the
- *  elevation-only rating. */
-export default function QualityBadge({ pass, rating, maxShown = false }: {
-  pass: { maxElevDeg?: number }; rating?: Quality; maxShown?: boolean;
+ *  elevation-only rating. `pill`: a tinted pill, so it reads at a glance
+ *  (pass cards, satellite page rows, the next pass line). */
+export default function QualityBadge({ pass, rating, maxShown = false, pill = false }: {
+  pass: { maxElevDeg?: number }; rating?: Quality; maxShown?: boolean; pill?: boolean;
 }) {
   const q = rating ?? (passQuality as (p: { maxElevDeg?: number }) => Quality)(pass);
   const bars = Math.min(BAR_COUNT, Math.max(1, Math.round(q.bars ?? 1)));
-  return (
-    <span className={`quality quality--${q.level} quality--b${bars}`} title={q.reason}>
+  const body = (
+    <>
       <RatingBars bars={bars as 1 | 2 | 3 | 4 | 5} label={`${bars} of ${BAR_COUNT}`} />
       {ratingText(q, pass, !!rating, maxShown)}
+    </>
+  );
+  return (
+    <span className={`quality quality--${q.level} quality--b${bars}`} title={q.reason}>
+      {pill ? <Badge tone="rating">{body}</Badge> : body}
     </span>
   );
 }

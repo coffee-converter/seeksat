@@ -42,8 +42,8 @@ export default function NextPassLine({ report, nowMs, mode, skyType, clouds, onC
           {/* No-break space keeps "4:12 AM" together. */}
           <span className="sat-next__what">{text.replace(/ (AM|PM)\b/g, "\u00a0$1")}</span>
         </p>
-        <span className="rating-pair rating-pill sat-next__rating">
-          <QualityBadge pass={pass} rating={rating} />
+        <span className="rating-pair sat-next__rating">
+          <QualityBadge pass={pass} rating={rating} pill />
           {visual && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
         </span>
       </div>

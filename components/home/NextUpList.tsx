@@ -247,8 +247,8 @@ function PassCard({
         <p className="pass-card__headline">
           <Headline text={card.name} focus={focus} onFocus={onFocus} />
         </p>
-        <span className="rating-pair rating-pill pass-card__rating">
-          <QualityBadge pass={pass} rating={rating} maxShown />
+        <span className="rating-pair pass-card__rating">
+          <QualityBadge pass={pass} rating={rating} maxShown pill />
           {visual && cloudShown && <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />}
         </span>
       </div>

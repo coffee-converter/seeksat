@@ -34,7 +34,7 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
     <div className="focus-bar" role="region" aria-label="Focused satellite">
       <p className="focus-bar__title">{text.title}</p>
       <div className="focus-bar__actions">
-        <Button size="sm" pressed={followed} disabled={!followed && Boolean(blocked)} onClick={onToggleFollow}>
+        <Button size="sm" disabled={!followed && Boolean(blocked)} onClick={onToggleFollow}>
           {text.follow}
         </Button>
         {mode === "page" ? (

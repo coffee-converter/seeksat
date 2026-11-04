@@ -22,7 +22,7 @@ export default function Field({ label, hint, error, hideLabel = false, children 
   const described = [children.props["aria-describedby"], hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ");
   return (
     <div className="field">
-      <label className={cx("field__label", hideLabel && "field__label--hidden")} htmlFor={id}>{label}</label>
+      <label className={cx("field__label", hideLabel && "sr-only")} htmlFor={id}>{label}</label>
       {cloneElement(children, {
         id,
         className: cx("field__control", children.props.className),

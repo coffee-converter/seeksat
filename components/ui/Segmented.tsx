@@ -8,12 +8,12 @@ type Option<T extends string> = { value: T; label: string; disabled?: boolean };
 /** A single-choice control as a radiogroup: one tab stop (roving tabindex),
  *  arrow keys / Home / End move and select, wrapping. */
 export default function Segmented<T extends string>({ label, description, options, value, onChange, size = "md" }: {
-  label: string; /** Extra spoken help (aria-description). */ description?: string; options: Option<T>[]; value: T; onChange: (v: T) => void; size?: "md" | "sm";
+  label: string; /** Extra spoken help (aria-description). */ description?: string; options: Option<T>[]; /** null: nothing chosen yet (e.g. before saved settings load). */ value: T | null; onChange: (v: T) => void; size?: "md" | "sm";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const enabled = options.filter((o) => !o.disabled).map((o) => o.value);
   // The tab stop: the selected option, or the first enabled one when it is disabled or missing.
-  const stop = enabled.includes(value) ? value : enabled[0];
+  const stop = value !== null && enabled.includes(value) ? value : enabled[0];
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const to = segmentedNext(enabled, value, e.key) as T;

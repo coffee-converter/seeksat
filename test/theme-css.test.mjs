@@ -484,9 +484,22 @@ function parts(v) {
   return out;
 }
 
+const SP = String.raw`var\(--sp-\d+\)`;
+// A token, 0, auto, a safe-area inset, or calc of tokens only: a negated token
+// or a sum of tokens. No px inside calc.
+const SPACE_PART = new RegExp(String.raw`^(?:${SP}|0|auto|calc\(-1 \* ${SP}\)|calc\(${SP}(?: \+ ${SP})+\)|env\(safe-area-inset-\w+(?:, ?0)?\))$`);
+const SPACE_PROPS = ['padding', 'margin', 'gap', 'row-gap', 'column-gap',
+  ...['top', 'bottom', 'left', 'right'].flatMap((s) => [`padding-${s}`, `margin-${s}`]),
+  ...['inline', 'block', 'inline-start', 'inline-end', 'block-start', 'block-end'].flatMap((s) => [`padding-${s}`, `margin-${s}`])];
+
+test('the spacing rule accepts tokens and token calcs only', () => {
+  for (const v of ['var(--sp-8)', '0 auto', 'calc(-1 * var(--sp-4))', 'calc(var(--sp-32) + var(--sp-8))']) assert.ok(parts(v).every((p) => SPACE_PART.test(p)), v);
+  for (const v of ['8px', 'calc(var(--sp-8) + 2px)', 'calc(var(--sp-24) * 2)', '-var(--sp-4)']) assert.ok(!parts(v).every((p) => SPACE_PART.test(p)), v);
+});
+
 test('padding, margin and gap use spacing tokens', () => {
-  const ok = (v) => parts(v).every((p) => /^var\(--sp-\d+\)$/.test(p) || ['0', 'auto'].includes(p) || /^calc\(.*var\(--sp-/.test(p) || /env\(safe-area/.test(p));
-  const found = FILES.flatMap((f) => ['padding', 'margin', 'gap', 'row-gap', 'column-gap', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right']
-    .flatMap((p) => declsIn(f, p)).filter((d) => !ok(d.value) && !d.nudge));
+  // A /* nudge */ line may hold 1px optical corrections, nothing else literal.
+  const ok = (d) => parts(d.value).every((p) => SPACE_PART.test(p) || (d.nudge && /^-?1px$/.test(p)));
+  const found = FILES.flatMap((f) => SPACE_PROPS.flatMap((p) => declsIn(f, p)).filter((d) => !ok(d)));
   assert.deepEqual(found.map((d) => `${d.where}  ${d.value}`), []);
 });

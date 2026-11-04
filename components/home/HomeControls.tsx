@@ -59,14 +59,13 @@ export default function HomeControls({
         label="Pass mode"
         size="sm"
         options={[{ value: "radio", label: "Radio", disabled: !ready }, { value: "visual", label: "Visual", disabled: !ready }]}
-        value={mode}
+        value={ready ? mode : null}
         onChange={onModeChange}
       />
 
       <div className="home-controls__elev" role="group" aria-label="Minimum elevation">
         <Button
           variant="quiet"
-          size="sm"
           iconOnly
           aria-label="Lower minimum elevation"
           disabled={!ready || minElevDeg <= 0}
@@ -79,7 +78,6 @@ export default function HomeControls({
         </span>
         <Button
           variant="quiet"
-          size="sm"
           iconOnly
           aria-label="Raise minimum elevation"
           disabled={!ready || minElevDeg >= MIN_ELEV_MAX}

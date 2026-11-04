@@ -29,9 +29,6 @@ const BESPOKE = {
   'components/home/NextStrip.tsx': ['next-strip'], // the whole "Next:" strip opens the pass
   'components/home/NextUpList.tsx': ['pass-card__focus', 'best-pass'], // the card title; the best-pass line
   'components/home/Timeline.tsx': ['timeline__bar'], // one pass as a bar on the 24 h strip
-  // On, it takes the accent outline (not a filled segment) so it never reads
-  // as a fourth theme option; under 700 px it is a 36 px icon.
-  'components/NightToggle.tsx': ['night-toggle'],
 };
 
 function walk(dir) {
@@ -135,6 +132,34 @@ function tagSelectors() {
   }
   return found;
 }
+
+// Library parts a screen may place but never restyle.
+const LIB_PART = /\.(?:btn|segmented|badge|chip|field|details)(?:__[\w]+|--[\w]+)*(?![\w-])/;
+const LAYOUT_PROP = /^(?:margin(?:-[\w-]+)?|flex(?:-[\w-]+)?|grid(?:-[\w-]+)?|order|display|align-[\w-]+|justify-[\w-]+|place-[\w-]+|(?:min-|max-)?(?:width|height)|position|inset|top|left|right|bottom|z-index|pointer-events|visibility)$/;
+
+/** Declarations in screen CSS that set a non-layout property on a library part, as "file:line  selector { prop }". */
+function libraryRestyles() {
+  const found = [];
+  for (const file of [...SCREEN_CSS, 'app/mcp/mcp.css']) {
+    const css = liveCss(file);
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const sels = m[1].trim();
+      if (sels.startsWith('@')) continue;
+      const hits = sels.split(/,(?![^(]*\))/).filter((sel) => LIB_PART.test(sel.trim().split(/[\s>+~]+/).pop()));
+      if (!hits.length) continue;
+      for (const d of m[2].matchAll(/([-\w]+)\s*:/g)) {
+        if (LAYOUT_PROP.test(d[1])) continue;
+        const line = css.slice(0, m.index + m[0].indexOf('{')).split('\n').length;
+        found.push(`${file}:${line}  ${hits.join(', ').trim()} { ${d[1]} }`);
+      }
+    }
+  }
+  return found;
+}
+
+test('screen stylesheets only place library components, never restyle them', () => {
+  assert.deepEqual(libraryRestyles(), []);
+});
 
 test('no screen renders a raw <button>, <select> or <input> outside the library', () => {
   assert.deepEqual(rawControls(), [], 'use components/ui');

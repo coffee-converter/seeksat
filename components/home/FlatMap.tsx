@@ -1287,6 +1287,7 @@ export default function FlatMap({
           {PRESETS.map((p) => (
             <Button
               key={p.id}
+              variant="overlay"
               size="sm"
               disabled={(p.id === "you" && !observer) || (p.id === "sat" && !focusNow)}
               pressed={p.id === "sat" ? followOn : undefined}
@@ -1298,13 +1299,13 @@ export default function FlatMap({
         </div>
       ) : null}
       <div className="flat-map__zoom">
-        <Button iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
-        <Button iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
+        <Button variant="overlay" iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
+        <Button variant="overlay" iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
         {/* On the globe, On you and Satellite GP already do this. */}
         {view === "globe" ? null : (
-          <Button onClick={reset}>Reset view</Button>
+          <Button variant="overlay" onClick={reset}>Reset view</Button>
         )}
-        <Button iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
+        <Button variant="overlay" iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
           {"⛶"}
         </Button>
       </div>
@@ -1332,6 +1333,7 @@ export default function FlatMap({
       // The toggle shows only when docked; narrower, the legend is always open below the map.
       <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
         <Button
+          variant="overlay"
           size="sm"
           className="map-legend__toggle"
           aria-expanded={legendOpen}

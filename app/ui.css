@@ -42,14 +42,28 @@
   color: var(--seg-on-text);
 }
 .btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--seg-on); }
-/* A main action that is on (Following): accent outline on the card colour. */
+/* A main action that is on (Following), or pressedLook="accent" (Night
+   vision, beside the theme control): accent outline on the card colour. */
 .btn--primary[aria-pressed="true"],
-.btn--primary[aria-pressed="true"]:hover:not(:disabled) {
+.btn--primary[aria-pressed="true"]:hover:not(:disabled),
+.btn--accent-pressed[aria-pressed="true"],
+.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled) {
   background: var(--panel);
   border-color: var(--accent);
   color: var(--accent);
 }
-.btn--primary[aria-pressed="true"]:hover:not(:disabled) { background: var(--btn-hover); }
+.btn--primary[aria-pressed="true"]:hover:not(:disabled),
+.btn--accent-pressed[aria-pressed="true"]:hover:not(:disabled) { background: var(--btn-hover); }
+
+/* Overlay: on the map imagery, so it has an opaque panel backing and the chip
+   edge. Hover and pressed (a filled segment) are the shared rules; open
+   (aria-expanded) firms the edge. */
+.btn--overlay {
+  background: var(--map-panel);
+  border-color: var(--chip-border);
+  color: var(--map-text);
+}
+.btn--overlay[aria-expanded="true"] { border-color: var(--btn-line); }
 
 /* Link: an inline text action in a sentence or a label row. */
 .btn--link {
@@ -121,6 +135,13 @@
 }
 .badge--warn { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
 .badge--danger { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
+.badge--rating {
+  padding: 1px var(--sp-8); /* nudge */
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  color: inherit;
+  border: 0;
+  border-radius: var(--radius-full);
+}
 .badge--ok { background: rgba(var(--ok-rgb), 0.14); color: var(--ok); border: 1px solid rgba(var(--ok-rgb), 0.4); }
 
 /* RatingBars: five bars of rising height, the first N on; colour by count. */
@@ -238,6 +259,19 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .modal--full .modal__head { border-bottom: 0; padding: 0; align-items: flex-start; }
 .modal--full .modal__title { font-size: var(--fs-2xl); }
 
+/* Visually hidden, still read by screen readers (Field's hideLabel, table captions). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px; /* nudge */
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Field: label above the control, hint and error below. The control keeps
    16px (--fs-input) so iOS does not zoom on focus. */
 .field { display: flex; flex-direction: column; gap: var(--sp-4); }
@@ -253,7 +287,9 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   font: inherit;
   font-size: var(--fs-input);
 }
-/* A select draws its own chevron, so it matches in every browser. */
+/* A select draws its own chevron, so it matches in every browser: two 5px
+   triangles from crossed gradients meet in a "v" 10-15px from the right
+   edge, inside the 32px right padding. */
 select.field__control {
   appearance: none;
   -webkit-appearance: none;
@@ -269,17 +305,6 @@ select.field__control {
 .field__control:disabled { opacity: 0.6; }
 .field__control:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .field__control[aria-invalid="true"] { border-color: var(--danger); }
-.field__label--hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px; /* nudge */
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
 .field__hint,
 .field__error { margin: 0; font-size: var(--fs-sm); line-height: 1.4; }
 .field__hint { color: var(--map-muted); }

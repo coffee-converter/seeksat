@@ -120,10 +120,6 @@
   display: flex;
   gap: var(--sp-4);
 }
-/* Over the map imagery the buttons need an opaque backing; :where keeps
-   hover and pressed (library rules) on top. */
-:where(.flat-map__zoom, .flat-map__presets, .map-legend-box) .btn { background: var(--map-panel); }
-
 /* Globe camera buttons sit in a row above the zoom buttons (wrapping upward
    on a very narrow map); the attribution moves up above them. */
 .flat-map__presets {
@@ -160,19 +156,6 @@
 .flat-map-shell--full .map-legend,
 .flat-map-shell--full .focus-bar { flex: 0 0 auto; }
 .flat-map-shell:fullscreen { background: var(--bg); }
-
-/* Visually hidden, still read by screen readers. */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px; /* nudge */
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
 
 /* Search bar, pinned on top of the home screen. */
 .search-bar {
@@ -568,14 +551,6 @@
 }
 .pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
-/* The rating as a pill, so it reads at a glance; the cloud word sits beside it.
-   Home cards, satellite page rows and the next pass line all use it. */
-.rating-pill .quality {
-  padding: 1px var(--sp-8); /* nudge */
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, currentColor 15%, transparent);
-  font-size: var(--fs-sm);
-}
 /* "Best in the next 24 hours": one quiet tile-like button above Next up. */
 .best-pass {
   display: block;
@@ -960,7 +935,7 @@
 .focus-bar .focus-bar__close { min-width: 40px; min-height: 40px; }
 .focus-bar__x { font-size: var(--fs-xl); line-height: 1; }
 /* Details jumps to the drawer title, which only sits below the map under 1100 px. */
-@media (min-width: 1100px) { .focus-bar__details { display: none; } }
+@media (min-width: 1100px) { .focus-bar .focus-bar__details { display: none; } }
 .focus-bar__note { flex-basis: 100%; margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
 
 /* Satellite chips over the top of the map. The strip scrolls sideways inside
@@ -1106,28 +1081,18 @@
    button below, so the phone header row never crowds the wordmark. */
 .theme-toggle[data-ready="false"] { visibility: hidden; }
 .theme-toggle[data-night="true"] { opacity: 0.55; }
-.theme-toggle__cycle { display: none; min-width: 56px; min-height: 36px; }
+.theme-toggle .theme-toggle__cycle { display: none; min-width: 56px; min-height: 36px; }
 @media (max-width: 699.98px) {
   .theme-toggle__group { display: none; }
-  .theme-toggle__cycle { display: inline-flex; }
+  .theme-toggle .theme-toggle__cycle { display: inline-flex; }
 }
-/* NightToggle (components/NightToggle.tsx): an outline toggle the height of
-   the theme well; on, it takes the accent outline and accent text (the
-   Following look), so it never reads as a fourth theme segment. Icon only
-   under 700 px. */
-.night-toggle {
-  display: inline-flex; align-items: center; gap: var(--sp-6);
-  font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium); line-height: 1; white-space: nowrap;
-  color: var(--map-muted); background: none; cursor: pointer;
-  border: var(--line-control); border-radius: var(--radius-lg); padding: 0 var(--sp-12); min-height: 38px;
-}
+/* NightToggle (components/NightToggle.tsx): the height of the theme well;
+   icon only under 700 px. */
+.night-toggle { min-height: 38px; }
 .night-toggle[data-ready="false"] { visibility: hidden; }
-.night-toggle:hover { color: var(--map-text); background: var(--btn-hover); }
-.night-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-.night-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .night-toggle__icon { display: none; flex: none; }
 @media (max-width: 699.98px) {
-  .night-toggle { justify-content: center; min-width: 36px; min-height: 36px; padding: 0; border-radius: var(--radius-md); }
+  .night-toggle { min-width: 36px; min-height: 36px; }
   .night-toggle__icon { display: block; }
   .night-toggle__label { display: none; }
 }
@@ -1201,9 +1166,9 @@
 /* Small phones: tighter gaps so the wordmark, clock, theme and Night vision
    fit on one row at 360 px. */
 @media (max-width: 479px) {
-  .map-shell__top { column-gap: var(--sp-8); }
-  .map-shell__end { gap: var(--sp-6); }
-  .theme-toggle__cycle { min-width: 48px; }
+  .map-shell__top { column-gap: var(--sp-4); }
+  .map-shell__end { gap: var(--sp-4); }
+  .theme-toggle .theme-toggle__cycle { min-width: 48px; }
 }
 
 /* FlatMap fill: sized by the shell. Narrow screens stack the focus bar,
@@ -1234,7 +1199,7 @@
   height: max(260px, 60svh);
 }
 .flat-map-shell--fill .map-legend-box { grid-area: legend; min-width: 0; }
-.map-legend__toggle { display: none; }
+.map-legend-box .map-legend__toggle { display: none; }
 .flat-map-shell--fill.flat-map-shell--full { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .flat-map-shell--fill.flat-map-shell--full .flat-map { height: auto; min-height: 0; }
 
@@ -1364,9 +1329,9 @@
 /* Paste elements: a + on phones, so the search field gets the width. */
 .search-bar__paste-short { display: none; }
 @media (max-width: 599px) {
-  .search-bar__paste-button { min-width: 44px; padding-left: 0; padding-right: 0; font-size: var(--fs-xl); line-height: 1; }
+  .search-bar__paste-button { min-width: 44px; }
   .search-bar__paste-full { display: none; }
-  .search-bar__paste-short { display: inline; }
+  .search-bar__paste-short { display: inline; font-size: var(--fs-xl); line-height: 1; }
 }
 
 /* The soonest pass above the map on phones (NextStrip). */
