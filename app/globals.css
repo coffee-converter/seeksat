@@ -204,11 +204,15 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
   --lh-tight: 1.2; --lh-body: 1.5;
   --sp-2: 2px; --sp-4: 4px; --sp-6: 6px; --sp-8: 8px; --sp-12: 12px; --sp-16: 16px; --sp-24: 24px; --sp-32: 32px;
   --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px; --radius-full: 999px;
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+/* Declared per scope: var() resolves where it is declared, so a .theme-dark
+   island must resolve these against its own dark tokens. */
+:root, .theme-dark {
   --line-subtle: 1px solid var(--border);
   --line-control: 1px solid var(--btn-line);
   --line-input: 1px solid var(--input-border);
-  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms;
-  --ease: cubic-bezier(0.2, 0, 0, 1);
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; }

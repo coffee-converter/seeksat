@@ -390,3 +390,12 @@ test('.theme-dark gets the dark tokens in any page theme', () => {
   assert.match(block, /:root,\s*:root\[data-theme='dark'\],\s*\.theme-dark\s*\{/);
   assert.ok(THEMES.dark['--shadow-modal'] && THEMES.light['--shadow-modal']);
 });
+
+test('--line-* tokens resolve per .theme-dark scope, and .theme-dark sets its text colour', () => {
+  const block = stripComments(regions(read('app/globals.css'), TOKENS_BEGIN, TOKENS_END).join('\n'));
+  for (const k of ['--line-subtle', '--line-control', '--line-input']) {
+    const rule = [...block.matchAll(/([^{}]+)\{([^}]*)\}/g)].find((m) => m[2].includes(`${k}:`));
+    assert.ok(rule && /\.theme-dark/.test(rule[1]), `${k} is declared in a rule that includes .theme-dark`);
+  }
+  assert.match(block, /\.theme-dark\s*\{\s*color:\s*var\(--text\);/);
+});
