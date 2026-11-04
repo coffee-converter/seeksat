@@ -717,7 +717,7 @@
 }
 /* The radio chart's frequency menu and custom MHz field, in the toolbar. */
 .chart-modal__custom { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-xs); color: var(--muted); }
-.chart-modal__mhz { width: 96px; }
+.chart-modal__mhz { width: 120px; }
 /* One row: what to tune at the left, the file buttons and Close at the right. */
 .chart-modal__tune { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-12); min-width: 0; }
 /* Close sits in the header's top right corner (Modal's hideTitle). */

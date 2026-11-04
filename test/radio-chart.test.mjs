@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel, compassPoint, elevationScale, directionMarks, withUplink } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -120,31 +120,71 @@ test('panelScale exposes the nice bounds it computed', () => {
 
 // ---- panelsFor: panel order and the no-frequency degrade path -----------
 
-test('panels run Doppler, signal, angular rate - Doppler first and tallest', () => {
-  // Doppler is what a radio operator tunes by, so it leads; the TCA rule
-  // runs through all three, where Doppler crosses zero and the others peak.
+test('panels run Doppler, elevation, angular rate - Doppler first and tallest', () => {
+  // Doppler is what a radio operator tunes by, so it leads; elevation (with
+  // the compass direction) says where to point, angular rate how fast.
   assert.deepEqual(panelsFor(true).map((p) => p.key),
-    ['dopplerHz', 'relSignalDb', 'angRateDegPerSec']);
+    ['dopplerHz', 'elDeg', 'angRateDegPerSec']);
   assert.ok(panelsFor(true)[0].height > panelsFor(true)[1].height);
+});
+
+test('a link with an uplink adds a transmit panel under Doppler', () => {
+  assert.deepEqual(panelsFor(true, true).map((p) => p.key),
+    ['dopplerHz', 'uplinkDopplerHz', 'elDeg', 'angRateDegPerSec']);
+  // No downlink frequency: nothing to scale the uplink from.
+  assert.ok(!panelsFor(false, true).some((p) => p.key === 'uplinkDopplerHz'));
 });
 
 test('with no frequency, Doppler is replaced by range rate in place', () => {
   const keys = panelsFor(false).map((p) => p.key);
-  assert.deepEqual(keys, ['rangeRateMps', 'relSignalDb', 'angRateDegPerSec']);
+  assert.deepEqual(keys, ['rangeRateMps', 'elDeg', 'angRateDegPerSec']);
 });
 
 test('the degrade swap matches on key, not position', () => {
   // A positional swap (PANELS[0]) silently replaces the wrong panel the
-  // moment the order changes - which it did. Angular rate and signal must
-  // survive the swap untouched.
+  // moment the order changes - which it did. The others must survive it.
   const on = panelsFor(true), off = panelsFor(false);
-  assert.equal(off[1].label, on[1].label, 'signal must be untouched');
+  assert.equal(off[1].label, on[1].label, 'elevation must be untouched');
   assert.equal(off[2].label, on[2].label, 'angular rate must be untouched');
   assert.equal(off[0].unit, 'm/s');
 });
 
+test('compassPoint names 16 directions and wraps', () => {
+  assert.equal(compassPoint(0), 'N');
+  assert.equal(compassPoint(359), 'N');
+  assert.equal(compassPoint(131), 'SE');
+  assert.equal(compassPoint(202.5), 'SSW');
+  assert.equal(compassPoint(-90), 'W');
+});
 
+test('elevationScale runs from the horizon to a round top, never past 90', () => {
+  assert.equal(elevationScale([0, 7, 3], 30).hi, 8);
+  assert.equal(elevationScale([0, 85, 3], 30).hi, 90);
+  const s = elevationScale([0, 40], 30);
+  assert.equal(s(0), 30);
+  assert.equal(s(s.hi), 0);
+  // A refracted edge sample a hair below the horizon stays on the axis.
+  assert.equal(s(-0.4), 30);
+});
 
+test('directionMarks gives rise, highest and set', () => {
+  const samples = [
+    { tMs: 0, azDeg: 200, elDeg: -0.2 },
+    { tMs: 1, azDeg: 150, elDeg: 40 },
+    { tMs: 2, azDeg: 80, elDeg: 0.1 },
+  ];
+  assert.deepEqual(directionMarks(samples).map((m) => [m.at, m.azDeg, m.elDeg]),
+    [['rise', 200, 0], ['peak', 150, 40], ['set', 80, 0.1]]);
+  assert.deepEqual(directionMarks([]), []);
+});
+
+test('withUplink adds the transmit shift only when the link has an uplink', () => {
+  const samples = [{ dopplerHz: 9000 }, { dopplerHz: null }];
+  assert.equal(withUplink(samples, { freqHz: 437_800_000 }), samples);
+  const out = withUplink(samples, { freqHz: 437_800_000, uplinkHz: 145_990_000 });
+  assert.ok(Math.abs(out[0].uplinkDopplerHz - (-9000 * 145_990_000 / 437_800_000)) < 1e-6);
+  assert.equal(out[1].uplinkDopplerHz, null);
+});
 
 // ---- axisTicks: the gridline ladder -------------------------------------
 
