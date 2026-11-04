@@ -365,3 +365,10 @@ test('printing removes the night vision filter', () => {
   assert.match(m[0], /html\[data-night='1'\]/);
   assert.match(m[0], /filter:\s*none/);
 });
+
+test('globals.css carries no triangulate rules', () => {
+  const css = read('app/globals.css');
+  for (const sel of ['#cesium-container', '#panel-observations', '#attempt-picker', '#tle-section', '.obs-card', '#camera-controls', '#imagery-select', '.result-block']) {
+    assert.ok(!css.includes(sel), `${sel} moved to components/triangulate/triangulate.css`);
+  }
+});

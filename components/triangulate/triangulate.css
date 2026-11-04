@@ -1,0 +1,343 @@
+/* triangulate.css - the private /triangulate tool's legacy styles, moved out of app/globals.css. */
+#cesium-container { width: 100vw; height: 100vh; height: 100dvh; }
+
+/* (Top-center brand pill nav removed - was only useful when both /
+   and /passes were linked. Triangulate is unlinked now and the
+   pass-finder is the home page, so no chrome needed.) */
+
+.panel {
+  position: absolute; top: 16px;
+  background: var(--map-panel);
+  border: 1px solid rgba(var(--edge-rgb), 0.3);
+  border-radius: 12px;
+  padding: 14px 16px;
+  backdrop-filter: blur(12px);
+  max-width: 460px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  z-index: 1000;
+}
+.panel-left { left: 16px; }
+
+/* Left panel collapse - mirrors pass-finder. Toggle button sits on
+   the right edge of the panel when open; slides with the panel to the
+   viewport edge when collapsed so the user can always re-open. */
+:root { --panel-left-width: 460px; }
+#panel-observations { width: var(--panel-left-width); max-width: var(--panel-left-width); transition: transform 0.25s ease; }
+@media (max-width: 600px) {
+  :root {
+    --panel-left-width: calc(100vw - 54px); /* 16px left + panel + 22px toggle + 16px right */
+    --panel-left-width: calc(100dvw - 54px);
+  }
+}
+#panel-toggle {
+  position: absolute;
+  top: 28px;
+  left: calc(16px + var(--panel-left-width));
+  width: 22px;
+  height: 56px;
+  z-index: 1100;
+  background: var(--map-panel);
+  border: 1px solid rgba(var(--edge-rgb), 0.3);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  backdrop-filter: blur(12px);
+  transition: left 0.25s ease;
+}
+#panel-toggle::before { content: "◂"; }
+#panel-toggle:hover { background: rgba(var(--accent-rgb), 0.18); }
+body.panel-collapsed #panel-observations {
+  transform: translateX(calc(-100% - 32px));
+  pointer-events: none;
+}
+body.panel-collapsed #panel-toggle {
+  left: 16px;
+  border-left: 1px solid rgba(var(--edge-rgb), 0.3);
+  border-radius: 8px;
+}
+body.panel-collapsed #panel-toggle::before { content: "▸"; }
+.panel h2 { font-size: 14px; color: var(--accent); margin-bottom: 10px;
+  text-transform: uppercase; letter-spacing: 0.08em; }
+#attempt-picker {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 10px;
+}
+#attempt-picker label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent); font-weight: 700;
+}
+#attempt-picker select {
+  flex: 1;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+#attempt-picker button {
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  color: var(--text);
+  width: 24px; height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin: 0;
+}
+#attempt-picker button:hover { background: rgba(var(--accent-rgb), 0.22); }
+#attempt-picker button[hidden] { display: none; }
+
+#attempt-new-form {
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+#attempt-new-form[hidden] { display: none; }
+#attempt-new-form .af-row {
+  display: flex; align-items: center; gap: 8px;
+}
+#attempt-new-form .af-row > span {
+  flex: 0 0 44px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent); font-weight: 700;
+}
+#attempt-new-form .af-row > input[type="text"] {
+  flex: 1;
+}
+#attempt-new-form .af-check { font-size: 11px; color: var(--text); }
+#attempt-new-form .af-check span { flex: 1; font-weight: 400;
+  text-transform: none; letter-spacing: 0; color: var(--text); }
+#attempt-new-form .af-actions {
+  display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px;
+}
+#attempt-new-form .af-actions button { margin-top: 0; padding: 4px 10px; font-size: 11px; }
+
+/* Shared collapsible-section styling for the three sibling details
+   panels in #panel-observations (#result-section, #obs-details,
+   #tle-section). Chevron + label + horizontal rule across the rest of
+   the header - gives each section a clear banded look. */
+#panel-observations > details + details {
+  margin-top: 8px;
+}
+#panel-observations > details > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 2px;
+  margin-bottom: 6px;
+}
+#panel-observations > details > summary::-webkit-details-marker { display: none; }
+/* Clip-path triangle instead of a unicode glyph for exact centering
+   (unicode ▾ renders bottom-heavy in every font). */
+#panel-observations > details > summary::before {
+  content: "";
+  width: 16px; height: 16px;
+  background-color: var(--accent);
+  clip-path: polygon(10% 35%, 90% 35%, 50% 80%);
+  transition: transform 0.15s;
+  flex: 0 0 auto;
+}
+#panel-observations > details:not([open]) > summary::before { transform: rotate(-90deg); }
+#panel-observations > details > summary h2 {
+  margin: 0;
+  flex: 0 0 auto;
+}
+/* Filler bar - takes the remaining horizontal room beside the label.
+   Extra left margin so the bar reads visually separate from the title. */
+#panel-observations > details > summary::after {
+  content: "";
+  flex: 1 1 auto;
+  margin-left: 4px;
+  height: 7px;
+  border-radius: 3px;
+  background: rgba(var(--accent-rgb), 0.35);
+}
+
+#tle-section .tle-actions {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
+#tle-section .tle-actions button {
+  font-size: 11px;
+  padding: 3px 10px;
+  margin-top: 0;
+}
+#tle-section .tle-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#tle-section .tle-actions #tle-warn {
+  font-size: 10px; color: var(--warn);
+  margin-left: auto;
+}
+#tle-section textarea {
+  width: 100%;
+  min-height: 28px;
+  resize: vertical;
+  margin-top: 4px;
+}
+.panel input[type=text], .panel textarea, .panel select {
+  background: rgba(var(--ink-rgb), 0.04); border: 1px solid rgba(var(--ink-rgb), 0.08);
+  color: var(--text-plain); padding: 4px 6px; border-radius: 4px;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+}
+.panel textarea { width: 100%; min-height: 26px; resize: vertical; margin-top: 4px; }
+.panel button {
+  background: rgba(var(--accent-rgb), 0.12); border: 1px solid rgba(var(--accent-rgb), 0.4);
+  color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  font-size: 12px; margin-top: 8px;
+}
+.panel button:hover { background: rgba(var(--accent-rgb), 0.22); }
+
+.timestamp-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.timestamp-row input { width: 250px; }
+.hint { color: var(--muted); font-size: 11px; }
+
+.opt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  font-size: 11px; color: var(--text); cursor: pointer; user-select: none; }
+.opt-row input { margin: 0; }
+
+
+/* Scroll the observer list within its own bounds so a long list
+   doesn't push the whole left panel taller than the viewport. Bound
+   by ~40% of the viewport. The negative-margin + padding-right pair
+   bleeds the list into the panel's right gutter so the scrollbar
+   lives in otherwise-empty pane space instead of overlapping cards. */
+#obs-list {
+  display: flex; flex-direction: column;
+  gap: 6px; margin-bottom: 8px;
+  max-height: 40vh; overflow-y: auto;
+  margin-right: -12px;
+  padding-right: 12px;
+}
+
+.obs-card {
+  background: rgba(var(--ink-rgb), 0.025);
+  border: 1px solid rgba(var(--ink-rgb), 0.06);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.obs-card:hover {
+  background: rgba(var(--accent-rgb), 0.07);
+  border-color: rgba(var(--accent-rgb), 0.28);
+}
+.obs-card:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.7);
+  outline-offset: 2px;
+}
+.obs-card-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.color-swatch {
+  width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid rgba(var(--ink-rgb), 0.18); display: inline-block;
+}
+.obs-card-header input[data-field=name] {
+  flex: 1; background: transparent; border: 1px solid transparent;
+  font-weight: 600; font-size: 13px; font-family: inherit;
+  padding: 3px 6px; color: var(--text-plain);
+}
+.obs-card-header input[data-field=name]:hover,
+.obs-card-header input[data-field=name]:focus {
+  background: rgba(var(--ink-rgb), 0.04); border-color: rgba(var(--ink-rgb), 0.08);
+  outline: none;
+}
+.obs-card-header .remove {
+  background: transparent; border: none; color: var(--muted); cursor: pointer;
+  font-size: 14px; padding: 3px 7px; margin: 0; border-radius: 4px;
+}
+.obs-card-header .remove:hover {
+  background: rgba(var(--danger-rgb), 0.12); color: var(--danger);
+}
+
+.obs-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px; margin-top: 4px;
+}
+.obs-row.mode-row { grid-template-columns: 90px 1fr 1fr; }
+.field {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(var(--ink-rgb), 0.04);
+  border: 1px solid rgba(var(--ink-rgb), 0.06);
+  border-radius: 5px; padding: 2px 6px;
+  min-width: 0;
+}
+.field:focus-within { border-color: rgba(var(--accent-rgb), 0.5); }
+.field-label {
+  font-size: 9px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+  min-width: 22px; flex-shrink: 0;
+}
+.field input, .field select {
+  flex: 1; min-width: 0; background: transparent !important;
+  border: none !important; padding: 3px 0 !important;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
+  color: var(--text-plain);
+}
+.field input:focus, .field select:focus { outline: none; }
+.field select { padding-right: 16px !important; }
+
+.footnote { color: var(--faint); font-size: 10px; margin-top: 6px; line-height: 1.4; }
+.footnote code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px;
+  background: rgba(var(--ink-rgb), 0.04); padding: 1px 4px; border-radius: 3px; }
+
+.result-block { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10.5px;
+  line-height: 1.4;
+  background: rgba(var(--ink-rgb), 0.04); padding: 5px 8px; border-radius: 5px;
+  margin-bottom: 4px; white-space: pre-wrap; }
+.result-block:last-child { margin-bottom: 0; }
+.result-block .label { color: var(--accent); font-weight: 600; }
+
+#camera-controls { position: absolute; bottom: 16px; right: 16px;
+  display: flex; gap: 6px; z-index: 1000; }
+#camera-controls button {
+  background: var(--map-panel); border: 1px solid rgba(var(--edge-rgb), 0.3);
+  color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  backdrop-filter: blur(12px); font-size: 12px;
+}
+#camera-controls button:hover { background: rgba(var(--accent-rgb), 0.18); }
+#camera-controls button.active {
+  background: rgba(var(--accent-rgb), 0.35);
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+
+#sim-time {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 1000;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
+  color: var(--text); letter-spacing: 0.04em;
+  background: rgba(var(--bg-rgb), 0.7); padding: 6px 12px; border-radius: 6px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(var(--edge-rgb), 0.25);
+  white-space: nowrap; pointer-events: none;
+}
+/* Imagery picker sits inline in the camera-controls bar so it can't
+   overlap the left panel when the panel is tall. */
+#imagery-picker {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--map-panel);
+  border: 1px solid rgba(var(--edge-rgb), 0.3);
+  border-radius: 6px; padding: 4px 8px;
+  backdrop-filter: blur(12px);
+  color: var(--text);
+}
+.picker-label {
+  font-size: 9px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+}
+#imagery-select {
+  background: rgba(var(--ink-rgb), 0.04); border: 1px solid rgba(var(--ink-rgb), 0.08);
+  color: var(--text-plain); padding: 2px 4px; border-radius: 4px;
+  font-size: 11px; font-family: inherit;
+  min-width: 140px;
+}
