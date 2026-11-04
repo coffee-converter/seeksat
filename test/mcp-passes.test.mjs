@@ -121,11 +121,14 @@ test('findPasses and nextPassWindow work on an OMM-only (6-digit) record', () =>
   assert.deepEqual(win, nextPassWindow({ record: tle, ...args }));
 });
 
-test('GOES 16 from EN52ve: no passes, a fixed pointing', () => {
+test('GOES 16 from EN52ve: no passes, a nearly fixed pointing', () => {
   const r = findPasses({ record: recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), observer: EN52VE, startMs: GOES_T0 });
   assert.equal(r.passes.length, 0);
   assert.equal(r.stationary.visible, true);
-  assert.equal(r.stationary.note, 'Geostationary: it stays at this point in your sky.');
+  // This element set has 0.7 deg of inclination: it wanders about 1.4 deg a day.
+  assert.equal(r.stationary.motion, 'nearly');
+  assert.match(r.stationary.note, /^Nearly geostationary/);
+  assert.equal(r.stationary.elevationRangeDeg.length, 2);
   assert.equal(r.unavailable, false);
   assert.ok(r.stationary.elevationDeg > 30 && r.stationary.elevationDeg < 45);
 });
