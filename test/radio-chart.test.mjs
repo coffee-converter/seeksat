@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel, compassPoint, elevationScale, pointingMarks, withUplink, radioChartCaption, RADIO_ROLE_COLORS } from '../lib/pass-finder/radio-chart.js';
+import { niceAxisMax, panelScale, timeTicks, fmtDopplerLeg, formatLocalTime, fmtTick, formatZoneAbbr, panelsFor, axisTicks, elevationMarks, statTiles, tuneLabel, compassPoint, elevationScale, pointingMarks, withUplink, radioChartCaption, RADIO_ROLE_COLORS, dopplerExtremes, tuneRows } from '../lib/pass-finder/radio-chart.js';
 
 test('niceAxisMax rounds up to a readable bound', () => {
   assert.equal(niceAxisMax(10940), 12000);
@@ -331,4 +331,19 @@ test('slow rates keep two significant figures', () => {
 test('approaching is blue and receding red, as blueshift and redshift', () => {
   assert.equal(RADIO_ROLE_COLORS.approach, '#7eb8ff');
   assert.equal(RADIO_ROLE_COLORS.recede, '#ff7b6b');
+});
+
+test('dopplerExtremes: the largest shift each way, wherever it falls', () => {
+  const ex = dopplerExtremes(DAY_SAMPLES);
+  assert.equal(ex.high.dopplerHz, 1500);
+  assert.ok(ex.low.dopplerHz < -1499);
+  assert.ok(ex.low.tMs > DAY0 && ex.low.tMs < DAY0 + 86_400_000);
+  assert.deepEqual(dopplerExtremes([{ tMs: 0, dopplerHz: null }]), { high: null, low: null });
+});
+
+test('a 24-hour tune table gives the highest and lowest frequency, not elevation crossings', () => {
+  const series = { samples: DAY_SAMPLES, summary: { tcaMs: DAY0 + 3_600_000 } };
+  const rows = tuneRows(series, { freqHz: 2.2201e9, day: true, tz: 'UTC' });
+  assert.deepEqual(rows.map((r) => r.label).sort(), ['Closest approach', 'Highest frequency', 'Lowest frequency']);
+  assert.ok(tuneRows(series, { freqHz: 2.2201e9, tz: 'UTC' }).some((r) => /^30° /.test(r.label)));
 });
