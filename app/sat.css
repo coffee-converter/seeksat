@@ -23,7 +23,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-passlist { list-style: none; margin: 0; padding: 0; }
 .sat-show-all { margin-top: var(--sp-12); }
 .sat-zone { margin: var(--sp-4) 0 var(--sp-8); }
-.sat-pass { padding: var(--sp-8) 0; border-bottom: var(--line-subtle); }
+.sat-pass { padding: var(--sp-8) 0; border-bottom: var(--line-subtle); container-type: inline-size; }
 /* Passes under day headings: the same Starts, Max and Lasts columns and
    rating pill as the home cards, then where to look below. */
 .sat-day-group + .sat-day-group { margin-top: var(--sp-16); }
@@ -48,7 +48,9 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-pass__rating { grid-area: rating; justify-self: end; }
 .sat-pass__rating .quality,
 .sat-pass__rating .cloud { margin-left: 0; }
-@media (max-width: 600px) {
+/* A narrow row (a phone, or the side panel beside the map) puts the rating
+   above the stats, so the three columns keep the whole width. */
+@container (max-width: 34em) {
   .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
   .sat-pass__rating { justify-self: start; }
 }
