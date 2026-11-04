@@ -112,6 +112,9 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
     // A later choice (GPS, another search) or closing the prompt wins over
     // this answer when it comes back.
     const mine = ++attempt.current;
+    // This search replaces a GPS request still waiting: stop its timer, or
+    // it would report "unavailable" over this search's answer.
+    stopWaiting();
     setTextBusy(true);
     const found = await geocodeOne(parsed.query);
     setTextBusy(false);
