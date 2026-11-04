@@ -39,14 +39,17 @@ function StatCell({ stat, live = false }: { stat: Stat; live?: boolean }) {
  * the same place on every home card and satellite page row. `mag` goes under
  * Lasts in visual mode; `weekday: false` suits a list under day headings.
  */
-export default function PassStats({ pass, nowMs, timeZone, mag = null, weekday = true, className = "" }: {
-  pass: StatPass; nowMs: number; timeZone?: string; mag?: string | null; weekday?: boolean; className?: string;
+export default function PassStats({ pass, nowMs, timeZone, mag = null, maxSub, weekday = true, className = "" }: {
+  pass: StatPass; nowMs: number; timeZone?: string; mag?: string | null;
+  /** Replaces the line under Max (its compass point); null leaves it empty. */
+  maxSub?: string | null;
+  weekday?: boolean; className?: string;
 }) {
   const stats = statsOf(pass, nowMs, { timeZone, clock: passTime, weekday });
   return (
     <dl className={`pass-card__stats${className ? ` ${className}` : ""}`}>
       <StatCell stat={stats.first} live={stats.first.label === "Ends"} />
-      <StatCell stat={stats.max} />
+      <StatCell stat={maxSub === undefined ? stats.max : { ...stats.max, sub: maxSub }} />
       <StatCell stat={{ ...stats.last, sub: mag }} />
     </dl>
   );

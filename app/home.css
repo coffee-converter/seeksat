@@ -515,9 +515,30 @@
 }
 .pass-card__tag--viewing { color: var(--map-accent); }
 /* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
-.pass-card__fact { white-space: nowrap; }
 /* Where to look, in words. It may wrap on a phone; a time never breaks. */
-.pass-card__words { margin: 0; color: var(--map-text); font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+/* Where the pass goes, as columns: Rises SW 3:48 · Peaks NW 3:55 · Sets NE 4:02. */
+.pass-path {
+  display: grid;
+  grid-template-columns: repeat(var(--pass-path-cols, 3), minmax(0, 1fr));
+  gap: var(--sp-8);
+  margin: 0;
+}
+.pass-path__step dt { color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-path__step dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); white-space: nowrap; }
+/* Radio mode: what to listen and transmit on, as a small table. */
+.pass-card__radio { margin-top: var(--sp-4); }
+.radio-rows {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-12);
+  margin: 0;
+}
+.radio-rows dt { color: var(--map-muted); font-size: var(--fs-sm); }
+.radio-rows dd { margin: 0; }
+.radio-rows__freq { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); white-space: nowrap; }
+.radio-rows__note { justify-self: end; text-align: right; color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-card__radio-none { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); }
 /* A pass card: the name and rating on top, the plot beside three stat
    columns (Starts, Max, Lasts) that sit in the same place on every card,
    then where to look, the facts and the buttons. */

@@ -5,7 +5,7 @@ import { findPasses } from '../lib/passes/engine.mjs';
 import { visualQuality } from '../lib/sky/visual-rating.mjs';
 import { passQuality } from '../lib/passes/quality.mjs';
 import { timeFormat } from '../lib/home/view.mjs';
-import { ratingShort, passWords, bestPass, riseDopplerHz } from '../lib/passes/pass-words.mjs';
+import { ratingShort, passWords, passPath, bestPass, riseDopplerHz, dopplerHzAt } from '../lib/passes/pass-words.mjs';
 import { ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 import { EN52VE, recordFrom } from './fixtures/orbits.mjs';
 
@@ -156,4 +156,28 @@ test('passWords: startTime false says a pass that appears at its peak does so, n
   assert.equal(passWords(atPeak, { ...z, startTime: false }), 'Appears at its peak · fades in the SE 6:31 PM');
   // With its start time (the satellite page's old rows), it keeps the full clause.
   assert.equal(passWords(atPeak, z), 'Appears 35° SE 6:27 PM · fades in the SE 6:31 PM');
+});
+
+const P = (over = {}) => ({
+  startMs: 0, peakMs: 300_000, endMs: 600_000, startAzDeg: 225, peakAzDeg: 315, endAzDeg: 45,
+  maxElevDeg: 31, startElevDeg: 0, endElevDeg: 0, ...over,
+});
+
+test('passPath: rises, peaks, sets, each with a compass point and time', () => {
+  assert.deepEqual(passPath(P()).map((s) => [s.label, s.dir, s.ms]), [['Rises', 'SW', 0], ['Peaks', 'NW', 300_000], ['Sets', 'NE', 600_000]]);
+});
+
+test('passPath follows passWords: minimum elevation, visual appear and fade, up now, peak at an edge', () => {
+  assert.deepEqual(passPath(P(), { minElevDeg: 10 }).map((s) => s.label), ['Above 10°', 'Peaks', 'Below 10°']);
+  assert.deepEqual(passPath(P({ startElevDeg: 20, endElevDeg: 15 }), { mode: 'visual' }).map((s) => s.label), ['Appears', 'Peaks', 'Fades']);
+  assert.deepEqual(passPath(P({ inProgress: true })).map((s) => s.label), ['Peaks', 'Sets']);
+  assert.deepEqual(passPath(P({ peakMs: 10_000 })).map((s) => s.label), ['Rises', 'Sets']);
+});
+
+test('dopplerHzAt: positive approaching at rise, negative receding at set, matching riseDopplerHz at the start', () => {
+  const pass = findPasses({ track: ISS, observers: [EN52VE], mode: 'radio', startMs: T0, endMs: T0 + DAY }).passes.find((x) => !x.inProgress);
+  const hz = 437_800_000;
+  const rise = dopplerHzAt(ISS, EN52VE, pass.startMs, hz);
+  assert.ok(rise > 0 && dopplerHzAt(ISS, EN52VE, pass.endMs - 1000, hz) < 0);
+  assert.equal(rise, riseDopplerHz(ISS, EN52VE, pass, hz));
 });

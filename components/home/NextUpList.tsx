@@ -9,7 +9,7 @@ import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import { elementTags } from "@/lib/home/view.mjs";
 import PassStats, { FlashText, passTime as cardTime } from "@/components/passes/PassStats";
-import { bestPass, passWords, riseDopplerHz } from "@/lib/passes/pass-words.mjs";
+import { bestPass, dopplerHzAt, passPath } from "@/lib/passes/pass-words.mjs";
 import { passQuality } from "@/lib/passes/quality.mjs";
 import { formatPassDuration } from "@/lib/passes/format.mjs";
 import { defaultDownlink } from "@/lib/catalog.mjs";
@@ -26,6 +26,8 @@ import { liveAvailable } from "@/lib/live/live-state.mjs";
 import AlertBell from "@/components/AlertBell";
 import Disclosure from "@/components/ui/Disclosure";
 import Button from "@/components/ui/Button";
+import Surface from "@/components/ui/Surface";
+import { useHomeStore } from "@/lib/home/store";
 import { buttonClass, cx, surfaceClass } from "@/lib/ui/classes.mjs";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 
@@ -83,43 +85,86 @@ const IDLE_PAINT_MS = 30_000;
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
-const wordsOf = passWords as (pass: Pass, o: {
-  timeZone?: string; mode: string; minElevDeg: number; clock: (ms: number, tz?: string) => string; startTime?: boolean;
-}) => string;
-const dopplerAt = riseDopplerHz as (track: Track, obs: HomeObserver, pass: Pass, hz: number) => number | null;
-const downlinkOf = defaultDownlink as (track: Track) => { hz: number; uplink?: { hz: number; tone?: number } } | null;
 const elevRating = passQuality as (pass: Pass) => Quality;
 type Best = { noradId: number; name: string; pass: Pass; rating: Quality };
 const bestOf = bestPass as unknown as (cards: Card[], o: { rate: (card: Card, pass: Pass) => Quality; nowMs: number; hours: number }) => Best | null;
 const duration = (ms: number) => (formatPassDuration as (s: number) => string)(ms / 1000);
 
-/** "4m10s above 10° · 1m30s above 30°" for a radio pass; a zero figure is left out. */
-function timeAboveText(pass: Pass): string | null {
-  const parts = [];
-  if (pass.msAbove10) parts.push(`${duration(pass.msAbove10)} above 10°`);
-  if (pass.msAbove30) parts.push(`${duration(pass.msAbove30)} above 30°`);
-  return parts.length ? parts.join(" · ") : null;
+/** "8m above 10°", under Lasts on a radio card (short enough for a phone's
+ *  column); null when it never gets there. */
+function aboveTenText(pass: Pass): string | null {
+  if (!pass.msAbove10) return null;
+  const min = Math.round(pass.msAbove10 / 60_000);
+  return min >= 1 ? `${min}m above 10°` : `${duration(pass.msAbove10)} above 10°`;
 }
 
-/** "437.800 MHz, +9.2 kHz at rise" for the satellite's default downlink (the
- *  one the radio chart opens on). Null without a downlink, or for a pass
- *  already up, whose start is now rather than its rise. */
-function riseDopplerText(track: Track, observer: HomeObserver, pass: Pass): string | null {
-  const link = downlinkOf(track);
-  if (!link || pass.inProgress) return null;
-  const hz = dopplerAt(track, observer, pass, link.hz);
-  if (hz == null) return null;
-  const khz = Math.abs(hz / 1000).toFixed(1);
-  const sign = hz < 0 && khz !== "0.0" ? "−" : "+";
-  return `${(link.hz / 1e6).toFixed(3)} MHz, ${sign}${khz} kHz at rise`;
+type PathStep = { key: string; label: string; dir: string; ms: number };
+const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number }) => PathStep[];
+
+/** The pass as columns: Rises SW 3:48 · Peaks NW 3:55 · Sets NE 4:02. */
+function PassPath({ pass, mode, minElevDeg, timeZone }: { pass: Pass; mode: string; minElevDeg: number; timeZone?: string }) {
+  const steps = pathOf(pass, { mode, minElevDeg });
+  return (
+    <dl className="pass-path" style={{ "--pass-path-cols": steps.length } as React.CSSProperties}>
+      {steps.map((st) => (
+        <div key={st.key} className="pass-path__step">
+          <dt>{st.label}</dt>
+          <dd className="num">{`${st.dir} ${cardTime(st.ms, timeZone)}`}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
-/** "Uplink 145.850 MHz · 67.0 Hz tone" for the default downlink's repeater or
- *  transponder; the live view gives the Doppler-corrected uplink. */
-function uplinkFactText(track: Track): string | null {
-  const up = downlinkOf(track)?.uplink;
-  if (!up) return null;
-  return `Uplink ${(up.hz / 1e6).toFixed(3)} MHz${up.tone != null ? ` · ${up.tone.toFixed(1)} Hz tone` : ""}`;
+const khz = (hz: number) => {
+  const k = Math.abs(hz / 1000).toFixed(1);
+  return `${hz < 0 && k !== "0.0" ? "\u2212" : "+"}${k}`;
+};
+const mhz = (hz: number) => (hz / 1e6).toFixed(3);
+type Uplink = { hz: number; highHz?: number; mode?: string; tone?: number; invert?: boolean };
+type Link = { hz: number; mode?: string | null; uplink?: Uplink };
+const linkOf = defaultDownlink as (track: Track) => Link | null;
+
+/** Radio mode: what to listen on and transmit on for this pass. The Doppler
+ *  runs from rise (or now, for a pass already up) to set; the live view has
+ *  the moment-by-moment figures. */
+function RadioPanel({ track, observer, pass, nowMs, banded }: {
+  track: Track; observer: HomeObserver; pass: Pass; nowMs: number; banded: boolean;
+}) {
+  const link = linkOf(track);
+  const swing = useMemo(() => {
+    if (!link) return null;
+    const from = dopplerHzAt(track, observer, pass.inProgress ? Math.max(nowMs, pass.startMs) : pass.startMs, link.hz);
+    const to = dopplerHzAt(track, observer, pass.endMs - 1000, link.hz);
+    return from == null || to == null ? null : `${khz(from)} \u2192 ${khz(to)} kHz`;
+  // nowMs only matters for a pass already up; minute steps are plenty.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [link, track, observer, pass, pass.inProgress ? Math.floor(nowMs / 60_000) : 0]);
+  if (!link) {
+    return (
+      <Surface padded="sm" className="pass-card__radio">
+        <p className="pass-card__radio-none">{banded ? "No known downlink in your bands" : "No known downlink"}</p>
+      </Surface>
+    );
+  }
+  const up = link.uplink;
+  const upNote = up ? [up.tone != null ? `${up.tone.toFixed(1)} Hz tone` : null, up.invert ? "inverting" : null].filter(Boolean).join(", ") : "";
+  return (
+    <Surface padded="sm" className="pass-card__radio">
+      <dl className="radio-rows">
+        <dt>Listen</dt>
+        <dd className="radio-rows__freq num">{`${mhz(link.hz)}${link.mode ? ` ${link.mode.toUpperCase()}` : ""}`}</dd>
+        <dd className="radio-rows__note num">{swing ?? ""}</dd>
+        {up && (
+          <>
+            <dt>Transmit</dt>
+            <dd className="radio-rows__freq num">{`${up.highHz ? `${mhz(up.hz)}\u2013${(up.highHz / 1e6).toFixed(3).slice(-3)}` : mhz(up.hz)}${up.mode ? ` ${up.mode.toUpperCase()}` : ""}`}</dd>
+            <dd className="radio-rows__note">{upNote}</dd>
+          </>
+        )}
+      </dl>
+    </Surface>
+  );
 }
 
 function ElementTags({ track, nowMs }: { track: Track | undefined; nowMs: number }) {
@@ -215,15 +260,10 @@ function PassCard({
   const visual = mode === "visual";
   const rating = visual ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) }) : undefined;
   const mag = visual ? peakMagText(pass) : null;
-  // The Starts column shows the start time, so the words line leaves it out.
-  const words = wordsOf(pass, { timeZone: observer.tz, mode, minElevDeg, clock: cardTime, startTime: false });
-  const above = visual ? null : timeAboveText(pass);
-  const tune = useMemo(() => (visual ? null : riseDopplerText(track, observer, pass)), [visual, track, observer, pass]);
-  // Radio mode, nothing to tune to: say so, so a missing frequency is not
-  // read as a missing feature.
-  const noDownlink = !visual && track.downlinks.length === 0;
-  const uplinkFact = visual ? null : uplinkFactText(track);
-  const hasMeta = (!visual && pass.visible) || above != null || tune != null || uplinkFact != null || noDownlink || viewing != null ||
+  // Under Lasts: the peak magnitude when watching, time above 10° for radio.
+  const lastSub = visual ? mag : aboveTenText(pass);
+  const banded = useHomeStore((st) => st.prefs.bands) != null;
+  const hasMeta = (!visual && pass.visible) || viewing != null ||
     (elementTags(track, nowMs) as string[]).length > 0;
 
   // Paints with the clock of the render that changed paintKey.
@@ -270,17 +310,15 @@ function PassCard({
       <div className="pass-card__plot">
         <PolarPlotSvg ref={svgRef} />
       </div>
-      <PassStats pass={pass} nowMs={nowMs} timeZone={observer.tz} mag={mag} />
+      {/* The path strip below says where it peaks, so Max keeps only the height. */}
+      <PassStats pass={pass} nowMs={nowMs} timeZone={observer.tz} mag={lastSub} maxSub={null} />
       <div className="pass-card__body">
-        <p className="pass-card__words num">{words}</p>
+        <PassPath pass={pass} mode={mode} minElevDeg={minElevDeg} timeZone={observer.tz} />
+        {!visual && <RadioPanel track={track} observer={observer} pass={pass} nowMs={nowMs} banded={banded} />}
         {hasMeta && (
           <p className="pass-card__meta">
             {/* Every pass listed in visual mode is visible, so only radio says so. */}
             {!visual && pass.visible && <span className="pass-card__tag">visible</span>}
-            {above && <span className="pass-card__fact">{above}</span>}
-            {tune && <span className="pass-card__fact">{tune}</span>}
-            {uplinkFact && <span className="pass-card__fact">{uplinkFact}</span>}
-            {noDownlink && <span className="pass-card__fact">No known downlink</span>}
             <ElementTags track={track} nowMs={nowMs} />
             <ViewingTag viewing={viewing} />
           </p>
