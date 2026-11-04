@@ -224,7 +224,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     followed: prefs.following, hidden: prefs.hidden, pageId: data.noradId,
   }), [prefs.following, prefs.hidden, data.noradId]);
   const { sats } = useMapSats({
-    layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg,
+    layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio",
   });
   // One chip per followed satellite, as on the home page: tap to focus,
   // the eye to hide or show.
@@ -233,7 +233,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     name: mapTracks.get(id)?.shortName ?? CATALOG.find((c) => c.noradId === id)?.shortName ?? `NORAD ${id}`,
     color: colors.get(id) ?? SAT_PALETTES[theme][0],
     hidden: prefs.hidden.includes(id),
-  })), [prefs.following, prefs.hidden, mapTracks, colors, theme]);
+    radio: settings.mode === "radio" && (mapTracks.get(id)?.downlinks.length ?? 0) > 0,
+  })), [prefs.following, prefs.hidden, mapTracks, colors, theme, settings.mode]);
 
   const [nextPass, setNextPass] = useState<NextPassReport>(undefined);
   const passes = useRef<PassSectionHandle>(null);

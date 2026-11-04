@@ -235,7 +235,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     name: nameOf(id),
     color: colors.get(id) ?? SAT_PALETTES[theme][0],
     hidden: prefs.hidden.includes(id),
-  })), [prefs.following, prefs.hidden, nameOf, colors, theme]);
+    radio: prefs.mode === "radio" && (allTracks.get(id)?.downlinks.length ?? 0) > 0,
+  })), [prefs.following, prefs.hidden, nameOf, colors, theme, prefs.mode, allTracks]);
 
   const location = prefs.location;
   const observer = useMemo<HomeObserver | null>(
@@ -262,7 +263,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   }, [layers, allTracks]);
 
   const { sats } = useMapSats({
-    layers, tracks: allTracks, colors, nowMs, minElevDeg: prefs.minElevDeg,
+    layers, tracks: allTracks, colors, nowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio",
   });
 
   // Cards: on any input change, every 10 min, and when a pass starts or ends.

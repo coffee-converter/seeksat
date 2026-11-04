@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { cx } from "@/lib/ui/classes.mjs";
+import RadioMark from "./RadioMark";
 
 interface Props {
   /** The dot and focus-ring colour. */
@@ -13,14 +14,16 @@ interface Props {
   onSelect: () => void;
   /** Adds the eye button; omit for a chip that only selects. */
   onToggleHidden?: () => void;
+  /** Known radio downlinks (shown in radio mode): the dot becomes the radio mark. */
+  radio?: boolean;
 }
 
 /** One chip: a dot and a name (selects), plus an eye (hides). Render inside a <ul>. */
-export default function Chip({ color, label, focused = false, hidden = false, onSelect, onToggleHidden }: Props) {
+export default function Chip({ color, label, focused = false, hidden = false, onSelect, onToggleHidden, radio = false }: Props) {
   return (
     <li className={cx("chip", hidden && "chip--hidden", focused && "chip--focus")} style={{ "--chip-color": color } as CSSProperties}>
       <button type="button" className="chip__name" aria-pressed={focused} onClick={onSelect}>
-        <span className="chip__dot" aria-hidden="true" />
+        {radio ? <RadioMark className="chip__radio" label="known downlinks" /> : <span className="chip__dot" aria-hidden="true" />}
         {label}
       </button>
       {onToggleHidden ? (

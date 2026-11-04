@@ -7,6 +7,8 @@ export interface Chip {
   name: string;
   color: string;
   hidden: boolean;
+  /** Known radio downlinks, in radio mode. */
+  radio?: boolean;
 }
 
 interface Props {
@@ -32,6 +34,7 @@ export default function SatChips({ chips, focusId, onFocus, onToggleHidden }: Pr
             label={c.name}
             focused={focused}
             hidden={c.hidden}
+            radio={c.radio}
             onSelect={() => onFocus(focused ? null : c.noradId)}
             onToggleHidden={() => onToggleHidden(c.noradId)}
           />

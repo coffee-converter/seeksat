@@ -31,13 +31,15 @@ const NO_TRACK: Split = { trackPast: NO_LINE, trackFuture: NO_LINE, trackTicks: 
 const TRACK_REFRESH_MS = 60_000;
 
 export function useMapSats({
-  layers, tracks, colors, nowMs, minElevDeg,
+  layers, tracks, colors, nowMs, minElevDeg, radio,
 }: {
   layers: Layer[];
   tracks: ReadonlyMap<number, MapTrack>;
   colors: ReadonlyMap<number, string>;
   nowMs: number | null;
   minElevDeg: number;
+  /** Radio mode: dots with known downlinks get the radio mark. */
+  radio: boolean;
 }): { sats: MapSat[] } {
   // Ground tracks are the costly part: once a minute, and only for the
   // satellites that draw one (not ghosts or hidden ones).
@@ -89,9 +91,9 @@ export function useMapSats({
         emphasis,
         orbitClass: t.orbitClass,
         tickMin: tickStepMin(t.periodMs),
-        radio: t.downlinks.length > 0,
+        radio: radio && t.downlinks.length > 0,
       });
     }
     return { sats };
-  }, [nowMs, layers, tracks, ground, colors, minElevDeg]);
+  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio]);
 }

@@ -454,8 +454,13 @@ select.field__control {
   border-radius: 50%;
   background: var(--chip-color, var(--map-accent));
 }
+/* In radio mode a chip with known downlinks shows the radio mark for its dot. */
+.chip__radio { flex: none; width: 16px; height: 16px; color: var(--chip-color, var(--map-accent)); }
 .chip__eye { padding: 0 var(--sp-8) 0 var(--sp-6); color: var(--map-muted); border-radius: 0 var(--radius-full) var(--radius-full) 0; }
 .chip__eye:hover { color: var(--map-text); }
 .chip button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-full); }
 .chip--hidden { opacity: 0.5; }
 .chip--hidden .chip__name { text-decoration: line-through; }
+
+/* The radio mark icon (components/ui/RadioMark.tsx): sits on the text line. */
+.radio-mark { display: inline-block; flex: none; vertical-align: -0.15em; }

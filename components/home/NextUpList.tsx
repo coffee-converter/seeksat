@@ -211,7 +211,10 @@ function PassCard({
   const words = wordsOf(pass, { timeZone: observer.tz, mode, minElevDeg, clock: cardTime, startTime: false });
   const above = visual ? null : timeAboveText(pass);
   const tune = useMemo(() => (visual ? null : riseDopplerText(track, observer, pass)), [visual, track, observer, pass]);
-  const hasMeta = (!visual && pass.visible) || above != null || tune != null || viewing != null ||
+  // Radio mode, nothing to tune to: say so, so a missing frequency is not
+  // read as a missing feature.
+  const noDownlink = !visual && track.downlinks.length === 0;
+  const hasMeta = (!visual && pass.visible) || above != null || tune != null || noDownlink || viewing != null ||
     (elementTags(track, nowMs) as string[]).length > 0;
 
   // Paints with the clock of the render that changed paintKey.
@@ -267,6 +270,7 @@ function PassCard({
             {!visual && pass.visible && <span className="pass-card__tag">visible</span>}
             {above && <span className="pass-card__fact">{above}</span>}
             {tune && <span className="pass-card__fact">{tune}</span>}
+            {noDownlink && <span className="pass-card__fact">No known downlink</span>}
             <ElementTags track={track} nowMs={nowMs} />
             <ViewingTag viewing={viewing} />
           </p>

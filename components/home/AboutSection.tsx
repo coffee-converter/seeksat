@@ -14,7 +14,7 @@ export default function AboutSection() {
       <p>
         Radio downlink frequencies come from{" "}
         <a className={linkClass()} href={SATNOGS_URL} target="_blank" rel="noreferrer">SatNOGS DB</a>
-        {" "}(CC BY-SA 4.0), refreshed daily, except a few we check by hand. Satellites with known downlinks show a radio mark on the map.
+        {" "}(CC BY-SA 4.0), refreshed daily, except a few we check by hand. In radio mode, satellites with known downlinks show a radio mark on the map.
       </p>
       <p>Cloud forecasts from Open-Meteo and MET Norway. For cloud forecasts, SeekSat&apos;s server asks them about your area, rounded to about 11 km.</p>
       <p>Reminders work only while SeekSat is open, in a tab or as an installed app.</p>
