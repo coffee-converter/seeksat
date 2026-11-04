@@ -117,3 +117,41 @@ test('drawStars: a halo only for the brightest, then every dot, bright ones last
   assert.ok(calls[2].r > calls[3].r * 2.5);
   assert.ok(f.mag[0] < GLOW_MAG && f.mag[1] > GLOW_MAG);
 });
+
+import { renderMilkyWay, skyFloor, globeRadiusPx, milkyWayStep } from '../lib/map/stars.mjs';
+
+// A synthetic sky map: dark at 20 everywhere, one bright block at RA 0h,
+// Dec 0 (the image's centre, which is RA 0h with RA increasing left).
+function fakeSky() {
+  const width = 360, height = 180;
+  const data = new Uint8ClampedArray(width * height * 4).fill(20);
+  for (let y = 85; y < 95; y++) for (let x = 175; x < 185; x++) {
+    const i = (y * width + x) * 4;
+    data[i] = 220; data[i + 1] = 220; data[i + 2] = 220;
+  }
+  return { data, width, height };
+}
+
+test('Milky Way: the map lands where the camera looks, dark sky stays clear', () => {
+  const sky = fakeSky();
+  const floor = skyFloor(sky.data);
+  assert.equal(floor, 20);
+  // Camera over lon 180, lat 0 at GMST 0 looks along +x Earth-fixed = RA 0h, Dec 0.
+  const cam = { lonDeg: 180, latDeg: 0, fovDeg: 36.87, width: 100, height: 80 };
+  const ow = 20, oh = 16, out = new Uint8ClampedArray(ow * oh * 4);
+  renderMilkyWay(sky, floor, out, ow, oh, 5, cam, 0);
+  const a = (i, j) => out[(j * ow + i) * 4 + 3];
+  assert.ok(a(10, 8) > 200, `centre ${a(10, 8)}`);
+  assert.equal(a(0, 0), 0);
+  // Behind the globe nothing is computed.
+  renderMilkyWay(sky, floor, out, ow, oh, 5, cam, 0, 30);
+  assert.equal(a(10, 8), 0);
+});
+
+test('Milky Way sampling matches the image detail; the globe radius from distance', () => {
+  const focal = 400 / Math.tan((18.435 * Math.PI) / 180);
+  assert.equal(milkyWayStep(focal, 1024), 7);
+  assert.ok(milkyWayStep(100, 1024) >= 3);
+  // At 2 Earth radii the limb is 30 deg off centre.
+  assert.ok(Math.abs(globeRadiusPx(2 * 6371, 1000) - 1000 * Math.tan(Math.PI / 6)) < 1e-6);
+});

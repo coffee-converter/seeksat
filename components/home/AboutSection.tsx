@@ -20,6 +20,9 @@ export default function AboutSection() {
       <p>Cloud forecasts from Open-Meteo and MET Norway. For cloud forecasts, SeekSat&apos;s server asks them about your area, rounded to about 11 km.</p>
       <p>Reminders work only while SeekSat is open, in a tab or as an installed app.</p>
       <p>
+        The sky behind the globe: stars from the Yale Bright Star Catalogue (Hoffleit &amp; Warren), and the Milky Way from NASA&apos;s Deep Star Maps 2020 (NASA/Goddard Space Flight Center Scientific Visualization Studio).
+      </p>
+      <p>
         AI agents can ask the same pass engine through <Link href="/mcp">MCP</Link>.
       </p>
       <p>

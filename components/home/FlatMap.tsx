@@ -200,6 +200,8 @@ const ZOOM_EPS = 0.01;
  *  field of view on a screen 800 px tall: a redraw this often keeps each
  *  step under half a pixel. */
 const STAR_TICK_MS = 5_000;
+/** How strongly it shows: faint, as from a dark site, under the stars. */
+const MILKY_WAY_ALPHA = 0.85;
 /** How long a shared link's camera waits for the map and its satellite. */
 const SHARED_CAMERA_MS = 20_000;
 /** How long a Lock on zoom (buttons, keys, double-click, mouse wheel) eases. */
@@ -562,6 +564,24 @@ export default function FlatMap({
     ]).then(([stars, data, coords, sun, moon, planets]) => {
       if (!alive) return;
       const field = stars.starField(data.STARS);
+      // The Milky Way image, read once into pixels; drawn when it arrives.
+      let milky: { data: Uint8ClampedArray; width: number; height: number; floor: number } | null = null;
+      const low = document.createElement("canvas");
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => {
+        if (!alive) return;
+        const c2 = document.createElement("canvas");
+        c2.width = img.naturalWidth;
+        c2.height = img.naturalHeight;
+        const x2 = c2.getContext("2d", { willReadFrequently: true });
+        if (!x2) return;
+        x2.drawImage(img, 0, 0);
+        const px = x2.getImageData(0, 0, c2.width, c2.height);
+        milky = { data: px.data, width: px.width, height: px.height, floor: stars.skyFloor(px.data) };
+        schedule();
+      };
+      img.src = "/sky/milkyway.jpg";
       draw = () => {
         const w = canvas.clientWidth, h = canvas.clientHeight;
         if (!w || !h) return;
@@ -577,18 +597,38 @@ export default function FlatMap({
         const c = map.getCenter();
         const now = new Date(trueNow());
         const cam = { lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(), width: w, height: h };
-        const placed = stars.projectStars(field, { ...cam, gmstRad: coords.gmstFromDate(now) });
-        stars.drawStars(ctx, field, placed);
-        // The Moon, the Sun and the bright planets, over the stars. The camera
-        // distance from public values, as MapLibre derives it: half the
+        const gmstRad = coords.gmstFromDate(now);
+        // Camera distance from public values, as MapLibre derives it: half the
         // height over tan(fov / 2) to the map's centre, and a 512 px tile world.
         const camToCenterPx = h / 2 / Math.tan((cam.fovDeg * Math.PI) / 360);
-        const worldSizePx = 512 * 2 ** map.getZoom();
+        const camDistKm = stars.cameraDistanceKm(camToCenterPx, 512 * 2 ** map.getZoom(), c.lat);
+        if (milky) {
+          // Sampled as finely as the image has detail, smoothed up; nothing
+          // computed behind the globe (a little inside its edge).
+          const step = stars.milkyWayStep(camToCenterPx, milky.width);
+          const hide = Math.max(0, stars.globeRadiusPx(camDistKm, camToCenterPx) - step * 1.5);
+          const ow = Math.ceil(w / step), oh = Math.ceil(h / step);
+          if (low.width !== ow || low.height !== oh) { low.width = ow; low.height = oh; }
+          const lctx = low.getContext("2d");
+          if (lctx) {
+            const buf = lctx.createImageData(ow, oh);
+            stars.renderMilkyWay(milky, milky.floor, buf.data, ow, oh, step, cam, gmstRad, hide);
+            lctx.putImageData(buf, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.globalAlpha = MILKY_WAY_ALPHA;
+            ctx.drawImage(low, 0, 0, ow, oh, 0, 0, ow * step, oh * step);
+            ctx.globalAlpha = 1;
+          }
+        }
+        const placed = stars.projectStars(field, { ...cam, gmstRad });
+        stars.drawStars(ctx, field, placed);
+        // The Moon, the Sun and the bright planets, over the stars.
         stars.drawBodies(ctx, stars.skyBodies({
           sunEcef: sun.sunPositionEcef(now),
           moonEcef: moon.moonPositionEcef(now),
           moonKm: moon.moonDistanceKm(now),
-          camDistKm: stars.cameraDistanceKm(camToCenterPx, worldSizePx, c.lat),
+          camDistKm,
           planets: planets.PLANET_NAMES.map((n: string) => ({
             name: n,
             dirEcef: planets.planetPositionEcef(n, now),
