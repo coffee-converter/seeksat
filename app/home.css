@@ -101,9 +101,10 @@
   pointer-events: none;
 }
 .flat-map__top > * { pointer-events: auto; }
-.flat-map__views { flex: none; margin-left: auto; }
-/* MapLibre's attribution sits above the zoom buttons, so opening it never covers them. */
-.flat-map .maplibregl-ctrl-bottom-right { bottom: 40px; }
+.flat-map__views { flex: none; display: flex; align-items: flex-start; gap: var(--sp-8); margin-left: auto; }
+/* MapLibre's attribution sits beside the zoom stack, in the bottom-right
+   corner, so opening it never covers the buttons. */
+.flat-map .maplibregl-ctrl-bottom-right { bottom: 0; right: 48px; }
 /* Its compact pill and info button in the map's colours (MapLibre draws them white). */
 .flat-map .maplibregl-ctrl.maplibregl-ctrl-attrib,
 .flat-map .maplibregl-ctrl-attrib.maplibregl-compact {
@@ -131,36 +132,46 @@
   outline-offset: -2px;
 }
 
+/* The map's corners: chips (and the focus bar) top left, map type and Share
+   top right, where-to-look views bottom left, and full screen over zoom in
+   and out bottom right, with the map credits beside them. */
 .flat-map__zoom {
   position: absolute;
-  left: 8px;
+  right: 8px;
   bottom: 8px;
   display: flex;
+  flex-direction: column;
   gap: var(--sp-4);
 }
-/* Globe camera buttons sit in a row above the zoom buttons (wrapping upward
-   on a very narrow map); the attribution moves up above them. */
+/* The views wrap upward on a narrow map, clear of the zoom stack and credits. */
 .flat-map__presets {
   position: absolute;
   left: 8px;
-  right: 8px;
-  bottom: 46px;
+  right: 88px;
+  bottom: 8px;
   display: flex;
   flex-wrap: wrap-reverse;
   gap: var(--sp-4);
   pointer-events: none;
 }
 .flat-map__presets .btn { pointer-events: auto; }
-.flat-map--globe .maplibregl-ctrl-bottom-right { bottom: 82px; }
-/* Phones: the camera buttons fold behind one View button in the zoom row, so
-   the globe stays in view; open, they sit above the row as before. */
-.flat-map__zoom .flat-map__view-pick { display: none; }
+/* Share shows at the top right, and View only on phones. */
+.flat-map__zoom .flat-map__view-pick,
+.flat-map__zoom .flat-map__share--row { display: none; }
+/* Phones: one row along the bottom (View or Reset view, +, -, full screen,
+   Share), the views behind View, opening above the row. */
 @media (max-width: 599.98px) {
-  .flat-map .flat-map__presets:not(.flat-map__presets--open) { display: none; }
-  /* Above the zoom row's taller touch buttons, clear of the map credits button. */
-  .flat-map .flat-map__presets { bottom: 58px; right: 52px; }
+  .flat-map__zoom { left: 8px; right: auto; flex-direction: row; }
   .flat-map__zoom .flat-map__view-pick { display: inline-flex; }
-  .flat-map--globe .maplibregl-ctrl-bottom-right { bottom: 40px; }
+  .flat-map__zoom .flat-map__full { order: 1; }
+  .flat-map__zoom .flat-map__share--row { display: inline-flex; order: 2; }
+  .flat-map__views .flat-map__share--top { display: none; }
+  .flat-map .flat-map__presets:not(.flat-map__presets--open) { display: none; }
+  /* Above the row's taller touch buttons, clear of the map credits button. */
+  .flat-map .flat-map__presets { bottom: 58px; right: 52px; }
+  /* The row stops short of the right edge: the credits take the corner,
+     level with it (opened, they lay over the row until closed). */
+  .flat-map .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }
 }
 
 /* Full screen: the native API when present, else this class (iPhone Safari). */
@@ -1166,9 +1177,11 @@
   .flat-map-shell--fill .flat-map__head { align-self: flex-start; max-width: min(640px, 100%); pointer-events: auto; }
   .flat-map-shell--fill .flat-map__head .focus-bar { margin: 0; box-shadow: var(--shadow-popover); }
   .flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
-  .flat-map-shell--fill .flat-map__zoom { left: auto; right: 10px; bottom: 10px; }
-  .flat-map-shell--fill .flat-map__presets { left: 10px; right: 10px; bottom: 48px; justify-content: flex-end; }
-  .flat-map-shell--fill .flat-map--globe .maplibregl-ctrl-bottom-right { bottom: 84px; }
+  /* Docked, the Legend holds the bottom-left corner: the views centre
+     between it and the zoom stack. */
+  .flat-map-shell--fill .flat-map__zoom { right: 12px; bottom: 12px; }
+  .flat-map-shell--fill .flat-map__presets { left: 120px; right: 120px; bottom: 12px; justify-content: center; }
+  .flat-map-shell--fill .maplibregl-ctrl-bottom-right { bottom: 4px; right: 52px; }
   /* The legend: a toggle at the bottom left that opens upward. */
   .flat-map-shell--fill .map-legend-box {
     grid-area: map;
