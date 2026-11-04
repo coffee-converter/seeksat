@@ -328,7 +328,7 @@ test('slow rates keep two significant figures', () => {
   assert.equal(tiles.find((t) => t.label === 'max angular rate').value, '0.0041°/s');
 });
 
-test('approaching is blue and receding orange, as blueshift and redshift', () => {
+test('approaching is blue and receding red, as blueshift and redshift', () => {
   assert.equal(RADIO_ROLE_COLORS.approach, '#7eb8ff');
-  assert.equal(RADIO_ROLE_COLORS.recede, '#ffb070');
+  assert.equal(RADIO_ROLE_COLORS.recede, '#ff7b6b');
 });
