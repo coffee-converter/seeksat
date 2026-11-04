@@ -23,6 +23,8 @@ import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
 import Disclosure from "@/components/ui/Disclosure";
 import PassStats from "@/components/passes/PassStats";
+import { defaultDownlink } from "@/lib/catalog.mjs";
+import { uplinkText } from "@/lib/radio/uplink.mjs";
 import { PassPath, RadioPanel, aboveTenText } from "@/components/passes/PassPath";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
@@ -384,6 +386,17 @@ export default function PassSection({
                   {`Location: ${observers.map((o) => o.name).join(", ")}. Mode: ${mode}. Minimum elevation: ${minElevDeg}°. Times are ${zone}.`}
                 </p>
               )}
+              {view.kind === "rows" && mode === "radio" && track && (() => {
+                // On paper there is no radio chart: say what to listen and transmit on.
+                const link = (defaultDownlink as (t: unknown) => { hz: number; mode?: string | null; uplink?: { hz: number; mode?: string; tone?: number; highHz?: number; invert?: boolean } } | null)(track);
+                if (!link) return null;
+                const up = link.uplink ? (uplinkText as (u: unknown) => string | null)(link.uplink) : null;
+                return (
+                  <p className="print-only sat-print-meta">
+                    {`Listen ${(link.hz / 1e6).toFixed(3)} MHz${link.mode ? ` ${link.mode.toUpperCase()}` : ""}${up ? `. ${up.replace(/^Uplink/, "Transmit")}` : ""}. Doppler shifts these by a few kHz during a pass.`}
+                  </p>
+                );
+              })()}
               {view.kind === "rows" && (() => {
                 const note = (printAccuracyNote as (rows: Row[]) => string | null)(view.rows);
                 return note ? <p className="print-only sat-print-meta">{note}</p> : null;
@@ -450,7 +463,10 @@ export default function PassSection({
                                 </span>
                               </div>
                               {!visual && track && observer && (
-                                <RadioPanel track={track as unknown as RadioTrack} observer={observer} pass={statPass} nowMs={nowMs} banded={banded} />
+                                <RadioPanel
+                                  track={track as unknown as RadioTrack} observer={observer} pass={statPass} nowMs={nowMs} banded={banded}
+                                  onMore={(e) => openChart("radio", row.pass, e)}
+                                />
                               )}
                               {(row.key === sharedKey || (!visual && row.visible) || row.runsPastEnd) && (
                                 <p className="sat-pass__line2">
