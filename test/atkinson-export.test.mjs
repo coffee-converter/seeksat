@@ -35,6 +35,7 @@ test('sky chart export embeds Atkinson Hyperlegible Next and uses it for text', 
   const s = serialize(svg);
   assert.match(s, FACE);
   assert.match(s, /\.cardinal[^}]*font-family: 'Atkinson Hyperlegible Next'/);
+  assert.doesNotMatch(s, /font-weight: 700/);
 });
 
 test('OG cards name Atkinson Hyperlegible Next for their text', () => {

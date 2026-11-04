@@ -23,3 +23,17 @@ test('rasterizeSvg renders a standalone SVG to PNG bytes at the given width', as
   assert.ok(Buffer.isBuffer(png) && png.length > 0);
   assert.equal(png.subarray(0, 4).toString('hex'), '89504e47'); // PNG magic
 });
+
+test('resvg resolves the bundled Atkinson faces (family and weight)', async () => {
+  const draw = (family, weight) => rasterizeSvg(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="60"><rect width="300" height="60" fill="#000"/>` +
+    `<text x="10" y="40" font-family="${family}" font-weight="${weight}" font-size="30" fill="#fff">Hamburg 0123</text></svg>`,
+    { width: 300 });
+  const a400 = await draw('Atkinson Hyperlegible Next', 400);
+  const a600 = await draw('Atkinson Hyperlegible Next', 600);
+  const missing = await draw('No Such Family', 400); // falls to defaultFontFamily (Atkinson)
+  assert.ok(!a400.equals(a600), 'SemiBold must be a distinct face from Regular');
+  assert.ok(a400.equals(missing), 'unknown family falls back to the bundled Atkinson default');
+  const blank = await rasterizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="60"><rect width="300" height="60" fill="#000"/></svg>`, { width: 300 });
+  assert.ok(!a400.equals(blank), 'text actually rendered');
+});
