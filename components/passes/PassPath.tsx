@@ -33,20 +33,21 @@ const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number })
 // set under Lasts, so the strip lines up on every card even when a step is left out.
 const COLUMN: Record<string, number> = { start: 1, peak: 2, end: 3 };
 
-/** Where the pass goes, under the stat columns: "Rises N / 4:51 AM". */
-export function PassPath({ pass, mode, minElevDeg, timeZone, className }: {
-  pass: Pass; mode: string; minElevDeg: number; timeZone?: string; className?: string;
+/** Where the pass goes, as cells for PassStats' grid, under its columns:
+ *  "Rises N / 4:51 AM". One grid sizes both rows' columns, so they line up. */
+export function PassPath({ pass, mode, minElevDeg, timeZone }: {
+  pass: Pass; mode: string; minElevDeg: number; timeZone?: string;
 }) {
   const steps = pathOf(pass, { mode, minElevDeg });
   return (
-    <dl className={className ? `pass-path ${className}` : "pass-path"}>
+    <>
       {steps.map((st) => (
-        <div key={st.key} className="pass-path__step" style={{ gridColumn: COLUMN[st.key] }}>
+        <div key={st.key} className="pass-path__step" style={{ gridColumn: COLUMN[st.key], gridRow: 2 }}>
           <dt>{st.label} <span className="pass-path__dir">{st.dir}</span></dt>
           <dd className="num">{cardTime(st.ms, timeZone)}</dd>
         </div>
       ))}
-    </dl>
+    </>
   );
 }
 

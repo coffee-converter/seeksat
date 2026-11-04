@@ -441,12 +441,13 @@ export default function PassSection({
                             >
                               <div className="sat-pass__head">
                                 {/* The path strip says where it peaks, so Max keeps only the height. */}
-                                <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={lastSub} maxSub={null} weekday={false} className="sat-pass__stats" />
+                                <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={lastSub} maxSub={null} weekday={false} className="sat-pass__stats">
+                                  <PassPath pass={statPass} mode={mode} minElevDeg={minElevDeg} timeZone={observer?.tz} />
+                                </PassStats>
                                 <span className="rating-pair sat-pass__rating">
                                   <QualityBadge pass={rated} rating={rating} maxShown pill />
                                   {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
                                 </span>
-                                <PassPath pass={statPass} mode={mode} minElevDeg={minElevDeg} timeZone={observer?.tz} className="sat-pass__path" />
                               </div>
                               {!visual && track && observer && (
                                 <RadioPanel track={track as unknown as RadioTrack} observer={observer} pass={statPass} nowMs={nowMs} banded={banded} />

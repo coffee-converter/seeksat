@@ -517,7 +517,6 @@
 /* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
 /* Where to look, in words. It may wrap on a phone; a time never breaks. */
 /* Where the pass goes, in the stat columns under Starts, Max and Lasts. */
-.pass-path { display: grid; row-gap: 0; margin: 0; }
 .pass-path__step dt { color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-path__dir { color: var(--map-text); font-weight: var(--fw-semibold); }
 .pass-path__step dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -540,12 +539,11 @@
 .pass-card--pass {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
-  grid-template-areas: "top top" "plot stats" "plot path" "body body";
+  grid-template-areas: "top top" "plot stats" "body body";
   column-gap: var(--sp-12);
   row-gap: var(--sp-8);
   align-items: center;
 }
-.pass-card--pass .pass-card__path { grid-area: path; }
 .pass-card--pass .pass-card__top {
   grid-area: top;
   display: flex;
@@ -564,9 +562,9 @@
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
-/* The stats and the path strip under them share columns, so they line up. */
-.pass-card__stats,
-.pass-path { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--sp-8); }
+/* Starts, Max and Lasts, and the path strip under them, in one grid: each
+   column as wide as its widest cell, the columns spread evenly across. */
+.pass-card__stats { grid-template-columns: repeat(3, auto); justify-content: space-between; column-gap: var(--sp-12); row-gap: var(--sp-8); }
 .pass-card__stat { min-width: 0; }
 .pass-card__stat dt { font-size: var(--fs-sm); color: var(--map-muted); }
 .pass-card__stat dd { margin: 0; }

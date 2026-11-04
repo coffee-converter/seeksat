@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { passStats, timeFormat } from "@/lib/home/view.mjs";
 import { useFlash } from "@/lib/ui/use-flash";
 
@@ -39,11 +41,13 @@ function StatCell({ stat, live = false }: { stat: Stat; live?: boolean }) {
  * the same place on every home card and satellite page row. `mag` goes under
  * Lasts in visual mode; `weekday: false` suits a list under day headings.
  */
-export default function PassStats({ pass, nowMs, timeZone, mag = null, maxSub, weekday = true, className = "" }: {
+export default function PassStats({ pass, nowMs, timeZone, mag = null, maxSub, weekday = true, className = "", children }: {
   pass: StatPass; nowMs: number; timeZone?: string; mag?: string | null;
   /** Replaces the line under Max (its compass point); null leaves it empty. */
   maxSub?: string | null;
   weekday?: boolean; className?: string;
+  /** More cells in the same three columns, such as the path strip (PassPath cells). */
+  children?: React.ReactNode;
 }) {
   const stats = statsOf(pass, nowMs, { timeZone, clock: passTime, weekday });
   return (
@@ -51,6 +55,7 @@ export default function PassStats({ pass, nowMs, timeZone, mag = null, maxSub, w
       <StatCell stat={stats.first} live={stats.first.label === "Ends"} />
       <StatCell stat={maxSub === undefined ? stats.max : { ...stats.max, sub: maxSub }} />
       <StatCell stat={{ ...stats.last, sub: mag }} />
+      {children}
     </dl>
   );
 }

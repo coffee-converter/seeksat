@@ -39,18 +39,17 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-pass__head {
   display: grid;
   grid-template-columns: minmax(0, 26em) auto;
-  grid-template-areas: "stats rating" "path .";
+  grid-template-areas: "stats rating";
   justify-content: space-between;
   align-items: start;
   gap: var(--sp-6) var(--sp-12);
 }
 .sat-pass__stats { grid-area: stats; }
-.sat-pass__path { grid-area: path; }
 .sat-pass__rating { grid-area: rating; justify-self: end; }
 .sat-pass__rating .quality,
 .sat-pass__rating .cloud { margin-left: 0; }
 @media (max-width: 600px) {
-  .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats" "path"; }
+  .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
   .sat-pass__rating { justify-self: start; }
 }
 /* The radio panel, tags and buttons under the head, evenly spaced. */

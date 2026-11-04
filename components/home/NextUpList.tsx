@@ -231,8 +231,9 @@ function PassCard({
         <PolarPlotSvg ref={svgRef} />
       </div>
       {/* The path strip below says where it peaks, so Max keeps only the height. */}
-      <PassStats pass={pass} nowMs={nowMs} timeZone={observer.tz} mag={lastSub} maxSub={null} />
-      <PassPath pass={pass} mode={mode} minElevDeg={minElevDeg} timeZone={observer.tz} className="pass-card__path" />
+      <PassStats pass={pass} nowMs={nowMs} timeZone={observer.tz} mag={lastSub} maxSub={null}>
+        <PassPath pass={pass} mode={mode} minElevDeg={minElevDeg} timeZone={observer.tz} />
+      </PassStats>
       <div className="pass-card__body">
         {!visual && <RadioPanel track={track} observer={observer} pass={pass} nowMs={nowMs} banded={banded} />}
         {hasMeta && (
