@@ -493,7 +493,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       ) : observer && (
         <>
           {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
-            <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} />
+            <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} radio={prefs.mode === "radio"} />
           )}
           {nowMs != null && prefs.following.length > 0 && shownCards && (
             <Timeline
