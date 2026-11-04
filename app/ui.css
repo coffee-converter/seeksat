@@ -272,9 +272,13 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   padding: var(--sp-6) var(--sp-4);
   border-bottom: var(--line-subtle);
 }
-/* hideTitle: the actions fill the row from the left, Close at the far right. */
-.modal__head--bare .modal__actions { flex: 1 1 auto; margin-left: 0; }
-.modal__head--bare .modal__actions > :last-child { margin-left: auto; }
+/* hideTitle: the actions fill the row from the left, Close in the top right
+   corner, so however they wrap it never drops to a line of its own. */
+.modal__head--bare .modal__actions {
+  flex: 1 1 auto; margin-left: 0;
+  position: relative; padding-right: calc(var(--sp-32) + var(--sp-12));
+}
+.modal__head--bare .modal__actions > :last-child { position: absolute; top: 0; right: 0; }
 .modal__title { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-strong); }
 .modal__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6); margin-left: auto; }
 .modal__body { min-height: 0; overflow-y: auto; }

@@ -45,7 +45,7 @@ test('column order is fixed and values keep useful precision', () => {
   const lines = csv.split('\n').filter((l) => !l.startsWith('#') && l.trim());
   assert.equal(
     lines[0],
-    'time_utc,az_deg,el_deg,ang_rate_deg_s,range_m,range_rate_mps,doppler_hz,rx_freq_hz,doppler_rate_hz_s,rel_signal_db',
+    'time_utc,az_deg,el_deg,ang_rate_deg_s,range_m,range_rate_mps,doppler_hz,rx_freq_hz,doppler_rate_hz_s,rel_signal_db,tx_freq_hz',
   );
   const cells = lines[1].split(',');
   assert.equal(cell(csv, 'time_utc'), '2024-01-01T12:00:00.250Z', 'millisecond timestamps');
@@ -246,4 +246,19 @@ test('the clamped note stays aligned instead of printing a bare colon', () => {
   for (const l of csv.split('\n').filter((x) => x.startsWith('#'))) {
     assert.ok(l.length <= 94, `clamped note overflows at ${l.length}: ${l}`);
   }
+});
+
+
+// ---- tx_freq_hz: where to transmit -----------------------------------------
+
+test('tx_freq_hz is the uplink corrected the other way, scaled to its frequency', () => {
+  // +9551.4 Hz heard on 437.800 while approaching: transmit 145.990 low by
+  // 9551.4 x 145.990 / 437.800 = 3185.1 Hz.
+  const csv = radioPassCsv(SAMPLES, { ...META, uplinkHz: 145_990_000 });
+  assert.equal(cell(csv, 'tx_freq_hz'), String(Math.round(145_990_000 - 9551.4 * 145_990_000 / 437_800_000)));
+  assert.match(csv, /# uplink_hz:\s+145990000/);
+});
+
+test('tx_freq_hz is empty without an uplink', () => {
+  assert.equal(cell(radioPassCsv(SAMPLES, META), 'tx_freq_hz'), '');
 });
