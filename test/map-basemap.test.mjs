@@ -98,7 +98,7 @@ test('the --map-ocean and --map-land tokens match the basemap', async () => {
     return css.slice(at, css.indexOf('}', at));
   };
   const token = (body, name) => new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'i').exec(body)?.[1].toLowerCase();
-  for (const [theme, selector] of [['dark', ":root, :root[data-theme='dark']"], ['light', ":root[data-theme='light']"]]) {
+  for (const [theme, selector] of [['dark', ":root, :root[data-theme='dark'], .theme-dark"], ['light', ":root[data-theme='light']"]]) {
     const body = block(selector);
     const { water, land } = basemapColors(theme);
     assert.equal(token(body, '--map-ocean'), water, `${theme} --map-ocean`);

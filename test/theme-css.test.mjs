@@ -372,3 +372,21 @@ test('globals.css carries no triangulate rules', () => {
     assert.ok(!css.includes(sel), `${sel} moved to components/triangulate/triangulate.css`);
   }
 });
+
+test('scale tokens exist with the spec values', () => {
+  const block = regions(read('app/globals.css'), TOKENS_BEGIN, TOKENS_END).join('\n');
+  const want = { '--fs-xs': '11px', '--fs-sm': '12px', '--fs-md': '13px', '--fs-lg': '15px', '--fs-xl': '18px', '--fs-2xl': '24px',
+    '--fw-regular': '400', '--fw-medium': '500', '--fw-semibold': '600',
+    '--sp-2': '2px', '--sp-4': '4px', '--sp-6': '6px', '--sp-8': '8px', '--sp-12': '12px', '--sp-16': '16px', '--sp-24': '24px', '--sp-32': '32px',
+    '--radius-sm': '4px', '--radius-md': '6px', '--radius-lg': '8px', '--radius-xl': '12px', '--radius-full': '999px',
+    '--dur-fast': '120ms', '--dur-base': '200ms', '--dur-slow': '300ms' };
+  for (const [k, v] of Object.entries(want)) assert.match(block, new RegExp(`${k}:\\s*${v};`), k);
+  for (const k of ['--font-sans', '--font-num', '--font-brand', '--fs-hero', '--lh-tight', '--lh-body', '--ease', '--line-subtle', '--line-control', '--line-input']) assert.ok(block.includes(`${k}:`), k);
+  assert.match(block, /prefers-reduced-motion:\s*reduce[\s\S]*--dur-fast:\s*0ms/);
+});
+
+test('.theme-dark gets the dark tokens in any page theme', () => {
+  const block = stripComments(regions(read('app/globals.css'), TOKENS_BEGIN, TOKENS_END).join('\n'));
+  assert.match(block, /:root,\s*:root\[data-theme='dark'\],\s*\.theme-dark\s*\{/);
+  assert.ok(THEMES.dark['--shadow-modal'] && THEMES.light['--shadow-modal']);
+});

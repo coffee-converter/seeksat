@@ -7,7 +7,7 @@
    (lib/ui/theme.mjs); :root alone means dark. The chart modals and polar
    plots keep literal dark colours (the chart-block sections in the
    stylesheets), except the pass cards' plots in light theme. The *-rgb tokens are channels for rgba(var(--x-rgb), alpha). */
-:root, :root[data-theme='dark'] {
+:root, :root[data-theme='dark'], .theme-dark {
   color-scheme: dark;
   --bg: #11151c;
   --bg-rgb: 17, 21, 28;
@@ -63,6 +63,8 @@
   --focus-ring: #8fb4e6;
   --shadow: rgba(0, 0, 0, 0.55);
   --shadow-soft: rgba(0, 0, 0, 0.35);
+  --shadow-popover: 0 6px 20px var(--shadow-soft);
+  --shadow-modal: 0 10px 28px var(--shadow);
   --chip-bg: rgba(17, 21, 28, 0.9);
   --chip-border: #2b3341;
   /* The well: inputs, menus and segmented toggles. */
@@ -147,6 +149,8 @@
   --focus-ring: #2c5a99;
   --shadow: rgba(16, 22, 32, 0.16);
   --shadow-soft: rgba(16, 22, 32, 0.12);
+  --shadow-popover: 0 6px 20px var(--shadow-soft);
+  --shadow-modal: 0 10px 28px var(--shadow);
   --chip-bg: rgba(255, 255, 255, 0.9);
   --chip-border: #d3dae3;
   --input-bg: #ebeff4;
@@ -185,6 +189,29 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
 @media print {
   html[data-night='1'],
   html[data-night='1'] :fullscreen { filter: none; background: none; }
+}
+/* A dark island inside a light page takes its text colour from the dark
+   tokens. Kept apart from the token block so :root does not set color. */
+.theme-dark { color: var(--text); }
+/* Scale tokens: the same in both themes. --font-atkinson is set by next/font. */
+:root {
+  --font-sans: var(--font-atkinson), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-num: var(--font-sans);
+  --font-brand: 'Exo 2', system-ui, sans-serif;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-md: 13px; --fs-lg: 15px; --fs-xl: 18px; --fs-2xl: 24px;
+  --fs-hero: min(40px, 9cqi);
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+  --lh-tight: 1.2; --lh-body: 1.5;
+  --sp-2: 2px; --sp-4: 4px; --sp-6: 6px; --sp-8: 8px; --sp-12: 12px; --sp-16: 16px; --sp-24: 24px; --sp-32: 32px;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px; --radius-full: 999px;
+  --line-subtle: 1px solid var(--border);
+  --line-control: 1px solid var(--btn-line);
+  --line-input: 1px solid var(--input-border);
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; }
 }
 /* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than
