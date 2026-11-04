@@ -8,6 +8,7 @@ import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
 import ThemeSync from "@/components/ThemeSync";
 import SwRegister from "@/components/SwRegister";
 import "./globals.css";
+import "./ui.css";
 // Self-hosted by next/font (served from /_next/static/media, same origin).
 // The font has no arrow glyphs (U+2190/2192); those use the system font.
 const atkinson = Atkinson_Hyperlegible_Next({

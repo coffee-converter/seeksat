@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from 'node:fs';
 // chart block: the sky chart, radio chart and pass-card polar plots keep their
 // literal dark colours in both themes.
 
-const FILES = ['app/globals.css', 'app/home.css', 'app/sat.css', 'app/mcp/mcp.css'];
+const FILES = ['app/globals.css', 'app/home.css', 'app/sat.css', 'app/mcp/mcp.css', 'app/ui.css'];
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 const TOKENS_BEGIN = '/* theme-tokens:begin */';

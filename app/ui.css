@@ -1,0 +1,137 @@
+/* UI library (components/ui): Button, Segmented, Badge, RatingBars.
+   Tokens only: no colour, font, radius, spacing or motion literals. */
+
+/* Button: md is today's .home-button, sm is .home-chip. Secondary is outlined,
+   primary filled, quiet text only. aria-pressed is the toggled-on filled segment. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-12);
+  background: transparent;
+  color: var(--map-text);
+  border: var(--line-control);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.btn--sm { padding: var(--sp-4) var(--sp-12); font-size: var(--fs-md); }
+.btn:hover:not(:disabled) { background: var(--btn-hover); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.btn--primary {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+  font-weight: var(--fw-semibold);
+}
+.btn--primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+.btn--quiet { color: var(--map-muted); border-color: transparent; }
+.btn--quiet:hover:not(:disabled) { color: var(--map-text); }
+
+.btn[aria-pressed="true"] {
+  background: var(--seg-on);
+  border-color: var(--seg-on);
+  color: var(--seg-on-text);
+}
+.btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--seg-on); }
+/* A main action that is on (Following): accent outline on the card colour. */
+.btn--primary[aria-pressed="true"],
+.btn--primary[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--panel);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn--primary[aria-pressed="true"]:hover:not(:disabled) { background: var(--btn-hover); }
+
+.btn--icon { padding: var(--sp-6); min-width: 32px; min-height: 32px; line-height: 1; }
+.btn--icon.btn--sm { padding: var(--sp-4); min-width: 28px; min-height: 28px; }
+
+.btn--danger:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+.btn--done,
+.btn--done:hover:not(:disabled) { color: var(--teal); border-color: var(--teal); }
+
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .btn--icon { min-width: 44px; }
+}
+
+/* Segmented: a well of options, the chosen one a filled segment (today's
+   .theme-toggle__group and the Globe | Mercator group). */
+.segmented {
+  display: inline-flex;
+  padding: var(--sp-2);
+  background: var(--input-bg);
+  border: var(--line-input);
+  border-radius: var(--radius-lg);
+}
+.segmented__opt {
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  color: var(--map-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: var(--sp-8) var(--sp-12);
+  min-height: 32px;
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.segmented--sm .segmented__opt { padding: var(--sp-6) var(--sp-8); min-height: 28px; }
+.segmented__opt:hover:not(:disabled) { color: var(--map-text); }
+.segmented__opt[aria-checked="true"] { background: var(--seg-on); color: var(--seg-on-text); }
+.segmented__opt:disabled { opacity: 0.45; cursor: default; }
+.segmented__opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+@media (pointer: coarse) {
+  .segmented__opt { min-height: 44px; }
+}
+
+/* Badge: a pill; tinted by tone, always with words inside. */
+.badge {
+  display: inline-block;
+  padding: var(--sp-2) var(--sp-8);
+  border: var(--line-control);
+  border-radius: var(--radius-lg);
+  color: var(--map-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.badge--warn { background: rgba(var(--warn-rgb), 0.14); color: var(--badge-old-text); border: 1px solid rgba(var(--warn-rgb), 0.4); }
+.badge--danger { background: rgba(var(--danger-rgb), 0.14); color: var(--badge-stale-text); border: 1px solid rgba(var(--danger-rgb), 0.45); }
+.badge--ok { background: rgba(var(--ok-rgb), 0.14); color: var(--ok); border: 1px solid rgba(var(--ok-rgb), 0.4); }
+
+/* RatingBars: five bars of rising height, the first N on; colour by count. */
+.qbars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  height: 1.05em;
+  vertical-align: -0.15em;
+}
+.qbars i {
+  display: block;
+  width: 3.5px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+.qbars i.on { background: currentColor; }
+.qbars i:nth-child(1) { height: 20%; }
+.qbars i:nth-child(2) { height: 40%; }
+.qbars i:nth-child(3) { height: 60%; }
+.qbars i:nth-child(4) { height: 80%; }
+.qbars i:nth-child(5) { height: 100%; }
+.qbars--b1 { color: var(--q1); }
+.qbars--b2 { color: var(--q2); }
+.qbars--b3 { color: var(--q3); }
+.qbars--b4 { color: var(--q4); }
+.qbars--b5 { color: var(--q5); }
