@@ -13,6 +13,7 @@ test('noise and other origins are dropped or blanked', () => {
   assert.equal(errorReport({ message: 'Script error.' }, where), null);
   assert.equal(errorReport({ message: 'ResizeObserver loop completed with undelivered notifications.' }, where), null);
   assert.equal(errorReport({ message: 'x', source: 'chrome-extension://abc/content.js' }, where), null);
+  assert.equal(errorReport({ message: "TypeError: undefined is not an object (evaluating 'window.ethereum.selectedAddress = undefined')" }, where), null);
   assert.equal(errorReport({ message: 'x', source: 'https://evil.example/a.js' }, where).source, null);
 });
 
