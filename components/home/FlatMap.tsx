@@ -628,6 +628,7 @@ export default function FlatMap({
         // The Moon, the Sun and the bright planets, over the stars.
         stars.drawBodies(ctx, stars.skyBodies({
           sunEcef: sun.sunPositionEcef(now),
+          sunAu: sun.sunDistanceAu(now),
           moonEcef: moon.moonPositionEcef(now),
           moonKm: moon.moonDistanceKm(now),
           camDistKm,

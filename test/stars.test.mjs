@@ -174,3 +174,18 @@ test('atlas style (light theme): ink dots, bigger for brighter, no halos', () =>
   assert.equal(gradients, 0);
   assert.ok(fills.every((c) => c === ATLAS_INK));
 });
+
+import { sunDistanceAu } from '../lib/pass-finder/sun.js';
+import { moonDistanceKm } from '../lib/pass-finder/moon.js';
+
+test('the Sun and Moon change size with distance through the year and month', () => {
+  const jan = sunDistanceAu(new Date('2026-01-03T12:00:00Z'));
+  const jul = sunDistanceAu(new Date('2026-07-06T12:00:00Z'));
+  assert.ok(jan > 0.982 && jan < 0.985, `${jan}`);
+  assert.ok(jul > 1.015 && jul < 1.018, `${jul}`);
+  const sky = (sunAu) => skyBodies({ sunEcef: unit([-1, 0.1, 0]), sunAu, moonEcef: unit([1, 0, 0]), moonKm: 384_400, camDistKm: 4 * 6371, planets: [] }, view).find((b) => b.kind === 'sun').r;
+  assert.ok(Math.abs(sky(jan) / sky(jul) - jul / jan) < 1e-9);
+  // The Moon's distance over a month spans perigee to apogee.
+  const d = Array.from({ length: 30 }, (_, i) => moonDistanceKm(new Date(Date.UTC(2026, 10, 1 + i))));
+  assert.ok(Math.min(...d) < 365_000 && Math.max(...d) > 400_000, `${Math.min(...d)} ${Math.max(...d)}`);
+});
