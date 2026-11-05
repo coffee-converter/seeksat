@@ -11,6 +11,10 @@
 //   public/icon-192.png,
 //   public/icon-512.png - the favicon above on the page background, for the
 //                        web app manifest (app/manifest.ts).
+//   app/favicon.ico    - the favicon at 16/32/48 for clients that ask for
+//                        /favicon.ico. Not written here; after a rerun:
+//                        rsvg-convert -w N -h N app/icon.svg (N = 16, 32,
+//                        48), then magick the three PNGs into app/favicon.ico.
 //
 // Pass selection (pickPass, below) scans real passes and prefers a HIGH,
 // CURVED overhead pass whose peak falls in medium twilight (sun ≈ -6°), so
