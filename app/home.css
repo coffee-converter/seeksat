@@ -1114,10 +1114,13 @@
 .flat-map-shell--fill.flat-map-shell--full .flat-map { height: auto; min-height: 0; }
 
 /* A first visit (no location yet), stacked: HomeApp puts the location card
-   above the map, and the map is capped at 40vh under it. */
+   above the map, and the map is capped at 40vh under it. Before hydration
+   the pre-paint mark on <html> (lib/home/first-visit.mjs) sets the same
+   height, so the map is never resized as the page loads. */
 @media (max-width: 1099.98px) {
   .home-first-visit .map-shell__map > .location-prompt { margin-bottom: var(--sp-8); }
-  .home-first-visit .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
+  .home-first-visit .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map,
+  html[data-first-visit] .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
     height: 40vh;
     height: 40svh;
   }
