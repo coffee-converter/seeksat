@@ -126,10 +126,10 @@ test('planetApparentMagnitude: ranges are plausible per planet', () => {
   //   mars:    -3.0 to +1.6
   //   jupiter: -2.9 to -1.6
   //   saturn:   0.4 to +1.4
-  // Our formula ignores phase function - accept generous bounds.
+  // With the phase term, Venus stays in its real range.
   const bounds = {
     mercury: [-3, 7],
-    venus:   [-6, 0],
+    venus:   [-5, -3],
     mars:    [-4, 4],
     jupiter: [-4, 0],
     saturn:  [-2, 3],

@@ -196,6 +196,12 @@ const PRESETS: { id: Preset; label: string }[] = [
 ];
 /** Zoom slack before the map counts as zoomed in past its home view. */
 const ZOOM_EPS = 0.01;
+/** The sky turns 0.25 deg a minute, about 0.1 px a second at the globe's
+ *  field of view on a screen 800 px tall: a redraw this often keeps each
+ *  step under half a pixel. */
+const STAR_TICK_MS = 5_000;
+/** How strongly it shows: subtle, the core no more than a soft grey cloud. */
+const MILKY_WAY_ALPHA = 0.2;
 /** How long a shared link's camera waits for the map and its satellite. */
 const SHARED_CAMERA_MS = 20_000;
 /** How long a Lock on zoom (buttons, keys, double-click, mouse wheel) eases. */
@@ -280,6 +286,7 @@ export default function FlatMap({
 }: Props) {
   const view: View = projectionId === "flat" ? "flat" : "globe";
   const glRef = useRef<HTMLDivElement>(null);
+  const starsRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   // True between a style's load and the next setStyle: the overlay sources exist.
   const styleReady = useRef(false);
@@ -536,6 +543,118 @@ export default function FlatMap({
   const mapInView = useRef(true);
   const pushWaiting = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  // The star field behind the globe, with the Sun, Moon and bright planets:
+  // true positions for the camera and the moment (lib/map/stars.mjs),
+  // loaded only when a spherical view shows.
+  // Redrawn as the camera moves, and every STAR_TICK_MS as the Earth turns.
+  useEffect(() => {
+    const map = mapRef.current;
+    const canvas = starsRef.current;
+    if (!mapReady || !map || !canvas || view === "flat") return;
+    let alive = true;
+    let draw: (() => void) | null = null;
+    let frame: number | undefined;
+    const schedule = () => {
+      if (frame !== undefined || !draw) return;
+      frame = requestAnimationFrame(() => { frame = undefined; draw?.(); });
+    };
+    void Promise.all([
+      import("@/lib/map/stars.mjs"), import("@/lib/map/star-data.mjs"), import("@/lib/coords.js"),
+      import("@/lib/pass-finder/sun.js"), import("@/lib/pass-finder/moon.js"), import("@/lib/pass-finder/planets.js"),
+    ]).then(([stars, data, coords, sun, moon, planets]) => {
+      if (!alive) return;
+      const field = stars.starField(data.STARS);
+      // The Milky Way image, read once into pixels; drawn when it arrives.
+      let milky: { data: Uint8ClampedArray; width: number; height: number; floor: number } | null = null;
+      const low = document.createElement("canvas");
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => {
+        if (!alive) return;
+        const c2 = document.createElement("canvas");
+        c2.width = img.naturalWidth;
+        c2.height = img.naturalHeight;
+        const x2 = c2.getContext("2d", { willReadFrequently: true });
+        if (!x2) return;
+        x2.drawImage(img, 0, 0);
+        const px = x2.getImageData(0, 0, c2.width, c2.height);
+        milky = { data: px.data, width: px.width, height: px.height, floor: stars.skyFloor(px.data) };
+        schedule();
+      };
+      img.src = "/sky/milkyway.jpg";
+      draw = () => {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        if (!w || !h) return;
+        const dpr = window.devicePixelRatio || 1;
+        if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+          canvas.width = Math.round(w * dpr);
+          canvas.height = Math.round(h * dpr);
+        }
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        const c = map.getCenter();
+        const now = new Date(trueNow());
+        const cam = { lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(), width: w, height: h };
+        const gmstRad = coords.gmstFromDate(now);
+        // Light theme: the sky as a printed atlas (dark dots, no Milky Way).
+        const atlas = readTheme() === "light";
+        // Camera distance from public values, as MapLibre derives it: half the
+        // height over tan(fov / 2) to the map's centre, and a 512 px tile world.
+        const camToCenterPx = h / 2 / Math.tan((cam.fovDeg * Math.PI) / 360);
+        const camDistKm = stars.cameraDistanceKm(camToCenterPx, 512 * 2 ** map.getZoom(), c.lat);
+        if (milky && !atlas) {
+          // Sampled as finely as the image has detail, smoothed up; nothing
+          // computed behind the globe (a little inside its edge).
+          const step = stars.milkyWayStep(camToCenterPx, milky.width);
+          const hide = Math.max(0, stars.globeRadiusPx(camDistKm, camToCenterPx) - step * 1.5);
+          const ow = Math.ceil(w / step), oh = Math.ceil(h / step);
+          if (low.width !== ow || low.height !== oh) { low.width = ow; low.height = oh; }
+          const lctx = low.getContext("2d");
+          if (lctx) {
+            const buf = lctx.createImageData(ow, oh);
+            stars.renderMilkyWay(milky, milky.floor, buf.data, ow, oh, step, cam, gmstRad, hide);
+            lctx.putImageData(buf, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.globalAlpha = MILKY_WAY_ALPHA;
+            ctx.drawImage(low, 0, 0, ow, oh, 0, 0, ow * step, oh * step);
+            ctx.globalAlpha = 1;
+          }
+        }
+        const placed = stars.projectStars(field, { ...cam, gmstRad });
+        stars.drawStars(ctx, field, placed, atlas ? "atlas" : "sky");
+        // The Moon, the Sun and the bright planets, over the stars.
+        stars.drawBodies(ctx, stars.skyBodies({
+          sunEcef: sun.sunPositionEcef(now),
+          sunAu: sun.sunDistanceAu(now),
+          moonEcef: moon.moonPositionEcef(now),
+          moonKm: moon.moonDistanceKm(now),
+          camDistKm,
+          planets: planets.PLANET_NAMES.map((n: string) => ({
+            name: n,
+            dirEcef: planets.planetPositionEcef(n, now),
+            mag: planets.planetApparentMagnitude(n, now) ?? 99,
+            color: (planets.PLANET_STYLE as Record<string, { color: string }>)[n].color,
+          })),
+        }, cam), atlas ? "atlas" : "sky");
+      };
+      draw();
+    });
+    map.on("move", schedule);
+    map.on("resize", schedule);
+    window.addEventListener("seeksat:theme", schedule);
+    const tick = window.setInterval(schedule, STAR_TICK_MS);
+    return () => {
+      alive = false;
+      map.off("move", schedule);
+      map.off("resize", schedule);
+      window.removeEventListener("seeksat:theme", schedule);
+      window.clearInterval(tick);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, [mapReady, view]);
   /** Put the focus marker at f, or hide it when the track cannot place it. */
   const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
     const mark = focusMark.current;
@@ -1437,6 +1556,8 @@ export default function FlatMap({
     {/* Both spherical views show space around the Earth. */}
     <div className={`flat-map${view !== "flat" ? " flat-map--globe" : ""}`}>
       {/* MapLibre owns this element and its children. */}
+      {/* Stars behind the globe, under MapLibre's canvas (clear in space). */}
+      {view !== "flat" ? <canvas className="flat-map__stars" ref={starsRef} aria-hidden="true" /> : null}
       <div className="flat-map__gl" ref={glRef} />
       <div className="flat-map__grid-labels" ref={gridLabelsRef} aria-hidden="true" />
       {noMap ? (
