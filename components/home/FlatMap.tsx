@@ -12,6 +12,8 @@ import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
 import { PROJECTIONS, MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { canvasMismatch } from "@/lib/map/canvas-check.mjs";
+import { reportNotice } from "@/lib/site/report.mjs";
 import { useFollow } from "@/lib/map/follow-store";
 import { peekPendingCamera, registerCameraReader, setPendingCamera } from "@/lib/map/share-camera";
 import Button from "@/components/ui/Button";
@@ -200,6 +202,10 @@ const ZOOM_EPS = 0.01;
  *  field of view on a screen 800 px tall: a redraw this often keeps each
  *  step under half a pixel. */
 const STAR_TICK_MS = 5_000;
+/** How often the map canvas is checked against its box, and how long a
+ *  mismatch may last (a resize in flight) before the map is refitted. */
+const CANVAS_CHECK_MS = 5_000;
+const CANVAS_RECHECK_MS = 500;
 /** How strongly it shows: subtle, the core no more than a soft grey cloud. */
 const MILKY_WAY_ALPHA = 0.2;
 /** How long a shared link's camera waits for the map and its satellite. */
@@ -655,6 +661,60 @@ export default function FlatMap({
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
   }, [mapReady, view]);
+
+  // The canvas drawn at its box's size and shape. MapLibre keeps them
+  // together; an iPhone once showed the globe stretched into an egg on a first
+  // visit anyway. Checked once settled, every CANVAS_CHECK_MS, and when the
+  // page or the phone's view changes: a mismatch still there a moment later
+  // refits the map and is reported (once), as is a lost WebGL context.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    const canvas = map.getCanvas();
+    let reported = false;
+    let recheck: number | undefined;
+    const tell = (message: string) => {
+      if (reported) return;
+      reported = true;
+      reportNotice(`${message}; dpr ${window.devicePixelRatio}, view ${window.innerWidth}x${window.innerHeight}`);
+    };
+    const measure = () => {
+      const box = map.getContainer();
+      const gl = (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) as WebGLRenderingContext | null;
+      return canvasMismatch({
+        boxW: box.clientWidth, boxH: box.clientHeight,
+        cssW: canvas.clientWidth, cssH: canvas.clientHeight,
+        bufW: canvas.width, bufH: canvas.height,
+        drawW: gl?.drawingBufferWidth ?? null, drawH: gl?.drawingBufferHeight ?? null,
+      });
+    };
+    const check = () => {
+      if (recheck !== undefined || !measure()) return;
+      recheck = window.setTimeout(() => {
+        recheck = undefined;
+        const wrong = measure();
+        if (!wrong) return;
+        tell(wrong);
+        map.resize();
+      }, CANVAS_RECHECK_MS);
+    };
+    const onLost = () => tell("Map WebGL context lost");
+    map.once("idle", check);
+    map.on("webglcontextlost", onLost);
+    const tick = window.setInterval(check, CANVAS_CHECK_MS);
+    window.addEventListener("pageshow", check);
+    window.addEventListener("orientationchange", check);
+    window.visualViewport?.addEventListener("resize", check);
+    return () => {
+      map.off("idle", check);
+      map.off("webglcontextlost", onLost);
+      window.clearInterval(tick);
+      window.clearTimeout(recheck);
+      window.removeEventListener("pageshow", check);
+      window.removeEventListener("orientationchange", check);
+      window.visualViewport?.removeEventListener("resize", check);
+    };
+  }, [mapReady]);
   /** Put the focus marker at f, or hide it when the track cannot place it. */
   const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
     const mark = focusMark.current;

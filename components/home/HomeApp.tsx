@@ -35,6 +35,7 @@ import SiteFooter from "./SiteFooter";
 import { usePublishMapScene } from "@/lib/map/scene-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import Button from "@/components/ui/Button";
+import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
 
 const CARD_REFRESH_MS = 10 * 60_000;
 
@@ -240,6 +241,13 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   })), [prefs.following, prefs.hidden, nameOf, colors, theme, prefs.mode, allTracks]);
 
   const location = prefs.location;
+  // The pre-paint first-visit mark (lib/home/first-visit.mjs) holds the map
+  // at the height home-first-visit gives it. It goes once there is a location,
+  // or when the page is left; until then the two agree, so nothing resizes.
+  useEffect(() => {
+    if (hydrated && location) delete document.documentElement.dataset[FIRST_VISIT_ATTR];
+  }, [hydrated, location]);
+  useEffect(() => () => { delete document.documentElement.dataset[FIRST_VISIT_ATTR]; }, []);
   const observer = useMemo<HomeObserver | null>(
     () => location && {
       id: "home",

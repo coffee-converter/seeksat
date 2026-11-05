@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { EXO2_FONT_FACE } from "@/lib/pass-finder/exo2-embed.js";
 import { SITE_URL } from "@/lib/site.mjs";
 import { THEME_SCRIPT } from "@/lib/ui/theme.mjs";
+import { FIRST_VISIT_SCRIPT } from "@/lib/home/first-visit.mjs";
 import { mapTokenCss } from "@/lib/ui/map-tokens.mjs";
 import { chartTokenCss } from "@/lib/ui/chart-tokens.mjs";
 import ThemeSync from "@/components/ThemeSync";
@@ -154,6 +155,8 @@ export default function RootLayout({
       <head>
         {/* Sets data-theme on <html> before first paint (no light/dark flash). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {/* Marks a first visit, so the home map starts at its first-visit height. */}
+        <script dangerouslySetInnerHTML={{ __html: FIRST_VISIT_SCRIPT }} />
         {/* Exo 2 (subset, base64) for the SeekSat brand wordmark. Same
             embed the polar-chart export uses - inlined here so the font
             is available document-wide (e.g. the on-scene corner mark)
