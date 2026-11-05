@@ -598,11 +598,13 @@ export default function FlatMap({
         const now = new Date(trueNow());
         const cam = { lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(), width: w, height: h };
         const gmstRad = coords.gmstFromDate(now);
+        // Light theme: the sky as a printed atlas (dark dots, no Milky Way).
+        const atlas = readTheme() === "light";
         // Camera distance from public values, as MapLibre derives it: half the
         // height over tan(fov / 2) to the map's centre, and a 512 px tile world.
         const camToCenterPx = h / 2 / Math.tan((cam.fovDeg * Math.PI) / 360);
         const camDistKm = stars.cameraDistanceKm(camToCenterPx, 512 * 2 ** map.getZoom(), c.lat);
-        if (milky) {
+        if (milky && !atlas) {
           // Sampled as finely as the image has detail, smoothed up; nothing
           // computed behind the globe (a little inside its edge).
           const step = stars.milkyWayStep(camToCenterPx, milky.width);
@@ -622,7 +624,7 @@ export default function FlatMap({
           }
         }
         const placed = stars.projectStars(field, { ...cam, gmstRad });
-        stars.drawStars(ctx, field, placed);
+        stars.drawStars(ctx, field, placed, atlas ? "atlas" : "sky");
         // The Moon, the Sun and the bright planets, over the stars.
         stars.drawBodies(ctx, stars.skyBodies({
           sunEcef: sun.sunPositionEcef(now),
@@ -635,17 +637,19 @@ export default function FlatMap({
             mag: planets.planetApparentMagnitude(n, now) ?? 99,
             color: (planets.PLANET_STYLE as Record<string, { color: string }>)[n].color,
           })),
-        }, cam));
+        }, cam), atlas ? "atlas" : "sky");
       };
       draw();
     });
     map.on("move", schedule);
     map.on("resize", schedule);
+    window.addEventListener("seeksat:theme", schedule);
     const tick = window.setInterval(schedule, STAR_TICK_MS);
     return () => {
       alive = false;
       map.off("move", schedule);
       map.off("resize", schedule);
+      window.removeEventListener("seeksat:theme", schedule);
       window.clearInterval(tick);
       if (frame !== undefined) cancelAnimationFrame(frame);
     };

@@ -157,3 +157,20 @@ test('Milky Way sampling matches the image detail; the globe radius from distanc
   // At 2 Earth radii the limb is 30 deg off centre.
   assert.ok(Math.abs(globeRadiusPx(2 * 6371, 1000) - 1000 * Math.tan(Math.PI / 6)) < 1e-6);
 });
+
+import { atlasStyle, ATLAS_INK } from '../lib/map/stars.mjs';
+
+test('atlas style (light theme): ink dots, bigger for brighter, no halos', () => {
+  assert.ok(atlasStyle(-1.46).r > atlasStyle(6).r * 3);
+  const fills = [];
+  let gradients = 0;
+  const ctx = {
+    globalAlpha: 1, set fillStyle(v) { fills.push(v); }, get fillStyle() { return ''; },
+    createRadialGradient: () => { gradients++; return { addColorStop() {} }; },
+    beginPath() {}, fill() {}, arc() {},
+  };
+  const f = starField([6752, -1672, -146, 0, 5000, 1000, 300, 65]);
+  drawStars(ctx, f, [{ i: 0, x: 1, y: 0 }, { i: 1, x: 2, y: 0 }], 'atlas');
+  assert.equal(gradients, 0);
+  assert.ok(fills.every((c) => c === ATLAS_INK));
+});
