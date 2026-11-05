@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   fetchGroup, fetchByCatnr, groupUrl, catnrUrl, MIRROR_GROUPS, createCelestrakGuard, PAUSE_MS,
+  GROUP_TIMEOUT_MS, CATNR_TIMEOUT_MS,
 } from '../lib/mirror/celestrak.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
 
@@ -105,4 +106,28 @@ test('No GP data found and an empty array do not pause', async () => {
   assert.equal(await fetchByCatnr(1, h.opts), null);
   assert.equal(await fetchByCatnr(2, h.opts), null);
   assert.equal(h.calls(), 2);
+});
+
+test('a group download gets a minute, one satellite 15 s', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const hang = async (url, o) => new Promise((_, reject) => {
+    o.signal.addEventListener('abort', () => reject(new Error('This operation was aborted')));
+  });
+  const settled = (p) => { const s = { done: false }; p.catch(() => {}).finally(() => { s.done = true; }); return s; };
+  const flush = () => new Promise((r) => setImmediate(r));
+
+  const group = settled(fetchGroup('active', guarded(hang).opts));
+  await flush();
+  t.mock.timers.tick(CATNR_TIMEOUT_MS);
+  await flush();
+  assert.equal(group.done, false, 'still downloading at 15 s');
+  t.mock.timers.tick(GROUP_TIMEOUT_MS - CATNR_TIMEOUT_MS);
+  await flush();
+  assert.equal(group.done, true, 'aborted at a minute');
+
+  const one = settled(fetchByCatnr(25544, guarded(hang).opts));
+  await flush();
+  t.mock.timers.tick(CATNR_TIMEOUT_MS);
+  await flush();
+  assert.equal(one.done, true);
 });
