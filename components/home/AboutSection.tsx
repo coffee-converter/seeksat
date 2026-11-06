@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { linkClass } from "@/lib/ui/classes.mjs";
 import { SATNOGS_URL } from "@/lib/mirror/satnogs.mjs";
-import { FEEDBACK_EMAIL, feedbackHref } from "@/lib/site/feedback.mjs";
 
 export default function AboutSection() {
   return (
@@ -24,10 +23,6 @@ export default function AboutSection() {
       </p>
       <p>
         AI agents can ask the same pass engine through <Link href="/mcp">MCP</Link>.
-      </p>
-      <p>
-        Bugs, ideas, a satellite or frequency we have wrong:{" "}
-        <a className={linkClass()} href={feedbackHref()}>{FEEDBACK_EMAIL}</a>.
       </p>
     </details>
   );

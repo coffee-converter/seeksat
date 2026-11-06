@@ -10,7 +10,7 @@ export default function SiteFooter() {
   return (
     <footer className="home-footer">
       <span>
-        Found a bug or have an idea?{" "}
+        A bug, an idea, or a satellite or frequency we have wrong?{" "}
         <a className={linkClass()} href={feedbackHref(`https://seeksat.com${path ?? "/"}`)}>Send feedback</a>
       </span>
     </footer>
