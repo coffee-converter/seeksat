@@ -384,6 +384,11 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return names;
   }, [records, seed]);
 
+  // Once the list has run empty, the popular picks stay for the rest of the
+  // visit, so following one does not take the others away.
+  const [keepPopular, setKeepPopular] = useState(false);
+  if (hydrated && location && prefs.following.length === 0 && !keepPopular) setKeepPopular(true);
+
   const showPrompt = hydrated && (!location || changingLocation);
   // Stacked (one column, under 1100 px) the map comes before the panel, so a
   // first visit puts the location card above the map, in view without scrolling.
@@ -548,7 +553,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
                   skyType={prefs.skyType}
                 />
               )}
-              <PopularList names={popularNames} />
             </>
           ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
             <p className="home-note">Loading satellites...</p>
@@ -576,6 +580,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               />
             )
           )}
+          {(prefs.following.length === 0 || keepPopular) && <PopularList names={popularNames} />}
         </>
       )}
 
