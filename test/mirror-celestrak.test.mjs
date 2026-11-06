@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   fetchGroup, fetchByCatnr, groupUrl, catnrUrl, MIRROR_GROUPS, createCelestrakGuard, PAUSE_MS,
-  GROUP_TIMEOUT_MS, CATNR_TIMEOUT_MS,
+  GROUP_TIMEOUT_MS, CATNR_TIMEOUT_MS, NOT_FOUND_LIMIT,
 } from '../lib/mirror/celestrak.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
 
@@ -130,4 +130,28 @@ test('a group download gets a minute, one satellite 15 s', async (t) => {
   t.mock.timers.tick(CATNR_TIMEOUT_MS);
   await flush();
   assert.equal(one.done, true);
+});
+
+test('a 404 for one satellite is a miss, and only a few go by before the pause', async () => {
+  const g = guarded(async () => text('No GP data found', 404));
+  for (let i = 1; i < NOT_FOUND_LIMIT; i++) assert.equal(await fetchByCatnr(i, g.opts), null);
+  assert.equal(g.guard.isPaused(), false);
+  assert.equal(await fetchByCatnr(NOT_FOUND_LIMIT, g.opts), null, 'the last one is still an answer');
+  assert.equal(g.guard.isPaused(), true, `${NOT_FOUND_LIMIT} in 2 hours pause every call`);
+  assert.equal(g.calls(), NOT_FOUND_LIMIT);
+});
+
+test('404s spread over more than 2 hours never pause', async () => {
+  const g = guarded(async () => text('', 404));
+  for (let i = 1; i <= NOT_FOUND_LIMIT * 2; i++) {
+    assert.equal(await fetchByCatnr(i, g.opts), null);
+    g.clock.t += PAUSE_MS / (NOT_FOUND_LIMIT - 1);
+  }
+  assert.equal(g.guard.isPaused(), false);
+});
+
+test('a 404 for a group still pauses at once', async () => {
+  const g = guarded(async () => text('', 404));
+  await assert.rejects(fetchGroup('active', g.opts), /404/);
+  assert.equal(g.guard.isPaused(), true);
 });
