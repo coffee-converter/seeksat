@@ -183,6 +183,14 @@ const GRID_BLOCKERS = "button, .flat-map__head, .maplibregl-ctrl-attrib";
 // A 9 px label's rough size, for the overlap test.
 const GRID_CHAR_PX = 5.6;
 const GRID_LINE_PX = 11;
+/** Folds MapLibre's compact attribution to its info button, as its own drag
+ *  and button do; the button still opens it. */
+function foldAttribution(map: MlMap | null) {
+  const attrib = map?.getContainer().querySelector(".maplibregl-ctrl-attrib.maplibregl-compact-show");
+  if (!attrib) return;
+  attrib.classList.remove("maplibregl-compact-show");
+  attrib.setAttribute("open", "");
+}
 /** The satellite dot layer tapped through (lib/map/overlays.mjs). The focus
  *  layer draws nothing (the focus marker does), so the marker is tested apart. */
 const SAT_LAYERS = ["ss-sats"];
@@ -822,6 +830,14 @@ export default function FlatMap({
     window.addEventListener("blur", letGo);
     window.addEventListener("contextmenu", letGo);
     window.addEventListener("mousemove", onMove);
+    // The map can take a while to go idle (moving satellites, a slow phone),
+    // so the credit may still be open. Scrolling the page down folds it: on
+    // phones the list then slides over the map, and the open credit would
+    // fill the strip left showing. A scroll event at the top leaves it open.
+    const onScroll = () => {
+      if (window.scrollY > 0) foldAttribution(made);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     (async () => {
       let gl: typeof import("maplibre-gl");
       try {
@@ -912,10 +928,7 @@ export default function FlatMap({
       // map has drawn, as its info button does; that button still opens it.
       map.once("idle", () => {
         settled.current = true;
-        const attrib = map.getContainer().querySelector(".maplibregl-ctrl-attrib.maplibregl-compact-show");
-        if (!attrib) return;
-        attrib.classList.remove("maplibregl-compact-show");
-        attrib.setAttribute("open", "");
+        foldAttribution(map);
       });
       // A flat home camera already centres on a focus that exists now; the
       // globe's centres on the observer, so it still eases to the focus.
@@ -1124,6 +1137,7 @@ export default function FlatMap({
       window.removeEventListener("blur", letGo);
       window.removeEventListener("contextmenu", letGo);
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("scroll", onScroll);
       detach?.();
       styleReady.current = false;
       mapRef.current = null;
