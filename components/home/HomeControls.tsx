@@ -54,6 +54,8 @@ interface Props {
   skyType: string;
   /** The saved location's name, or null when none is set. */
   locationName: string | null;
+  /** "Times are Tokyo time (UTC+9)." when the place keeps another clock than the viewer's. */
+  zoneNote?: string | null;
   onModeChange: (mode: "radio" | "visual") => void;
   onMinElevChange: (deg: number) => void;
   onSkyTypeChange: (skyType: string) => void;
@@ -63,7 +65,7 @@ interface Props {
 // The settings under the map, as one group: the location the passes are for
 // with its sky type (visual mode), then pass mode and minimum elevation.
 export default function HomeControls({
-  ready, mode, minElevDeg, skyType, locationName, onModeChange, onMinElevChange, onSkyTypeChange, onChangeLocation,
+  ready, mode, minElevDeg, skyType, locationName, zoneNote = null, onModeChange, onMinElevChange, onSkyTypeChange, onChangeLocation,
 }: Props) {
   // How dark the sky is where you watch: it belongs with the location.
   const skySelect = mode === "visual" ? (
@@ -91,6 +93,7 @@ export default function HomeControls({
           {skySelect}
         </div>
       )}
+      {locationName != null && zoneNote && <p className="home-controls__hint home-controls__zone">{zoneNote}</p>}
 
       <Segmented
         label="Pass mode"

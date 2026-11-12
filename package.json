@@ -12,6 +12,7 @@
     "icons:build": "node scripts/build-icons.mjs"
   },
   "dependencies": {
+    "@photostructure/tz-lookup": "11.7.0",
     "@resvg/resvg-wasm": "^2.6.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.2",

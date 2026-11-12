@@ -36,6 +36,8 @@ import { usePublishMapScene } from "@/lib/map/scene-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import Button from "@/components/ui/Button";
 import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
+import { usePlaceZone, viewerZone } from "@/components/usePlaceZone";
+import { zoneNote } from "@/lib/time/zone.mjs";
 
 const CARD_REFRESH_MS = 10 * 60_000;
 
@@ -248,17 +250,19 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     if (hydrated && location) delete document.documentElement.dataset[FIRST_VISIT_ATTR];
   }, [hydrated, location]);
   useEffect(() => () => { delete document.documentElement.dataset[FIRST_VISIT_ATTR]; }, []);
+  // Times read as the clock at the place, not the viewer's.
+  const tz = usePlaceZone(location?.latDeg, location?.lonDeg);
   const observer = useMemo<HomeObserver | null>(
     () => location && {
       id: "home",
       name: location.name || "Your location",
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
-      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      tz,
       elevM: 0,
       elevSource: "default",
     },
-    [location],
+    [location, tz],
   );
 
   // Tracks shown in the sky view: everything the map draws that is not hidden.
@@ -477,6 +481,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       minElevDeg={prefs.minElevDeg}
       skyType={prefs.skyType}
       locationName={location && !changingLocation ? location.name : null}
+      zoneNote={zoneNote(tz, viewerZone(), nowMs ?? Date.now()) as string | null}
       onModeChange={(mode) => setPrefs({ mode })}
       onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
       onSkyTypeChange={(skyType) => setPrefs({ skyType })}
