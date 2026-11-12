@@ -54,6 +54,7 @@ test('cx drops falsy parts', () => assert.equal(cx('a', false, null, 'b', undefi
 test('modalClass', () => {
   assert.equal(modalClass(), 'modal');
   assert.equal(modalClass({ size: 'full', tone: 'dark' }), 'modal modal--full theme-dark');
+  assert.equal(modalClass({ size: 'sheet' }), 'modal modal--sheet');
 });
 
 test('surfaceClass: padded by default, compact, flush, accent, selected, interactive', () => {

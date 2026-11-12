@@ -9,8 +9,9 @@ interface Props {
   open: boolean;
   onClose: () => void;
   title: string;
-  /** "dialog" is a centred frame over a backdrop; "full" takes over the screen. */
-  size?: "dialog" | "full";
+  /** "dialog" is a centred frame over a backdrop; "full" takes over the screen;
+   *  "sheet" is a bottom sheet on phones, a 360px panel under the header on desktop. */
+  size?: "dialog" | "full" | "sheet";
   /** "dark" keeps the dialog dark whatever the page theme (the chart dialogs). */
   tone?: "page" | "dark";
   /** Buttons in the header, left of Close. */

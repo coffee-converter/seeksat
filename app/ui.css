@@ -306,6 +306,49 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .modal--full .modal__head { border-bottom: 0; padding: 0; align-items: flex-start; }
 .modal--full .modal__title { font-size: var(--fs-2xl); }
 
+/* sheet: pinned to the bottom on phones (grab bar, body scrolls); from 1100px
+   a 360px panel under the header at the top right over a light backdrop. */
+.modal--sheet { align-items: flex-end; }
+.modal--sheet .modal__panel {
+  width: 100%;
+  max-width: none;
+  max-height: 85svh;
+  padding: var(--sp-16);
+  gap: var(--sp-12);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: 0;
+}
+.modal--sheet .modal__panel::before {
+  content: "";
+  align-self: center;
+  flex: none;
+  width: 40px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--border);
+}
+.modal--sheet .modal__head { padding: 0 0 var(--sp-8); }
+@media (prefers-reduced-motion: no-preference) {
+  .modal--sheet .modal__panel { animation: sheet-up var(--dur-slow) var(--ease); }
+}
+@keyframes sheet-up { from { transform: translateY(100%); } }
+@media (min-width: 1100px) {
+  .modal--sheet { align-items: flex-start; justify-content: flex-end; }
+  .modal--sheet .modal__backdrop { background: color-mix(in srgb, var(--bg) 35%, transparent); backdrop-filter: none; }
+  .modal--sheet .modal__panel {
+    position: absolute;
+    top: var(--header-h, 64px);
+    right: var(--sp-16);
+    width: 360px;
+    max-height: calc(100svh - var(--header-h, 64px) - var(--sp-16));
+    border-bottom: var(--line-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-modal);
+    animation: none;
+  }
+  .modal--sheet .modal__panel::before { display: none; }
+}
+
 /* Visually hidden, still read by screen readers (Field's hideLabel, table captions). */
 .sr-only {
   position: absolute;
