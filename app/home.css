@@ -975,6 +975,10 @@
    Under 1100 px: one column, a sticky top bar, a tall map, the panel below.
    From 1100 px: the map fills the window beside a scrolling panel. */
 .map-shell {
+  /* The top bar's height (56 px and its rule, measured by HeaderPinned once
+     hydrated) and the stacked map's resting height. */
+  --header-h: var(--header-pinned, 57px);
+  --map-h: max(260px, 50vh);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "top" "map" "panel";
@@ -983,6 +987,10 @@
   font-family: var(--font-sans);
   font-size: var(--fs-md);
 }
+@supports (height: 1svh) { .map-shell { --map-h: max(260px, 50svh); } }
+/* The satellite page keeps its taller map from 700 px. */
+.map-shell.sat { --map-h: max(260px, 60vh); }
+@supports (height: 1svh) { .map-shell.sat { --map-h: max(260px, 60svh); } }
 .map-shell__top {
   grid-area: top;
   position: sticky;
@@ -1136,8 +1144,7 @@
 .flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
 .flat-map-shell--fill .flat-map {
   grid-area: map;
-  height: max(260px, 60vh);
-  height: max(260px, 60svh);
+  height: var(--map-h);
 }
 .flat-map-shell--fill.flat-map-shell--full { display: grid; grid-template-rows: minmax(0, 1fr); }
 .flat-map-shell--fill.flat-map-shell--full .flat-map { height: auto; min-height: 0; }
@@ -1158,10 +1165,55 @@
 /* Satellite page on phones: a map tall enough to see past its controls with
    the title just below it. */
 @media (max-width: 699.98px) {
-  .map-shell.sat .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
-    height: max(220px, 55vh);
-    height: max(220px, 55svh);
+  .map-shell.sat { --map-h: max(220px, 55vh); }
+  @supports (height: 1svh) { .map-shell.sat { --map-h: max(220px, 55svh); } }
+}
+
+/* Home, stacked: the pass list slides up over the map. The map is sticky with
+   a negative top, so scrolling lifts it under the top bar until a 72 px strip
+   is left, and the strip stays while the rows scroll under it. A lip on the
+   map's bottom edge reads as the top of a sheet the rows slide into. Plain
+   sticky, no scroll script. The satellite page keeps its plain scroll: its
+   sticky title bar sits right under the top bar, where the strip would be. */
+@media (max-width: 1099.98px) {
+  .map-shell:not(.sat) .map-shell__map {
+    position: sticky;
+    top: calc(var(--header-h) - var(--map-h) + 72px);
+    /* Over the panel, so the strip stays on top of the rows; under the top bar. */
+    z-index: 2;
   }
+  .map-shell:not(.sat) .map-shell__map::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    height: var(--radius-lg);
+    background: var(--bg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-popover);
+    /* Only the shadow above the lip, over the map; none on the list. */
+    clip-path: inset(-32px 0 0 0);
+    pointer-events: none;
+  }
+  /* MapLibre's credit sits on the lip, not under it. */
+  .map-shell:not(.sat) .flat-map-shell--fill:not(.flat-map-shell--full) .maplibregl-ctrl-bottom-right { bottom: var(--radius-lg); }
+  /* Full screen without the native API: the fixed map sits in the sticky
+     map's stacking context, so lift that above the top bar. */
+  .map-shell:not(.sat) .map-shell__map:has(> .flat-map-shell--full) { z-index: 1000; }
+  .map-shell:not(.sat) .map-shell__panel {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-popover);
+  }
+  /* A first visit puts the location card above a shorter map: plain scroll. */
+  .map-shell.home-first-visit .map-shell__map,
+  html[data-first-visit] .map-shell .map-shell__map { position: relative; top: auto; }
+  /* About, opened from the menu, lands below the strip, not under it. */
+  .map-shell:not(.sat) .home-about { scroll-margin-top: calc(var(--header-h) + 72px + var(--sp-16)); }
 }
 
 /* Docked: the map fills the window under the top bar, beside the panel. */
