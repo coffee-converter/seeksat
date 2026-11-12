@@ -102,6 +102,7 @@ const buildData = overlayData as (o: {
   shortTrackIds?: Set<number>;
   trackDetail?: number;
   tracks?: boolean;
+  marks?: boolean;
   graticule?: boolean;
 }) => SourceData;
 const detailFor = trackDetailFor as (zoom: number, latDeg: number) => number;
@@ -341,7 +342,7 @@ export default function FlatMap({
    *  and the focus footprint move to trueNow(). A satellite the track cannot
    *  place now stays where the props put it, so a failed sample never drops
    *  it (or changes the track key). */
-  const liveSats = useCallback((): MapSat[] => {
+  const liveSats = useCallback((withTicks = true): MapSat[] => {
     const { sats: s, minElevDeg: elev } = latest.current;
     const ms = trueNow();
     const out: MapSat[] = [];
@@ -355,7 +356,7 @@ export default function FlatMap({
         ...x,
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
         footprint: x.footprint ? footprintOf(sub, sub.altKm, elev) : null,
-        ...(x.ticksAt && { trackTicks: x.ticksAt(ms) }),
+        ...(withTicks && x.ticksAt && { trackTicks: x.ticksAt(ms) }),
       });
     }
     return out;
@@ -759,8 +760,9 @@ export default function FlatMap({
   }, []);
   const sentTrackKey = useRef<string | null>(null);
   /** Source data for the map. Tracks change once a minute (or on a zoom that
-   *  changes their detail) while the dots change every second, so unless all
-   *  is set the track sources are only built when their key has changed. */
+   *  changes their detail) while the dots and the marks (chevron and time
+   *  ticks) change every second, so unless all is set the track line sources
+   *  are only built when their key has changed; ss-marks goes every push. */
   const sourceData = useCallback((map: MlMap, all: boolean): SourceData => {
     const s = liveSats();
     const o = latest.current.observer;
@@ -1366,7 +1368,7 @@ export default function FlatMap({
       // Only what moves: the dots, the focus footprint while there is one,
       // and the night bands when due. The observer and an emptied footprint
       // go with push().
-      const data = buildData({ sats: liveSats(), tracks: false });
+      const data = buildData({ sats: liveSats(false), tracks: false, marks: false });
       const footprint = data["ss-footprint"] as { features: unknown[] };
       setOverlayData(map, {
         "ss-sats": data["ss-sats"],

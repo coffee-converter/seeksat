@@ -268,6 +268,21 @@ test('tracks: false leaves out the track line sources but still builds the marks
   for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(all[id].features.length > 0, id);
 });
 
+test('marks: false leaves out ss-marks without reading the tracks or ticks', () => {
+  let reads = 0;
+  const watched = SATS.map((s) => {
+    const copy = { ...s };
+    for (const k of ['trackPast', 'trackFuture', 'trackTicks']) {
+      Object.defineProperty(copy, k, { get: () => { reads++; return s[k]; }, enumerable: true });
+    }
+    return copy;
+  });
+  const data = overlayData({ sats: watched, observer: OBSERVER, tracks: false, marks: false });
+  assert.equal(reads, 0);
+  assert.ok(!('ss-marks' in data));
+  assert.equal(data['ss-sats'].features.length, 3);
+});
+
 test('the footprint is a faint fill with no outline, so it is not read as a track', () => {
   const fill = overlayLayers(COLORS).find((l) => l.id === 'ss-footprint-fill');
   assert.ok(fill.paint['fill-opacity'] <= 0.1, `fill-opacity ${fill.paint['fill-opacity']}`);
