@@ -19,13 +19,13 @@ export interface MapTrack {
   downlinks: ReadonlyArray<unknown>;
 }
 type Shape = MapSat["trackPast"];
-type Split = Pick<MapSat, "trackPast" | "trackFuture" | "trackTicks">;
+type Split = Pick<MapSat, "trackPast" | "trackFuture" | "trackTicks" | "ticksAt">;
 export type Sub = { latDeg: number; lonDeg: number; altKm: number };
 
 const subOf = subpoint as (ecef: number[]) => Sub;
 const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
 const splitOf = splitTrack as (track: unknown, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
-const ticksOf = trackTicks as (track: unknown, nowMs: number) => MapSat["trackTicks"];
+const ticksOf = trackTicks as (track: unknown, nowMs: number, lineFromMs: number) => MapSat["trackTicks"];
 const NO_LINE: Shape = { type: "MultiLineString", coordinates: [] };
 const NO_TRACK: Split = { trackPast: NO_LINE, trackFuture: NO_LINE, trackTicks: [] };
 
@@ -56,8 +56,13 @@ export function useMapSats({
       const t = tracks.get(id);
       if (!t) continue;
       try {
-        const s = splitOf(t, trackMinute * TRACK_REFRESH_MS);
-        out.set(id, { trackPast: s.past, trackFuture: s.future, trackTicks: s.ticks });
+        const from = trackMinute * TRACK_REFRESH_MS;
+        const s = splitOf(t, from);
+        out.set(id, {
+          trackPast: s.past, trackFuture: s.future, trackTicks: s.ticks,
+          // Ticks glide with the clock but stop where this line ends.
+          ticksAt: (ms: number) => ticksOf(t, ms, from),
+        });
       } catch {
         // a track that cannot be sampled is drawn as a dot only
       }
@@ -81,9 +86,8 @@ export function useMapSats({
         noradId,
         name: t.shortName,
         color: colors.get(noradId) ?? SAT_PALETTES.dark[0],
+        // Only satellites that draw a track get ticks.
         ...(ground.get(noradId) ?? NO_TRACK),
-        // Ticks glide with the clock; only satellites that draw a track get them.
-        ...(ground.has(noradId) && { ticksAt: (ms: number) => ticksOf(t, ms) }),
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
         positionAt: (ms) => {
           const e = t.ecefAt(new Date(ms));
