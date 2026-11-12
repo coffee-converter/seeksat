@@ -236,14 +236,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     if (hydrated && location) delete document.documentElement.dataset[FIRST_VISIT_ATTR];
   }, [hydrated, location]);
   useEffect(() => () => { delete document.documentElement.dataset[FIRST_VISIT_ATTR]; }, []);
-  // Settings > About from another page lands here as /#about.
-  useEffect(() => {
-    if (window.location.hash !== "#about") return;
-    const about = document.getElementById("about") as HTMLDetailsElement | null;
-    if (!about) return;
-    about.open = true;
-    about.scrollIntoView({ block: "start" });
-  }, []);
   // Times read as the clock at the place, not the viewer's.
   const tz = usePlaceZone(location?.latDeg, location?.lonDeg);
   const observer = useMemo<HomeObserver | null>(
@@ -401,6 +393,20 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     : !cardState || (cardState.cards.length === 0 && status === "loading") ? "Loading satellites..."
       : !shownCards ? "Finding passes..." : null;
   const showList = following || viewingCard != null;
+  // Settings > About from another page lands here as /#about. It waits for
+  // the list, whose rows would otherwise push it back out of view as they land.
+  const aboutPending = useRef(true);
+  const listSettled = hydrated && (!location || listNote == null || status === "error");
+  useEffect(() => {
+    if (!aboutPending.current || !listSettled) return;
+    aboutPending.current = false;
+    if (window.location.hash !== "#about") return;
+    const about = document.getElementById("about") as HTMLDetailsElement | null;
+    if (!about) return;
+    about.open = true;
+    // After the rows (and desktop's open first row) have drawn.
+    requestAnimationFrame(() => about.scrollIntoView({ block: "start" }));
+  }, [listSettled]);
   // An open row's highlight goes with the list (it reports only while shown).
   if (!showList && highlightId != null) setHighlightId(null);
 
