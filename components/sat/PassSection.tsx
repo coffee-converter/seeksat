@@ -28,6 +28,7 @@ import { PassPath, RadioPanel, aboveTenText } from "@/components/passes/PassPath
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 import Button from "@/components/ui/Button";
+import { usePlaceZone } from "@/components/usePlaceZone";
 
 // The chart painters load on the first chart open, not with the page.
 const DAY_MS = 86_400_000;
@@ -133,17 +134,19 @@ export default function PassSection({
   const { mode, minElevDeg } = settings;
 
   const location = settings.observer;
+  // Times read as the clock at the place, not the viewer's.
+  const tz = usePlaceZone(location?.latDeg, location?.lonDeg);
   const observer = useMemo<HomeObserver | null>(
     () => location && {
       id: "home",
       name: location.name || "Your location",
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
-      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      tz,
       elevM: 0,
       elevSource: "default",
     },
-    [location],
+    [location, tz],
   );
 
   const extra = settings.observers;
