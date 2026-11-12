@@ -91,8 +91,9 @@
   text-align: center;
   color: var(--map-text);
 }
-/* The chip strip and view menu share a row over the top of the map.
-   The row lets taps through to the canvas between its controls. */
+/* The chip strip, then the layers and full screen buttons, share a row over
+   the top of the map. The row lets taps through to the canvas between its
+   controls. */
 .flat-map__top {
   position: absolute;
   top: 8px;
@@ -104,10 +105,11 @@
   pointer-events: none;
 }
 .flat-map__top > * { pointer-events: auto; }
-.flat-map__views { flex: none; display: flex; align-items: flex-start; gap: var(--sp-8); margin-left: auto; }
-/* MapLibre's attribution sits beside the zoom stack, in the bottom-right
-   corner, so opening it never covers the buttons. */
-.flat-map .maplibregl-ctrl-bottom-right { bottom: 0; right: 48px; }
+/* Positioned: the layers menu opens under it, at its right edge. */
+.flat-map__tools { position: relative; flex: none; display: flex; align-items: flex-start; gap: var(--sp-8); margin-left: auto; }
+/* MapLibre's attribution takes the bottom-right corner; on desktop it sits
+   beside the zoom stack, so opening it never covers the buttons. */
+.flat-map .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }
 /* Its compact pill and info button in the map's colours (MapLibre draws them white). */
 .flat-map .maplibregl-ctrl.maplibregl-ctrl-attrib,
 .flat-map .maplibregl-ctrl-attrib.maplibregl-compact {
@@ -135,47 +137,58 @@
   outline-offset: -2px;
 }
 
-/* The map's corners: chips (and the focus bar) top left, map type and Share
-   top right, where-to-look views bottom left, and full screen over zoom in
-   and out bottom right, with the map credits beside them. */
+/* The map's corners: chips (and the focus bar) top left, layers and full
+   screen top right, and on desktop zoom in over zoom out bottom right, with
+   the map credits beside them. Phones pinch to zoom. */
 .flat-map__zoom {
   position: absolute;
   right: 8px;
   bottom: 8px;
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: var(--sp-4);
 }
-/* The views wrap upward on a narrow map, clear of the zoom stack and credits. */
-.flat-map__presets {
+@media (min-width: 1100px) {
+  .flat-map__zoom { display: flex; }
+  .flat-map .maplibregl-ctrl-bottom-right { right: 48px; }
+}
+
+/* The layers menu: a popover under its button, scrolling inside when the
+   map is short. Its height follows the map overlay it sits in (a size
+   container when docked or stacked; otherwise the viewport). */
+.map-layers__panel {
   position: absolute;
-  left: 8px;
-  right: 88px;
-  bottom: 8px;
+  top: calc(100% + var(--sp-8));
+  right: 0;
+  z-index: 1;
   display: flex;
-  flex-wrap: wrap-reverse;
-  gap: var(--sp-4);
-  pointer-events: none;
+  flex-direction: column;
+  gap: var(--sp-16);
+  box-sizing: border-box;
+  width: min(320px, 100cqw);
+  max-height: calc(100cqh - 56px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-12) var(--sp-16) var(--sp-16);
+  background: var(--bg);
+  color: var(--map-text);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  scrollbar-width: thin;
+  scrollbar-color: var(--btn-line) transparent;
 }
-.flat-map__presets .btn { pointer-events: auto; }
-/* Share shows at the top right, and View only on phones. */
-.flat-map__zoom .flat-map__view-pick,
-.flat-map__zoom .flat-map__share--row { display: none; }
-/* Phones: one row along the bottom (View or Reset view, +, -, full screen,
-   Share), the views behind View, opening above the row. */
-@media (max-width: 599.98px) {
-  .flat-map__zoom { left: 8px; right: auto; flex-direction: row; }
-  .flat-map__zoom .flat-map__view-pick { display: inline-flex; }
-  .flat-map__zoom .flat-map__full { order: 1; }
-  .flat-map__zoom .flat-map__share--row { display: inline-flex; order: 2; }
-  .flat-map__views .flat-map__share--top { display: none; }
-  .flat-map .flat-map__presets:not(.flat-map__presets--open) { display: none; }
-  /* Above the row's taller touch buttons, clear of the map credits button. */
-  .flat-map .flat-map__presets { bottom: 58px; right: 52px; }
-  /* The row stops short of the right edge: the credits take the corner,
-     level with it (opened, they lay over the row until closed). */
-  .flat-map .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }
+.map-layers__panel[hidden] { display: none; }
+.map-layers__panel:focus { outline: none; }
+.map-layers__title {
+  margin: 0 0 var(--sp-6);
+  color: var(--map-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
 }
+.map-layers__views { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.map-layers__panel .map-legend { flex-direction: column; gap: var(--sp-6); margin: 0; }
 
 /* Full screen: the native API when present, else this class (iPhone Safari). */
 .flat-map-shell--full {
@@ -192,10 +205,9 @@
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
-  /* The legend takes its own height; the map gets the rest of the dynamic viewport. */
+  /* The focus bar takes its own height; the map gets the rest of the dynamic viewport. */
   max-height: calc(100dvh - 16px);
 }
-.flat-map-shell--full .map-legend,
 .flat-map-shell--full .focus-bar { flex: 0 0 auto; }
 .flat-map-shell:fullscreen { background: var(--bg); }
 
@@ -1054,8 +1066,7 @@
     padding: var(--sp-6) var(--sp-16) var(--sp-8);
   }
   .map-shell__map { padding: var(--sp-8) 0 0; }
-  .map-shell__map > :not(.flat-map-shell--fill),
-  .flat-map-shell--fill .map-legend-box { margin-left: var(--sp-16); margin-right: var(--sp-16); }
+  .map-shell__map > :not(.flat-map-shell--fill) { margin-left: var(--sp-16); margin-right: var(--sp-16); }
   /* A full-width button keeps its 100%, so it gives back the margins. */
   .map-shell__map > .next-strip { width: calc(100% - 32px); }
   .flat-map-shell--fill .flat-map { border-left: 0; border-right: 0; border-radius: 0; }
@@ -1085,17 +1096,20 @@
   .theme-toggle .theme-toggle__cycle { min-width: 48px; }
 }
 
-/* FlatMap fill: sized by the shell. Narrow screens stack the focus bar,
-   the map (chips over its top) and the open legend in a grid. */
+/* FlatMap fill: sized by the shell. The chips row and the focus bar lay
+   over the top of the map, in an overlay as tall as the map (so the layers
+   menu can size itself to it) that lets taps through to the canvas. */
 .flat-map-shell--fill {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "head" "map" "legend";
+  grid-template-areas: "map";
 }
 .flat-map-shell--fill .flat-map__over {
   grid-area: map;
-  align-self: start;
-  z-index: 2;
+  align-self: stretch;
+  container-type: size;
+  /* Above MapLibre's corner controls (z-index 2), so the layers menu covers them. */
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1112,9 +1126,7 @@
   height: max(260px, 60vh);
   height: max(260px, 60svh);
 }
-.flat-map-shell--fill .map-legend-box { grid-area: legend; min-width: 0; }
-.map-legend-box .map-legend__toggle { display: none; }
-.flat-map-shell--fill.flat-map-shell--full { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.flat-map-shell--fill.flat-map-shell--full { display: grid; grid-template-rows: minmax(0, 1fr); }
 .flat-map-shell--fill.flat-map-shell--full .flat-map { height: auto; min-height: 0; }
 
 /* A first visit (no location yet), stacked: HomeApp puts the location card
@@ -1130,15 +1142,13 @@
   }
 }
 
-/* Satellite page on phones: a folded legend, and a map tall enough to see
-   past its controls with the title just below it. */
+/* Satellite page on phones: a map tall enough to see past its controls with
+   the title just below it. */
 @media (max-width: 699.98px) {
   .map-shell.sat .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
     height: max(220px, 55vh);
     height: max(220px, 55svh);
   }
-  .map-shell.sat .flat-map-shell--fill .map-legend__toggle { display: inline-flex; margin-top: var(--sp-6); }
-  .map-shell.sat .flat-map-shell--fill .map-legend-box:not(.map-legend-box--open) .map-legend { display: none; }
 }
 
 /* Docked: the map fills the window under the top bar, beside the panel. */
@@ -1182,8 +1192,9 @@
   /* Focus bar and chips stack over the top of the map; taps between them reach the canvas. */
   .flat-map-shell--fill .flat-map__over {
     grid-area: map;
-    align-self: start;
-    z-index: 2;
+    align-self: stretch;
+    container-type: size;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -1195,36 +1206,8 @@
   .flat-map-shell--fill .flat-map__head { align-self: flex-start; max-width: min(640px, 100%); pointer-events: auto; }
   .flat-map-shell--fill .flat-map__head .focus-bar { margin: 0; box-shadow: var(--shadow-popover); }
   .flat-map-shell--fill .flat-map__top { position: static; align-self: stretch; margin: 0; }
-  /* Docked, the Legend holds the bottom-left corner: the views centre
-     between it and the zoom stack. */
   .flat-map-shell--fill .flat-map__zoom { right: 12px; bottom: 12px; }
-  .flat-map-shell--fill .flat-map__presets { left: 120px; right: 120px; bottom: 12px; justify-content: center; }
   .flat-map-shell--fill .maplibregl-ctrl-bottom-right { bottom: 4px; right: 52px; }
-  /* The legend: a toggle at the bottom left that opens upward. */
-  .flat-map-shell--fill .map-legend-box {
-    grid-area: map;
-    align-self: end;
-    justify-self: start;
-    z-index: 2;
-    display: flex;
-    flex-direction: column-reverse;
-    align-items: flex-start;
-    gap: var(--sp-6);
-    margin: 0 0 var(--sp-12) var(--sp-12);
-  }
-  .flat-map-shell--fill .map-legend__toggle { display: inline-flex; min-height: 32px; }
-  .flat-map-shell--fill .map-legend-box:not(.map-legend-box--open) .map-legend { display: none; }
-  .flat-map-shell--fill .map-legend {
-    flex-direction: column;
-    gap: var(--sp-6);
-    /* The ground-position note wraps rather than stretching the box. */
-    max-width: 34em;
-    margin: 0;
-    padding: var(--sp-12) var(--sp-12);
-    background: var(--map-panel);
-    border: var(--line-subtle);
-    border-radius: var(--radius-lg);
-  }
   .flat-map-shell--fill.flat-map-shell--full { grid-template-rows: minmax(0, 1fr); padding: 0; }
   .flat-map-shell--fill.flat-map-shell--full .flat-map { max-height: none; }
 }

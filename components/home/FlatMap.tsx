@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // Types only: the library itself loads in an effect, in its own chunk.
 import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
@@ -10,14 +10,14 @@ import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
-import { PROJECTIONS, MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
+import { MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { canvasMismatch } from "@/lib/map/canvas-check.mjs";
 import { reportNotice } from "@/lib/site/report.mjs";
 import { useFollow } from "@/lib/map/follow-store";
 import { peekPendingCamera, registerCameraReader, setPendingCamera } from "@/lib/map/share-camera";
 import Button from "@/components/ui/Button";
-import Segmented from "@/components/ui/Segmented";
+import MapLayers from "@/components/map/MapLayers";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -71,12 +71,12 @@ interface Props {
   onSelect: (noradId: number | null) => void;
   /** Shown above the map, inside the full screen frame (the focus bar). */
   top?: React.ReactNode;
-  /** Laid over the top of the map, left of the view toggle (the chips). */
+  /** Laid over the top of the map, left of the layers and full screen buttons (the chips). */
   chips?: React.ReactNode;
   /** Sized by its container (MapShell): docked full height on desktop, with the
-   *  focus bar and a collapsible legend laid over the map. */
+   *  focus bar laid over the map. */
   fill?: boolean;
-  /** The Share button, after the zoom and full screen buttons. */
+  /** The Share button for the whole view, in the layers menu. */
   share?: React.ReactNode;
 }
 
@@ -89,7 +89,7 @@ type LngLat = [number, number];
 type Camera = { center: LngLat; zoom: number };
 /** A camera move; no zoom keeps the current zoom. */
 type Move = { center: LngLat; zoom?: number };
-type Preset = "you" | "sat" | "north" | "south" | "night";
+export type Preset = "you" | "sat" | "north" | "south" | "night";
 type LegendItem = { key: string; kind: string; label: string; color?: string };
 const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
 type SourceData = Record<string, unknown>;
@@ -179,7 +179,7 @@ const DBLCLICK_MS = 500;
 const GRID_INSET_PX = 6;
 const GRID_SAMPLE_PX = 12;
 // What a label must not sit under: the map's buttons and panels.
-const GRID_BLOCKERS = "button, .map-legend-box, .flat-map__head, .maplibregl-ctrl-attrib";
+const GRID_BLOCKERS = "button, .flat-map__head, .maplibregl-ctrl-attrib";
 // A 9 px label's rough size, for the overlap test.
 const GRID_CHAR_PX = 5.6;
 const GRID_LINE_PX = 11;
@@ -322,11 +322,6 @@ export default function FlatMap({
   // with getState.
   const followOn = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
-  const [legendOpen, setLegendOpen] = useState(false);
-  // Phones: whether the View button has the globe camera buttons open.
-  const [viewsOpen, setViewsOpen] = useState(false);
-  const presetsId = useId();
-  const legendId = useId();
 
   // Latest props, read by map event handlers without re-binding them.
   const latest = useRef({ sats, observer, view, onSelect, minElevDeg });
@@ -1219,7 +1214,8 @@ export default function FlatMap({
     if (!full) return;
     const fallback = !nativeFull.current;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && fallback) {
+      // An open dialog over the map (the layers menu) takes Esc first.
+      if (e.key === "Escape" && fallback && !(e.target as Element | null)?.closest?.('[role="dialog"]')) {
         // Leaving full screen is all this Esc does (it does not also clear focus).
         e.preventDefault();
         setFull(false);
@@ -1554,25 +1550,8 @@ export default function FlatMap({
     map.zoomTo(map.getZoom() + delta, { animate: !reducedMotion() });
   };
 
-  const chipRow = (
-    <div className="flat-map__top">
-      {chips}
-      <div className="flat-map__views">
-        <Segmented
-          label="Map view"
-          size="sm"
-          options={PROJECTIONS.map((p: { id: string; label: string }) => ({ value: p.id, label: p.label }))}
-          value={view}
-          onChange={onProjectionChange}
-        />
-        {/* Share sends the whole view, so it sits with the map type; phones
-            keep it in the bottom row (one shown at a time, by width). */}
-        {share ? <span className="flat-map__share flat-map__share--top">{share}</span> : null}
-      </div>
-    </div>
-  );
   const legendList = (
-    <ul className="map-legend" id={legendId} aria-label="Map legend">
+    <ul className="map-legend" aria-label="Map legend">
       {legend({ sats, observer, minElevDeg }).map((item) => (
         <li key={item.key}>
           <span
@@ -1601,6 +1580,27 @@ export default function FlatMap({
       ))}
     </ul>
   );
+  // Chips at the top left; layers and full screen at the top right.
+  const chipRow = (
+    <div className="flat-map__top">
+      {chips}
+      <div className="flat-map__tools">
+        <MapLayers
+          view={view}
+          onViewChange={onProjectionChange}
+          presets={presetsNow}
+          onPreset={goTo}
+          followOn={followOn}
+          onReset={reset}
+          share={share}
+          legend={legendList}
+        />
+        <Button variant="overlay" iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
+          <span aria-hidden="true">{"⛶"}</span>
+        </Button>
+      </div>
+    </div>
+  );
   const shellClass = `flat-map-shell${fill ? " flat-map-shell--fill" : ""}${full ? " flat-map-shell--full" : ""}`;
 
   return (
@@ -1626,53 +1626,10 @@ export default function FlatMap({
         </p>
       ) : null}
       {fill ? null : chipRow}
-      {/* Where to look. The globe's camera views, or the flat map's way back
-          to its home view. Phones fold them behind View in the bottom row. */}
-      <div
-        id={presetsId}
-        className={`flat-map__presets${viewsOpen ? " flat-map__presets--open" : ""}`}
-        role="group"
-        aria-label={view === "globe" ? "Globe camera" : "Map view"}
-      >
-        {view === "globe" ? presetsNow.map((p) => (
-          <Button
-            key={p.id}
-            variant="overlay"
-            size="sm"
-            pressed={p.id === "sat" ? followOn : undefined}
-            onClick={() => {
-              setViewsOpen(false);
-              goTo(p.id);
-            }}
-          >
-            {p.label}
-          </Button>
-        )) : (
-          <Button variant="overlay" size="sm" onClick={reset}>Reset view</Button>
-        )}
-      </div>
-      {/* How close: full screen above + and - at the bottom right. Phones lay
-          this out as one row: View (or Reset view), +, -, full screen, Share. */}
+      {/* Zoom in and out at the bottom right, desktop only (phones pinch). */}
       <div className="flat-map__zoom">
-        {view === "globe" ? (
-          <Button
-            variant="overlay"
-            className="flat-map__view-pick"
-            aria-expanded={viewsOpen}
-            aria-controls={presetsId}
-            onClick={() => setViewsOpen((o) => !o)}
-          >
-            View
-          </Button>
-        ) : (
-          <Button variant="overlay" className="flat-map__view-pick" onClick={reset}>Reset view</Button>
-        )}
-        <Button variant="overlay" iconOnly className="flat-map__full" aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
-          {"⛶"}
-        </Button>
         <Button variant="overlay" iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
         <Button variant="overlay" iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
-        {share ? <span className="flat-map__share flat-map__share--row">{share}</span> : null}
       </div>
       <table className="sr-only">
         <caption>Current satellite positions</caption>
@@ -1694,22 +1651,6 @@ export default function FlatMap({
         </tbody>
       </table>
     </div>
-    {fill ? (
-      // The toggle shows only when docked; narrower, the legend is always open below the map.
-      <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
-        <Button
-          variant="overlay"
-          size="sm"
-          className="map-legend__toggle"
-          aria-expanded={legendOpen}
-          aria-controls={legendId}
-          onClick={() => setLegendOpen((v) => !v)}
-        >
-          Legend
-        </Button>
-        {legendList}
-      </div>
-    ) : legendList}
     </div>
   );
 }
