@@ -2,7 +2,7 @@
 // FlatMap's MapSat list. Shared by the home and satellite pages.
 import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
-import { footprintFeature, splitTrack, subpoint, tickStepMin } from "@/lib/map/geometry.mjs";
+import { footprintFeature, splitTrack, subpoint, trackTicks, tickStepMin } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 
 export interface Layer {
@@ -25,6 +25,7 @@ export type Sub = { latDeg: number; lonDeg: number; altKm: number };
 const subOf = subpoint as (ecef: number[]) => Sub;
 const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
 const splitOf = splitTrack as (track: unknown, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
+const ticksOf = trackTicks as (track: unknown, nowMs: number) => MapSat["trackTicks"];
 const NO_LINE: Shape = { type: "MultiLineString", coordinates: [] };
 const NO_TRACK: Split = { trackPast: NO_LINE, trackFuture: NO_LINE, trackTicks: [] };
 
@@ -81,6 +82,8 @@ export function useMapSats({
         name: t.shortName,
         color: colors.get(noradId) ?? SAT_PALETTES.dark[0],
         ...(ground.get(noradId) ?? NO_TRACK),
+        // Ticks glide with the clock; only satellites that draw a track get them.
+        ...(ground.has(noradId) && { ticksAt: (ms: number) => ticksOf(t, ms) }),
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
         positionAt: (ms) => {
           const e = t.ecefAt(new Date(ms));

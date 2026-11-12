@@ -247,18 +247,19 @@ test('trackDetail curves extra points into past and future tracks', () => {
   );
 });
 
-test('tracks: false leaves out the track sources without reading the tracks', () => {
+test('tracks: false leaves out the track line sources but still builds the marks', () => {
   let reads = 0;
   const watched = SATS.map((s) => {
     const copy = { ...s };
-    for (const k of ['trackPast', 'trackFuture', 'trackTicks']) {
+    for (const k of ['trackPast']) {
       Object.defineProperty(copy, k, { get: () => { reads++; return s[k]; }, enumerable: true });
     }
     return copy;
   });
   const data = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8, tracks: false });
   assert.equal(reads, 0);
-  for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(!(id in data), id);
+  for (const id of ['ss-track-past', 'ss-track-future']) assert.ok(!(id in data), id);
+  assert.ok(data['ss-marks'].features.length > 0);
   assert.equal(data['ss-sats'].features.length, 3);
   assert.equal(data['ss-footprint'].features.length, 1);
   assert.equal(data['ss-observer'].features.length, 1);

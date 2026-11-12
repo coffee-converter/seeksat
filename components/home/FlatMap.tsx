@@ -31,6 +31,8 @@ export interface MapSat {
   trackPast: GeoShape;
   trackFuture: GeoShape;
   trackTicks: { lonDeg: number; latDeg: number; minutes: number }[];
+  /** The time ticks relative to a time (ms); the map refreshes them every second. */
+  ticksAt?(ms: number): MapSat["trackTicks"];
   position: { lonDeg: number; latDeg: number };
   /** The sub-point at a time (ms), or null when the track cannot place it. */
   positionAt(ms: number): SelectedSub | null;
@@ -353,6 +355,7 @@ export default function FlatMap({
         ...x,
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
         footprint: x.footprint ? footprintOf(sub, sub.altKm, elev) : null,
+        ...(x.ticksAt && { trackTicks: x.ticksAt(ms) }),
       });
     }
     return out;
