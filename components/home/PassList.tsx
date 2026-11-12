@@ -112,11 +112,16 @@ export default function PassList({
   const [showAll, setShowAll] = useState(false);
   // Open rows by key, in the order they were opened.
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
-  const toggle = (key: string) => setOpen((prev) => {
-    const next = new Set(prev);
-    if (!next.delete(key)) next.add(key);
-    return next;
-  });
+  // The row opened for the viewer (desktop's first pass), until they toggle it.
+  const [autoKey, setAutoKey] = useState<string | null>(null);
+  const toggle = (key: string) => {
+    if (key === autoKey) setAutoKey(null);
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  };
 
   const cards = viewingCard ? followedCards.filter((c) => c.noradId !== viewingCard.noradId) : followedCards;
   const { groups, more, always, quiet } = listOf({ cards, nowMs, timeZone: tz, limit: showAll ? Infinity : ROW_LIMIT });
@@ -135,12 +140,19 @@ export default function PassList({
     ...always.map((c) => `${c.noradId}:always`),
   ];
 
-  // From 1100 px the first pass starts open; read once, when it first shows.
+  // From 1100 px the first pass starts open; read when it first shows, and
+  // again after the list has run empty (new mode, place or follows).
   const seeded = useRef(false);
   useEffect(() => {
-    if (seeded.current || !firstKey) return;
+    if (!firstKey) {
+      seeded.current = false;
+      return;
+    }
+    if (seeded.current) return;
     seeded.current = true;
-    if (window.matchMedia(DESKTOP_QUERY).matches) setOpen((prev) => new Set(prev).add(firstKey));
+    if (!window.matchMedia(DESKTOP_QUERY).matches) return;
+    setOpen((prev) => new Set(prev).add(firstKey));
+    setAutoKey(firstKey);
   }, [firstKey]);
 
   // Forget open rows that left the list (a pass ended, the mode changed).
@@ -150,8 +162,10 @@ export default function PassList({
     setOpen((prev) => ([...prev].every((k) => live.has(k)) ? prev : new Set([...prev].filter((k) => live.has(k)))));
   }, [keyList]);
 
-  // Report the latest opened row still in the list (the prune above lands a render later).
-  const lastOpen = [...open].reverse().find((k) => keys.includes(k));
+  // Report the latest row the viewer opened that is still in the list (the
+  // prune above lands a render later). The auto-opened row is not reported,
+  // so the map stays at rest until the viewer picks a row.
+  const lastOpen = [...open].reverse().find((k) => k !== autoKey && keys.includes(k));
   const openId = lastOpen ? idOfKey(lastOpen) : null;
   const reported = useRef<number | null>(null);
   useEffect(() => {

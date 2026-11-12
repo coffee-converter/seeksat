@@ -21,9 +21,6 @@ interface Props {
   cloudFor?: (pass: Pass) => CloudBadge | null;
   /** The sky type for the visual rating (prefs `skyType`). */
   skyType: string;
-  /** One 16 px track for every satellite, with tick labels: the desktop pass
-   *  panel's strip (hidden under 1100 px by app/home.css). */
-  slim?: boolean;
 }
 
 type Span = { x0: number; x1: number };
@@ -32,7 +29,6 @@ type Quality = { level: "good" | "ok" | "low"; label: string };
 
 const rowsOf = timelineRows as (cards: Card[], nowMs: number) => {
   rows: Array<{ noradId: number; name: string; passes: Pass[] }>;
-  leftOut: number;
 };
 const spanOf = barSpan as (pass: Pass, nowMs: number, hours: number) => Span | null;
 /** A tick this close to either end is pinned inward rather than centred, so
@@ -46,13 +42,10 @@ const HOURS = TIMELINE_HOURS as number;
 const W = 1000;
 const H = 18;
 
-const othersLine = (n: number) => (n === 1
-  ? "1 other has no pass in the next 24 hours."
-  : `${n} others have no pass in the next 24 hours.`);
-
-// "Next 24 hours": every followed satellite's passes on a strip each (or,
-// slim, all on one), with night shaded and a bar per pass that opens its chart.
-export default function Timeline({ cards, tracks, colors, observer, mode, nowMs, onOpenPass, cloudFor, skyType, slim = false }: Props) {
+// "Next 24 hours", the desktop pass panel's strip (hidden under 1100 px by
+// app/home.css): every followed satellite's passes on one 16 px track, with
+// night shaded, tick labels under it, and a bar per pass that opens its chart.
+export default function Timeline({ cards, tracks, colors, observer, mode, nowMs, onOpenPass, cloudFor, skyType }: Props) {
   // The layout moves once a minute; a second is far below a pixel.
   const windowMs = Math.floor(nowMs / 60_000) * 60_000;
   const { latDeg: lat, lonDeg: lon, tz } = observer;
@@ -61,32 +54,17 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
     [lat, lon, windowMs],
   );
   const ticks = useMemo(() => ticksOf(windowMs, tz, { every: 3, hours: HOURS }), [windowMs, tz]);
-  const { rows, leftOut } = useMemo(() => {
-    const r = rowsOf(cards, windowMs);
-    return { rows: r.rows.filter((row) => tracks.has(row.noradId)), leftOut: r.leftOut };
-  }, [cards, windowMs, tracks]);
+  const rows = useMemo(
+    () => rowsOf(cards, windowMs).rows.filter((row) => tracks.has(row.noradId)),
+    [cards, windowMs, tracks],
+  );
 
   if (rows.length === 0) return null;
   const visual = mode === "visual";
   const clouds = visual ? cloudFor : undefined;
   const colorOf = (id: number) => colors.get(id) ?? "var(--map-muted)";
 
-  const background = (
-    <svg className="timeline__svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      {night.map((s) => (
-        <rect key={s.x0} className="timeline__night" x={s.x0 * W} y={0} width={(s.x1 - s.x0) * W} height={H} />
-      ))}
-      {ticks.map((t) => (
-        <line
-          key={t.x}
-          className={t.dayLabel ? "timeline__grid timeline__grid--day" : "timeline__grid"}
-          x1={t.x * W} x2={t.x * W} y1={0} y2={H}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
-    </svg>
-  );
-  const bars = (row: (typeof rows)[number], ownColor: boolean) => row.passes.map((pass) => {
+  const bars = (row: (typeof rows)[number]) => row.passes.map((pass) => {
     const span = spanOf(pass, windowMs, HOURS);
     if (!span) return null;
     const cloud = clouds?.(pass) ?? null;
@@ -105,7 +83,7 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
         style={{
           "--mid": (span.x0 + span.x1) / 2,
           "--w": span.x1 - span.x0,
-          ...(ownColor ? { "--sat-color": colorOf(row.noradId) } : null),
+          "--sat-color": colorOf(row.noradId),
         } as React.CSSProperties}
         aria-label={label}
         title={label}
@@ -113,56 +91,37 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
       />
     );
   });
-  const axis = (
-    <div className="timeline__axis" aria-hidden="true">
-      <div className="timeline__ticks">
-        {ticks.map((t) => (
-          <span
-            key={t.x}
-            className={`timeline__tick${t.dayLabel ? " timeline__day" : ""}${t.x < EDGE ? " timeline__tick--start" : t.x > 1 - EDGE ? " timeline__tick--end" : ""}`}
-            style={{ "--x": t.x } as React.CSSProperties}
-          >
-            {t.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-
-  if (slim) {
-    return (
-      <section className="timeline timeline--slim" aria-label="Next 24 hours">
-        <div className="timeline__strip">
-          {background}
-          {rows.map((row) => bars(row, true))}
-        </div>
-        {axis}
-      </section>
-    );
-  }
-
   return (
-    <section className="timeline" aria-labelledby="timeline-title">
-      <h2 id="timeline-title" className="home-heading">Next 24 hours</h2>
-      <ul className="timeline__rows">
-        {rows.map((row) => (
-          <li key={row.noradId} className="timeline__row" style={{ "--sat-color": colorOf(row.noradId) } as React.CSSProperties}>
-            <span className="timeline__name" title={row.name}>
-              <span className="timeline__swatch" aria-hidden="true" />
-              <span className="timeline__name-text">{row.name}</span>
+    <section className="timeline" aria-label="Next 24 hours">
+      <div className="timeline__strip">
+        <svg className="timeline__svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+          {night.map((s) => (
+            <rect key={s.x0} className="timeline__night" x={s.x0 * W} y={0} width={(s.x1 - s.x0) * W} height={H} />
+          ))}
+          {ticks.map((t) => (
+            <line
+              key={t.x}
+              className={t.dayLabel ? "timeline__grid timeline__grid--day" : "timeline__grid"}
+              x1={t.x * W} x2={t.x * W} y1={0} y2={H}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+        {rows.map(bars)}
+      </div>
+      <div className="timeline__axis" aria-hidden="true">
+        <div className="timeline__ticks">
+          {ticks.map((t) => (
+            <span
+              key={t.x}
+              className={`timeline__tick${t.dayLabel ? " timeline__day" : ""}${t.x < EDGE ? " timeline__tick--start" : t.x > 1 - EDGE ? " timeline__tick--end" : ""}`}
+              style={{ "--x": t.x } as React.CSSProperties}
+            >
+              {t.label}
             </span>
-            <div className="timeline__strip">
-              {background}
-              {bars(row, false)}
-            </div>
-          </li>
-        ))}
-      </ul>
-      {axis}
-      <p className="timeline__note">
-        {"Each bar is a pass; tap one for its chart. Darker: night."}
-        {leftOut > 0 && ` ${othersLine(leftOut)}`}
-      </p>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }

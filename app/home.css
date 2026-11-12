@@ -1279,19 +1279,17 @@
   .live-view__tune-mhz { font-size: var(--fs-2xl); }
 }
 
-/* Next 24 hours: a strip per satellite, one bar per pass. The SVG holds the
-   night shading and stretches; bars are buttons and the labels are HTML,
-   placed by percent, so nothing is distorted. */
-.timeline { margin: 0; min-width: 0; container-type: inline-size; }
-.timeline__rows { position: relative; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-4); }
-.timeline__row,
-.timeline__axis { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: var(--sp-8); align-items: center; }
-.timeline__name { display: flex; align-items: center; gap: var(--sp-6); min-width: 0; font-size: var(--fs-md); color: var(--map-text); }
-.timeline__swatch { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--sat-color); }
-.timeline__name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Next 24 hours, in the desktop pass panel: every satellite's bars on one
+   16 px track, the tick labels under it. Phones have the list alone. The SVG
+   holds the night shading and stretches; bars are buttons and the labels are
+   HTML, placed by percent, so nothing is distorted. */
+.timeline { margin: 0; min-width: 0; }
+@media (max-width: 1099.98px) {
+  .timeline { display: none; }
+}
 .timeline__strip {
   position: relative;
-  height: 22px;
+  height: 16px;
   border-radius: var(--radius-sm);
   background: var(--timeline-day);
 }
@@ -1343,8 +1341,8 @@
 }
 .timeline__bar:hover::before { inset: 0; opacity: 1; }
 .timeline__bar:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; z-index: 1; }
-.timeline__axis { margin-top: var(--sp-4); align-items: start; }
-.timeline__ticks { grid-column: 2; position: relative; height: 15px; }
+.timeline__axis { margin-top: var(--sp-4); }
+.timeline__ticks { position: relative; height: 15px; }
 /* Each label is centred on its gridline; one right at either end is pinned
    inward instead, so none hangs past the strip. */
 .timeline__tick {
@@ -1361,24 +1359,6 @@
 .timeline__tick--start { transform: none; }
 .timeline__tick--end { transform: translateX(-100%); }
 .timeline__day { color: var(--map-text); font-weight: var(--fw-semibold); }
-.timeline__note { margin: var(--sp-6) 0 0; color: var(--map-muted); font-size: var(--fs-md); }
-/* Slim, in the desktop pass panel: every satellite's bars on one 16 px track,
-   the tick labels under it. Phones have the list alone. */
-.timeline--slim .timeline__strip { height: 16px; }
-.timeline--slim .timeline__axis { grid-template-columns: minmax(0, 1fr); }
-.timeline--slim .timeline__ticks { grid-column: 1; }
-@media (max-width: 1099.98px) {
-  .timeline--slim { display: none; }
-}
-/* Under 600 px (a phone, or the side panel on a wide screen) the name sits
-   above its strip, so the strip keeps the full width. */
-@container (max-width: 599.98px) {
-  .timeline__rows { gap: var(--sp-2); }
-  .timeline__row,
-  .timeline__axis { grid-template-columns: minmax(0, 1fr); row-gap: var(--sp-2); }
-  .timeline__name { font-size: var(--fs-sm); }
-  .timeline__ticks { grid-column: 1; }
-}
 @media print {
   .timeline,
   .cloud { display: none; }

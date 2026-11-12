@@ -16,7 +16,12 @@ test('rows are sorted by start across satellites', () => {
   const b = card(2, 'B', [p('2026-11-12T22:00:00Z', 5, 40, 0, 90), p('2026-11-13T00:00:00Z', 5, 40, 0, 90)]);
   const { groups } = passList({ cards: [a, b], nowMs: NOW, timeZone: 'UTC' });
   assert.deepEqual(groups.flatMap((g) => g.rows.map((r) => r.name)), ['A', 'B', 'A', 'B']);
-  assert.equal(groups[0].rows[0].key, `1:${Date.parse('2026-11-12T21:00:00Z')}`);
+  assert.equal(groups[0].rows[0].key, `1:${Date.parse('2026-11-12T21:00:00Z') / 60_000}`);
+});
+
+test('a row keeps its key when a refresh moves the start by seconds', () => {
+  const at = (iso) => passList({ cards: [card(1, 'A', [p(iso, 5, 40, 0, 90)])], nowMs: NOW, timeZone: 'UTC' }).groups[0].rows[0].key;
+  assert.equal(at('2026-11-12T21:00:10Z'), at('2026-11-12T21:00:12.400Z'));
 });
 
 test('in-progress first', () => {

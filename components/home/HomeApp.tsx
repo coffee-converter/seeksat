@@ -179,6 +179,17 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     const id = useHomeStore.getState().focusId;
     if (id != null && before.includes(id) && !pastedIds.current.includes(id)) focusOn(null);
   }, [prefs.custom, focusOn]);
+  // Hiding the focused satellite (from ⋯ › Following) also leaves focus, as on
+  // a satellite page, so the tap shows. A focus on an already hidden one stays.
+  // Loading the saved prefs is not a change.
+  const hiddenIds = useRef<number[] | null>(hydrated ? prefs.hidden : null);
+  useEffect(() => {
+    if (!hydrated) return;
+    const before = hiddenIds.current;
+    hiddenIds.current = prefs.hidden;
+    const id = useHomeStore.getState().focusId;
+    if (before && id != null && prefs.hidden.includes(id) && !before.includes(id)) focusOn(null);
+  }, [hydrated, prefs.hidden, focusOn]);
   // A focus that is not followed (from search, or a shared link) needs its record.
   useEffect(() => {
     // The store, not this render, says whether the focus still holds: the
@@ -457,12 +468,12 @@ export default function HomeApp({ initialRecords = [] }: Props) {
           {!locationFirst && <LocationPrompt />}
           <PopularList names={popularNames} />
         </>
-      ) : observer && nowMs != null && (
+      ) : observer && (
         <>
           {!following && (
             <p className="home-note">You aren&apos;t following any satellites. Search to add one.</p>
           )}
-          {showList && (
+          {showList && nowMs != null && (
             <PassList
               cards={shownCards ?? []}
               viewingCard={viewingCard}
@@ -476,7 +487,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               zoneNote={zoneNote(tz, viewerZone(), nowMs) as string | null}
               strip={following && shownCards && (
                 <Timeline
-                  slim
                   cards={shownCards}
                   tracks={allTracks}
                   colors={colors}
