@@ -6,7 +6,12 @@ import type { MetadataRoute } from "next";
 // route file is deleted; the code stays in the repo for local use).
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: "*", allow: "/" }],
+    rules: [
+      { userAgent: "*", allow: "/" },
+      // SEO-index crawlers: they walk every satellite page (14,000 a day) and
+      // bring no visitors. Both honour robots.txt.
+      { userAgent: ["AhrefsBot", "SERankingBacklinksBot"], disallow: "/" },
+    ],
     sitemap: "https://seeksat.com/sitemap.xml",
   };
 }
