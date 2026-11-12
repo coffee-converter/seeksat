@@ -9,6 +9,7 @@ import {
   addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, toggleHiddenIn, unfollowIn,
 } from "./actions.mjs";
 import { MAX_FOLLOWING, PREFS_KEY, defaultPrefs, loadPrefs, parsePrefs, savePrefs } from "./prefs.mjs";
+import { withPlace } from "./places.mjs";
 import { localStore } from "../safe-storage.mjs";
 import { DEFAULT_PROJECTION, defaultProjectionFor } from "../map/view.mjs";
 import { fetchRecords } from "./records.mjs";
@@ -33,6 +34,8 @@ export interface ExtraObserver {
 }
 export interface Prefs {
   location: HomeLocation | null;
+  /** Earlier places, newest first, never including the current one. */
+  recent: HomeLocation[];
   following: number[];
   custom: CustomElements[];
   mode: "radio" | "visual";
@@ -86,6 +89,8 @@ interface HomeState {
   leaveShared: () => void;
   hydrate: () => void;
   setPrefs: (patch: Partial<Prefs>) => void;
+  /** Make this the home place; the old one moves into recent. */
+  choosePlace: (location: HomeLocation) => void;
   loadRecords: () => Promise<void>;
   reloadIfStale: (nowMs: number) => Promise<void>;
   setFocusId: (id: number | null) => void;
@@ -155,6 +160,7 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     set({ prefs: { ...loaded, projection }, projectionChosen: loaded.projection != null, hydrated: true });
   },
 
+  choosePlace: (loc) => get().setPrefs(withPlace(get().prefs, loc)),
   setPrefs: (patch) => {
     get().hydrate();
     // Apply the patch to what is saved now, not to this tab's copy: another

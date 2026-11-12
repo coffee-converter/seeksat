@@ -26,7 +26,7 @@ interface Props {
 // "lat, lon" or grid square typed in. Saves to prefs with its source.
 export default function LocationPrompt({ onDone, onCancel }: Props) {
   const uid = useId();
-  const setPrefs = useHomeStore((s) => s.setPrefs);
+  const choosePlace = useHomeStore((s) => s.choosePlace);
   const [text, setText] = useState("");
   const [gpsBusy, setGpsBusy] = useState(false);
   const [textBusy, setTextBusy] = useState(false);
@@ -48,7 +48,7 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
   const save = (location: HomeLocation) => {
     attempt.current += 1;
     stopWaiting();
-    setPrefs({ location });
+    choosePlace(location);
     setMessage(null);
     onDone?.();
   };

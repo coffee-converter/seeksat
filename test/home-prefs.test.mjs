@@ -62,6 +62,7 @@ test('custom entries are validated and capped', () => {
 test('valid object round-trips', () => {
   const p = {
     location: { name: 'Home', latDeg: 42.1, lonDeg: -88.2, source: 'coords' },
+    recent: [],
     following: [25544, 41866],
     custom: [{ noradId: 25485, name: 'MOLNIYA', line1: MOLNIYA_LINE1, line2: MOLNIYA_LINE2 }],
     mode: 'visual',
