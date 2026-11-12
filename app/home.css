@@ -473,51 +473,6 @@
 }
 .popular__item:first-child { border-top: 0; }
 
-/* Next up cards. */
-/* One cloud line for the list when every pass shares the forecast. */
-.next-up__note { margin: calc(-1 * var(--sp-4)) 0 var(--sp-8); color: var(--map-muted); font-size: var(--fs-md); }
-.next-up__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-12);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-/* A Surface with an accent edge in the satellite's colour. */
-.pass-card {
-  --surface-accent: var(--sat-color, var(--map-muted));
-  display: flex;
-  gap: var(--sp-12);
-}
-.pass-card--short {
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-}
-.pass-card__plot { flex: 0 0 76px; align-self: flex-start; width: 76px; padding: var(--sp-6); }
-.pass-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-}
-.pass-card__headline { margin: 0; color: var(--text-strong); font-size: var(--fs-lg); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
-.pass-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 var(--sp-12);
-  margin: 0;
-  color: var(--map-muted);
-  font-size: var(--fs-md);
-  font-variant-numeric: tabular-nums;
-}
-/* The row's gap spaces the badges, so a wrapped one lines up at the left. */
-.pass-card__meta .quality,
-.pass-card__meta .cloud,
-.pass-card__meta .pass-card__tag { margin-left: 0; }
 .pass-card__tag {
   margin-left: var(--sp-8);
   color: var(--teal);
@@ -551,8 +506,6 @@
 .rating-pair { display: inline-flex; align-items: baseline; gap: var(--sp-6); white-space: nowrap; }
 .rating-pair .quality,
 .rating-pair .cloud { margin-left: 0; }
-/* In running text the pair keeps the badge's own left margin. */
-.best-pass__what .rating-pair { margin-left: var(--sp-8); }
 /* Where the elements came from: a quieter cue than "visible". */
 .pass-card__tag--elements {
   color: var(--map-muted);
@@ -582,28 +535,6 @@
 .radio-rows__note { justify-self: end; text-align: right; color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__radio-none { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__radio-more { margin-top: var(--sp-4); }
-/* A pass card: the name and rating on top, the plot beside three stat
-   columns (Starts, Max, Lasts) that sit in the same place on every card,
-   then where to look, the facts and the buttons. */
-.pass-card--pass {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  grid-template-areas: "top top" "plot stats" "body body";
-  column-gap: var(--sp-12);
-  row-gap: var(--sp-8);
-  align-items: center;
-}
-.pass-card--pass .pass-card__top {
-  grid-area: top;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4) var(--sp-12);
-  min-width: 0;
-}
-.pass-card--pass .pass-card__plot { grid-area: plot; padding: 0; }
-.pass-card--pass .pass-card__body { grid-area: body; gap: var(--sp-8); }
 .pass-card__stats {
   grid-area: stats;
   display: grid;
@@ -626,12 +557,6 @@
 }
 .pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
-/* "Best in the next 24 hours": one quiet interactive Surface above Next up. */
-.best-pass { display: block; width: 100%; }
-.best-pass__label { color: var(--map-muted); }
-.best-pass__what { color: var(--text-strong); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
-.best-pass .quality,
-.best-pass .cloud { margin-left: 0; }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; font-size: var(--fs-md); color: var(--map-muted); }
 
@@ -746,13 +671,11 @@
 /* chart-block:begin */
 /* Chart graphics only: the painted sky and radio charts keep their literal
    dark colours in both themes (test/theme-css.test.mjs skips this block). The
-   pass-card polar plot does too in dark theme; in light theme it takes a
+   pass row polar plot does too in dark theme; in light theme it takes a
    light disc from the tokens. The dialogs around the charts are library
    Modals, styled below the block. */
-/* The card's and the open pass row's polar plot (PolarPlotSvg), scoped to
-   them. The painter sets --sky-shade (the sky at the pass peak) and strokes
+/* The open pass row's polar plot (PolarPlotSvg), scoped to it. The painter sets --sky-shade (the sky at the pass peak) and strokes
    the arc in currentColor. */
-.pass-card__plot .polar-plot,
 .pass-open__plot .polar-plot {
   display: block;
   width: 100%;
@@ -761,42 +684,33 @@
   overflow: visible;
   cursor: default;
 }
-.pass-card__plot .polar-plot .horizon,
 .pass-open__plot .polar-plot .horizon {
   fill: var(--sky-shade, rgba(8, 12, 24, 0.9));
   stroke: rgba(126, 184, 255, 0.55);
   stroke-width: 1.6;
 }
-.pass-card__plot .polar-plot .grid,
 .pass-open__plot .polar-plot .grid {
   fill: none;
   stroke: rgba(126, 184, 255, 0.3);
   stroke-width: 0.8;
 }
-.pass-card__plot .polar-plot .cardinal,
 .pass-open__plot .polar-plot .cardinal {
   fill: #cfe0ff;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
-:root[data-theme='light'] .pass-card__plot .polar-plot .horizon,
 :root[data-theme='light'] .pass-open__plot .polar-plot .horizon {
   fill: var(--panel-2);
   stroke: rgba(var(--accent-rgb), 0.45);
 }
-:root[data-theme='light'] .pass-card__plot .polar-plot .grid,
 :root[data-theme='light'] .pass-open__plot .polar-plot .grid { stroke: rgba(var(--accent-rgb), 0.25); }
-:root[data-theme='light'] .pass-card__plot .polar-plot .cardinal,
 :root[data-theme='light'] .pass-open__plot .polar-plot .cardinal { fill: var(--muted); }
 /* The arc: 2 px in the satellite's colour in both themes. It is solid where
    the satellite can be seen by eye and dashed elsewhere, with the opacity
    raised so both read on a thumbnail. Dashes keep the painter's butt caps. */
-.pass-card__plot .polar-plot .arc,
 .pass-open__plot .polar-plot .arc { color: var(--sat-color, var(--map-muted)); }
-.pass-card__plot .polar-plot .arc line,
 .pass-open__plot .polar-plot .arc line,
-.pass-card__plot .polar-plot .arc polyline,
 .pass-open__plot .polar-plot .arc polyline {
   fill: none;
   stroke-width: 3px;
@@ -805,9 +719,7 @@
   stroke-linejoin: round;
   stroke-opacity: 1;
 }
-.pass-card__plot .polar-plot .arc polyline,
 .pass-open__plot .polar-plot .arc polyline { stroke-opacity: 0.8; stroke-linecap: butt; }
-.pass-card__plot .polar-plot .iss-dot,
 .pass-open__plot .polar-plot .iss-dot {
   fill: #ffffff;
   stroke: #000;
@@ -1005,27 +917,6 @@
 
 /* Bigger tap targets on touch screens. */
 
-/* Cards: the headline focuses the satellite; a focus dims the other cards. */
-.pass-card__focus {
-  padding: 0;
-  min-height: 24px;
-  background: none;
-  color: inherit;
-  border: 0;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.pass-card__focus:hover { text-decoration: underline; text-underline-offset: 3px; }
-.pass-card__focus:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
-/* Another satellite is focused: the text stays readable, and the plot, rating
-   and colour stripe step back. (The focused card is Surface selected.) */
-.pass-card--dim { --surface-accent: var(--map-border); }
-.pass-card--dim .pass-card__plot,
-.pass-card--dim .pass-card__rating { opacity: 0.6; }
-.pass-card--dim .pass-card__headline,
-.pass-card--dim .pass-card__stat-value { color: var(--map-text); }
-
 /* Map legend. */
 .map-legend {
   list-style: none;
@@ -1209,8 +1100,6 @@
 @media (max-width: 699.98px) {
   .map-shell__map { padding: var(--sp-8) 0 0; }
   .map-shell__map > :not(.flat-map-shell--fill) { margin-left: var(--sp-16); margin-right: var(--sp-16); }
-  /* A full-width button keeps its 100%, so it gives back the margins. */
-  .map-shell__map > .next-strip { width: calc(100% - 32px); }
   .flat-map-shell--fill .flat-map { border-left: 0; border-right: 0; border-radius: 0; }
   .map-shell__panel { padding: var(--sp-16) var(--sp-16) var(--sp-24); }
 }
@@ -1336,20 +1225,6 @@
   .flat-map-shell--fill.flat-map-shell--full .flat-map { max-height: none; }
 }
 
-/* Up now: live sky view for the followed satellites. */
-.up-now { margin: 0; }
-.up-now__title { margin: 0 0 var(--sp-8); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-heading); }
-.up-now__body { display: flex; gap: var(--sp-12); align-items: center; flex-wrap: wrap; }
-.up-now__sky { flex: 0 0 160px; width: 160px; height: 160px; }
-.up-now__horizon { fill: rgba(var(--ink-rgb), 0.03); stroke: var(--map-muted); stroke-width: 1; }
-.up-now__ring { fill: none; stroke: var(--map-border); stroke-width: 1; stroke-dasharray: 2 3; }
-.up-now__dir { fill: var(--map-muted); font-size: var(--fs-xs); }
-.up-now__dot { stroke: var(--bg); stroke-width: 1.5; }
-.up-now__list { flex: 1; min-width: 140px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
-.up-now__tune { color: var(--map-muted); }
-.up-now__item { display: flex; align-items: center; gap: var(--sp-8); }
-.up-now__swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-
 /* Inline note beside a pass reminder bell. */
 .alert-note { font-size: var(--fs-sm); color: var(--map-muted); align-self: center; }
 
@@ -1359,31 +1234,6 @@
   .search-bar__paste-button { min-width: 44px; }
   .search-bar__paste-full { display: none; }
   .search-bar__paste-short { display: inline; font-size: var(--fs-xl); line-height: 1; }
-}
-
-/* The soonest pass above the map on phones (NextStrip). */
-.next-strip {
-  display: flex; align-items: center; gap: var(--sp-6);
-  width: 100%;
-  margin: 0 0 var(--sp-8);
-  padding: var(--sp-8) var(--sp-12);
-  background: var(--map-panel);
-  color: var(--map-text);
-  border: var(--line-subtle);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius-lg);
-  font: inherit;
-  font-size: var(--fs-md);
-  text-align: left;
-  cursor: pointer;
-}
-.next-strip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.next-strip__label { font-weight: var(--fw-semibold); color: var(--text-heading); }
-.next-strip__text { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
-.next-strip .quality,
-.next-strip .cloud { margin-left: 0; flex: none; }
-@media (min-width: 1100px) {
-  .next-strip { display: none; }
 }
 
 /* The green "on air" dot inside a Live button. */
@@ -1512,6 +1362,14 @@
 .timeline__tick--end { transform: translateX(-100%); }
 .timeline__day { color: var(--map-text); font-weight: var(--fw-semibold); }
 .timeline__note { margin: var(--sp-6) 0 0; color: var(--map-muted); font-size: var(--fs-md); }
+/* Slim, in the desktop pass panel: every satellite's bars on one 16 px track,
+   the tick labels under it. Phones have the list alone. */
+.timeline--slim .timeline__strip { height: 16px; }
+.timeline--slim .timeline__axis { grid-template-columns: minmax(0, 1fr); }
+.timeline--slim .timeline__ticks { grid-column: 1; }
+@media (max-width: 1099.98px) {
+  .timeline--slim { display: none; }
+}
 /* Under 600 px (a phone, or the side panel on a wide screen) the name sits
    above its strip, so the strip keeps the full width. */
 @container (max-width: 599.98px) {

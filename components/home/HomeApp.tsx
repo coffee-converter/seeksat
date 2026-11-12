@@ -3,14 +3,10 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FocusBar from "./FocusBar";
-import SatChips, { type Chip } from "./SatChips";
 import { useMapSats, type Layer } from "./useMapSats";
-import HomeControls from "./HomeControls";
 import LocationPrompt, { PopularList } from "./LocationPrompt";
-import UpNow from "./UpNow";
-import NextStrip, { type NextSummary } from "./NextStrip";
-import { nextPassSummary, currentCards } from "@/lib/home/next-strip.mjs";
-import NextUpList, { usePassCharts, type Card, type HomeObserver, type Pass, type Track } from "./NextUpList";
+import { usePassCharts, type Card, type HomeObserver, type Pass, type Track } from "./NextUpList";
+import PassList from "./PassList";
 import Timeline from "./Timeline";
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
@@ -30,7 +26,6 @@ import { focusDestinationFor } from "@/lib/home/focus-nav";
 import { useTrueNow } from "@/lib/ui/use-true-now";
 import { useClouds } from "@/lib/sky/use-clouds";
 import { passCloud } from "@/components/passes/CloudBadge";
-import { visualRating } from "@/components/passes/QualityBadge";
 import AboutSection from "./AboutSection";
 import SiteFooter from "./SiteFooter";
 import { usePublishMapScene } from "@/lib/map/scene-store";
@@ -44,7 +39,7 @@ const CARD_REFRESH_MS = 10 * 60_000;
 
 const buildTracks = tracksFor as (records: Map<number, SatApiRecord>, custom: unknown[], bands: string[] | null) => Map<number, Track>;
 const layersOf = mapLayers as (o: {
-  followed: number[]; hidden: number[]; focusId: number | null; viewing: number | null;
+  followed: number[]; hidden: number[]; focusId: number | null; viewing: number | null; highlightId?: number | null;
 }) => Layer[];
 const countOf = showAllCount as (layers: Layer[]) => number;
 
@@ -83,9 +78,6 @@ interface Props {
   initialRecords?: ReadonlyArray<SatApiRecord>;
 }
 
-const summarize = nextPassSummary as (cards: unknown, nowMs: number) => NextSummary | null;
-const cardsNow = currentCards as (state: { cards: unknown; key: string } | null, key: string) => unknown;
-
 export default function HomeApp({ initialRecords = [] }: Props) {
   const prefs = useHomeStore((s) => s.prefs);
   const hydrated = useHomeStore((s) => s.hydrated);
@@ -107,9 +99,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const setPrefs = useHomeStore((s) => s.setPrefs);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
-  const toggleHidden = useHomeStore((s) => s.toggleHidden);
-
-  const [changingLocation, setChangingLocation] = useState(false);
 
   useEffect(() => {
     hydrate();
@@ -180,19 +169,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     else window.history.replaceState({ [PUSHED_KEY]: id != null && pushed }, "", href);
     return false;
   }, [router]);
-  // Hiding the focused satellite (a pasted one; catalog ones focus on their
-  // page) also leaves focus, as on a satellite page, so the tap shows.
-  const hideChip = useCallback((id: number) => {
-    const st = useHomeStore.getState();
-    const hiding = !st.prefs.hidden.includes(id);
-    toggleHidden(id);
-    if (hiding && st.focusId === id) focusOn(null);
-  }, [toggleHidden, focusOn]);
-  // Choosing a hidden chip shows it again: selected means on the map.
-  const focusChip = useCallback((id: number | null) => {
-    if (id != null && useHomeStore.getState().prefs.hidden.includes(id)) toggleHidden(id);
-    focusOn(id);
-  }, [toggleHidden, focusOn]);
   // Unfollowing the focused pasted satellite removes its elements: there is
   // nothing left to show, and its number may be a different catalog object,
   // so leave focus rather than look it up.
@@ -222,12 +198,16 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [focusId, focusOn]);
 
+  // The satellite of the open pass row stands out on the map, without the
+  // camera moving to it (so it is not the scene's selectedId).
+  const [highlightId, setHighlightId] = useState<number | null>(null);
   const layers = useMemo(() => layersOf({
     followed: prefs.following,
     hidden: prefs.hidden,
     focusId,
     viewing: (viewing?.noradId as number | undefined) ?? null,
-  }), [prefs.following, prefs.hidden, focusId, viewing]);
+    highlightId,
+  }), [prefs.following, prefs.hidden, focusId, viewing, highlightId]);
   const showAll = useMemo(
     () => countOf(layersOf({ followed: prefs.following, hidden: prefs.hidden, focusId: null, viewing: null })),
     [prefs.following, prefs.hidden],
@@ -236,13 +216,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     (id: number) => satName(id, { records: allTracks as Map<number, { name?: string }>, custom: prefs.custom }),
     [allTracks, prefs.custom],
   );
-  const chips = useMemo<Chip[]>(() => prefs.following.map((id) => ({
-    noradId: id,
-    name: nameOf(id),
-    color: colors.get(id) ?? SAT_PALETTES[theme][0],
-    hidden: prefs.hidden.includes(id),
-    radio: prefs.mode === "radio" && (allTracks.get(id)?.downlinks.length ?? 0) > 0,
-  })), [prefs.following, prefs.hidden, nameOf, colors, theme, prefs.mode, allTracks]);
 
   const location = prefs.location;
   // The pre-paint first-visit mark (lib/home/first-visit.mjs) holds the map
@@ -274,16 +247,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     },
     [location, tz],
   );
-
-  // Tracks shown in the sky view: everything the map draws that is not hidden.
-  const skyTracks = useMemo(() => {
-    const m = new Map<number, Track>();
-    for (const l of layers as Array<{ noradId: number; emphasis: string }>) {
-      const t = allTracks.get(l.noradId);
-      if (t && l.emphasis !== "hidden") m.set(l.noradId, t);
-    }
-    return m;
-  }, [layers, allTracks]);
 
   const { sats } = useMapSats({
     layers, tracks: allTracks, colors, nowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio",
@@ -403,7 +366,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   const [keepPopular, setKeepPopular] = useState(false);
   if (hydrated && location && prefs.following.length === 0 && !keepPopular) setKeepPopular(true);
 
-  const showPrompt = hydrated && (!location || changingLocation);
   // Stacked (one column, under 1100 px) the map comes before the panel, so a
   // first visit puts the location card above the map, in view without scrolling.
   const stacked = useStacked();
@@ -419,11 +381,19 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return () => window.removeEventListener("online", reload);
   }, [fromCache, loadRecords]);
 
-  // The soonest pass, for the phone strip.
-  const shownCards = cardsNow(cardState, cardKey) as Card[] | null;
-  const nextSummary = nowMs != null ? summarize(shownCards, nowMs) : null;
+  // The cards, only while they were computed for the current inputs.
+  const shownCards = cardState && cardState.key === cardKey ? cardState.cards : null;
+  const following = prefs.following.length > 0;
+  // While cards load the list keeps its heading (and the mode switch just
+  // pressed), with a note in place of the rows.
+  const listNote = !following ? null
+    : !cardState || (cardState.cards.length === 0 && status === "loading") ? "Loading satellites..."
+      : !shownCards ? "Finding passes..." : null;
+  const showList = following || viewingCard != null;
+  // An open row's highlight goes with the list (it reports only while shown).
+  if (!showList && highlightId != null) setHighlightId(null);
 
-  // One set of chart modals for the cards and the timeline.
+  // One set of chart modals for the pass list and the 24 hour strip.
   const { open: openChart, modals: chartModals } = usePassCharts(observer, prefs.minElevDeg);
   const openTimelinePass = useCallback((noradId: number, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
     const track = allTracks.get(noradId);
@@ -438,21 +408,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   );
 
   usePublishMapScene({
-    above: (
-      <>
-        {locationFirst && <LocationPrompt />}
-        {nowMs != null && (
-          <NextStrip
-            summary={nextSummary}
-            rating={nextSummary && prefs.mode === "visual"
-              ? visualRating(nextSummary.pass, { skyType: prefs.skyType, cloud: cloudFor(nextSummary.pass as Pass) })
-              : undefined}
-            cloud={nextSummary && prefs.mode === "visual" ? cloudFor(nextSummary.pass as Pass) : null}
-            onFocus={focusOn}
-          />
-        )}
-      </>
-    ),
+    above: locationFirst && <LocationPrompt />,
     sats,
     observer: location,
     projectionId: prefs.projection,
@@ -472,32 +428,13 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         onClose={() => focusOn(null)}
       />
     ),
-    chips: hydrated && (
-      <SatChips chips={chips} focusId={focusId} onFocus={focusChip} onToggleHidden={hideChip} />
-    ),
     search: { onView: focusOn, onClearFocus: () => focusOn(null) },
     notice: savedAge && <p className="saved-age">{savedAge}</p>,
     offlineFromCache: fromCache,
     shellClass: hydrated && !location ? "home-first-visit" : undefined,
   }, focusSynced);
 
-  // Mode, minimum elevation and sky type do nothing until there is a location,
-  // so a first visit shows them after the location card and popular list.
   const firstVisit = hydrated && !location;
-  const controls = (
-    <HomeControls
-      ready={hydrated}
-      mode={prefs.mode}
-      minElevDeg={prefs.minElevDeg}
-      skyType={prefs.skyType}
-      locationName={location && !changingLocation ? location.name : null}
-      zoneNote={zoneNote(tz, viewerZone(), nowMs ?? Date.now()) as string | null}
-      onModeChange={(mode) => setPrefs({ mode })}
-      onMinElevChange={(minElevDeg) => setPrefs({ minElevDeg })}
-      onSkyTypeChange={(skyType) => setPrefs({ skyType })}
-      onChangeLocation={() => setChangingLocation(true)}
-    />
-  );
 
   return (
     <>
@@ -505,7 +442,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         <FocusParam onSynced={onFocusSynced} />
       </Suspense>
       <ClockSkewBanner />
-      {!firstVisit && controls}
 
       {status === "error" && (
         <div className="home-banner" role="alert">
@@ -516,86 +452,55 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         </div>
       )}
 
-      {!hydrated ? null : showPrompt ? (
+      {!hydrated ? null : firstVisit ? (
         <>
-          {!locationFirst && (
-            <LocationPrompt
-              onDone={() => setChangingLocation(false)}
-              onCancel={location ? () => setChangingLocation(false) : undefined}
-            />
-          )}
-          {!location && <PopularList names={popularNames} />}
-          {firstVisit && controls}
+          {!locationFirst && <LocationPrompt />}
+          <PopularList names={popularNames} />
         </>
-      ) : observer && (
+      ) : observer && nowMs != null && (
         <>
-          {nowMs != null && (prefs.following.length > 0 || focusId != null) && (
-            <UpNow tracks={skyTracks} observer={observer} colors={colors} nowMs={nowMs} focusId={focusId} radio={prefs.mode === "radio"} />
+          {!following && (
+            <p className="home-note">You aren&apos;t following any satellites. Search to add one.</p>
           )}
-          {nowMs != null && prefs.following.length > 0 && shownCards && (
-            <Timeline
-              cards={shownCards}
+          {showList && (
+            <PassList
+              cards={shownCards ?? []}
+              viewingCard={viewingCard}
               tracks={allTracks}
               colors={colors}
               observer={observer}
               mode={prefs.mode}
+              minElevDeg={prefs.minElevDeg}
               nowMs={nowMs}
-              onOpenPass={openTimelinePass}
-              cloudFor={cloudFor}
-              skyType={prefs.skyType}
-            />
-          )}
-          {prefs.following.length === 0 ? (
-            <>
-              <p className="home-note">You aren&apos;t following any satellites. Search above to add one.</p>
-              {viewingCard && nowMs != null && (
-                <NextUpList
-                  cards={[]}
-                  viewingCard={viewingCard}
+              onModeChange={(mode) => setPrefs({ mode })}
+              zoneNote={zoneNote(tz, viewerZone(), nowMs) as string | null}
+              strip={following && shownCards && (
+                <Timeline
+                  slim
+                  cards={shownCards}
                   tracks={allTracks}
                   colors={colors}
                   observer={observer}
                   mode={prefs.mode}
-                  minElevDeg={prefs.minElevDeg}
                   nowMs={nowMs}
-                  onUnfollow={unfollow}
-                  onFollow={follow}
-                  followBlocked={null}
-                  focusId={focusId}
-                  onFocus={focusOn}
-                  openChart={openChart}
-                  clouds={clouds}
+                  onOpenPass={openTimelinePass}
+                  cloudFor={cloudFor}
                   skyType={prefs.skyType}
                 />
               )}
-            </>
-          ) : !cardState || (cardState.cards.length === 0 && status === "loading") ? (
-            <p className="home-note">Loading satellites...</p>
-          ) : cardState.key !== cardKey ? (
-            <p className="home-note" role="status">Finding passes...</p>
-          ) : (
-            nowMs != null && (
-              <NextUpList
-                cards={cardState.cards}
-                viewingCard={viewingCard}
-                tracks={allTracks}
-                colors={colors}
-                observer={observer}
-                mode={prefs.mode}
-                minElevDeg={prefs.minElevDeg}
-                nowMs={nowMs}
-                onUnfollow={unfollow}
-                onFollow={follow}
-                followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
-                focusId={focusId}
-                onFocus={focusOn}
-                openChart={openChart}
-                clouds={clouds}
-                skyType={prefs.skyType}
-              />
-            )
+              onUnfollow={unfollow}
+              onFollow={follow}
+              followBlocked={viewingId == null ? null : followBlockedMessage(prefs.following, viewingId) as string | null}
+              openChart={openChart}
+              clouds={clouds}
+              skyType={prefs.skyType}
+              onOpenRow={setHighlightId}
+            />
           )}
-          {(prefs.following.length === 0 || keepPopular) && <PopularList names={popularNames} />}
+          {listNote === "Finding passes..." ? (
+            <p className="home-note" role="status">{listNote}</p>
+          ) : listNote && <p className="home-note">{listNote}</p>}
+          {(!following || keepPopular) && <PopularList names={popularNames} />}
         </>
       )}
 

@@ -21,6 +21,9 @@ interface Props {
   cloudFor?: (pass: Pass) => CloudBadge | null;
   /** The sky type for the visual rating (prefs `skyType`). */
   skyType: string;
+  /** One 16 px track for every satellite, with tick labels: the desktop pass
+   *  panel's strip (hidden under 1100 px by app/home.css). */
+  slim?: boolean;
 }
 
 type Span = { x0: number; x1: number };
@@ -47,9 +50,9 @@ const othersLine = (n: number) => (n === 1
   ? "1 other has no pass in the next 24 hours."
   : `${n} others have no pass in the next 24 hours.`);
 
-// "Next 24 hours": every followed satellite's passes on one strip, with
-// night shaded and a bar per pass that opens its sky chart.
-export default function Timeline({ cards, tracks, colors, observer, mode, nowMs, onOpenPass, cloudFor, skyType }: Props) {
+// "Next 24 hours": every followed satellite's passes on a strip each (or,
+// slim, all on one), with night shaded and a bar per pass that opens its chart.
+export default function Timeline({ cards, tracks, colors, observer, mode, nowMs, onOpenPass, cloudFor, skyType, slim = false }: Props) {
   // The layout moves once a minute; a second is far below a pixel.
   const windowMs = Math.floor(nowMs / 60_000) * 60_000;
   const { latDeg: lat, lonDeg: lon, tz } = observer;
@@ -66,74 +69,96 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
   if (rows.length === 0) return null;
   const visual = mode === "visual";
   const clouds = visual ? cloudFor : undefined;
+  const colorOf = (id: number) => colors.get(id) ?? "var(--map-muted)";
+
+  const background = (
+    <svg className="timeline__svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      {night.map((s) => (
+        <rect key={s.x0} className="timeline__night" x={s.x0 * W} y={0} width={(s.x1 - s.x0) * W} height={H} />
+      ))}
+      {ticks.map((t) => (
+        <line
+          key={t.x}
+          className={t.dayLabel ? "timeline__grid timeline__grid--day" : "timeline__grid"}
+          x1={t.x * W} x2={t.x * W} y1={0} y2={H}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+    </svg>
+  );
+  const bars = (row: (typeof rows)[number], ownColor: boolean) => row.passes.map((pass) => {
+    const span = spanOf(pass, windowMs, HOURS);
+    if (!span) return null;
+    const cloud = clouds?.(pass) ?? null;
+    const q = visual ? visualRating(pass, { skyType, cloud }) : qualityOf(pass);
+    const mag = visual ? peakMagText(pass) : null;
+    const label = `${row.name}, ${passTime(pass.startMs, tz)} to ${passTime(pass.endMs, tz)}, `
+      + `max ${Math.round(pass.maxElevDeg)}°, ${ratingText(q, pass, visual)}${cloud ? `, ${cloud.label}` : ""}${mag ? `, ${mag}` : ""}`;
+    return (
+      <button
+        // startMs shifts a fraction of a second on each card
+        // refresh; a key to the minute keeps the same button, so
+        // focus survives (and a chart opened from it can return it).
+        key={`${row.noradId}:${Math.round(pass.startMs / 60_000)}`}
+        type="button"
+        className={`timeline__bar timeline__bar--${q.level}${cloud?.level === "cloudy" ? " timeline__bar--cloudy" : ""}`}
+        style={{
+          "--mid": (span.x0 + span.x1) / 2,
+          "--w": span.x1 - span.x0,
+          ...(ownColor ? { "--sat-color": colorOf(row.noradId) } : null),
+        } as React.CSSProperties}
+        aria-label={label}
+        title={label}
+        onClick={(e) => onOpenPass(row.noradId, pass, e)}
+      />
+    );
+  });
+  const axis = (
+    <div className="timeline__axis" aria-hidden="true">
+      <div className="timeline__ticks">
+        {ticks.map((t) => (
+          <span
+            key={t.x}
+            className={`timeline__tick${t.dayLabel ? " timeline__day" : ""}${t.x < EDGE ? " timeline__tick--start" : t.x > 1 - EDGE ? " timeline__tick--end" : ""}`}
+            style={{ "--x": t.x } as React.CSSProperties}
+          >
+            {t.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (slim) {
+    return (
+      <section className="timeline timeline--slim" aria-label="Next 24 hours">
+        <div className="timeline__strip">
+          {background}
+          {rows.map((row) => bars(row, true))}
+        </div>
+        {axis}
+      </section>
+    );
+  }
 
   return (
     <section className="timeline" aria-labelledby="timeline-title">
       <h2 id="timeline-title" className="home-heading">Next 24 hours</h2>
       <ul className="timeline__rows">
-        {rows.map((row) => {
-          const color = colors.get(row.noradId) ?? "var(--map-muted)";
-          return (
-            <li key={row.noradId} className="timeline__row" style={{ "--sat-color": color } as React.CSSProperties}>
-              <span className="timeline__name" title={row.name}>
-                <span className="timeline__swatch" aria-hidden="true" />
-                <span className="timeline__name-text">{row.name}</span>
-              </span>
-              <div className="timeline__strip">
-                <svg className="timeline__svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-                  {night.map((s) => (
-                    <rect key={s.x0} className="timeline__night" x={s.x0 * W} y={0} width={(s.x1 - s.x0) * W} height={H} />
-                  ))}
-                  {ticks.map((t) => (
-                    <line
-                      key={t.x}
-                      className={t.dayLabel ? "timeline__grid timeline__grid--day" : "timeline__grid"}
-                      x1={t.x * W} x2={t.x * W} y1={0} y2={H}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ))}
-                </svg>
-                {row.passes.map((pass) => {
-                  const span = spanOf(pass, windowMs, HOURS);
-                  if (!span) return null;
-                  const cloud = clouds?.(pass) ?? null;
-                  const q = visual ? visualRating(pass, { skyType, cloud }) : qualityOf(pass);
-                  const mag = visual ? peakMagText(pass) : null;
-                  const label = `${row.name}, ${passTime(pass.startMs, tz)} to ${passTime(pass.endMs, tz)}, `
-                    + `max ${Math.round(pass.maxElevDeg)}°, ${ratingText(q, pass, visual)}${cloud ? `, ${cloud.label}` : ""}${mag ? `, ${mag}` : ""}`;
-                  return (
-                    <button
-                      // startMs shifts a fraction of a second on each card
-                      // refresh; a key to the minute keeps the same button, so
-                      // focus survives (and a chart opened from it can return it).
-                      key={`${row.noradId}:${Math.round(pass.startMs / 60_000)}`}
-                      type="button"
-                      className={`timeline__bar timeline__bar--${q.level}${cloud?.level === "cloudy" ? " timeline__bar--cloudy" : ""}`}
-                      style={{ "--mid": (span.x0 + span.x1) / 2, "--w": span.x1 - span.x0 } as React.CSSProperties}
-                      aria-label={label}
-                      title={label}
-                      onClick={(e) => onOpenPass(row.noradId, pass, e)}
-                    />
-                  );
-                })}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="timeline__axis" aria-hidden="true">
-        <div className="timeline__ticks">
-          {ticks.map((t) => (
-            <span
-              key={t.x}
-              className={`timeline__tick${t.dayLabel ? " timeline__day" : ""}${t.x < EDGE ? " timeline__tick--start" : t.x > 1 - EDGE ? " timeline__tick--end" : ""}`}
-              style={{ "--x": t.x } as React.CSSProperties}
-            >
-              {t.label}
+        {rows.map((row) => (
+          <li key={row.noradId} className="timeline__row" style={{ "--sat-color": colorOf(row.noradId) } as React.CSSProperties}>
+            <span className="timeline__name" title={row.name}>
+              <span className="timeline__swatch" aria-hidden="true" />
+              <span className="timeline__name-text">{row.name}</span>
             </span>
-          ))}
-        </div>
-      </div>
+            <div className="timeline__strip">
+              {background}
+              {bars(row, false)}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {axis}
       <p className="timeline__note">
         {"Each bar is a pass; tap one for its chart. Darker: night."}
         {leftOut > 0 && ` ${othersLine(leftOut)}`}

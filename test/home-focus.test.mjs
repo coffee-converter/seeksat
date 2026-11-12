@@ -66,6 +66,24 @@ test('viewing a followed satellite is not listed twice', () => {
   ]);
 });
 
+test('unfocused with a highlight (an open pass row): it is focus, the others ghost', () => {
+  assert.deepEqual(mapLayers({ followed: [1, 2], highlightId: 2 }), [
+    layer(1, 'ghost'), layer(2, 'focus'),
+  ]);
+});
+
+test('a focus wins over a highlight', () => {
+  assert.deepEqual(mapLayers({ followed: [1, 2], focusId: 1, highlightId: 2 }), [
+    layer(1, 'focus'), layer(2, 'ghost'),
+  ]);
+});
+
+test('a highlight that is not followed changes nothing', () => {
+  assert.deepEqual(mapLayers({ followed: [1, 2], highlightId: 9 }), [
+    layer(1, 'normal'), layer(2, 'normal'),
+  ]);
+});
+
 test('nothing followed: only the focused viewing satellite', () => {
   assert.deepEqual(mapLayers({ followed: [], hidden: [], focusId: 9, viewing: 9 }), [layer(9, 'focus')]);
   assert.deepEqual(mapLayers({ followed: [], hidden: [], focusId: null, viewing: 9 }), []);
