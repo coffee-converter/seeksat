@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import QualityBadge from "@/components/passes/QualityBadge";
 import Button from "@/components/ui/Button";
 import Segmented from "@/components/ui/Segmented";
@@ -123,8 +123,18 @@ export default function PassList({
     });
   };
 
-  const cards = viewingCard ? followedCards.filter((c) => c.noradId !== viewingCard.noradId) : followedCards;
-  const { groups, more, always, quiet } = listOf({ cards, nowMs, timeZone: tz, limit: showAll ? Infinity : ROW_LIMIT });
+  const cards = useMemo(
+    () => (viewingCard ? followedCards.filter((c) => c.noradId !== viewingCard.noradId) : followedCards),
+    [followedCards, viewingCard],
+  );
+  // The rows only move with the cards and the day, so build them once a
+  // minute, not on every one-second tick ("in N min" is read per row below).
+  const minute = Math.floor(nowMs / 60_000);
+  const limit = showAll ? Infinity : ROW_LIMIT;
+  const { groups, more, always, quiet } = useMemo(
+    () => listOf({ cards, nowMs: minute * 60_000, timeZone: tz, limit }),
+    [cards, minute, tz, limit],
+  );
   const quietText = quietOf(quiet);
   const best = bestPassOf(followedCards, { mode, skyType, clouds, nowMs });
   const viewingOf = (id: number): ViewingProps | null => (viewingCard && viewingCard.noradId === id
