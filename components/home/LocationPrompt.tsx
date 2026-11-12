@@ -20,11 +20,14 @@ interface Props {
   onDone?: () => void;
   /** Shows a Cancel button (when changing an existing location). */
   onCancel?: () => void;
+  /** "card" is the standalone card with its heading; "sheet" sits in the
+   *  location sheet, which names it: the search first, then the device. */
+  variant?: "card" | "sheet";
 }
 
 // Where the cards are computed from: the device's position, or a place,
 // "lat, lon" or grid square typed in. Saves to prefs with its source.
-export default function LocationPrompt({ onDone, onCancel }: Props) {
+export default function LocationPrompt({ onDone, onCancel, variant = "card" }: Props) {
   const uid = useId();
   const choosePlace = useHomeStore((s) => s.choosePlace);
   const [text, setText] = useState("");
@@ -126,6 +129,40 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
     save({ name: typed, latDeg: found.latDeg, lonDeg: found.lonDeg, source: "place" });
   };
 
+  const form = (
+    <form className="location-prompt__form" onSubmit={onSubmit}>
+      <Field label="Place, coordinates or grid square" hideLabel>
+        <input
+          type="text"
+          autoComplete="off"
+          placeholder='Place, "lat, lon" or grid (EN52ve)'
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setMessage(null);
+          }}
+        />
+      </Field>
+      <Button type="submit" disabled={textBusy || !text.trim()}>
+        {textBusy ? "Looking..." : "Set"}
+      </Button>
+    </form>
+  );
+  const error = message && <p className="home-error" role="alert">{message}</p>;
+
+  if (variant === "sheet") {
+    return (
+      <div className="location-prompt location-prompt--sheet">
+        {form}
+        {error}
+        <Button className="location-prompt__device" disabled={gpsBusy} onClick={useDevice}>
+          <span>{gpsBusy ? "Finding you..." : "Use my location"}</span>
+          <span className="location-prompt__sub">Stays on this device</span>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <section className="location-prompt" aria-labelledby={`${uid}-title`}>
       <h2 id={`${uid}-title`} className="home-heading">Where are you?</h2>
@@ -133,24 +170,8 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
       <Button variant="primary" disabled={gpsBusy} onClick={useDevice}>
         {gpsBusy ? "Finding you..." : "Use my location"}
       </Button>
-      <form className="location-prompt__form" onSubmit={onSubmit}>
-        <Field label="Place, coordinates or grid square" hideLabel>
-          <input
-            type="text"
-            autoComplete="off"
-            placeholder='Place, "lat, lon" or grid (EN52ve)'
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setMessage(null);
-            }}
-          />
-        </Field>
-        <Button type="submit" disabled={textBusy || !text.trim()}>
-          {textBusy ? "Looking..." : "Set"}
-        </Button>
-      </form>
-      {message && <p className="home-error" role="alert">{message}</p>}
+      {form}
+      {error}
       {onCancel && (
         <Button variant="link" onClick={onCancel}>
           Cancel

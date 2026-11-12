@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import tzlookup from '@photostructure/tz-lookup';
-import { zoneFrom, sameClock, zoneNote } from '../lib/time/zone.mjs';
+import { zoneFrom, sameClock, zoneNote, shownInNote } from '../lib/time/zone.mjs';
 
 const NOV = Date.UTC(2026, 10, 12, 18, 0);
 const JUL = Date.UTC(2026, 6, 1, 18, 0);
@@ -36,4 +36,14 @@ test('a note only when the place keeps a different clock', () => {
   assert.equal(zoneNote('Europe/London', 'America/Chicago', NOV), 'Times are London time (UTC).');
   assert.equal(zoneNote('Etc/GMT-11', 'America/Chicago', NOV), 'Times are UTC+11.');
   assert.equal(zoneNote('Asia/Tokyo', undefined, NOV), null);
+});
+
+test('a place row names the clock its times are in, only when it differs', () => {
+  assert.equal(shownInNote('America/Chicago', 'America/Chicago', NOV), null);
+  assert.equal(shownInNote('America/Winnipeg', 'America/Chicago', NOV), null);
+  assert.equal(shownInNote('Asia/Tokyo', 'America/Chicago', NOV), 'Times shown in Tokyo time');
+  assert.equal(shownInNote('America/St_Johns', 'America/Chicago', NOV), 'Times shown in St Johns time');
+  assert.equal(shownInNote('Etc/GMT-11', 'America/Chicago', NOV), 'Times shown in UTC+11');
+  assert.equal(shownInNote('Asia/Tokyo', undefined, NOV), null);
+  assert.equal(shownInNote('Mars/Olympus', 'America/Chicago', NOV), null);
 });

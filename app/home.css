@@ -450,6 +450,18 @@
 .location-prompt__hint { margin: 0; color: var(--map-muted); }
 .location-prompt__form { display: flex; gap: var(--sp-8); width: 100%; }
 .location-prompt__form > .field { flex: 1; min-width: 0; }
+/* In the location sheet (components/map/LocationSheet.tsx): flat, full width. */
+.location-prompt--sheet { align-items: stretch; gap: var(--sp-12); padding: 0; background: none; border: 0; border-radius: 0; }
+.btn.location-prompt__device { flex-direction: column; align-items: flex-start; }
+.location-prompt__sub { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--map-muted); }
+.location-sheet { display: flex; flex-direction: column; gap: var(--sp-12); }
+.location-sheet__places { list-style: none; margin: 0; padding: 0; border-top: var(--line-subtle); }
+.location-sheet__places > li + li { border-top: var(--line-subtle); }
+.btn.location-sheet__place { width: 100%; justify-content: flex-start; align-items: flex-start; }
+.location-sheet__tick { flex: none; width: var(--sp-16); color: var(--map-accent); }
+.location-sheet__text { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; text-align: left; white-space: normal; }
+.location-sheet__name { color: var(--map-text); overflow-wrap: anywhere; }
+.location-sheet__note { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--map-muted); }
 .popular__list { list-style: none; margin: 0; padding: 0; width: 100%; }
 .popular__item {
   display: flex;
@@ -964,12 +976,11 @@
   top: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: minmax(max-content, 1fr) minmax(0, 560px) minmax(max-content, 1fr);
-  grid-template-areas: "brand search clock";
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--sp-8) var(--sp-24);
+  gap: var(--sp-8) var(--sp-12);
   min-height: 56px;
-  padding: var(--sp-6) var(--sp-12);
+  padding: var(--sp-6) var(--sp-16);
   background: var(--bg);
   border-bottom: 1px solid var(--map-edge);
 }
@@ -992,8 +1003,29 @@
 }
 /* HomeApp's "Satellite data is ... old." line, under the top bar and banner. */
 .map-shell__top .saved-age { grid-column: 1 / -1; margin: 0; font-size: var(--fs-sm); color: var(--map-muted); }
-.map-shell__top .home-wordmark { grid-area: brand; justify-self: start; margin: 0; text-decoration: none; }
-.map-shell__end { grid-area: clock; justify-self: end; display: flex; align-items: center; gap: var(--sp-12); }
+/* SiteHeader (components/map/SiteHeader.tsx). Under 1100 px one row:
+   wordmark, then the pill, search button and ⋯; the search opens in a row
+   of its own under them. From 1100 px: wordmark, search, then pill, clock, ⋯. */
+.map-shell__top .home-wordmark { grid-row: 1; grid-column: 1; justify-self: start; margin: 0; text-decoration: none; }
+.map-shell__end { grid-row: 1; grid-column: 2; display: flex; align-items: center; gap: var(--sp-4); min-width: 0; }
+.map-shell__find { margin-left: auto; }
+.map-shell__search { min-width: 0; }
+.map-shell__search--open { grid-row: 2; grid-column: 1 / -1; }
+@media (max-width: 1099.98px) {
+  .map-shell__search:not(.map-shell__search--open),
+  .map-shell__end .live-clock { display: none; }
+}
+@media (min-width: 1100px) {
+  .map-shell__top { grid-template-columns: minmax(max-content, 1fr) minmax(0, 560px) minmax(max-content, 1fr); column-gap: var(--sp-24); }
+  .map-shell__search { grid-row: 1; grid-column: 2; }
+  .map-shell__end { grid-column: 3; justify-self: end; gap: var(--sp-12); }
+  .map-shell__find { display: none; }
+}
+/* LocationPill (components/map/LocationPill.tsx): a long name ends in "...". */
+.location-pill { flex: 0 1 auto; min-width: 0; max-width: 18em; }
+.location-pill[data-ready="false"] { visibility: hidden; }
+.location-pill__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.location-pill__caret { flex: none; color: var(--map-muted); }
 /* ThemeToggle (components/ThemeToggle.tsx): segmented from 700 px, one cycling
    button below, so the phone header row never crowds the wordmark. */
 .theme-toggle[data-ready="false"] { visibility: hidden; }
@@ -1013,7 +1045,6 @@
   .night-toggle__icon { display: block; }
   .night-toggle__label { display: none; }
 }
-.map-shell__search { grid-area: search; min-width: 0; }
 /* The search bar sits flat in the bar; what opens under it floats over the page. */
 .map-shell__top .search-bar { position: relative; top: auto; z-index: auto; padding: 0; background: none; border: 0; border-radius: 0; }
 .map-shell__top .search-bar__below {
@@ -1052,19 +1083,8 @@
 .map-shell__panel > * { flex-shrink: 0; }
 .map-shell.sat .map-shell__panel { gap: var(--sp-24); }
 
-/* Phones: two rows, wordmark and clock, then search. Only the first row
-   scrolls away (the negative top), so the search stays pinned. The wordmark
-   column never shrinks below the word, so the clock cannot slide over it.
-   The map runs edge to edge; everything else keeps a 16 px side margin. */
+/* Phones: the map runs edge to edge; everything else keeps a 16 px side margin. */
 @media (max-width: 699.98px) {
-  .map-shell__top {
-    top: -48px;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: 38px auto;
-    grid-template-areas: "brand clock" "search search";
-    gap: var(--sp-4) var(--sp-12);
-    padding: var(--sp-6) var(--sp-16) var(--sp-8);
-  }
   .map-shell__map { padding: var(--sp-8) 0 0; }
   .map-shell__map > :not(.flat-map-shell--fill) { margin-left: var(--sp-16); margin-right: var(--sp-16); }
   /* A full-width button keeps its 100%, so it gives back the margins. */
@@ -1072,28 +1092,10 @@
   .flat-map-shell--fill .flat-map { border-left: 0; border-right: 0; border-radius: 0; }
   .map-shell__panel { padding: var(--sp-16) var(--sp-16) var(--sp-24); }
 }
-/* The smallest phones: the pulsing dot alone says live, so the clock row fits
-   beside the wordmark. */
-@media (max-width: 399.98px) {
-  .map-shell__top .live-clock__live { display: none; }
-  /* Alone beside the time, it centres on the digits. */
-  .map-shell__top .live-clock__dot { align-self: center; }
-}
-/* Under 360 px (older small phones): a smaller wordmark and time, and the
-   clock lines never wrap, so the header row still fits. */
+/* Under 360 px (older small phones): a smaller wordmark, so the pill keeps room. */
 @media (max-width: 359.98px) {
+  .map-shell__top { column-gap: var(--sp-8); padding-left: var(--sp-12); padding-right: var(--sp-12); }
   .map-shell__top .home-wordmark { font-size: var(--fs-xl); }
-  .map-shell__top .live-clock__dot { display: none; }
-  .map-shell__top .live-clock__time { font-size: var(--fs-xl); }
-  .map-shell__top .live-clock__utc,
-  .map-shell__top .live-clock__local { white-space: nowrap; }
-}
-/* Small phones: tighter gaps so the wordmark, clock, theme and Night vision
-   fit on one row at 360 px. */
-@media (max-width: 479px) {
-  .map-shell__top { column-gap: var(--sp-4); }
-  .map-shell__end { gap: var(--sp-4); }
-  .theme-toggle .theme-toggle__cycle { min-width: 48px; }
 }
 
 /* FlatMap fill: sized by the shell. The chips row and the focus bar lay

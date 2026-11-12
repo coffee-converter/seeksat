@@ -2,18 +2,23 @@
 
 // The header shared by every map page. It lives in the layout shell, so it
 // stays mounted (with its own clock) while the page underneath changes.
+// Phones (under 1100 px): wordmark, location pill, a search button that opens
+// the search in a row under the header, then ⋯. Desktop: wordmark, search,
+// pill, clock, ⋯ (app/home.css).
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SearchBar } from "@/components/home/SearchBar";
 import LiveClock from "@/components/LiveClock";
-import NightToggle from "@/components/NightToggle";
-import ThemeToggle from "@/components/ThemeToggle";
+import Button from "@/components/ui/Button";
+import { cx } from "@/lib/ui/classes.mjs";
 import { useTrueNow } from "@/lib/ui/use-true-now";
 import { isHomePath } from "@/lib/map/shell-route.mjs";
 import { satPath } from "@/lib/sat/page-data.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
+import LocationPill from "./LocationPill";
+import LocationSheet from "./LocationSheet";
 
 export default function SiteHeader() {
   const pathname = usePathname() ?? "";
@@ -27,6 +32,16 @@ export default function SiteHeader() {
     else router.push(satPath(id) as string);
   }, [router]);
   const onClearFocus = useCallback(() => useMapScene.getState().scene?.search?.onClearFocus(), []);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  // Phones only: the search row under the header. Desktop always shows it.
+  const [findOpen, setFindOpen] = useState(false);
+  const findId = useId();
+  const findRef = useRef<HTMLDivElement>(null);
+  const findButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (findOpen) findRef.current?.querySelector("input")?.focus();
+  }, [findOpen]);
+  const searchEmpty = () => !findRef.current?.querySelector("input")?.value;
 
   return (
     <>
@@ -35,17 +50,52 @@ export default function SiteHeader() {
       ) : (
         <Link className="home-wordmark" href="/"><span className="home-wordmark__seek">Seek</span>Sat</Link>
       )}
-      <div className="map-shell__search">
+      <div
+        ref={findRef}
+        id={findId}
+        className={cx("map-shell__search", findOpen && "map-shell__search--open")}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && findOpen && searchEmpty()) {
+            setFindOpen(false);
+            findButtonRef.current?.focus();
+          }
+        }}
+        onBlur={(e) => {
+          const to = e.relatedTarget as Node | null;
+          // Leaving for the search button: its click does the closing.
+          if (to === findButtonRef.current) return;
+          if (findOpen && !e.currentTarget.contains(to) && searchEmpty()) setFindOpen(false);
+        }}
+      >
         <SearchBar
           onView={onView}
           onClearFocus={onClearFocus}
         />
       </div>
       <div className="map-shell__end">
+        <LocationPill onOpen={() => setPlaceOpen(true)} />
+        <Button
+          ref={findButtonRef}
+          variant="quiet"
+          iconOnly
+          className="map-shell__find"
+          aria-label="Search satellites"
+          aria-expanded={findOpen}
+          aria-controls={findId}
+          onClick={() => setFindOpen((v) => !v)}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path d="M15.5 15.5 21 21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </Button>
         <LiveClock nowMs={nowMs} compact />
-        <ThemeToggle />
-        <NightToggle />
+        {/* Not wired yet: it will open the settings sheet. */}
+        <Button variant="quiet" iconOnly className="map-shell__more" aria-label="More">
+          <span aria-hidden="true">⋯</span>
+        </Button>
       </div>
+      <LocationSheet open={placeOpen} onClose={() => setPlaceOpen(false)} />
     </>
   );
 }
