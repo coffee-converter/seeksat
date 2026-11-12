@@ -41,8 +41,8 @@ The map with followed satellites stays the hero. Aaron said so.
 
 ## Non-goals
 
-- No change to the satellite page body (`/sat/<id>`). It picks up the new
-  shared header only.
+- No change to the satellite page body (`/sat/<id>`), except the "other
+  places" line below. It picks up the new shared header.
 - No new data, prediction or radio features.
 - No change to the map renderer itself beyond its overlay buttons.
 - No custom gesture code for the phone sheet (see Layout).
@@ -143,6 +143,17 @@ once and forget:
 - Map: **Globe | Mercator**.
 - "What you see": the legend (today's collapsible legend text and samples).
 
+### Other places on the satellite page (Aaron's decision)
+
+Extra observers stay, on satellite pages only. Aaron had one saved without
+realising it, and the pass list silently shrank. So whenever extra places
+are on, the satellite page's pass list must say so, unmissably, at the top
+of the list: "Showing passes Chicago and Tokyo can both see" (all place
+names, "can all see" for three or more) with a **Turn off** button that
+removes the extra places. It shows in the pass list itself, not only in
+the "other places" box below it. A shared view with places shows the same
+line without the button.
+
 ### Logo
 
 Two-tone wordmark in the header, same as the charts and share cards. Done
@@ -166,7 +177,7 @@ already (c1f5043, ea9c9b8).
 | SatChips row (focus / hide) | Home: satellite labels on the map focus a satellite; hide and unfollow live in ⋯ › Following (my call). Satellite page: unchanged. |
 | Globe camera presets, Reset view, view Share | Layers menu (my call) |
 | Zoom + / − | Desktop only (my call) |
-| Extra observers ("compare places") | Satellite page only, as today (my call) |
+| Extra observers ("compare places") | Satellite page only, plus an unmissable "Showing passes ... can both see · Turn off" line on its pass list (Aaron) |
 | FocusBar | Stays, as a slim bar over the map while a satellite is focused (my call) |
 | Theme toggle, night toggle in the header | ⋯ settings |
 | AboutSection | ⋯ › About SeekSat (see "About and crawlers") |
