@@ -635,15 +635,124 @@
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; font-size: var(--fs-md); color: var(--map-muted); }
 
+/* Pass list (components/home/PassList.tsx): one compact row per pass under
+   day headings, each a button that opens the pass in place (PassRowOpen). */
+.pass-list { display: flex; flex-direction: column; gap: var(--sp-8); }
+.pass-list__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
+.pass-list__head .home-heading { margin: 0; }
+.pass-list__zone { margin: calc(-1 * var(--sp-4)) 0 0; color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-list__group { display: flex; flex-direction: column; gap: var(--sp-4); }
+.pass-list__day {
+  margin: var(--sp-4) 0 0;
+  padding: 0 var(--sp-4);
+  color: var(--map-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+}
+/* A Surface holding the rows flush; it clips the rows' hover fill to its corners. */
+.pass-list__rows { margin: 0; padding: 0; list-style: none; overflow: hidden; }
+.pass-list__more { align-self: flex-start; }
+.pass-list__quiet { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); line-height: var(--lh-snug); }
+.pass-row + .pass-row { border-top: var(--line-subtle); }
+/* When, what, how good: the time column is wide enough for "10:45 PM", the
+   middle gives way with an ellipsis, the rating keeps its width. */
+.pass-row__btn {
+  position: relative;
+  display: grid;
+  grid-template-columns: 5.4em minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--sp-12);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sp-8) var(--sp-12);
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pass-row__btn:hover { background: var(--btn-hover); }
+/* Inset, so the list's rounded clip never cuts the ring. */
+.pass-row__btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* The satellite's colour as a short bar on the leading edge. */
+.pass-row__btn::before,
+.pass-row__note::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--sp-8);
+  bottom: var(--sp-8);
+  width: 3px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--sat-color, var(--map-muted));
+}
+.pass-row__when {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pass-row__time { color: var(--text-strong); font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+.pass-row__sub { color: var(--map-muted); font-size: var(--fs-xs); }
+.pass-row__sub--now { color: var(--map-accent); font-weight: var(--fw-semibold); }
+.pass-row__what { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; line-height: var(--lh-tight); }
+.pass-row__name,
+.pass-row__detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pass-row__name { color: var(--text-strong); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.pass-row__detail { color: var(--map-muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.pass-row__rating { justify-self: end; }
+.pass-row__rating .quality { margin-left: 0; }
+/* The viewed satellite with no pass to list: why, and Follow. */
+.pass-row__note {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8) var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+}
+.pass-row__note-text { min-width: 0; color: var(--text-strong); font-weight: var(--fw-semibold); }
+/* An open row: the sky plot beside where to look, then what to do. */
+.pass-open { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-4) var(--sp-12) var(--sp-12); }
+/* The plot's compass letters sit just outside it: the margins and gap keep them clear. */
+.pass-open__sky { display: flex; align-items: center; gap: var(--sp-16); }
+.pass-open__plot { flex: 0 0 80px; width: 80px; margin: var(--sp-8) 0 var(--sp-8) var(--sp-4); }
+.pass-open__facts { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.pass-open__steps {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-8);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.pass-open__steps div { display: contents; }
+.pass-open__steps dt { color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-open__steps dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; }
+.pass-open__seen { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.pass-open__actions,
+.pass-open__more { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); }
+/* The page link closes the main line, at its far end. */
+.pass-open__page { margin-left: auto; }
+.pass-open__more .pass-card__tag { margin-left: 0; }
+.pass-open__best { color: var(--map-accent); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+
 /* chart-block:begin */
 /* Chart graphics only: the painted sky and radio charts keep their literal
    dark colours in both themes (test/theme-css.test.mjs skips this block). The
    pass-card polar plot does too in dark theme; in light theme it takes a
    light disc from the tokens. The dialogs around the charts are library
    Modals, styled below the block. */
-/* The card's polar plot (PolarPlotSvg). Scoped to the card. The painter sets
-   --sky-shade (the sky at the pass peak) and strokes the arc in currentColor. */
-.pass-card__plot .polar-plot {
+/* The card's and the open pass row's polar plot (PolarPlotSvg), scoped to
+   them. The painter sets --sky-shade (the sky at the pass peak) and strokes
+   the arc in currentColor. */
+.pass-card__plot .polar-plot,
+.pass-open__plot .polar-plot {
   display: block;
   width: 100%;
   height: auto;
@@ -651,34 +760,43 @@
   overflow: visible;
   cursor: default;
 }
-.pass-card__plot .polar-plot .horizon {
+.pass-card__plot .polar-plot .horizon,
+.pass-open__plot .polar-plot .horizon {
   fill: var(--sky-shade, rgba(8, 12, 24, 0.9));
   stroke: rgba(126, 184, 255, 0.55);
   stroke-width: 1.6;
 }
-.pass-card__plot .polar-plot .grid {
+.pass-card__plot .polar-plot .grid,
+.pass-open__plot .polar-plot .grid {
   fill: none;
   stroke: rgba(126, 184, 255, 0.3);
   stroke-width: 0.8;
 }
-.pass-card__plot .polar-plot .cardinal {
+.pass-card__plot .polar-plot .cardinal,
+.pass-open__plot .polar-plot .cardinal {
   fill: #cfe0ff;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
-:root[data-theme='light'] .pass-card__plot .polar-plot .horizon {
+:root[data-theme='light'] .pass-card__plot .polar-plot .horizon,
+:root[data-theme='light'] .pass-open__plot .polar-plot .horizon {
   fill: var(--panel-2);
   stroke: rgba(var(--accent-rgb), 0.45);
 }
-:root[data-theme='light'] .pass-card__plot .polar-plot .grid { stroke: rgba(var(--accent-rgb), 0.25); }
-:root[data-theme='light'] .pass-card__plot .polar-plot .cardinal { fill: var(--muted); }
+:root[data-theme='light'] .pass-card__plot .polar-plot .grid,
+:root[data-theme='light'] .pass-open__plot .polar-plot .grid { stroke: rgba(var(--accent-rgb), 0.25); }
+:root[data-theme='light'] .pass-card__plot .polar-plot .cardinal,
+:root[data-theme='light'] .pass-open__plot .polar-plot .cardinal { fill: var(--muted); }
 /* The arc: 2 px in the satellite's colour in both themes. It is solid where
    the satellite can be seen by eye and dashed elsewhere, with the opacity
    raised so both read on a thumbnail. Dashes keep the painter's butt caps. */
-.pass-card__plot .polar-plot .arc { color: var(--sat-color, var(--map-muted)); }
+.pass-card__plot .polar-plot .arc,
+.pass-open__plot .polar-plot .arc { color: var(--sat-color, var(--map-muted)); }
 .pass-card__plot .polar-plot .arc line,
-.pass-card__plot .polar-plot .arc polyline {
+.pass-open__plot .polar-plot .arc line,
+.pass-card__plot .polar-plot .arc polyline,
+.pass-open__plot .polar-plot .arc polyline {
   fill: none;
   stroke-width: 3px;
   vector-effect: non-scaling-stroke;
@@ -686,8 +804,10 @@
   stroke-linejoin: round;
   stroke-opacity: 1;
 }
-.pass-card__plot .polar-plot .arc polyline { stroke-opacity: 0.8; stroke-linecap: butt; }
-.pass-card__plot .polar-plot .iss-dot {
+.pass-card__plot .polar-plot .arc polyline,
+.pass-open__plot .polar-plot .arc polyline { stroke-opacity: 0.8; stroke-linecap: butt; }
+.pass-card__plot .polar-plot .iss-dot,
+.pass-open__plot .polar-plot .iss-dot {
   fill: #ffffff;
   stroke: #000;
   stroke-width: 0.6;

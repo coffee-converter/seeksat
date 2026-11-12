@@ -17,6 +17,7 @@ const INPUT_ALLOW = [];
 const BESPOKE = {
   'components/home/NextStrip.tsx': ['next-strip'], // the whole "Next:" strip opens the pass
   'components/home/NextUpList.tsx': ['pass-card__focus', 'best-pass'], // the card title; the best-pass line
+  'components/home/PassList.tsx': ['pass-row__btn'], // one pass as a row that opens in place
   'components/home/Timeline.tsx': ['timeline__bar'], // one pass as a bar on the 24 h strip
   'app/design-27b284ec240e9ac9/DesignBible.tsx': ['bible__tap'], // the interactive Surface specimen
 };

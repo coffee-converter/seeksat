@@ -83,13 +83,93 @@ const LIVE_LEAD_MS = 10 * 60_000;
 const IDLE_PAINT_MS = 30_000;
 
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
-const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
+/** Whether the live view can open for this pass now. */
+export const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
 const elevRating = passQuality as (pass: Pass) => Quality;
-type Best = { noradId: number; name: string; pass: Pass; rating: Quality };
+export type Best = { noradId: number; name: string; pass: Pass; rating: Quality };
 const bestOf = bestPass as unknown as (cards: Card[], o: { rate: (card: Card, pass: Pass) => Quality; nowMs: number; hours: number }) => Best | null;
 
-function ElementTags({ track, nowMs }: { track: Track | undefined; nowMs: number }) {
+/** A satellite pasted as elements on this device: it has no page and no share link. */
+export const isPasted = (track: Track) => track.record?.source === "pasted";
+
+/** What a rating reads for the mode: the visual rating (brightness, sky,
+ *  cloud) when watching, the elevation rating for radio. */
+export interface RateOptions {
+  mode: "radio" | "visual";
+  skyType: string;
+  clouds: Forecast | null;
+  nowMs: number;
+}
+
+/** A pass's rating, as its card or row shows it. */
+export function passRating(pass: Pass, { mode, skyType, clouds, nowMs }: RateOptions): Quality {
+  return mode === "visual"
+    ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) })
+    : elevRating(pass);
+}
+
+/** The best pass among the followed ones in the next 24 hours, rated as
+ *  their cards are; null when it is the soonest or rates below Good. */
+export function bestPassOf(cards: Card[], o: RateOptions): Best | null {
+  return bestOf(cards, { rate: (_card, pass) => passRating(pass, o), nowMs: o.nowMs, hours: 24 });
+}
+
+/** The share link for a pass from one place, or null for a pasted satellite.
+ *  Reads window.location.origin, so call it from an event handler. */
+export function passShareUrl({ track, observer, pass, mode, minElevDeg }: {
+  track: Track; observer: HomeObserver; pass: Pass; mode: "radio" | "visual"; minElevDeg: number;
+}): string | null {
+  if (isPasted(track)) return null;
+  return shareUrl(window.location.origin, {
+    noradId: track.noradId,
+    observers: [{ name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg }],
+    passMs: pass.peakMs,
+    mode,
+    freqHz: null,
+    minElevDeg,
+  }) as string;
+}
+
+/** Downloads the pass as an .ics calendar event, with its share link. */
+export function downloadPassIcs(o: {
+  track: Track; observer: HomeObserver; pass: Pass; mode: "radio" | "visual"; minElevDeg: number;
+}) {
+  const { track, observer, pass, mode } = o;
+  const ics = toIcs({
+    satName: track.name,
+    noradId: track.noradId,
+    observer: { name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg },
+    pass,
+    mode,
+    nowMs: trueNow(),
+    url: passShareUrl(o),
+    observerCount: 1,
+    inProgress: pass.inProgress,
+  });
+  downloadText(ics, icsFileName(track.shortName, observer.name, pass.startMs), "text/calendar");
+}
+
+/** The page a pass reminder opens. A pasted satellite has no page: its
+ *  reminder opens it on home, where this device keeps its elements. */
+export const reminderUrl = (track: Track) => () => (isPasted(track) ? `/?focus=${track.noradId}` : `/sat/${track.noradId}`);
+
+/** The small polar plot's ref, painted with the pass: every second while
+ *  the pass is near or under way (the dot moves), else every 30 s. */
+export function usePassPlot(track: Track, observer: HomeObserver, pass: Pass, nowMs: number) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const live = nowMs >= pass.startMs - LIVE_LEAD_MS && nowMs <= pass.endMs;
+  const paintKey = live ? nowMs : Math.floor(nowMs / IDLE_PAINT_MS);
+  // Paints with the clock of the render that changed paintKey.
+  useEffect(() => {
+    if (svgRef.current) paintPassCard(svgRef.current, { track, obs: observer, win: pass, nowMs });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [track, observer, pass, paintKey]);
+  return svgRef;
+}
+
+/** Where the elements came from, as quiet tags. */
+export function ElementTags({ track, nowMs }: { track: Track | undefined; nowMs: number }) {
   if (!track) return null;
   return (
     <>
@@ -127,19 +207,19 @@ interface PassCardProps {
   skyType: string;
 }
 
-interface ViewingProps {
+export interface ViewingProps {
   onFollow: () => void;
   /** The follow cap message, when following is blocked. */
   blocked: string | null;
 }
 
 /** The small "viewing" tag on the viewed satellite's card. */
-function ViewingTag({ viewing }: { viewing: ViewingProps | null }) {
+export function ViewingTag({ viewing }: { viewing: ViewingProps | null }) {
   return viewing ? <span className="pass-card__tag pass-card__tag--viewing">viewing</span> : null;
 }
 
 /** Unfollow, or for the viewed satellite, Follow. */
-function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onUnfollow: () => void }) {
+export function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onUnfollow: () => void }) {
   if (viewing) {
     return (
       <Button
@@ -175,10 +255,8 @@ function PassCard({
   card, track, observer, color, mode, minElevDeg, nowMs, onSkyChart, onRadioChart, onLive, onUnfollow, focus, onFocus, viewing,
   moreOpen, onToggleMore, clouds, cloudShown, skyType,
 }: PassCardProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
   const { pass } = card;
-  const live = nowMs >= pass.startMs - LIVE_LEAD_MS && nowMs <= pass.endMs;
-  const paintKey = live ? nowMs : Math.floor(nowMs / IDLE_PAINT_MS);
+  const svgRef = usePassPlot(track, observer, pass, nowMs);
   const visual = mode === "visual";
   const rating = visual ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) }) : undefined;
   const mag = visual ? peakMagText(pass) : null;
@@ -188,32 +266,7 @@ function PassCard({
   const hasMeta = (!visual && pass.visible) || viewing != null ||
     (elementTags(track, nowMs) as string[]).length > 0;
 
-  // Paints with the clock of the render that changed paintKey.
-  useEffect(() => {
-    if (svgRef.current) paintPassCard(svgRef.current, { track, obs: observer, win: pass, nowMs });
-  }, [track, observer, pass, paintKey]);
-
-  const addToCalendar = () => {
-    const ics = toIcs({
-      satName: track.name,
-      noradId: track.noradId,
-      observer: { name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg },
-      pass,
-      mode,
-      nowMs: trueNow(),
-      url: track.record?.source === "pasted" ? null : (shareUrl(window.location.origin, {
-        noradId: card.noradId,
-        observers: [{ name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg }],
-        passMs: pass.peakMs,
-        mode,
-        freqHz: null,
-        minElevDeg,
-      }) as string),
-      observerCount: 1,
-      inProgress: pass.inProgress,
-    });
-    downloadText(ics, icsFileName(track.shortName, observer.name, pass.startMs), "text/calendar");
-  };
+  const addToCalendar = () => downloadPassIcs({ track, observer, pass, mode, minElevDeg });
 
   const skyButton = <Button size="sm" onClick={onSkyChart}>Sky chart</Button>;
   const radioButton = <Button size="sm" onClick={onRadioChart}>Radio chart</Button>;
@@ -250,7 +303,7 @@ function PassCard({
           {liveOk(pass, nowMs) && <Button size="sm" variant="primary" onClick={onLive}><span className="live-dot" aria-hidden="true" />Live</Button>}
           {/* The chart for the mode leads; the other waits under More. */}
           {visual ? skyButton : radioButton}
-          {track.record?.source !== "pasted" && (
+          {!isPasted(track) && (
             <Link className={buttonClass({ size: "sm" })} href={`/sat/${card.noradId}`} onClick={markFromList} aria-label={`Details for ${card.name}`}>Details</Link>
           )}
           <Disclosure id={`card-more-${card.noradId}`} open={moreOpen} onToggle={onToggleMore} label={`the ${card.name} pass`}>
@@ -262,9 +315,7 @@ function PassCard({
               noradId={card.noradId}
               name={track.shortName}
               pass={pass}
-              // A pasted satellite has no page: its reminder opens it on home,
-              // where this device keeps its elements.
-              url={() => (track.record?.source === "pasted" ? `/?focus=${card.noradId}` : `/sat/${card.noradId}`)}
+              url={reminderUrl(track)}
             />
             <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
           </Disclosure>
@@ -356,10 +407,7 @@ export default function NextUpList({
   });
 
   // The day's best pass among the followed ones, rated as their cards are.
-  const rate = (_card: Card, pass: Pass): Quality => (mode === "visual"
-    ? visualRating(pass, { skyType, cloud: passCloud(clouds, pass, nowMs) })
-    : elevRating(pass));
-  const best = bestOf(followedCards, { rate, nowMs, hours: 24 });
+  const best = bestPassOf(followedCards, { mode, skyType, clouds, nowMs });
   // When every card has the same cloud, say it once above them.
   const cloudNote = mode === "visual"
     ? (sharedCloudNote as (b: (CloudLevel | null)[]) => string | null)(cards
