@@ -92,7 +92,7 @@ export default function SiteHeader() {
           </svg>
         </Button>
         <LiveClock nowMs={nowMs} compact />
-        <Button variant="quiet" iconOnly className="map-shell__more" aria-label="More" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
+        <Button variant="quiet" iconOnly className="map-shell__more" aria-label="Settings" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
           <span aria-hidden="true">⋯</span>
         </Button>
       </div>
