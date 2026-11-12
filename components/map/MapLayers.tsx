@@ -95,7 +95,7 @@ export default function MapLayers({ view, onViewChange, presets, onPreset, follo
       >
         <section className="map-layers__group" aria-labelledby={mapId}>
           <h3 className="map-layers__title" id={mapId}>Map</h3>
-          <Segmented label="Map" size="sm" options={VIEWS} value={view} onChange={onViewChange} />
+          <Segmented label="Map projection" size="sm" options={VIEWS} value={view} onChange={onViewChange} />
         </section>
         {/* Choosing a view closes the menu, so the camera move shows. */}
         <section className="map-layers__group" aria-labelledby={viewId}>
