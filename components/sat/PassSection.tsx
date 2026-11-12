@@ -25,6 +25,7 @@ import PassStats from "@/components/passes/PassStats";
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import { uplinkText } from "@/lib/radio/uplink.mjs";
 import { PassPath, RadioPanel, aboveTenText } from "@/components/passes/PassPath";
+import { placesLine } from "@/lib/sat/places-line.mjs";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 import Button from "@/components/ui/Button";
@@ -127,6 +128,7 @@ export default function PassSection({
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
+  const clearObservers = useHomeStore((s) => s.clearObservers);
   // Bands narrowed in radio mode change the radio panel's "none" wording.
   const banded = useHomeStore((s) => s.prefs.bands) != null;
   const [changingLocation, setChangingLocation] = useState(false);
@@ -157,6 +159,7 @@ export default function PassSection({
     [observer, extra],
   );
   const joint = extra.length > 0;
+  const placesText = (placesLine as (n: string[]) => string | null)(observers.map((o) => o.name));
   const names = useMemo(
     () => Object.fromEntries(observers.map((o) => [o.id, o.name])) as Record<string, string>,
     [observers],
@@ -397,6 +400,12 @@ export default function PassSection({
           ) : (
             <>
               {busy && <p className="home-note" role="status">Finding passes...</p>}
+              {placesText && (
+                <div className="sat-places-line" role="status">
+                  <p>{placesText}</p>
+                  {!shared && <Button size="sm" onClick={clearObservers}>Turn off</Button>}
+                </div>
+              )}
               {sharedHit?.kind === "past" && <p className="home-note sat-shared-past">{sharedHit.text}</p>}
               {view.kind === "rows" && (
                 <p className="print-only sat-print-meta">

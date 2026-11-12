@@ -77,6 +77,14 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 @media (max-width: 1099.98px) { .shared-view--panel { display: none; } }
 @media (min-width: 1100px) { .shared-view--map { display: none; } }
 .shared-view__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.sat-places-line {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+  margin: 0 0 var(--sp-8); padding: var(--sp-8) var(--sp-12);
+  border-left: 3px solid var(--warn); border-radius: var(--radius-md);
+  background: rgba(var(--warn-rgb), 0.12);
+  color: var(--warn-text); font-weight: var(--fw-semibold);
+}
+.sat-places-line p { margin: 0; }
 .sat-shared-past { margin: 0 0 var(--sp-8); }
 .sat-pass.pass-row--shared {
   padding: var(--sp-8); border-radius: var(--radius-md);

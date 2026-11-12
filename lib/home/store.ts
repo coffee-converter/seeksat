@@ -102,6 +102,7 @@ interface HomeState {
   addCustom: (text: string) => { ok: true } | { ok: false; message: string };
   addObserver: (loc: { name: string; latDeg: number; lonDeg: number }) => { ok: true } | { ok: false; message: string };
   removeObserver: (id: string) => void;
+  clearObservers: () => void;
 }
 
 export const useHomeStore = create<HomeState>((set, get) => ({
@@ -277,6 +278,11 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   removeObserver: (id) => {
     get().hydrate();
     get().setPrefs({ observers: removeObserverFrom(get().prefs, id).observers });
+  },
+
+  clearObservers: () => {
+    get().hydrate();
+    get().setPrefs({ observers: [] });
   },
 }));
 
