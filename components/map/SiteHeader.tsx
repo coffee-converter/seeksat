@@ -19,6 +19,7 @@ import { satPath } from "@/lib/sat/page-data.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
 import LocationPill from "./LocationPill";
 import LocationSheet from "./LocationSheet";
+import SettingsSheet from "./SettingsSheet";
 
 export default function SiteHeader() {
   const pathname = usePathname() ?? "";
@@ -33,6 +34,7 @@ export default function SiteHeader() {
   }, [router]);
   const onClearFocus = useCallback(() => useMapScene.getState().scene?.search?.onClearFocus(), []);
   const [placeOpen, setPlaceOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Phones only: the search row under the header. Desktop always shows it.
   const [findOpen, setFindOpen] = useState(false);
   const findId = useId();
@@ -90,12 +92,12 @@ export default function SiteHeader() {
           </svg>
         </Button>
         <LiveClock nowMs={nowMs} compact />
-        {/* Not wired yet: it will open the settings sheet. */}
-        <Button variant="quiet" iconOnly className="map-shell__more" aria-label="More">
+        <Button variant="quiet" iconOnly className="map-shell__more" aria-label="More" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
           <span aria-hidden="true">⋯</span>
         </Button>
       </div>
       <LocationSheet open={placeOpen} onClose={() => setPlaceOpen(false)} />
+      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

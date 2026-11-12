@@ -4,7 +4,7 @@ import { SATNOGS_URL } from "@/lib/mirror/satnogs.mjs";
 
 export default function AboutSection() {
   return (
-    <details className="home-about">
+    <details id="about" className="home-about">
       <summary className="home-about__summary">About SeekSat</summary>
       <p>SeekSat tracks any satellite in the public catalog and finds its passes from where you are, for radio or for watching.</p>
       <p>

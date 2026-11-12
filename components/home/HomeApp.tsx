@@ -14,6 +14,7 @@ import NextUpList, { usePassCharts, type Card, type HomeObserver, type Pass, typ
 import Timeline from "./Timeline";
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
+import { satName } from "@/lib/home/names.mjs";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { cardJobKey } from "@/lib/passes/job-key.mjs";
 import { POPULAR_IDS } from "@/lib/home/prefs.mjs";
@@ -231,9 +232,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     () => countOf(layersOf({ followed: prefs.following, hidden: prefs.hidden, focusId: null, viewing: null })),
     [prefs.following, prefs.hidden],
   );
-  const nameOf = useCallback((id: number) => allTracks.get(id)?.shortName
-    ?? CATALOG.find((s) => s.noradId === id)?.shortName
-    ?? `NORAD ${id}`, [allTracks]);
+  const nameOf = useCallback(
+    (id: number) => satName(id, { records: allTracks as Map<number, { name?: string }>, custom: prefs.custom }),
+    [allTracks, prefs.custom],
+  );
   const chips = useMemo<Chip[]>(() => prefs.following.map((id) => ({
     noradId: id,
     name: nameOf(id),
@@ -250,6 +252,14 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     if (hydrated && location) delete document.documentElement.dataset[FIRST_VISIT_ATTR];
   }, [hydrated, location]);
   useEffect(() => () => { delete document.documentElement.dataset[FIRST_VISIT_ATTR]; }, []);
+  // Settings > About from another page lands here as /#about.
+  useEffect(() => {
+    if (window.location.hash !== "#about") return;
+    const about = document.getElementById("about") as HTMLDetailsElement | null;
+    if (!about) return;
+    about.open = true;
+    about.scrollIntoView({ block: "start" });
+  }, []);
   // Times read as the clock at the place, not the viewer's.
   const tz = usePlaceZone(location?.latDeg, location?.lonDeg);
   const observer = useMemo<HomeObserver | null>(

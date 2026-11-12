@@ -953,6 +953,7 @@
   font-size: var(--fs-md);
   line-height: var(--lh-body);
 }
+.home-about { scroll-margin-top: calc(var(--header-h, 64px) + var(--sp-8)); }
 .home-about__summary { cursor: pointer; color: var(--map-text); }
 .home-about__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .home-about p { margin: var(--sp-8) 0 0; }
@@ -1403,3 +1404,17 @@
   .timeline,
   .cloud { display: none; }
 }
+
+/* SettingsSheet (components/map/SettingsSheet.tsx): label over control, one row each. */
+.settings-sheet { display: flex; flex-direction: column; }
+.settings-sheet__row { display: flex; flex-direction: column; gap: var(--sp-6); padding: var(--sp-12) 0; border-bottom: var(--line-subtle); }
+.settings-sheet__label { color: var(--map-muted); font-size: var(--fs-sm); }
+.settings-sheet__control { min-width: 0; }
+.settings-sheet__control .home-controls__elev { display: inline-flex; }
+.settings-sheet__empty { margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
+.settings-sheet__following { list-style: none; margin: 0; padding: 0; }
+.settings-sheet__sat { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-4) 0; }
+.settings-sheet__sat-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--map-text); }
+.settings-sheet__nav { border-bottom: var(--line-subtle); }
+.settings-sheet__nav .settings-sheet__link { display: flex; width: 100%; justify-content: space-between; align-items: center; }
+.settings-sheet__nav a.settings-sheet__link { padding: var(--sp-12) 0; text-decoration: none; }
