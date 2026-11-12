@@ -76,6 +76,14 @@ test('non-pass cards', () => {
   assert.equal(quietLine([]), null);
 });
 
+test('a satellite that never sets but stays below the horizon is quiet, not always up', () => {
+  const up = { kind: 'stationary', noradId: 9, name: 'G', visible: true, pointing: { azDeg: 1, elDeg: 2 } };
+  const down = { kind: 'stationary', noradId: 8, name: 'H', visible: false, pointing: { azDeg: 1, elDeg: -5 } };
+  const r = passList({ cards: [down, up, { kind: 'none', noradId: 1, name: 'AO-91' }], nowMs: NOW, timeZone: 'UTC' });
+  assert.deepEqual(r.always, [up]);
+  assert.deepEqual(r.quiet, ['H', 'AO-91']);
+});
+
 test('rowDetail', () => {
   const pass = { maxElevDeg: 54.4, durationMs: 5 * 60e3, startAzDeg: 225, endAzDeg: 45 };
   assert.equal(rowDetail(pass), '54° · 5 min · SW→NE');

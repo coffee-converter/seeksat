@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
-import { RadioPanel } from "@/components/passes/PassPath";
+import { RadioPanel, aboveTenText } from "@/components/passes/PassPath";
 import { passTime } from "@/components/passes/PassStats";
 import { peakMagText } from "@/components/passes/QualityBadge";
 import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
@@ -11,6 +11,7 @@ import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
 import Button from "@/components/ui/Button";
 import { compass as compassOf } from "@/lib/sat/pass-rows.mjs";
+import { passPath } from "@/lib/passes/pass-words.mjs";
 import { markFromList } from "@/lib/home/list-origin.mjs";
 import { useHomeStore } from "@/lib/home/store";
 import { buttonClass } from "@/lib/ui/classes.mjs";
@@ -21,6 +22,8 @@ import {
 } from "./NextUpList";
 
 const compass = compassOf as (azDeg: number) => string;
+type PathStep = { key: "start" | "peak" | "end"; label: string; ms: number };
+const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number }) => PathStep[];
 
 /** "6:29 PM, SW", or "6:32 PM, 54° S" with a height: a time and, when known, the compass point. */
 function at(ms: number, azDeg: number | null | undefined, timeZone?: string, elevDeg?: number): string {
@@ -66,6 +69,13 @@ export default function PassRowOpen({
   const mag = visual ? peakMagText(pass) : null;
   const cloud = visual ? passCloud(clouds, pass, nowMs) : null;
   const shareable = !isPasted(track);
+  // The start and end words as the path strip says them: "Appears" and
+  // "Fades" at the shadow's edge, "Above 10°" with a minimum set, and no
+  // start for a pass already up. The peak always reads "Highest".
+  const steps = pathOf(pass, { mode, minElevDeg });
+  const start = steps.find((st) => st.key === "start");
+  const end = steps.find((st) => st.key === "end");
+  const aboveTen = visual ? null : aboveTenText(pass);
 
   const skyButton = (variant?: "quiet") => (
     <Button size="sm" variant={variant} onClick={(e) => openChart("sky", track, pass, e)}>Sky chart</Button>
@@ -82,14 +92,21 @@ export default function PassRowOpen({
         </div>
         <div className="pass-open__facts">
           <dl className="pass-open__steps">
-            <div><dt>Rises</dt><dd>{at(pass.startMs, pass.startAzDeg, tz)}</dd></div>
+            {start && <div><dt>{start.label}</dt><dd>{at(start.ms, pass.startAzDeg, tz)}</dd></div>}
             <div><dt>Highest</dt><dd>{at(pass.peakMs, pass.peakAzDeg, tz, pass.maxElevDeg)}</dd></div>
-            <div><dt>Sets</dt><dd>{at(pass.endMs, pass.endAzDeg, tz)}</dd></div>
+            {end && <div><dt>{end.label}</dt><dd>{at(end.ms, pass.endAzDeg, tz)}</dd></div>}
           </dl>
           {visual && (mag || cloud) && (
             <p className="pass-open__seen rating-pair">
               {mag && <span>{mag}</span>}
               <CloudBadge forecast={clouds} pass={pass} nowMs={nowMs} />
+            </p>
+          )}
+          {/* Radio: time above 10°, and whether it can also be seen by eye. */}
+          {!visual && (aboveTen || pass.visible) && (
+            <p className="pass-open__seen">
+              {aboveTen && <span>{aboveTen}</span>}
+              {pass.visible && <span className="pass-card__tag">visible</span>}
             </p>
           )}
         </div>

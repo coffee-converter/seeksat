@@ -120,9 +120,7 @@ export default function PassList({
 
   const cards = viewingCard ? followedCards.filter((c) => c.noradId !== viewingCard.noradId) : followedCards;
   const { groups, more, always, quiet } = listOf({ cards, nowMs, timeZone: tz, limit: showAll ? Infinity : ROW_LIMIT });
-  // A satellite that never sets but stays below the horizon here has no passes.
-  const alwaysUp = always.filter((c) => c.visible);
-  const quietText = quietOf([...quiet, ...always.filter((c) => !c.visible).map((c) => c.name)]);
+  const quietText = quietOf(quiet);
   const best = bestPassOf(followedCards, { mode, skyType, clouds, nowMs });
   const viewingOf = (id: number): ViewingProps | null => (viewingCard && viewingCard.noradId === id
     ? { onFollow: () => onFollow(id), blocked: followBlocked }
@@ -134,7 +132,7 @@ export default function PassList({
   const keys = [
     ...(pinnedKey ? [pinnedKey] : []),
     ...groups.flatMap((g) => g.rows.map((r) => r.key)),
-    ...alwaysUp.map((c) => `${c.noradId}:always`),
+    ...always.map((c) => `${c.noradId}:always`),
   ];
 
   // From 1100 px the first pass starts open; read once, when it first shows.
@@ -145,7 +143,14 @@ export default function PassList({
     if (window.matchMedia(DESKTOP_QUERY).matches) setOpen((prev) => new Set(prev).add(firstKey));
   }, [firstKey]);
 
-  // Report the latest opened row still in the list (rows go as passes end).
+  // Forget open rows that left the list (a pass ended, the mode changed).
+  const keyList = keys.join(" ");
+  useEffect(() => {
+    const live = new Set(keyList.split(" "));
+    setOpen((prev) => ([...prev].every((k) => live.has(k)) ? prev : new Set([...prev].filter((k) => live.has(k)))));
+  }, [keyList]);
+
+  // Report the latest opened row still in the list (the prune above lands a render later).
   const lastOpen = [...open].reverse().find((k) => keys.includes(k));
   const openId = lastOpen ? idOfKey(lastOpen) : null;
   const reported = useRef<number | null>(null);
@@ -269,10 +274,10 @@ export default function PassList({
           {`Show more (${more})`}
         </Button>
       )}
-      {alwaysUp.length > 0 && (
+      {always.length > 0 && (
         <div className="pass-list__group">
           <h3 className="pass-list__day">Always up</h3>
-          <ul className={rowsClass}>{alwaysUp.map((card) => alwaysRow(card, `${card.noradId}:always`, null))}</ul>
+          <ul className={rowsClass}>{always.map((card) => alwaysRow(card, `${card.noradId}:always`, null))}</ul>
         </div>
       )}
       {quietText && <p className="pass-list__quiet">{quietText}</p>}

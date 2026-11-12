@@ -735,6 +735,7 @@
 .pass-open__steps dt { color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-open__steps dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; }
 .pass-open__seen { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.pass-open__seen .pass-card__tag:first-child { margin-left: 0; }
 .pass-open__actions,
 .pass-open__more { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); }
 /* The page link closes the main line, at its far end. */
