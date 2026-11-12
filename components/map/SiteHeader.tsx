@@ -31,9 +31,9 @@ export default function SiteHeader() {
   return (
     <>
       {isHomePath(pathname) ? (
-        <h1 className="home-wordmark">SeekSat</h1>
+        <h1 className="home-wordmark"><span className="home-wordmark__seek">Seek</span>Sat</h1>
       ) : (
-        <Link className="home-wordmark" href="/">SeekSat</Link>
+        <Link className="home-wordmark" href="/"><span className="home-wordmark__seek">Seek</span>Sat</Link>
       )}
       <div className="map-shell__search">
         <SearchBar

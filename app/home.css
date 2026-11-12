@@ -285,6 +285,8 @@
   letter-spacing: 0.01em;
   line-height: var(--lh-tight);
 }
+/* Two-tone, as on the charts and share cards: "Seek" muted, "Sat" accent. */
+.home-wordmark__seek { color: var(--wordmark-dim); }
 
 /* LiveClock: UTC large with a pulsing live dot, local time below. */
 .live-clock { text-align: right; }
