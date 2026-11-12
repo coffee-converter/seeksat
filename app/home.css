@@ -1202,9 +1202,10 @@
   /* Full screen without the native API: the fixed map sits in the sticky
      map's stacking context, so lift that above the top bar. */
   .map-shell:not(.sat) .map-shell__map:has(> .flat-map-shell--full) { z-index: 1000; }
+  /* No z-index: the map (z 2) covers it anyway, and a stacking context here
+     would trap anything fixed inside it under the map and the top bar. */
   .map-shell:not(.sat) .map-shell__panel {
     position: relative;
-    z-index: 1;
     background: var(--bg);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: var(--shadow-popover);

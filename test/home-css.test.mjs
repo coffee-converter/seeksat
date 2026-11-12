@@ -18,3 +18,11 @@ test('the radio chart inputs are library fields, 16px on touch so phones do not 
   assert.match(read('app/ui.css'), /@media \(pointer: coarse\) \{\s*\.field__control \{[^}]*font-size: var\(--fs-input\);/);
   assert.match(read('app/globals.css'), /--fs-input: 16px;/);
 });
+
+test('dialogs escape the phone panel: Modal portals into <body>, the panel makes no stacking context', () => {
+  const modal = read('components/ui/Modal.tsx');
+  assert.match(modal, /createPortal\(/);
+  assert.match(modal, /document\.body,?\s*\)/);
+  const panel = read('app/home.css').match(/\.map-shell:not\(\.sat\) \.map-shell__panel\s*\{([^}]*)\}/)[1];
+  assert.doesNotMatch(panel, /z-index/);
+});

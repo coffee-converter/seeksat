@@ -307,7 +307,9 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
 .modal--full .modal__title { font-size: var(--fs-2xl); }
 
 /* sheet: pinned to the bottom on phones (grab bar, body scrolls); from 1100px
-   a 360px panel under the header at the top right over a light backdrop. */
+   a 360px panel under the header at the top right over a light backdrop. The
+   dialog renders into <body>, outside .map-shell's --header-h, so it reads
+   the measured height HeaderPinned puts on <html>. */
 .modal--sheet { align-items: flex-end; }
 .modal--sheet .modal__panel {
   width: 100%;
@@ -337,10 +339,10 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   .modal--sheet .modal__backdrop { background: color-mix(in srgb, var(--bg) 35%, transparent); backdrop-filter: none; }
   .modal--sheet .modal__panel {
     position: absolute;
-    top: var(--header-h, 64px);
+    top: var(--header-pinned, 64px);
     right: var(--sp-16);
     width: 360px;
-    max-height: calc(100svh - var(--header-h, 64px) - var(--sp-16));
+    max-height: calc(100svh - var(--header-pinned, 64px) - var(--sp-16));
     border-bottom: var(--line-subtle);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-modal);
