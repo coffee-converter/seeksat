@@ -104,3 +104,9 @@ test('nextUp keeps the passes within 24 h on each card', () => {
   assert.ok(card.passes.every((p) => p.startMs < T0 + 24 * 3_600_000));
   assert.equal(card.pass, card.passes[0]);
 });
+
+test('next-up pass cards carry upcoming', () => {
+  const [card] = nextUp({ ...base, tracks: new Map([[iss.noradId, iss]]), nowMs: T0 });
+  assert.ok(card.upcoming.length >= card.passes.length);
+  assert.ok(card.upcoming.every((p) => p.startMs < T0 + NEXT_UP_HOURS * 3_600_000));
+});

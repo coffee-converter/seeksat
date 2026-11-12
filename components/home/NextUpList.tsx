@@ -70,7 +70,7 @@ export interface Pass {
 }
 
 export type Card =
-  | { kind: "pass"; noradId: number; name: string; pass: Pass; passes?: Pass[] }
+  | { kind: "pass"; noradId: number; name: string; pass: Pass; passes?: Pass[]; upcoming?: Pass[] }
   | { kind: "stationary"; noradId: number; name: string; visible: boolean; pointing: { azDeg: number; elDeg: number } }
   | { kind: "none" | "unavailable" | "missing"; noradId: number; name: string };
 
