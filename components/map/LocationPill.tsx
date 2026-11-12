@@ -2,6 +2,7 @@
 
 import { useHomeStore } from "@/lib/home/store";
 import Button from "@/components/ui/Button";
+import { placeName } from "@/lib/home/places.mjs";
 
 /**
  * The place passes are worked out for, in the header: "📍 Chicago ▾", or
@@ -12,6 +13,7 @@ import Button from "@/components/ui/Button";
 export default function LocationPill({ onOpen }: { onOpen: () => void }) {
   const hydrated = useHomeStore((s) => s.hydrated);
   const location = useHomeStore((s) => s.prefs.location);
+  const name = location ? placeName(location) : null;
 
   return (
     <Button
@@ -19,12 +21,12 @@ export default function LocationPill({ onOpen }: { onOpen: () => void }) {
       className="location-pill"
       data-ready={hydrated ? "true" : "false"}
       aria-haspopup="dialog"
-      aria-label={location ? `Passes from ${location.name}. Change location` : "Set location"}
+      aria-label={name ? `Passes from ${name}. Change location` : "Set location"}
       onClick={onOpen}
     >
       <span aria-hidden="true">📍</span>
-      <span className="location-pill__name">{location ? location.name : "Set location"}</span>
-      {location && <span className="location-pill__caret" aria-hidden="true">▾</span>}
+      <span className="location-pill__name">{name ?? "Set location"}</span>
+      {name && <span className="location-pill__caret" aria-hidden="true">▾</span>}
     </Button>
   );
 }
