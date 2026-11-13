@@ -180,13 +180,7 @@
 }
 .map-layers__panel[hidden] { display: none; }
 .map-layers__panel:focus { outline: none; }
-.map-layers__title {
-  margin: 0 0 var(--sp-6);
-  color: var(--map-muted);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  line-height: var(--lh-tight);
-}
+.map-layers__title { margin: 0 0 var(--sp-6); }
 /* The projection switch and the views fill the panel's width, the views
    two to a row, so nothing is left ragged. */
 .map-layers__panel .segmented { display: flex; }
@@ -288,13 +282,6 @@
   font-family: var(--font-sans);
   font-size: var(--fs-md);
 }
-.home-heading {
-  margin: 0 0 var(--sp-8);
-  color: var(--text-heading);
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-  line-height: var(--lh-tight);
-}
 .home-wordmark {
   margin: var(--sp-2) var(--sp-2) 0;
   color: var(--map-accent);
@@ -366,7 +353,6 @@
 }
 .home .clock-skew-banner strong,
 .map-shell .clock-skew-banner strong { color: var(--warn); font-weight: var(--fw-semibold); }
-.home-note { margin: 0; color: var(--map-muted); }
 .home-error { margin: 0; color: var(--danger-text); }
 
 
@@ -382,7 +368,7 @@
 /* What the elevation setting does, on its own line under the controls. */
 .home-controls__bands { flex-basis: 100%; }
 .home-controls__band-row { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-8); }
-.home-controls__hint { flex: 1 0 100%; margin: 0; color: var(--map-muted); font-size: var(--fs-sm); }
+.home-controls__hint { flex: 1 0 100%; }
 /* The place keeps another clock: said under the location, where it applies. */
 .home-controls__zone { margin-top: calc(-1 * var(--sp-4)); }
 /* The stepper: two quiet buttons and the value in one outlined box. */
@@ -418,7 +404,6 @@
   font-weight: var(--fw-semibold);
   color: var(--text-strong);
 }
-.home-controls__label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-regular); }
 /* Sky type (visual mode): at the end of the location row, in body weight. */
 .home-controls__sky { font-weight: var(--fw-regular); }
 .home-controls__place .home-controls__sky { margin-left: auto; align-self: center; }
@@ -454,7 +439,6 @@
   border: var(--line-subtle);
   border-radius: var(--radius-lg);
 }
-.location-prompt__hint { margin: 0; color: var(--map-muted); }
 .location-prompt__form { display: flex; gap: var(--sp-8); width: 100%; }
 .location-prompt__form > .field { flex: 1; min-width: 0; }
 /* In the location sheet (components/map/LocationSheet.tsx): flat, full width. */
@@ -540,7 +524,6 @@
 .radio-rows dd { margin: 0; }
 .radio-rows__freq { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); white-space: nowrap; }
 .radio-rows__note { justify-self: end; text-align: right; color: var(--map-muted); font-size: var(--fs-sm); }
-.pass-card__radio-none { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__radio-more { margin-top: var(--sp-4); }
 .pass-card__stats {
   grid-area: stats;
@@ -565,28 +548,20 @@
 .pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
 .pass-card__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
-.more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; font-size: var(--fs-md); color: var(--map-muted); }
+.more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; }
 
 /* Pass list (components/home/PassList.tsx): one compact row per pass under
    day headings, each a button that opens the pass in place (PassRowOpen). */
 .pass-list { display: flex; flex-direction: column; gap: var(--sp-8); }
 .pass-list__head { display: flex; align-items: center; gap: var(--sp-8); }
-.pass-list__head .home-heading { margin: 0 auto 0 0; }
+.pass-list__head .heading-section { margin: 0 auto 0 0; }
 .pass-list__following { white-space: nowrap; }
-.pass-list__zone { margin: calc(-1 * var(--sp-4)) 0 0; color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-list__zone { margin: calc(-1 * var(--sp-4)) 0 0; }
 .pass-list__group { display: flex; flex-direction: column; gap: var(--sp-4); }
-.pass-list__day {
-  margin: var(--sp-4) 0 0;
-  padding: 0 var(--sp-4);
-  color: var(--map-muted);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  line-height: var(--lh-tight);
-}
+.pass-list__day { margin: var(--sp-4) 0 0; padding: 0 var(--sp-4); }
 /* A Surface holding the rows flush; it clips the rows' hover fill to its corners. */
 .pass-list__rows { margin: 0; padding: 0; list-style: none; overflow: hidden; }
 .pass-list__more { align-self: flex-start; }
-.pass-list__quiet { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); line-height: var(--lh-snug); }
 .pass-row + .pass-row { border-top: var(--line-subtle); }
 /* When, what, how good: the time column is wide enough for "10:45 PM", the
    middle gives way with an ellipsis, the rating keeps its width. */
@@ -828,7 +803,7 @@
   padding: var(--sp-2) var(--sp-2) var(--sp-4);
   color: var(--text);
 }
-.radio-phone__title { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); color: var(--text-strong); }
+.radio-phone__title { margin: 0; }
 .radio-phone__sub { margin: calc(-1 * var(--sp-6)) 0 0; font-size: var(--fs-sm); color: var(--muted); }
 .radio-phone__tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6); }
 .radio-tune {
@@ -884,7 +859,7 @@
 .focus-bar__x { font-size: var(--fs-xl); line-height: 1; }
 /* Details jumps to the drawer title, which only sits below the map under 1100 px. */
 @media (min-width: 1100px) { .focus-bar .focus-bar__details { display: none; } }
-.focus-bar__note { flex-basis: 100%; margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
+.focus-bar__note { flex-basis: 100%; }
 /* Phones: one row. The title gives way (ellipsis), "Viewing" goes, and the
    star's word is kept for screen readers only. */
 @media (max-width: 599.98px) {
@@ -1329,7 +1304,7 @@
 .live-view__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin: 0; }
 .live-view__nums dt { font-size: var(--fs-sm); color: var(--map-muted); }
 .live-view__nums dd { margin: var(--sp-2) 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.live-view__radio .home-note { margin: var(--sp-4) 0 0; }
+.live-view__radio .note { margin: var(--sp-4) 0 0; }
 .live-view__tune { margin: 0; display: flex; align-items: baseline; gap: var(--sp-12); flex-wrap: wrap; }
 .live-view__tune-label { font-size: var(--fs-md); color: var(--map-muted); }
 .live-view__tune-mhz { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; }
@@ -1429,7 +1404,6 @@
 /* SettingsSheet (components/map/SettingsSheet.tsx): label over control, one row each. */
 .settings-sheet { display: flex; flex-direction: column; }
 .settings-sheet__row { display: flex; flex-direction: column; gap: var(--sp-6); padding: var(--sp-12) 0; border-bottom: var(--line-subtle); }
-.settings-sheet__label { color: var(--map-muted); font-size: var(--fs-sm); }
 .settings-sheet__control { min-width: 0; }
 .settings-sheet__control .home-controls__elev { display: inline-flex; }
 /* The Following sheet: one row per followed satellite, its map colour first. */
@@ -1439,7 +1413,6 @@
 .following-sheet__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--sat-color); }
 .following-sheet__name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--map-text); text-align: left; }
 .following-sheet__name.btn { justify-content: flex-start; }
-.following-sheet__empty { margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
 .settings-sheet__nav { border-bottom: var(--line-subtle); }
 /* About (a button) and feedback (a link) both sit flush with the labels above. */
 .settings-sheet__nav .settings-sheet__link { display: flex; width: 100%; justify-content: space-between; align-items: center; padding: var(--sp-12) 0; }

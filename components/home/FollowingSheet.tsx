@@ -36,7 +36,7 @@ export default function FollowingSheet({ open, onClose, colors }: Props) {
   return (
     <Modal open={open} onClose={onClose} size="sheet" title="Following">
       {prefs.following.length === 0 ? (
-        <p className="following-sheet__empty">No satellites followed yet. Search to add one.</p>
+        <p className="note">No satellites followed yet. Search to add one.</p>
       ) : (
         <ul className="following-sheet">
           {prefs.following.map((id) => {

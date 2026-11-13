@@ -14,11 +14,11 @@ export default function SatBusy({ onRetry }: { onRetry?: () => void }) {
   return (
     <section className="home">
       <NotFoundScene />
-      <h1 className="home-heading">Couldn&apos;t load this satellite</h1>
-      <p className="home-note">
+      <h1 className="heading-page">Couldn&apos;t load this satellite</h1>
+      <p className="note">
         The satellite catalog is busy or out of reach right now. Try again in a minute.
       </p>
-      <p className="home-note">
+      <p className="note">
         <Button onClick={retry}>Try again</Button>
       </p>
       <Link className={linkClass()} href="/">Back to SeekSat</Link>

@@ -367,13 +367,13 @@ export default function PassSection({
   return (
     <section id="passes" className="sat-passes" aria-labelledby="sat-passes-title">
       <div className="sat-passes__head">
-        <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
+        <h2 id="sat-passes-title" className="heading-section">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
         {view?.kind === "rows" && (
           <Button size="sm" className="sat-print-chip" onClick={() => window.print()}>Print</Button>
         )}
       </div>
       {!track ? (
-        <p className="home-note">{UNAVAILABLE}</p>
+        <p className="note">{UNAVAILABLE}</p>
       ) : (
         <>
           {showPrompt ? (
@@ -396,17 +396,17 @@ export default function PassSection({
           )}
           {observer && !showPrompt && (shared ? <ExtraObservers readOnly observers={extra} /> : <ExtraObservers />)}
           {observer && !showPrompt && (!view ? (
-            <p className="home-note" role="status">Finding passes...</p>
+            <p className="note" role="status">Finding passes...</p>
           ) : (
             <>
-              {busy && <p className="home-note" role="status">Finding passes...</p>}
+              {busy && <p className="note" role="status">Finding passes...</p>}
               {placesText && (
                 <div className="sat-places-line" role="status">
                   <p>{placesText}</p>
                   {!shared && <Button size="sm" onClick={clearObservers}>Turn off</Button>}
                 </div>
               )}
-              {sharedHit?.kind === "past" && <p className="home-note sat-shared-past">{sharedHit.text}</p>}
+              {sharedHit?.kind === "past" && <p className="note sat-shared-past">{sharedHit.text}</p>}
               {view.kind === "rows" && (
                 <p className="print-only sat-print-meta">
                   {`Location: ${observers.map((o) => o.name).join(", ")}. Mode: ${mode}. Minimum elevation: ${minElevDeg}°. Times are ${zone}.`}
@@ -453,13 +453,13 @@ export default function PassSection({
                   </tbody>
                 </table>
               )}
-              {view.kind === "rows" && <p className="home-note sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>}
+              {view.kind === "rows" && <p className="note note--sm sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>}
               {view.kind === "rows" ? (
                 <>
                 <div className="sat-passlist">
                   {groups.map((group) => (
                     <section key={group.heading} className="sat-day-group">
-                      <h3 className="sat-day">{group.heading}</h3>
+                      <h3 className="heading-group sat-day">{group.heading}</h3>
                       <ul className="sat-day__list">
                         {group.rows.map((row) => {
                           const open = rowOpen(row.key, sharedKey, openRows);
@@ -515,7 +515,7 @@ export default function PassSection({
                                   onToggle={() => toggleRow(row.key)}
                                   label={`the ${row.timesLabel} pass`}
                                 >
-                                  <p className="more-panel__note">{bearings(row.pass as Pass & { startAzDeg: number; endAzDeg: number })}</p>
+                                  <p className="note more-panel__note">{bearings(row.pass as Pass & { startAzDeg: number; endAzDeg: number })}</p>
                                   {visual
                                     ? <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>
                                     : <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>}
@@ -547,7 +547,7 @@ export default function PassSection({
                 </>
               ) : (
                 <>
-                  <p className="home-note">{view.text}</p>
+                  <p className="note">{view.text}</p>
                   {/* Never sets here: no pass to chart, so chart the next 24 hours. */}
                   {alwaysUp && (
                     <div className="sat-day-charts">

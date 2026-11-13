@@ -20,9 +20,9 @@ function modeNote(d: Downlink): string {
 export default function Downlinks({ downlinks }: { downlinks: ReadonlyArray<Downlink> }) {
   return (
     <section id="downlinks">
-      <h2 className="home-heading">Known downlinks</h2>
+      <h2 className="heading-section">Known downlinks</h2>
       {downlinks.length === 0 ? (
-        <p className="home-note">
+        <p className="note">
           No downlink frequencies are on file for this satellite. You can type one into the radio chart.
         </p>
       ) : (
@@ -36,7 +36,7 @@ export default function Downlinks({ downlinks }: { downlinks: ReadonlyArray<Down
         </ul>
       )}
       {downlinks.some((d) => d.source === "satnogs") && (
-        <p className="home-note">
+        <p className="note">
           From{" "}
           <a className={linkClass()} href={SATNOGS_URL} target="_blank" rel="noreferrer">SatNOGS DB</a>
           {" "}(CC BY-SA 4.0), contributed by listeners and not checked by SeekSat. Some may be off the air.

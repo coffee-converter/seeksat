@@ -327,16 +327,16 @@ export default function PassList({
   return (
     <section className="pass-list" aria-labelledby={headingId}>
       <div className="pass-list__head">
-        <h2 id={headingId} className="home-heading">Passes</h2>
+        <h2 id={headingId} className="heading-section">Passes</h2>
         {headAction}
         <Segmented label="Pass mode" size="sm" options={MODES} value={mode} onChange={onModeChange} />
       </div>
-      {zoneNote && <p className="pass-list__zone">{zoneNote}</p>}
+      {zoneNote && <p className="note note--sm pass-list__zone">{zoneNote}</p>}
       {strip}
       {viewingCard && pinnedKey && <ul className={rowsClass}>{pinned(viewingCard, pinnedKey)}</ul>}
       {groups.map((group) => (
         <div key={group.key} className="pass-list__group">
-          <h3 className="pass-list__day">{group.label}</h3>
+          <h3 className="heading-group pass-list__day">{group.label}</h3>
           <ul className={rowsClass}>{group.rows.map((row) => passRow(row, null))}</ul>
         </div>
       ))}
@@ -347,11 +347,11 @@ export default function PassList({
       )}
       {always.length > 0 && (
         <div className="pass-list__group">
-          <h3 className="pass-list__day">Always up</h3>
+          <h3 className="heading-group pass-list__day">Always up</h3>
           <ul className={rowsClass}>{always.map((card) => alwaysRow(card, `${card.noradId}:always`, null))}</ul>
         </div>
       )}
-      {quietText.map((line) => <p key={line} className="pass-list__quiet">{line}</p>)}
+      {quietText.map((line) => <p key={line} className="note note--sm">{line}</p>)}
     </section>
   );
 }

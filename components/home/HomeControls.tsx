@@ -48,7 +48,7 @@ export default function HomeControls({
       {/* Where the passes are for comes first: everything below depends on it. */}
       {locationName != null && (
         <div className="home-controls__place">
-          <span className="home-controls__label">Location</span>
+          <span className="heading-group">Location</span>
           <span className="home-controls__name" title={locationName}>
             {locationName || "Your location"}
           </span>
@@ -58,7 +58,7 @@ export default function HomeControls({
           {skySelect}
         </div>
       )}
-      {locationName != null && zoneNote && <p className="home-controls__hint home-controls__zone">{zoneNote}</p>}
+      {locationName != null && zoneNote && <p className="note note--sm home-controls__hint home-controls__zone">{zoneNote}</p>}
 
       <Segmented
         label="Pass mode"
@@ -98,7 +98,7 @@ export default function HomeControls({
       {mode === "radio" && <BandPicker ready={ready} />}
 
       {/* What the elevation setting does, under the row of controls. */}
-      <p className="home-controls__hint">Min elevation hides lower passes and sizes the footprint circle.</p>
+      <p className="note note--sm home-controls__hint">Min elevation hides lower passes and sizes the footprint circle.</p>
 
     </Surface>
   );

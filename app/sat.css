@@ -1,5 +1,4 @@
 .sat { overflow-wrap: anywhere; }
-.sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-strong); }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); max-width: 100%; margin-top: var(--sp-6); }
 .sat-age { line-height: var(--lh-body); }
 .sat-age__how { margin-left: var(--sp-8); }
@@ -13,7 +12,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-list__sub { color: var(--muted); font-size: var(--fs-sm); }
 .sat-raw { margin-bottom: var(--sp-12); }
 .sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
-.sat-raw-head h3 { margin: 0; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
+.sat-raw-head h3 { margin: 0; }
 .sat-raw pre {
   margin: var(--sp-6) 0 0; padding: var(--sp-8); max-width: 100%; overflow-x: auto;
   background: var(--code-bg); border: 0; border-radius: var(--radius-lg);
@@ -29,14 +28,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 /* Passes under day headings: the same Starts, Max and Lasts columns and
    rating pill as the home cards, then where to look below. */
 .sat-day-group + .sat-day-group { margin-top: var(--sp-16); }
-.sat-day {
-  margin: 0;
-  padding: var(--sp-6) 0 var(--sp-4);
-  font-size: var(--fs-md);
-  font-weight: var(--fw-semibold);
-  color: var(--map-muted);
-  border-bottom: var(--line-subtle);
-}
+.sat-day { padding: var(--sp-6) 0 var(--sp-4); border-bottom: var(--line-subtle); }
 .sat-day__list { list-style: none; margin: 0; padding: 0; }
 .sat-pass__head {
   display: grid;
@@ -62,7 +54,6 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-pass__line2 { margin: var(--sp-8) 0 0; color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: var(--lh-body); }
 .sat-pass__line2 .pass-card__tag:first-child { margin-left: 0; }
 .sat-observers { margin: var(--sp-12) 0; }
-.sat-observers__title { margin: 0 0 var(--sp-4); font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-observers__list { list-style: none; margin: var(--sp-8) 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .sat-observers__item { display: inline-flex; align-items: center; gap: var(--sp-6); padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-12); border: var(--line-subtle); border-radius: var(--radius-full); }
 .sat-shared {
@@ -206,7 +197,6 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 /* Docked (1100 px and up) the panel is 380 px wide, whatever the viewport:
    two tile columns, one column of elements, and stacked How-we-compute rows. */
 @media (min-width: 1100px) {
-  .map-shell__panel .sat-title { font-size: var(--fs-2xl); }
   .map-shell__panel .sat-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .map-shell__panel .sat-dash .stat-tile--wide,
   .map-shell__panel .sat-dash__sun { grid-column: 1 / -1; }
@@ -216,7 +206,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 }
 
 .sat-passes__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
-.sat-passes__head .home-heading { margin: 0; }
+.sat-passes__head .heading-section { margin: 0; }
 .print-only { display: none; }
 .sat-print-table { border-collapse: collapse; }
 
@@ -259,7 +249,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   .sat-print-table th { text-align: left; font-weight: 700; padding: 2pt 4pt; border-bottom: 1pt solid black; }
   .sat-print-table td { padding: 2pt 4pt; border-bottom: 0.5pt solid black; }
   .sat-print-table tr { break-inside: avoid; page-break-inside: avoid; }
-  .sat-passes__head .home-heading { font-size: 12pt; margin: 6pt 0 2pt; }
+  .sat-passes__head .heading-section { font-size: 12pt; margin: 6pt 0 2pt; }
   .sat-print-meta { margin: 0 0 6pt; font-size: 10pt; }
   .sat-print-foot { margin: 10pt 0 0; font-size: 9pt; }
   .sat-pass { padding: 3pt 0; border-bottom: 0.5pt solid black; break-inside: avoid; page-break-inside: avoid; }

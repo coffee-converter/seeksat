@@ -62,7 +62,7 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
           <Button size="sm" onClick={onShowAll}>{text.showAll}</Button>
         )}
       </div>
-      {!followed && blocked && <p className="focus-bar__note">{blocked}</p>}
+      {!followed && blocked && <p className="note focus-bar__note">{blocked}</p>}
     </div>
   );
 }

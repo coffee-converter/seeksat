@@ -116,6 +116,18 @@
   .btn--link { min-height: 24px; }
 }
 
+/* Type roles (docs/design-system.md). Every heading and note takes one of
+   these; a component's own class adds layout only (margin, padding, flex).
+   page: the one h1. section: a section's h2, and dialog and sheet titles.
+   sub: a heading inside a panel. group: a muted label over a group (a day,
+   a setting). note: muted body text; note--sm for a line under a control. */
+.heading-page { margin: 0; color: var(--text-heading); font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); letter-spacing: -0.01em; }
+.heading-section { margin: 0 0 var(--sp-8); color: var(--text-heading); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
+.heading-sub { margin: 0 0 var(--sp-4); color: var(--text-heading); font-size: var(--fs-md); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
+.heading-group { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
+.note { margin: 0; color: var(--map-muted); font-size: var(--fs-md); line-height: var(--lh-body); }
+.note--sm { font-size: var(--fs-sm); line-height: var(--lh-snug); }
+
 /* Segmented: a well of options, the chosen one a filled segment (today's
    .theme-toggle__group and the Globe | Mercator group). */
 .segmented {
@@ -279,7 +291,7 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   position: relative; padding-right: calc(var(--sp-32) + var(--sp-12));
 }
 .modal__head--bare .modal__actions > :last-child { position: absolute; top: 0; right: 0; }
-.modal__title { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-strong); }
+.modal__title { margin: 0; color: var(--text-heading); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
 .modal__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6); margin-left: auto; }
 .modal__body { min-height: 0; overflow-y: auto; }
 /* wide: a chart wider than tall; phones keep the 96vw below. */

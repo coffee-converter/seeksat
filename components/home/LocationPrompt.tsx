@@ -165,8 +165,8 @@ export default function LocationPrompt({ onDone, onCancel, variant = "card" }: P
 
   return (
     <section className="location-prompt" aria-labelledby={`${uid}-title`}>
-      <h2 id={`${uid}-title`} className="home-heading">Where are you?</h2>
-      <p className="location-prompt__hint">SeekSat shows where satellites are now and when they pass over you. Your location stays on this device.</p>
+      <h2 id={`${uid}-title`} className="heading-section">Where are you?</h2>
+      <p className="note">SeekSat shows where satellites are now and when they pass over you. Your location stays on this device.</p>
       <Button variant="primary" disabled={gpsBusy} onClick={useDevice}>
         {gpsBusy ? "Finding you..." : "Use my location"}
       </Button>
@@ -192,7 +192,7 @@ export function PopularList({ names }: { names: ReadonlyMap<number, string> }) {
 
   return (
     <section className="popular" aria-labelledby={`${uid}-title`}>
-      <h2 id={`${uid}-title`} className="home-heading">Popular satellites</h2>
+      <h2 id={`${uid}-title`} className="heading-section">Popular satellites</h2>
       <ul className="popular__list">
         {POPULAR_IDS.map((id) => {
           const on = following.includes(id);

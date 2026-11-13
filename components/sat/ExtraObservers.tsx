@@ -73,8 +73,8 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
 
   return (
     <div className="sat-observers" role="group" aria-labelledby={`${uid}-title`}>
-      <h3 id={`${uid}-title`} className="sat-observers__title">Also seen from</h3>
-      {!readOnly && <p className="home-note">Add other places to see only the times when every place can see it.</p>}
+      <h3 id={`${uid}-title`} className="heading-sub">Also seen from</h3>
+      {!readOnly && <p className="note">Add other places to see only the times when every place can see it.</p>}
       {observers.length > 0 && (
         <ul className="sat-observers__list">
           {observers.map((o) => (

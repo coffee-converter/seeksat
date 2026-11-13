@@ -14,7 +14,7 @@ export function AgeLine({ age, source, fetchedText, accuracyLink = true }: {
   accuracyLink?: boolean;
 }) {
   return (
-    <p className="home-note sat-age">
+    <p className="note sat-age">
       {`${age.text}, from ${source}`}
       {fetchedText ? `, ${fetchedText}.` : "."}
       {age.level === "old" ? <Badge tone="warn">old elements</Badge> : null}
@@ -48,7 +48,7 @@ export default function ElementsTable({
   ];
   return (
     <section className="sat-elements" aria-labelledby="sat-elements-title">
-      <h2 id="sat-elements-title" className="home-heading">Mean elements</h2>
+      <h2 id="sat-elements-title" className="heading-section">Mean elements</h2>
       <AgeLine age={age} source={source} fetchedText={fetchedText} />
       <dl className="sat-etable num">
         {rows.map(([k, v]) => (

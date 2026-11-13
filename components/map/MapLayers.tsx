@@ -94,12 +94,12 @@ export default function MapLayers({ view, onViewChange, presets, onPreset, follo
         hidden={!open}
       >
         <section className="map-layers__group" aria-labelledby={mapId}>
-          <h3 className="map-layers__title" id={mapId}>Map</h3>
+          <h3 className="heading-group map-layers__title" id={mapId}>Map</h3>
           <Segmented label="Map projection" size="sm" options={VIEWS} value={view} onChange={onViewChange} />
         </section>
         {/* Choosing a view closes the menu, so the camera move shows. */}
         <section className="map-layers__group" aria-labelledby={viewId}>
-          <h3 className="map-layers__title" id={viewId}>View</h3>
+          <h3 className="heading-group map-layers__title" id={viewId}>View</h3>
           <div className="map-layers__views">
             {view === "globe" ? presets.map((p) => (
               <Button
@@ -128,7 +128,7 @@ export default function MapLayers({ view, onViewChange, presets, onPreset, follo
         </section>
         <div className="map-layers__group map-layers__share">{share}</div>
         <section className="map-layers__group" aria-labelledby={seeId}>
-          <h3 className="map-layers__title" id={seeId}>What you see</h3>
+          <h3 className="heading-group map-layers__title" id={seeId}>What you see</h3>
           {legend}
         </section>
       </div>

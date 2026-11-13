@@ -360,12 +360,12 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         >
           {"← Your satellites"}
         </Link>
-        <h1 className="sat-title">{data.name}</h1>
-        <p className="home-note">
+        <h1 className="heading-page sat-title">{data.name}</h1>
+        <p className="note">
           {`NORAD ${data.noradId}`}
           {data.intlDesignator ? ` · ${data.intlDesignator}` : ""}
         </p>
-        {data.note ? <p className="home-note">{data.note}</p> : null}
+        {data.note ? <p className="note">{data.note}</p> : null}
         <div className="sat-follow">
           <Button
             variant="primary"
@@ -380,7 +380,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             <ShareButton url={headerLink} title={data.name} size="button" />
           )}
         </div>
-        {!following && blocked ? <p className="home-note">{blocked}</p> : null}
+        {!following && blocked ? <p className="note">{blocked}</p> : null}
         <NextPassLine
           report={nextPass}
           nowMs={nowMs}
@@ -407,7 +407,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       ) : (
         <>
           <AgeLine age={age} source={data.source} fetchedText={fetchedText} accuracyLink={false} />
-          <p className="home-note">These elements can&apos;t be used to compute a position.</p>
+          <p className="note">These elements can&apos;t be used to compute a position.</p>
         </>
       )}
 

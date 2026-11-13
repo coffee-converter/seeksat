@@ -35,7 +35,7 @@ export function OrbitCheck({ live }: { live: Live }) {
   const within = diff < 0.001 ? "better than 0.001%" : `within ${formatNumber(diff, diff >= 1 ? 1 : diff >= 0.1 ? 2 : 3)}%`;
   return (
     <section className="sat-orbit-check" aria-labelledby="sat-orbit-check-title">
-      <h2 id="sat-orbit-check-title" className="home-heading">Orbit check</h2>
+      <h2 id="sat-orbit-check-title" className="heading-section">Orbit check</h2>
       <p className="sat-orbit-check__lead">
         The live speed and distance fit this orbit to{" "}
         <Flashing className="sat-orbit-check__pct num" value={within} />.

@@ -25,7 +25,7 @@ export default function OrbitDiagram({ track, nowMs }: { track: unknown; nowMs: 
   const labelDy = (y: number) => (y > d.size / 2 ? -8 : 14);
   return (
     <figure className="sat-diagram">
-      <h2 className="home-heading">Orbit diagram</h2>
+      <h2 className="heading-section">Orbit diagram</h2>
       <svg viewBox={`0 0 ${d.size} ${d.size}`} role="img" aria-label="The orbit drawn to scale in its own plane">
         <ellipse cx={d.ellipse.cx} cy={d.ellipse.cy} rx={d.ellipse.rx} ry={d.ellipse.ry}
           fill="none" strokeWidth="1.5" style={{ stroke: "rgba(var(--accent-rgb), 0.7)" }} />
@@ -36,7 +36,7 @@ export default function OrbitDiagram({ track, nowMs }: { track: unknown; nowMs: 
         <text x={d.apogee.x} y={d.apogee.y + labelDy(d.apogee.y)} textAnchor="start" className="sat-diagram-label">apogee</text>
         {d.dot ? <circle cx={d.dot.x} cy={d.dot.y} r="5" fill={SAT_PALETTES[theme][0]} stroke="var(--bg)" strokeWidth="1.5" /> : null}
       </svg>
-      <figcaption className="home-note">
+      <figcaption className="note">
         Drawn to scale in the orbit&apos;s own plane, from mean elements. Earth&apos;s center is at one focus.
       </figcaption>
     </figure>

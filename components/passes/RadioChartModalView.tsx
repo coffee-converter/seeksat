@@ -368,7 +368,7 @@ export default function RadioChartModalView({
         <div className={cx("chart-modal", "chart-modal--radio", phoneView && "chart-modal--phone", phoneView && fullSize && "chart-modal--full")}>
           {phoneView && phone && (
             <div className="radio-phone">
-              <h3 className="radio-phone__title">{phone.heading.title}</h3>
+              <h3 className="heading-section radio-phone__title">{phone.heading.title}</h3>
               <p className="radio-phone__sub">
                 {/* Non-breaking hyphens, so the date never splits across lines. */}
                 {phone.heading.sub.replace(/(\d{4})-(\d{2})-(\d{2})/, "$1\u2011$2\u2011$3")}

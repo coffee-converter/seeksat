@@ -87,7 +87,7 @@ export function RadioPanel({ track, observer, pass, nowMs, banded, onMore }: {
   if (!link) {
     return (
       <Surface padded="sm" className="pass-card__radio">
-        <p className="pass-card__radio-none">{banded ? "No known downlink in your bands" : "No known downlink"}</p>
+        <p className="note note--sm">{banded ? "No known downlink in your bands" : "No known downlink"}</p>
       </Surface>
     );
   }

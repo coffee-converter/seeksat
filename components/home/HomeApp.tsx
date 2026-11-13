@@ -479,7 +479,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       ) : observer && (
         <>
           {!following && (
-            <p className="home-note">You aren&apos;t following any satellites. Search to add one.</p>
+            <p className="note">You aren&apos;t following any satellites. Search to add one.</p>
           )}
           {showList && nowMs != null && (
             <PassList
@@ -521,8 +521,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
             />
           )}
           {listNote === "Finding passes..." ? (
-            <p className="home-note" role="status">{listNote}</p>
-          ) : listNote && <p className="home-note">{listNote}</p>}
+            <p className="note" role="status">{listNote}</p>
+          ) : listNote && <p className="note">{listNote}</p>}
           {(!following || keepPopular) && <PopularList names={popularNames} />}
         </>
       )}

@@ -25,7 +25,7 @@ interface Props {
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="settings-sheet__row">
-      <span className="settings-sheet__label">{label}</span>
+      <span className="heading-group">{label}</span>
       <div className="settings-sheet__control">{children}</div>
     </div>
   );

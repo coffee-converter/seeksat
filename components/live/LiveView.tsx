@@ -143,7 +143,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
           headingDeg={compassOn ? heading : null}
         />
         {turn && <p className="live-view__turn">{turn}</p>}
-        {compassNote && <p className="home-note">{compassNote}</p>}
+        {compassNote && <p className="note">{compassNote}</p>}
         {live && live.azDeg != null && live.elDeg != null && (
           <dl className="live-view__nums num">
             <Surface><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></Surface>
@@ -153,9 +153,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
         )}
         <Surface as="section" className="live-view__radio" aria-label="Tuning">
           {tune === "none" ? null : tune === "pick" ? (
-            <p className="home-note">Pick a frequency in the radio chart to see where to tune.</p>
+            <p className="note">Pick a frequency in the radio chart to see where to tune.</p>
           ) : tune === "over" ? (
-            <p className="home-note">{"The pass has set. Its radio chart still has the full Doppler curve."}</p>
+            <p className="note">{"The pass has set. Its radio chart still has the full Doppler curve."}</p>
           ) : tune === "tune" && live && live.dopplerHz != null && freqHz != null ? (
             <>
               <p className="live-view__tune">
@@ -191,10 +191,10 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
                   </>
                 );
               })()}
-              <p className="home-note">{"Predicted. The satellite's own offset is unknown."}</p>
+              <p className="note">{"Predicted. The satellite's own offset is unknown."}</p>
             </>
           ) : (
-            <p className="home-note">{`${((freqHz ?? 0) / 1e6).toFixed(3)} MHz once it rises.`}</p>
+            <p className="note">{`${((freqHz ?? 0) / 1e6).toFixed(3)} MHz once it rises.`}</p>
           )}
         </Surface>
         <div className="live-view__actions">
