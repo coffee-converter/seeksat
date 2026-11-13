@@ -175,6 +175,9 @@
 .segmented__opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 @media (pointer: coarse) {
   .segmented__opt { min-height: 44px; }
+  /* The small switch (Visual/Radio, the map's projection) stays compact but
+     a comfortable tap. */
+  .segmented--sm .segmented__opt { min-height: 40px; }
 }
 
 /* Badge: a pill; tinted by tone, always with words inside. */

@@ -42,7 +42,8 @@ export default function NightToggle() {
       onClick={toggle}
     >
       <Icon name="moon" className="night-toggle__icon" />
-      <span className="night-toggle__label">Night vision</span>
+      {/* The settings row already says "Night vision". */}
+      <span className="night-toggle__label">{on ? "On" : "Off"}</span>
     </Button>
   );
 }

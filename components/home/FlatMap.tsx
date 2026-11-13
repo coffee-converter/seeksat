@@ -219,7 +219,7 @@ const SHORT_TRACK_PX = 16;
 /** The globe camera buttons, in order. */
 const PRESETS: { id: Preset; label: string }[] = [
   { id: "you", label: "On you" },
-  { id: "sat", label: "Satellite GP" },
+  { id: "sat", label: "On satellite" },
   { id: "north", label: "North pole" },
   { id: "south", label: "South pole" },
   { id: "night", label: "Night side" },
@@ -769,7 +769,9 @@ export default function FlatMap({
     if (o && useMapClock.getState().paused) {
       const po = map.project([o.lonDeg, o.latDeg]);
       if (nx * (po.x - p0.x) + ny * (po.y - p0.y) > 0) { nx = -nx; ny = -ny; }
-    } else if (nx < 0) {
+    } else if (f.radio ? nx + ny < 0 : nx < 0) {
+      // Live: names read best to the right; a dot with the radio mark (its
+      // arcs up and to the left) takes the side toward down-right instead.
       nx = -nx; ny = -ny;
     }
     const prev = labelAt.current;
@@ -1383,6 +1385,35 @@ export default function FlatMap({
       if (m.time.textContent !== end.label) m.time.textContent = end.label;
       m.marker.setLngLat([end.lonDeg, end.latDeg]);
     });
+    // Each time sits on the outer side of its dot, away from the observer
+    // (the ends lie on the visibility circle), so it clears the pass line
+    // and the satellite's own label. Kept as the camera moves.
+    const o = latest.current.observer;
+    if (!marks.length || !o) return;
+    let raf = 0;
+    const place = () => {
+      raf = 0;
+      const po = map.project([o.lonDeg, o.latDeg]);
+      marks.forEach((m, i) => {
+        const end = ends[i];
+        if (!end) return;
+        const p = map.project([end.lonDeg, end.latDeg]);
+        const dx = p.x - po.x;
+        const dy = p.y - po.y;
+        const len = Math.hypot(dx, dy) || 1;
+        m.el.style.setProperty("--label-nx", (dx / len).toFixed(3));
+        m.el.style.setProperty("--label-ny", (dy / len).toFixed(3));
+      });
+    };
+    const onMove = () => {
+      if (!raf) raf = requestAnimationFrame(place);
+    };
+    place();
+    map.on("move", onMove);
+    return () => {
+      map.off("move", onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [sats, mapReady]);
   useEffect(() => () => {
     for (const m of endMarks.current) m.marker.remove();
@@ -1393,6 +1424,26 @@ export default function FlatMap({
   // between the globe and Mercator; Back to live (or closing the row) returns
   // the camera to where it was (or the new view's home, after a switch).
   const framedKey = useRef<string | null>(null);
+  // Stacked, the map grows while paused (MapLayoutShell): frame again once
+  // it has settled at its new size.
+  const [reframe, setReframe] = useState(0);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !paused) return;
+    let t: number | undefined;
+    const onResize = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        framedKey.current = null;
+        setReframe((n) => n + 1);
+      }, 150);
+    };
+    map.on("resize", onResize);
+    return () => {
+      window.clearTimeout(t);
+      map.off("resize", onResize);
+    };
+  }, [mapReady, paused]);
   const beforePause = useRef<{ cam: Camera; atHome: boolean; view: View } | null>(null);
   useEffect(() => {
     const map = mapRef.current;
@@ -1495,7 +1546,7 @@ export default function FlatMap({
     atHome.current = false;
     if (switched) map.jumpTo({ center, zoom });
     else moveTo(map, { center, zoom });
-  }, [paused, sats, observer, view, mapReady, moveTo, refitHome, setFollowing]);
+  }, [paused, sats, observer, view, mapReady, moveTo, refitHome, setFollowing, reframe]);
 
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
@@ -1864,9 +1915,10 @@ export default function FlatMap({
       {paused ? (
         <div className="flat-map__paused" role="status">
           <Icon name="pause" />
-          <span className="flat-map__paused-text">{`Paused at ${paused.label}`}</span>
-          <Button size="sm" variant="primary" className="flat-map__live" onClick={backToLive}>
-            <span className="live-dot" aria-hidden="true" />Back to live
+          {/* Phones show the short form: the time, and Live. */}
+          <span className="flat-map__paused-text"><span className="flat-map__long">Paused at </span>{paused.label}</span>
+          <Button size="sm" variant="primary" className="flat-map__live" aria-label="Back to live" onClick={backToLive}>
+            <span className="live-dot" aria-hidden="true" /><span className="flat-map__long">Back to live</span><span className="flat-map__short">Live</span>
           </Button>
         </div>
       ) : focusName ? (

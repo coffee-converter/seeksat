@@ -16,6 +16,7 @@ import { BestLine, UpNowLine } from "./BestLine";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
 import { useKeepRowInPlace } from "./useKeepRowInPlace";
 import { useMapClock } from "@/lib/map/map-clock";
+import { usePassView } from "@/lib/ui/pass-view";
 import type { OpenPassRow } from "@/lib/map/use-map-pause";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
 import { MODE_HINT_TEXT, dismissModeHint, modeHintWanted } from "@/lib/home/mode-hint.mjs";
@@ -233,6 +234,8 @@ export default function PassList({
     // openPass is read when the row or its pass changes, not on each rebuild.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerOpen, openStart, onOpenRow]);
+  // On a phone an open row is the pass view (map and card only); Back closes it.
+  usePassView(openKey != null, () => setOpenKey(null));
   // Back to live on the map closes the row the map was paused for.
   const resumeTick = useMapClock((s) => s.resumeTick);
   const seenTick = useRef(resumeTick);

@@ -150,7 +150,10 @@ export default function PassRowOpen({
           </Button>
         )}
         {visual ? skyButton() : radioButton()}
-        <AlertBell noradId={track.noradId} name={track.shortName} pass={pass} url={links?.remind ?? reminderUrl(track)} />
+        {/* No reminder for a pass already under way. */}
+        {pass.startMs > nowMs && !pass.inProgress && (
+          <AlertBell noradId={track.noradId} name={track.shortName} pass={pass} url={links?.remind ?? reminderUrl(track)} />
+        )}
         {shareable && (
           <ShareButton
             url={links?.share ?? (() => passShareUrl({ track, observer, pass, mode, minElevDeg }) ?? "")}

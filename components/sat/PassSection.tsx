@@ -13,7 +13,9 @@ import LowFold from "@/components/home/LowFold";
 import PassRowOpen from "@/components/home/PassRowOpen";
 import { useKeepRowInPlace } from "@/components/home/useKeepRowInPlace";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
+import { splitLowRows } from "@/lib/ui/low-fold.mjs";
 import { useMapClock } from "@/lib/map/map-clock";
+import { PASS_VIEW_QUERY, usePassView } from "@/lib/ui/pass-view";
 import type { OpenPassRow } from "@/lib/map/use-map-pause";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
@@ -99,6 +101,7 @@ function printDate(ms: number, timeZone: string): string {
 
 const UNAVAILABLE = "These elements can't be used to compute passes.";
 const MODES = [{ value: "visual" as const, label: "Visual" }, { value: "radio" as const, label: "Radio" }];
+const splitLow = splitLowRows as unknown as <R extends { pass: { maxElevDeg?: number; startMs: number; endMs: number } }>(rows: R[], nowMs: number) => { shown: R[]; folded: R[] };
 const SEARCH_FAILED = "Pass search failed. Reload the page to try again.";
 
 interface Props {
@@ -241,7 +244,11 @@ export default function PassSection({
 
   // Report the first row, or why there is none, to the next pass line.
   // Read from the raw result so a stationary or failed search says so.
-  const firstPass = view && view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
+  // The first pass the list shows: not one folded away as a low pass (all of
+  // them low, the first anyway).
+  const firstPass = view && view.kind === "rows"
+    ? ((splitLow(view.rows, bucketMs).shown[0] ?? view.rows[0]).pass as NextPass)
+    : null;
   // One "elements are old" note, on the first pass it applies to.
   const oldNote = view && view.kind === "rows" ? (rowAccuracyNote as (rows: Row[]) => { key: string; text: string } | null)(view.rows) : null;
   // While a new search runs (a mode or setting change), the last report
@@ -289,6 +296,8 @@ export default function PassSection({
     // The pass is read when the row or its times change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openKey, openStart, track, onOpenRow]);
+  // On a phone an open row is the pass view (map and card only); Back closes it.
+  usePassView(openKey != null, () => setChosenKey(null));
   // Back to live on the map closes the open row.
   const resumeTick = useMapClock((s) => s.resumeTick);
   const seenTick = useRef(resumeTick);
@@ -313,14 +322,19 @@ export default function PassSection({
   );
   const zone = observer ? (zoneLabel as (tz: string | undefined, ms: number, locale?: string) => string)(observer.tz, bucketMs) : "UTC";
 
-  // Scroll to the shared pass once, when the first rows arrive.
+  // Bring the shared pass into view once, when the first rows arrive.
   const sharedRow = useRef<HTMLLIElement | null>(null);
   const scrolled = useRef(false);
   const hasRows = view?.kind === "rows";
   useEffect(() => {
     if (!shared || scrolled.current || !hasRows) return;
     scrolled.current = true;
-    sharedRow.current?.scrollIntoView({ block: "center" });
+    // Just enough to show the pass's own row (the map is paused and framed
+    // on it), so the shared view's banner above usually stays in sight.
+    // On a phone the open row is the pass view (map and card): no scroll.
+    if (window.matchMedia(PASS_VIEW_QUERY).matches) return;
+    const head = sharedRow.current?.querySelector<HTMLElement>(".pass-row__btn") ?? sharedRow.current;
+    head?.scrollIntoView({ block: "nearest" });
   }, [shared, hasRows, sharedKey]);
 
   // Search again once the first pass has ended (never while a job runs, and

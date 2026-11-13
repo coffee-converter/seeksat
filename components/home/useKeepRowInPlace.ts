@@ -2,6 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef } from "react";
 import { keptScrollTop } from "@/lib/ui/open-row.mjs";
+import { PASS_VIEW_QUERY } from "@/lib/ui/pass-view";
 
 /** The docked layout: the side panel scrolls, not the window. */
 export const DOCKED_QUERY = "(min-width: 1100px)";
@@ -42,6 +43,9 @@ export function useKeepRowInPlace(): (el: HTMLElement) => void {
   });
 
   return useCallback((el: HTMLElement) => {
+    // On a phone an open row is the pinned pass view, not a row in the list:
+    // nothing to keep in place (the shell puts the scroll back on close).
+    if (window.matchMedia(PASS_VIEW_QUERY).matches) return;
     restore.current?.();
     const panel = window.matchMedia(DOCKED_QUERY).matches ? el.closest<HTMLElement>(".map-shell__panel") : null;
     const box = panel ?? (document.scrollingElement as HTMLElement | null) ?? document.documentElement;

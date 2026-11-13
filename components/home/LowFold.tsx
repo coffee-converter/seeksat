@@ -10,7 +10,7 @@ type Rowish = { key: string; pass: { startMs: number; endMs: number } };
 const split = splitLowRows as unknown as <R extends Rowish>(rows: R[], nowMs: number) => { shown: R[]; folded: R[] };
 
 /** One day's rows with the very low passes folded into a quiet line at the
- *  end. The folded rows keep their keys, so opening and closing still work;
+ *  end; opened, they take their places in time order. The folded rows keep their keys, so opening and closing still work;
  *  a folded row opened from elsewhere (the timeline, or a shared link) opens
  *  the fold, and it stays open. Renders the `li`s for a pass list's `ul`. */
 export default function LowFold<R extends Rowish>({ rows, nowMs, openKey, renderRow }: {
@@ -34,8 +34,8 @@ export default function LowFold<R extends Rowish>({ rows, nowMs, openKey, render
   const expanded = chosen;
   return (
     <>
-      {shown.map(renderRow)}
-      {expanded && folded.map(renderRow)}
+      {/* Open, every row in time order; closed, the low ones folded away. */}
+      {(expanded ? rows : shown).map(renderRow)}
       {folded.length > 0 && (
         <li className="pass-row pass-row--fold">
           <Button

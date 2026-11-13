@@ -53,11 +53,15 @@
   background: var(--end-color, var(--map-accent));
   box-shadow: 0 0 0 1.5px var(--map-ocean);
 }
+/* Out from the dot along --label-nx/-ny (FlatMap: away from the observer),
+   its near edge 0.9em off, as the focus name is placed. */
 .flat-map__end-time {
+  --nx: var(--label-nx, 1);
+  --ny: var(--label-ny, 0);
   position: absolute;
-  left: calc(100% + var(--sp-6));
-  top: 50%;
-  transform: translateY(-50%);
+  left: calc(50% + var(--nx) * 0.9em);
+  top: calc(50% + var(--ny) * 0.9em);
+  transform: translate(calc((var(--nx) - 1) * 50%), calc((var(--ny) - 1) * 50%));
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   line-height: 1;
@@ -213,6 +217,14 @@
 .flat-map__paused .icon { flex: none; width: 14px; height: 14px; color: var(--warn); }
 .flat-map__paused-text { white-space: nowrap; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 .flat-map__paused .flat-map__live { flex: none; border-radius: var(--radius-full); white-space: nowrap; }
+.flat-map__short { display: none; }
+/* Phones: a slim pill, the time and Live. */
+@media (max-width: 599.98px) {
+  .flat-map__paused { gap: var(--sp-6); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-8); font-size: var(--fs-sm); }
+  .flat-map__paused .flat-map__live { min-height: 28px; padding: var(--sp-2) var(--sp-8); }
+  .flat-map__long { display: none; }
+  .flat-map__short { display: inline; }
+}
 
 /* The layers menu: a popover under its button, scrolling inside when the
    map is short. Its height follows the map overlay it sits in (a size
@@ -240,6 +252,11 @@
   scrollbar-color: var(--btn-line) transparent;
 }
 .map-layers__panel[hidden] { display: none; }
+/* Stacked phones: the map is short, so the menu may run down over the list
+   instead of being squeezed into the map's height. */
+@media (max-width: 699.98px) {
+  .flat-map-shell:not(.flat-map-shell--full) .map-layers__panel { max-height: min(560px, calc(100svh - var(--header-h) - 120px)); }
+}
 .map-layers__panel:focus { outline: none; }
 .map-layers__title { margin: 0 0 var(--sp-6); }
 /* The projection switch and the views fill the panel's width, the views
@@ -342,6 +359,10 @@
   font-family: var(--font-sans);
   font-size: var(--fs-md);
 }
+/* The 404 page: the wordmark, then the message, all flush left. */
+.not-found { align-items: flex-start; gap: var(--sp-12); padding-top: var(--sp-24); }
+.not-found .home-wordmark { margin: 0 0 var(--sp-12); text-decoration: none; }
+.not-found .heading-page, .not-found .note { margin: 0; }
 .home-wordmark {
   margin: var(--sp-2) var(--sp-2) 0;
   color: var(--map-accent);
@@ -632,6 +653,50 @@
 }
 .pass-row--open + .pass-row { border-top: 0; }
 .pass-row--open .pass-row__btn { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.pass-row__close { display: none; }
+
+/* The phone pass view: a pass open on a phone (MapLayoutShell .pass-view)
+   turns the screen into the map, pinned under the header, and that pass's
+   card filling the rest and scrolling inside itself. The list stays behind
+   it, scrolled where it was, and the page itself cannot scroll. */
+@media (max-width: 699.98px) {
+  html:has(.map-shell.pass-view) { overflow: hidden; }
+  .map-shell.pass-view { --map-h: max(260px, 45vh); }
+  @supports (height: 1svh) { .map-shell.pass-view { --map-h: max(260px, 45svh); } }
+  /* Doubled class: outranks the stacked map's sticky lift (later in this file). */
+  /* Sticky, not fixed: it keeps its place in the page, so the page keeps its
+     length and the list its scroll position. */
+  .map-shell.pass-view.pass-view .map-shell__map {
+    position: sticky;
+    top: var(--pass-view-top, var(--header-h));
+    z-index: 3;
+  }
+  .map-shell.pass-view .pass-row--open {
+    position: fixed;
+    top: calc(var(--pass-view-top, var(--header-h)) + var(--map-h));
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    margin: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-modal);
+  }
+  .map-shell.pass-view .pass-row--open::after { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .map-shell.pass-view .pass-row--open .pass-row__btn { padding-right: calc(var(--sp-24) + var(--sp-32)); }
+  .map-shell.pass-view .pass-row__close {
+    display: inline-flex;
+    position: absolute;
+    top: var(--sp-6);
+    right: var(--sp-6);
+    z-index: 1;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .map-shell.pass-view .sat-bar { display: none; }
+}
 /* The opened content grows in, and shrinks out when the row closes itself.
    Height only where the browser can animate to auto; elsewhere a fade and a
    small slide. The durations are 0 with reduced motion. */
@@ -663,7 +728,8 @@
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease);
 }
-.pass-row__btn:hover { background: var(--btn-hover); }
+/* Hover only where there is a pointer: on touch, a tapped row kept it. */
+@media (hover: hover) { .pass-row__btn:hover { background: var(--btn-hover); } }
 /* Inset, so the list's rounded clip never cuts the ring. */
 .pass-row__btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 /* The satellite's colour as a short bar on the leading edge. */
@@ -770,7 +836,9 @@
 /* The satellite page's notes under the plot: tags, then the bearings. */
 .pass-open__notes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-8); margin: 0; }
 .pass-open__notes .pass-card__tag { margin-left: 0; }
-.pass-open__best { color: var(--map-accent); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+/* A note, not a link: the star marks it, the text stays muted. */
+.pass-open__best { color: var(--map-muted); font-size: var(--fs-sm); }
+.pass-open__best::before { content: "★ "; color: var(--map-accent); }
 
 /* chart-block:begin */
 /* Chart graphics only: the painted sky and radio charts keep their literal
@@ -1169,6 +1237,14 @@
   .night-toggle__icon { display: block; }
   .night-toggle__label { display: none; }
 }
+/* In the Settings sheet there is room: the full Auto | Light | Dark switch
+   and the night toggle's On/Off word, on phones too. */
+@media (max-width: 699.98px) {
+  .settings-sheet .theme-toggle__group { display: block; }
+  .settings-sheet .theme-toggle .theme-toggle__cycle { display: none; }
+  .settings-sheet .night-toggle__label { display: inline; }
+  .settings-sheet .night-toggle { min-width: 0; padding-inline: var(--sp-12); }
+}
 /* The search bar sits flat in the bar; what opens under it floats over the page. */
 .map-shell__top .search-bar { position: relative; top: auto; z-index: auto; padding: 0; background: none; border: 0; border-radius: 0; }
 .map-shell__top .search-bar__below {
@@ -1278,6 +1354,11 @@
 @media (max-width: 1099.98px) {
   .map-shell, .map-shell.sat { --map-h: max(220px, 33vh); }
   @supports (height: 1svh) { .map-shell, .map-shell.sat { --map-h: max(220px, 33svh); } }
+  /* Paused on a pass, the map takes more of the screen so the pass and its
+     circle have room; it eases back when the pass closes. */
+  .map-shell.map-paused { --map-h: max(260px, 45vh); }
+  @supports (height: 1svh) { .map-shell.map-paused { --map-h: max(260px, 45svh); } }
+  .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map { transition: height var(--dur-slow) var(--ease); }
 }
 
 /* Home, stacked: the pass list slides up over the map. The map is sticky with
@@ -1392,7 +1473,9 @@
 }
 
 /* Inline note beside a pass reminder bell. */
-.alert-note { font-size: var(--fs-sm); color: var(--map-muted); align-self: center; }
+/* A reminder note (notifications blocked, and so on): its own line under the
+   card's buttons, so the button row is never split. */
+.alert-note { flex-basis: 100%; order: 99; font-size: var(--fs-sm); color: var(--map-muted); }
 
 /* Paste elements: a + on phones, so the search field gets the width. */
 .search-bar__paste-short { display: none; }

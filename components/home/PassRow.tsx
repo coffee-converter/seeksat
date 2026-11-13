@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { cx, surfaceClass } from "@/lib/ui/classes.mjs";
+import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
+import { PASS_VIEW_QUERY, usePassViewStore } from "@/lib/ui/pass-view";
 
 /** The list a day's rows sit in: a Surface holding them flush. */
 export const passRowsClass = cx("pass-list__rows", surfaceClass({ padded: false }));
@@ -29,12 +32,33 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
   // motion), then reports. A row closed because another opened shuts at
   // once, so the tapped row stays where it was (useKeepRowInPlace).
   const [closing, setClosing] = useState(false);
+  const headRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   if (!open && closing) setClosing(false);
+  // Opened by its own button, the card is brought fully into view once it
+  // has grown (the least scroll that shows it; its top if it is taller than
+  // the view). Not in the phone pass view, where the card is pinned.
+  const reveal = useRef(false);
+  useEffect(() => {
+    if (!open || !reveal.current) return;
+    reveal.current = false;
+    const dur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dur-base")) || 0;
+    const t = window.setTimeout(() => {
+      if (window.matchMedia(PASS_VIEW_QUERY).matches) return;
+      const li = headRef.current?.closest("li");
+      const smooth = dur > 0;
+      li?.scrollIntoView({ block: "nearest", behavior: smooth ? "smooth" : "auto" });
+    }, dur + 20);
+    return () => window.clearTimeout(t);
+  }, [open]);
   const click = (button: HTMLButtonElement) => {
     if (closing) return;
     const ms = open ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dur-base")) || 0 : 0;
+    if (!open) {
+      reveal.current = true;
+      if (window.matchMedia(PASS_VIEW_QUERY).matches) usePassViewStore.setState({ scrollY: window.scrollY });
+    }
     if (ms <= 0) {
       onToggle(button);
       return;
@@ -44,7 +68,7 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
   };
   return (
     <li ref={ref} className={cx("pass-row", open && "pass-row--open", className)} style={{ "--sat-color": color } as CSSProperties}>
-      <button type="button" className="pass-row__btn" aria-expanded={open && !closing} aria-controls={id} onClick={(e) => click(e.currentTarget)}>
+      <button ref={headRef} type="button" className="pass-row__btn" aria-expanded={open && !closing} aria-controls={id} onClick={(e) => click(e.currentTarget)}>
         <span className="pass-row__when">
           <span className="pass-row__time">{time}</span>
           {sub && <span className={cx("pass-row__sub", now && "pass-row__sub--now")}>{sub}</span>}
@@ -55,6 +79,12 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
         </span>
         <span className="pass-row__rating">{rating}</span>
       </button>
+      {/* The phone pass view's way out (shown there only): the list is hidden. */}
+      {open && (
+        <Button size="sm" variant="quiet" iconOnly className="pass-row__close" aria-label="Close pass" onClick={() => headRef.current && click(headRef.current)}>
+          <Icon name="close" />
+        </Button>
+      )}
       {open && <div className={cx("pass-row__body", closing && "pass-row__body--closing")}>{children}</div>}
     </li>
   );

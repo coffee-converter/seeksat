@@ -5,7 +5,7 @@
 .sat-age .badge { margin-left: var(--sp-8); }
 .sat-diagram { margin: 0; }
 .sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto var(--sp-6); }
-.sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); }
+.sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); paint-order: stroke; stroke: var(--bg); stroke-width: 3; stroke-linejoin: round; }
 .sat-list { margin: 0; padding-left: var(--sp-16); }
 .sat-list__sub { color: var(--muted); font-size: var(--fs-sm); }
 .sat-raw { margin-bottom: var(--sp-12); }

@@ -3,7 +3,7 @@
 // The one MapShell for / and /sat/<id>. It stays mounted across navigation, so
 // the MapLibre map persists; each page publishes its scene to the store.
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import "@/app/home.css";
 import "@/app/sat.css";
@@ -13,6 +13,8 @@ import { shellClassFor } from "@/lib/map/shell-route.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
 import { useHomeStore, watchPrefs } from "@/lib/home/store";
 import { useFollow } from "@/lib/map/follow-store";
+import { useMapClock } from "@/lib/map/map-clock";
+import { usePassViewStore } from "@/lib/ui/pass-view";
 import { setPendingCamera } from "@/lib/map/share-camera";
 import { LIVE_DOCK_HOST_ID, useLiveDock } from "@/lib/live/dock-store";
 import { dockFollowStep } from "@/lib/live/dock-follow.mjs";
@@ -117,9 +119,49 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     document.querySelector(".map-shell__panel")?.scrollTo(0, 0);
   }, [pathname]);
 
+  // Paused on a pass: stacked layouts give the map more of the screen.
+  const mapPaused = useMapClock((s) => s.paused != null);
+  // A pass open on a phone: the map pinned under the header and the card
+  // below it (app/home.css .pass-view). The page cannot scroll meanwhile, so
+  // the header's bottom, measured as it opens, is where the map starts.
+  const passView = usePassViewStore((s) => s.open);
+  useLayoutEffect(() => {
+    if (!passView) return;
+    const root = document.documentElement;
+    // The list stays where it was, and goes back there when the pass view
+    // closes: the pinned map leaves the page's flow meanwhile, and the
+    // browser's scroll anchoring would follow the rows; it is held off.
+    const scrollY = usePassViewStore.getState().scrollY ?? window.scrollY;
+    usePassViewStore.setState({ scrollY: null });
+    const anchor = root.style.overflowAnchor;
+    root.style.overflowAnchor = "none";
+    // Held at its height too, so a shorter page never clamps the scroll.
+    const shell = document.querySelector<HTMLElement>(".map-shell");
+    const minHeight = shell?.style.minHeight ?? "";
+    if (shell) shell.style.minHeight = `${root.scrollHeight}px`;
+    window.scrollTo(0, scrollY);
+    const place = () => {
+      const header = document.querySelector<HTMLElement>(".map-shell__top");
+      root.style.setProperty("--pass-view-top", `${Math.max(0, Math.round(header?.getBoundingClientRect().bottom ?? 0))}px`);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("resize", place);
+      root.style.removeProperty("--pass-view-top");
+      window.scrollTo(0, scrollY);
+      // Let go once the map has eased back to its resting height.
+      window.setTimeout(() => {
+        window.scrollTo(0, scrollY);
+        root.style.overflowAnchor = anchor;
+        if (shell) shell.style.minHeight = minHeight;
+      }, 400);
+    };
+  }, [passView]);
+
   return (
     <MapShell
-      className={shellClassFor(pathname, scene?.shellClass)}
+      className={[shellClassFor(pathname, scene?.shellClass), mapPaused && "map-paused", passView && "pass-view"].filter(Boolean).join(" ") || undefined}
       top={<SiteHeader />}
       notice={scene?.notice}
       offlineFromCache={scene?.offlineFromCache ?? false}

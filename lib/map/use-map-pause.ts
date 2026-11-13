@@ -25,6 +25,9 @@ export interface OpenPassRow {
  * set (a live view is docked). Clears when the page goes. Returns the time
  * the map draws at and the pass to draw.
  */
+/** Rise or set times this close are the same moment, rounded apart. */
+const SAME_MS = 90_000;
+
 type Arc = { riseMs: number; setMs: number; closestMs: number };
 const arcOf = passArc as (
   ecefAt: (d: Date) => number[] | null,
@@ -45,6 +48,9 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   const pause = useMapClock((s) => s.pause);
   const clear = useMapClock((s) => s.clear);
   const paused = useMapClock((s) => s.paused);
+  // A live view open anywhere (a phone's full-screen one too) keeps it live.
+  const liveView = useMapClock((s) => s.liveView);
+  live = live || liveView;
   const row = open?.pass ?? null;
   // The whole arc and the closest point. A visual row's times are only the
   // part you can see, which can start or stop mid-sky.
@@ -87,7 +93,11 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   const isPaused = paused != null && key != null && paused.key === key;
   const mapPass = open && p ? {
     noradId: open.noradId, startMs: p.startMs, endMs: p.endMs, peakMs: p.peakMs,
-    paused: isPaused, ring, riseLabel: passTime(p.startMs, zone), setLabel: passTime(p.endMs, zone),
+    paused: isPaused, ring,
+    // The card's own rise and set when they are the same moment (within a
+    // minute and a half, rounding apart), so the map and the card agree.
+    riseLabel: passTime(row && Math.abs(row.startMs - p.startMs) <= SAME_MS ? row.startMs : p.startMs, zone),
+    setLabel: passTime(row && Math.abs(row.endMs - p.endMs) <= SAME_MS ? row.endMs : p.endMs, zone),
   } : null;
   // Paused only while the store is paused for this very row: closing the row
   // (or Back to live) goes live in the same render that brings the other

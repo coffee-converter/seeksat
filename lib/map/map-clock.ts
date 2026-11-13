@@ -20,6 +20,9 @@ export interface MapClockState {
   paused: MapPause | null;
   /** Bumped by Back to live (not by clear), so the list closes its row. */
   resumeTick: number;
+  /** A live view is open (docked or full screen): the map stays live. */
+  liveView: boolean;
+  setLiveView(open: boolean): void;
   pause(p: MapPause): void;
   /** The list closed its row, or the page went away. */
   clear(): void;
@@ -30,6 +33,10 @@ export interface MapClockState {
 export const useMapClock = create<MapClockState>((set, get) => ({
   paused: null,
   resumeTick: 0,
+  liveView: false,
+  setLiveView: (open) => {
+    if (get().liveView !== open) set({ liveView: open });
+  },
   pause: (p) => {
     const cur = get().paused;
     if (cur && cur.key === p.key && cur.atMs === p.atMs && cur.label === p.label) return;

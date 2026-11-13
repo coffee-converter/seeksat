@@ -9,7 +9,6 @@ import { defaultDownlink } from "@/lib/catalog.mjs";
 import { dopplerHzAt } from "@/lib/passes/pass-words.mjs";
 import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 import { needsTone } from "@/lib/radio/uplink.mjs";
-import { formatPassDuration } from "@/lib/passes/format.mjs";
 import Surface from "@/components/ui/Surface";
 import Button from "@/components/ui/Button";
 
@@ -22,14 +21,14 @@ type Pass = {
 type Track = { ecefAt: (d: Date) => number[] | null; downlinks: ReadonlyArray<unknown> };
 type Observer = { latDeg: number; lonDeg: number; elevM?: number; tz?: string };
 const toneMissing = needsTone as (u: unknown) => boolean;
-const duration = (ms: number) => (formatPassDuration as (s: number) => string)(ms / 1000);
 
 /** "9m ≥ 10°", under Lasts on a radio card: short enough for a phone's
  *  column. Null when the pass never gets that high. */
 export function aboveTenText(pass: Pass): string | null {
   if (!pass.msAbove10) return null;
+  // "4 min above 10°", or "20 s above 10°" for a brief one.
   const min = Math.round(pass.msAbove10 / 60_000);
-  return `${min >= 1 ? `${min}m` : duration(pass.msAbove10)} \u2265 10°`;
+  return `${min >= 1 ? `${min} min` : `${Math.max(1, Math.round(pass.msAbove10 / 1000))} s`} above 10°`;
 }
 
 const khz = (hz: number) => {

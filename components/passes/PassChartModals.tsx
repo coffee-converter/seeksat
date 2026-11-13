@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useMapClock } from "@/lib/map/map-clock";
+import { useCallback, useEffect, useState } from "react";
 import SkyChartModalView from "@/components/passes/SkyChartModalView";
 import RadioChartModalView from "@/components/passes/RadioChartModalView";
 import LiveView from "@/components/live/LiveView";
@@ -49,6 +50,12 @@ export default function PassChartModals({
   const wide = useMediaQuery(DOCKED_QUERY);
   const docked = chart === "live" && wide && typeof document !== "undefined" && document.getElementById(LIVE_DOCK_HOST_ID) != null;
   useBackCloses(chart != null && !docked, onClose);
+  // While the live view is open the map shows now, not a paused pass.
+  const liveOpen = chart === "live";
+  useEffect(() => {
+    useMapClock.getState().setLiveView(liveOpen);
+    return () => useMapClock.getState().setLiveView(false);
+  }, [liveOpen]);
   const noradId = subject?.track.noradId ?? null;
   const initialFreq = (s: ChartSubject | null) =>
     s ? preferredFreqHz ?? defaultDownlink(s.track)?.hz ?? null : null;
