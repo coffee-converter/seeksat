@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePublishMapScene } from "@/lib/map/scene-store";
 import { HEADER_PINNED_EVENT } from "@/components/HeaderPinned";
-import FocusBar from "@/components/home/FocusBar";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
@@ -98,12 +97,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     if (shared) setShared((s) => (s ? { ...s, mode } : s));
     else setPrefs({ mode });
   }, [shared, setPrefs]);
-  const onMinElevChange = useCallback((minElevDeg: number) => {
-    if (shared) setShared((s) => (s ? { ...s, minElevDeg } : s));
-    else setPrefs({ minElevDeg });
-  }, [shared, setPrefs]);
-  // The sky type is personal: a shared view never carries or changes it.
-  const onSkyTypeChange = useCallback((skyType: string) => setPrefs({ skyType }), [setPrefs]);
   const leaveShared = () => {
     setShared(null);
     // Through the router, so its tree and usePathname move off the share URL
@@ -265,16 +258,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     chips: hydrated && (
       <SatChips chips={chips} focusId={focusId} onFocus={selectOrClose} onToggleHidden={onChipHide} />
     ),
-    top: usable && (
-      <FocusBar
-        name={data.shortName}
-        followed={following}
-        blocked={blocked}
-        mode="page"
-        onToggleFollow={toggleFollow}
-        onClose={onClose}
-      />
-    ),
     // A search result opens that satellite's page; Esc in an empty search closes.
     search: { onView: openOther, onClearFocus: onClose },
   });
@@ -419,9 +402,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         nowMs={nowMs}
         settings={settings}
         onModeChange={onModeChange}
-        onMinElevChange={onMinElevChange}
         skyType={prefs.skyType}
-        onSkyTypeChange={onSkyTypeChange}
         sharedPassMs={shared?.passTimeMs ?? null}
         preferredFreqHz={shared?.freqHz ?? linkFreq}
         onFreqPicked={(hz) => { pickedFreq.current = hz; setLinkFreq(hz); }}

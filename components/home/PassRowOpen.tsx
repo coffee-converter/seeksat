@@ -107,9 +107,16 @@ export default function PassRowOpen({
   return (
     <div id={id} className="pass-open">
       <div className="pass-open__sky">
-        <div className="pass-open__plot">
+        {/* The small sky plot opens the full sky chart. */}
+        <button
+          type="button"
+          className="pass-open__plot"
+          aria-label={`Sky chart for ${name}`}
+          title="Sky chart"
+          onClick={(e) => openChart("sky", track, pass, e)}
+        >
           <PolarPlotSvg ref={svgRef} />
-        </div>
+        </button>
         <div className="pass-open__facts">
           <dl className="kv pass-open__steps">
             {start && <div><dt>{start.label}</dt><dd>{at(start.ms, pass.startAzDeg, tz)}</dd></div>}

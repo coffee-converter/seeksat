@@ -447,11 +447,9 @@ export default function HomeApp({ initialRecords = [] }: Props) {
         name={nameOf(focusId)}
         followed={prefs.following.includes(focusId)}
         blocked={followBlockedMessage(prefs.following, focusId) as string | null}
-        mode="home"
         total={showAll}
         onToggleFollow={() => (prefs.following.includes(focusId) ? unfollow(focusId) : follow(focusId))}
         onShowAll={() => focusOn(null)}
-        onClose={() => focusOn(null)}
       />
     ),
     search: { onView: focusOn, onClearFocus: () => focusOn(null) },

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import HomeControls from "@/components/home/HomeControls";
+import Segmented from "@/components/ui/Segmented";
+import { Details } from "@/components/ui/Disclosure";
 import ExtraObservers from "@/components/sat/ExtraObservers";
 import LocationPrompt from "@/components/home/LocationPrompt";
 import { passRating, type HomeObserver, type Pass as HomePass, type Track as HomeTrack } from "@/components/home/NextUpList";
@@ -95,6 +96,7 @@ function printDate(ms: number, timeZone: string): string {
 }
 
 const UNAVAILABLE = "These elements can't be used to compute passes.";
+const MODES = [{ value: "visual" as const, label: "Visual" }, { value: "radio" as const, label: "Radio" }];
 const SEARCH_FAILED = "Pass search failed. Reload the page to try again.";
 
 interface Props {
@@ -104,10 +106,8 @@ interface Props {
   nowMs: number;
   settings: PassSettings;
   onModeChange: (mode: "radio" | "visual") => void;
-  onMinElevChange: (deg: number) => void;
   /** The sky type for the visual rating (always the user's own pref, even in a shared view). */
   skyType: string;
-  onSkyTypeChange: (skyType: string) => void;
   /** A shared view's pass start, highlighted in the list. */
   sharedPassMs?: number | null;
   /** A shared view's radio frequency, used by the radio chart. */
@@ -127,13 +127,12 @@ interface Props {
 }
 
 export default function PassSection({
-  track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange, skyType, onSkyTypeChange,
+  track: trackIn, record, epochMs, nowMs, settings, onModeChange, skyType,
   sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null, color = "var(--map-muted)", ref,
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
   const clearObservers = useHomeStore((s) => s.clearObservers);
-  const [changingLocation, setChangingLocation] = useState(false);
   const shared = settings.isShared;
   const { mode, minElevDeg } = settings;
 
@@ -423,39 +422,20 @@ export default function PassSection({
     );
   };
 
-  const showPrompt = !shared && hydrated && (!location || changingLocation);
+  const showPrompt = !shared && hydrated && !location;
 
   return (
     <section id="passes" className="sat-passes" aria-labelledby="sat-passes-title">
       <div className="sat-passes__head">
-        <h2 id="sat-passes-title" className="heading-section">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
-        {view?.kind === "rows" && (
-          <Button size="sm" className="sat-print-chip" onClick={() => window.print()}>Print</Button>
-        )}
+        <h2 id="sat-passes-title" className="heading-section">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes"}</h2>
+        {/* Location sits in the header, sky and lowest pass in Settings (the gear), as on home. */}
+        {track && <Segmented label="Pass mode" size="sm" options={MODES} value={mode} onChange={onModeChange} />}
       </div>
       {!track ? (
         <p className="note">{UNAVAILABLE}</p>
       ) : (
         <>
-          {showPrompt ? (
-            <LocationPrompt
-              onDone={() => setChangingLocation(false)}
-              onCancel={location ? () => setChangingLocation(false) : undefined}
-            />
-          ) : (
-            <HomeControls
-              ready={shared || hydrated}
-              mode={mode}
-              minElevDeg={minElevDeg}
-              skyType={skyType}
-              locationName={location && !shared ? location.name : null}
-              onModeChange={onModeChange}
-              onMinElevChange={onMinElevChange}
-              onSkyTypeChange={onSkyTypeChange}
-              onChangeLocation={() => setChangingLocation(true)}
-            />
-          )}
-          {observer && !showPrompt && (shared ? <ExtraObservers readOnly observers={extra} /> : <ExtraObservers />)}
+          {showPrompt && <LocationPrompt />}
           {observer && !showPrompt && (!view ? (
             <PassSkeleton />
           ) : (
@@ -514,7 +494,6 @@ export default function PassSection({
                   </tbody>
                 </table>
               )}
-              {view.kind === "rows" && <p className="note note--sm sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>}
               {view.kind === "rows" ? (
                 <>
                 <div className="sat-passlist">
@@ -532,6 +511,10 @@ export default function PassSection({
                     {`Show all ${view.rows.length} passes`}
                   </Button>
                 )}
+                <div className="sat-passes__foot">
+                  <p className="note note--sm sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>
+                  <Button size="sm" variant="link" className="sat-print-chip" onClick={() => window.print()}>Print</Button>
+                </div>
                 </>
               ) : (
                 <>
@@ -551,6 +534,13 @@ export default function PassSection({
                 </p>
               )}
             </>
+          ))}
+          {observer && !showPrompt && (shared ? (
+            <ExtraObservers readOnly observers={extra} />
+          ) : (
+            <Details className="sat-observers-fold" summary="Also seen from other places" defaultOpen={joint}>
+              <ExtraObservers untitled />
+            </Details>
           ))}
           {chartsLoaded && (
             <PassChartModals

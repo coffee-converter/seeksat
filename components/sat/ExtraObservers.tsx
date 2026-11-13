@@ -13,11 +13,13 @@ interface Props {
   readOnly?: boolean;
   /** The places to show; defaults to the saved ones. */
   observers?: ExtraObserver[];
+  /** Inside a fold whose summary already names it: no heading. */
+  untitled?: boolean;
 }
 
 // Up to 3 other places, saved on this device. The pass list then shows only
 // the times when every place can see the satellite.
-export default function ExtraObservers({ readOnly = false, observers: given }: Props = {}) {
+export default function ExtraObservers({ readOnly = false, observers: given, untitled = false }: Props = {}) {
   const uid = useId();
   const saved = useHomeStore((s) => s.prefs.observers);
   const observers = given ?? saved;
@@ -73,8 +75,8 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
   if (readOnly && observers.length === 0) return null;
 
   return (
-    <div className="sat-observers" role="group" aria-labelledby={`${uid}-title`}>
-      <h3 id={`${uid}-title`} className="heading-sub">Also seen from</h3>
+    <div className="sat-observers" role="group" aria-labelledby={untitled ? undefined : `${uid}-title`} aria-label={untitled ? "Also seen from" : undefined}>
+      {!untitled && <h3 id={`${uid}-title`} className="heading-sub">Also seen from</h3>}
       {!readOnly && <p className="note">Add other places to see only the times when every place can see it.</p>}
       {observers.length > 0 && (
         <ul className="sat-observers__list">

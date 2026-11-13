@@ -1600,6 +1600,7 @@ export default function FlatMap({
       ))}
     </ul>
   );
+  const focusName = selectedId != null ? sats.find((s) => s.noradId === selectedId)?.name ?? null : null;
   // Chips at the top left; layers and full screen at the top right.
   const chipRow = (
     <div className="flat-map__top">
@@ -1646,6 +1647,21 @@ export default function FlatMap({
         </p>
       ) : null}
       {fill ? null : chipRow}
+      {/* Lock on: keep the camera on the focused satellite. A small toggle in
+          the corner, in place of a bar across the top of the map. */}
+      {focusName ? (
+        <Button
+          variant="overlay"
+          size="sm"
+          className="flat-map__lock"
+          pressed={followOn}
+          aria-label={followOn ? `Locked on ${focusName}` : `Lock on ${focusName}`}
+          onClick={() => setFollowing(!followOn)}
+        >
+          <Icon name="target" />
+          <span>{followOn ? "Locked on" : "Lock on"}</span>
+        </Button>
+      ) : null}
       {/* Zoom in and out at the bottom right, desktop only (phones pinch). */}
       <div className="flat-map__zoom">
         <Button variant="overlay" iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>

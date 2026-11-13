@@ -17,6 +17,7 @@ const INPUT_ALLOW = [];
 const BESPOKE = {
   'components/home/PassRow.tsx': ['pass-row__btn'], // one pass as a row that opens in place
   'components/home/Timeline.tsx': ['timeline__bar'], // one pass as a bar on the 24 h strip
+  'components/home/PassRowOpen.tsx': ['pass-open__plot'], // the small sky plot, which opens the sky chart
   'components/home/BestLine.tsx': ['best-line'], // the Best line, which opens that pass's row
   'app/design-27b284ec240e9ac9/DesignBible.tsx': ['bible__tap'], // the interactive Surface specimen
 };
@@ -219,7 +220,6 @@ test('the card screens take their look from Surface', () => {
   }
   assert.deepEqual(found, []);
   const uses = {
-    'components/home/HomeControls.tsx': /surfaceClass\(|<Surface\b/,
     'components/home/PassRow.tsx': /surfaceClass\(/,
     'components/live/LiveView.tsx': /<Surface\b/,
     'components/sat/NextPassLine.tsx': /surfaceClass\(|<Surface\b/,
