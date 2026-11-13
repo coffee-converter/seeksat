@@ -13,6 +13,9 @@ import { getClockSkewMs, hasClockSyncSample, trueNow } from "@/lib/pass-finder/c
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import type { Track, HomeObserver, Pass } from "@/components/home/NextUpList";
 import { useBackCloses } from "@/lib/ui/use-back-closes";
+import { useMediaQuery } from "@/lib/ui/use-media-query";
+import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
+import { LIVE_DOCK_HOST_ID } from "@/lib/live/dock-store";
 
 export interface ChartSubject {
   track: Track;
@@ -40,8 +43,12 @@ interface Props {
 export default function PassChartModals({
   subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange, mode = "radio",
 }: Props) {
-  // Back closes an open chart instead of leaving the page.
-  useBackCloses(chart != null, onClose);
+  // Back closes an open chart instead of leaving the page. Not the live view
+  // docked beside the map (as LiveView decides): the page stays usable then,
+  // and an extra history entry would swallow the map's own Close and Back.
+  const wide = useMediaQuery(DOCKED_QUERY);
+  const docked = chart === "live" && wide && typeof document !== "undefined" && document.getElementById(LIVE_DOCK_HOST_ID) != null;
+  useBackCloses(chart != null && !docked, onClose);
   const noradId = subject?.track.noradId ?? null;
   const initialFreq = (s: ChartSubject | null) =>
     s ? preferredFreqHz ?? defaultDownlink(s.track)?.hz ?? null : null;

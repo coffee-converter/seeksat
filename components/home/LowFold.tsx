@@ -11,8 +11,8 @@ const split = splitLowRows as unknown as <R extends Rowish>(rows: R[], nowMs: nu
 
 /** One day's rows with the very low passes folded into a quiet line at the
  *  end. The folded rows keep their keys, so opening and closing still work;
- *  a folded row that is the open one (from the timeline, or a shared link)
- *  keeps the fold open. Renders the `li`s for a pass list's `ul`. */
+ *  a folded row opened from elsewhere (the timeline, or a shared link) opens
+ *  the fold, and it stays open. Renders the `li`s for a pass list's `ul`. */
 export default function LowFold<R extends Rowish>({ rows, nowMs, openKey, renderRow }: {
   rows: R[];
   nowMs: number;
@@ -22,7 +22,16 @@ export default function LowFold<R extends Rowish>({ rows, nowMs, openKey, render
   const { shown, folded } = split(rows, nowMs);
   const [chosen, setChosen] = useState(false);
   const holdsOpen = openKey != null && folded.some((r) => r.key === openKey);
-  const expanded = chosen || holdsOpen;
+  // A folded row opened from outside (the timeline, the Best line, a shared
+  // link) opens the fold, and it stays open: closing that row must not pull
+  // the rows, and the button just pressed, out from under the reader. Only the
+  // moment it becomes open counts, so the fold's own button can still close it.
+  const [held, setHeld] = useState(false);
+  if (holdsOpen !== held) {
+    setHeld(holdsOpen);
+    if (holdsOpen) setChosen(true);
+  }
+  const expanded = chosen;
   return (
     <>
       {shown.map(renderRow)}

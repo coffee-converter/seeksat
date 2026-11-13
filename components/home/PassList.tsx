@@ -16,6 +16,7 @@ import { BestLine, UpNowLine } from "./BestLine";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
 import { DOCKED_QUERY, useKeepRowInPlace } from "./useKeepRowInPlace";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
+import { splitLowRows } from "@/lib/ui/low-fold.mjs";
 import { MODE_HINT_TEXT, dismissModeHint, modeHintWanted } from "@/lib/home/mode-hint.mjs";
 import {
   FollowChip, ViewingTag, bestPassOf, liveOk, passRating,
@@ -191,7 +192,11 @@ export default function PassList({
   const colorOf = (id: number) => colors.get(id) ?? "var(--map-muted)";
 
   const pinnedKey = viewingCard ? `${viewingCard.noradId}:viewing` : null;
-  const firstKey = groups[0]?.rows[0]?.key ?? null;
+  // The first row a reader sees: never one folded away as a low pass, so the
+  // auto-opened row is at the top rather than inside the fold.
+  const firstKey = groups
+    .map((g) => (splitLowRows as (rows: typeof g.rows, nowMs: number) => { shown: typeof g.rows })(g.rows, nowMs).shown[0]?.key)
+    .find((k) => k != null) ?? null;
   const keys = [
     ...(pinnedKey ? [pinnedKey] : []),
     ...groups.flatMap((g) => g.rows.map((r) => r.key)),
