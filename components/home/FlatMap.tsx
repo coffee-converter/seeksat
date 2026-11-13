@@ -125,7 +125,7 @@ const awayLabel = awayText as (rangeKm: number) => string;
 const greatCircle = greatCircleOf as (a: [number, number], b: [number, number], n?: number) => [number, number][];
 /** The live sight line starts this far (px) from your location's centre: at its icon's edge. */
 const SIGHT_TRIM_PX = 7;
-const sightFeatures = sightFeaturesOf as (s: MapSat, observer: MapObserver | null) => unknown[];
+const sightFeatures = sightFeaturesOf as (s: MapSat, observer: MapObserver | null, o?: { lines?: boolean }) => unknown[];
 const sightOf = sightFrom as (o: { latDeg: number; lonDeg: number; elevM?: number }, lon: number, lat: number, altKm: number) => { rangeKm: number; elDeg: number };
 /** The distance label's width per character (9.5 px text) and the room the
  *  icons at the line's ends take (your crosshair, the dot and its radio arcs). */
@@ -285,6 +285,12 @@ const TRACKPAD_RATE = 1 / 100;
 const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number }) => number;
 const easeZoom = easeZoomOf as (current: number, target: number) => number;
 const wrapLon = (d: number) => d - 360 * Math.round(d / 360);
+/** The copy of a longitude nearest `ref`: Mercator's project uses the raw
+ *  longitude, so a point across the date line from the camera would land a
+ *  world away. (The globe treats every copy alike.) */
+const nearLon = (lon: number, ref: number) => lon + 360 * Math.round((ref - lon) / 360);
+/** Project a point at its copy nearest the camera. */
+const projectNear = (map: MlMap, lon: number, lat: number) => map.project([nearLon(lon, map.getCenter().lng), lat]);
 const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 const reducedMotion = () =>
@@ -444,7 +450,9 @@ export default function FlatMap({
     type Occl = { isLocationOccluded?: (ll: { lng: number; lat: number }) => boolean };
     const tr = (map as unknown as { _camera?: { transform?: Occl } })._camera?.transform;
     const occluded = globe && typeof tr?.isLocationOccluded === "function" ? tr.isLocationOccluded.bind(tr) : null;
-    const points = greatCircle([o.lonDeg, o.latDeg], [pos.lonDeg, pos.latDeg], 48).map(([lon, lat]) => {
+    // The line from your copy nearest the camera; greatCircle keeps it continuous.
+    const oLon = nearLon(o.lonDeg, map.getCenter().lng);
+    const points = greatCircle([oLon, o.latDeg], [pos.lonDeg + (oLon - o.lonDeg), pos.latDeg], 48).map(([lon, lat]) => {
       const p = map.project([lon, lat]);
       return { x: p.x, y: p.y, hidden: occluded ? occluded({ lng: lon, lat }) : false };
     });
@@ -823,8 +831,8 @@ export default function FlatMap({
     const ms = mapNow();
     const ahead = sat?.positionAt(ms + 60_000);
     if (!ahead) return;
-    const p0 = map.project([f.lonDeg, f.latDeg]);
-    const p1 = map.project([ahead.lonDeg, ahead.latDeg]);
+    const p0 = projectNear(map, f.lonDeg, f.latDeg);
+    const p1 = projectNear(map, ahead.lonDeg, ahead.latDeg);
     const dx = p1.x - p0.x;
     const dy = p1.y - p0.y;
     const len = Math.hypot(dx, dy);
@@ -836,7 +844,7 @@ export default function FlatMap({
     let ny = dx / len;
     const o = latest.current.observer;
     if (o && useMapClock.getState().paused) {
-      const po = map.project([o.lonDeg, o.latDeg]);
+      const po = projectNear(map, o.lonDeg, o.latDeg);
       if (nx * (po.x - p0.x) + ny * (po.y - p0.y) > 0) { nx = -nx; ny = -ny; }
     } else if (f.radio ? nx + ny < 0 : nx < 0) {
       // Live: names read best to the right; a dot with the radio mark (its
@@ -920,8 +928,8 @@ export default function FlatMap({
       if (!map.getLayer(layer)) return;
       let fits = false;
       if (o && target) {
-        const a = map.project([o.lonDeg, o.latDeg]);
-        const b = map.project([target.lonDeg, target.latDeg]);
+        const a = projectNear(map, o.lonDeg, o.latDeg);
+        const b = projectNear(map, target.lonDeg, target.latDeg);
         const sight = sightOf(o, target.lonDeg, target.latDeg, target.altKm ?? 0);
         const below = target === livePos && liveAfter ? "already set" : "not up yet";
         const text = sight.elDeg < 0 ? `${awayLabel(sight.rangeKm)}, ${below}` : awayLabel(sight.rangeKm);
@@ -1562,11 +1570,11 @@ export default function FlatMap({
     let raf = 0;
     const place = () => {
       raf = 0;
-      const po = map.project([o.lonDeg, o.latDeg]);
+      const po = projectNear(map, o.lonDeg, o.latDeg);
       marks.forEach((m, i) => {
         const end = ends[i];
         if (!end) return;
-        const p = map.project([end.lonDeg, end.latDeg]);
+        const p = projectNear(map, end.lonDeg, end.latDeg);
         const dx = p.x - po.x;
         const dy = p.y - po.y;
         const len = Math.hypot(dx, dy) || 1;
@@ -1610,7 +1618,7 @@ export default function FlatMap({
         let mx = 0;
         let my = 0;
         for (const [lon, lat] of ring) {
-          const q = map.project([lon, lat]);
+          const q = map.project([nearLon(lon, center[0]), lat]);
           mx = Math.max(mx, Math.abs(q.x - o.x));
           my = Math.max(my, Math.abs(q.y - o.y));
         }
@@ -1896,7 +1904,7 @@ export default function FlatMap({
       // is drawn with the dot (drawSight).
       const live = moved.filter((x) => x.passLive);
       const sight = live.length > 0
-        ? { type: "FeatureCollection", features: live.flatMap((x) => sightFeatures(x, latest.current.observer)) }
+        ? { type: "FeatureCollection", features: live.flatMap((x) => sightFeatures(x, latest.current.observer, { lines: false })) }
         : null;
       setOverlayData(map, {
         "ss-sats": data["ss-sats"],
@@ -2202,7 +2210,11 @@ export default function FlatMap({
           <Icon name="pause" />
           {/* Phones show the short form: the time, and Live. */}
           <span className="flat-map__paused-text"><span className="flat-map__long">Paused at </span>{paused.label}</span>
-          <Button size="sm" variant="primary" className="flat-map__live" aria-label="Back to live" onClick={backToLive}>
+          <Button size="sm" variant="primary" className="flat-map__live" aria-label="Back to live" onClick={() => {
+            backToLive();
+            // The chip goes: focus moves to the map rather than the page's top.
+            mapRef.current?.getCanvas().focus({ preventScroll: true });
+          }}>
             <span className="live-dot" aria-hidden="true" /><span className="flat-map__long">Back to live</span><span className="flat-map__short">Live</span>
           </Button>
         </div>

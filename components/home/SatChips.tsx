@@ -93,7 +93,14 @@ export default function SatChips({ chips, pending = null, onFollow, focusId, onF
           focused={pending.noradId === focusId}
           radio={pending.radio}
           onSelect={() => onFocus(pending.noradId === focusId ? null : pending.noradId)}
-          onFollow={() => onFollow?.(pending.noradId)}
+          onFollow={() => {
+            onFollow?.(pending.noradId);
+            // Followed, it becomes the last ordinary chip: focus goes to it.
+            requestAnimationFrame(() => {
+              const last = ref.current?.lastElementChild?.querySelector<HTMLButtonElement>(".chip__name");
+              last?.focus({ preventScroll: true });
+            });
+          }}
           followBlocked={pending.blocked}
         />
       )}

@@ -85,7 +85,13 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
       </button>
       {/* The phone pass view's way out (shown there only): the list is hidden. */}
       {open && (
-        <Button size="sm" variant="quiet" iconOnly className="pass-row__close" aria-label="Close pass" onClick={() => headRef.current && click(headRef.current)}>
+        <Button size="sm" variant="quiet" iconOnly className="pass-row__close" aria-label="Close pass" onClick={() => {
+          // The button goes with the card: focus stays on the row.
+          const head = headRef.current;
+          if (!head) return;
+          click(head);
+          head.focus({ preventScroll: true });
+        }}>
           <Icon name="close" />
         </Button>
       )}
