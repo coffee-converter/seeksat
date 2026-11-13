@@ -163,9 +163,9 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-16);
+  gap: var(--sp-12);
   box-sizing: border-box;
-  width: min(320px, 100cqw);
+  width: min(280px, 100cqw);
   max-height: calc(100cqh - 56px);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -187,7 +187,14 @@
   font-weight: var(--fw-semibold);
   line-height: var(--lh-tight);
 }
-.map-layers__views { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+/* The projection switch and the views fill the panel's width, the views
+   two to a row, so nothing is left ragged. */
+.map-layers__panel .segmented { display: flex; }
+.map-layers__panel .segmented__opt { flex: 1 1 0; }
+.map-layers__views { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
+.map-layers__views > .btn { width: 100%; justify-content: center; }
+.map-layers__views > .btn:only-child { grid-column: 1 / -1; }
+.map-layers__share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); }
 .map-layers__panel .map-legend { flex-direction: column; gap: var(--sp-6); margin: 0; }
 
 /* Full screen: the native API when present, else this class (iPhone Safari). */
@@ -563,8 +570,9 @@
 /* Pass list (components/home/PassList.tsx): one compact row per pass under
    day headings, each a button that opens the pass in place (PassRowOpen). */
 .pass-list { display: flex; flex-direction: column; gap: var(--sp-8); }
-.pass-list__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
-.pass-list__head .home-heading { margin: 0; }
+.pass-list__head { display: flex; align-items: center; gap: var(--sp-8); }
+.pass-list__head .home-heading { margin: 0 auto 0 0; }
+.pass-list__following { white-space: nowrap; }
 .pass-list__zone { margin: calc(-1 * var(--sp-4)) 0 0; color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-list__group { display: flex; flex-direction: column; gap: var(--sp-4); }
 .pass-list__day {
@@ -1424,10 +1432,14 @@
 .settings-sheet__label { color: var(--map-muted); font-size: var(--fs-sm); }
 .settings-sheet__control { min-width: 0; }
 .settings-sheet__control .home-controls__elev { display: inline-flex; }
-.settings-sheet__empty { margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
-.settings-sheet__following { list-style: none; margin: 0; padding: 0; }
-.settings-sheet__sat { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-4) 0; }
-.settings-sheet__sat-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--map-text); }
+/* The Following sheet: one row per followed satellite, its map colour first. */
+.following-sheet { list-style: none; margin: 0; padding: 0; }
+.following-sheet__sat { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-6) 0; border-bottom: var(--line-subtle); }
+.following-sheet__sat:last-child { border-bottom: 0; }
+.following-sheet__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--sat-color); }
+.following-sheet__name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--map-text); text-align: left; }
+.following-sheet__name.btn { justify-content: flex-start; }
+.following-sheet__empty { margin: 0; color: var(--map-muted); font-size: var(--fs-md); }
 .settings-sheet__nav { border-bottom: var(--line-subtle); }
 /* About (a button) and feedback (a link) both sit flush with the labels above. */
 .settings-sheet__nav .settings-sheet__link { display: flex; width: 100%; justify-content: space-between; align-items: center; padding: var(--sp-12) 0; }

@@ -7,6 +7,7 @@ import { useMapSats, type Layer } from "./useMapSats";
 import LocationPrompt, { PopularList } from "./LocationPrompt";
 import { usePassCharts, type Card, type HomeObserver, type Pass, type Track } from "./NextUpList";
 import PassList from "./PassList";
+import FollowingSheet from "./FollowingSheet";
 import Timeline from "./Timeline";
 import { useHomeStore, watchVisibility, type SatApiRecord } from "@/lib/home/store";
 import { tracksFor } from "@/lib/home/records.mjs";
@@ -179,7 +180,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     const id = useHomeStore.getState().focusId;
     if (id != null && before.includes(id) && !pastedIds.current.includes(id)) focusOn(null);
   }, [prefs.custom, focusOn]);
-  // Hiding the focused satellite (from ⋯ › Following) also leaves focus, as on
+  // Hiding the focused satellite (from the Following sheet) also leaves focus, as on
   // a satellite page, so the tap shows. A focus on an already hidden one stays.
   // Loading the saved prefs is not a change.
   const hiddenIds = useRef<number[] | null>(hydrated ? prefs.hidden : null);
@@ -367,6 +368,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // Once the list has run empty, the popular picks stay for the rest of the
   // visit, so following one does not take the others away.
   const [keepPopular, setKeepPopular] = useState(false);
+  const [followingOpen, setFollowingOpen] = useState(false);
   if (hydrated && location && prefs.following.length === 0 && !keepPopular) setKeepPopular(true);
 
   // Stacked (one column, under 1100 px) the map comes before the panel, so a
@@ -491,6 +493,11 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               nowMs={nowMs}
               onModeChange={(mode) => setPrefs({ mode })}
               zoneNote={zoneNote(tz, viewerZone(), nowMs) as string | null}
+              headAction={(
+                <Button size="sm" variant="quiet" className="pass-list__following" aria-haspopup="dialog" onClick={() => setFollowingOpen(true)}>
+                  {`Following · ${prefs.following.length}`}
+                </Button>
+              )}
               strip={following && shownCards && (
                 <Timeline
                   cards={shownCards}
@@ -521,6 +528,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       )}
 
       {chartModals}
+      <FollowingSheet open={followingOpen} onClose={() => setFollowingOpen(false)} colors={colors} />
 
       <AboutSection />
       <SiteFooter />

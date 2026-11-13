@@ -126,7 +126,7 @@ export default function MapLayers({ view, onViewChange, presets, onPreset, follo
             )}
           </div>
         </section>
-        <div className="map-layers__group">{share}</div>
+        <div className="map-layers__group map-layers__share">{share}</div>
         <section className="map-layers__group" aria-labelledby={seeId}>
           <h3 className="map-layers__title" id={seeId}>What you see</h3>
           {legend}

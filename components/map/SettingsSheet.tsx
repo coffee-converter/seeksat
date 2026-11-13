@@ -9,7 +9,6 @@ import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import { useHomeStore } from "@/lib/home/store";
-import { satName } from "@/lib/home/names.mjs";
 import { MIN_ELEV_MAX, stepMinElev } from "@/lib/home/view.mjs";
 import { SKY_TYPES } from "@/lib/sky/visual-rating.mjs";
 import { FEEDBACK_EMAIL } from "@/lib/site/feedback.mjs";
@@ -17,10 +16,6 @@ import { linkClass } from "@/lib/ui/classes.mjs";
 
 const skyTypes = SKY_TYPES as ReadonlyArray<{ id: string; label: string }>;
 const stepElev = stepMinElev as (deg: number, dir: 1 | -1) => number;
-const nameFor = satName as (
-  id: number,
-  from: { records: Map<number, { name?: string }>; custom: Array<{ noradId: number; name: string }> },
-) => string;
 
 interface Props {
   open: boolean;
@@ -38,17 +33,15 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 /**
  * Everything that is set once and left: the sky where you watch, the lowest
- * pass to show, radio bands, followed satellites, theme and night vision, then
- * About and feedback. Opened by the header's ⋯ button.
+ * pass to show, radio bands, theme and night vision, then About and feedback.
+ * Opened by the header's gear button. Followed satellites have their own
+ * sheet, opened over the pass list (FollowingSheet).
  */
 export default function SettingsSheet({ open, onClose }: Props) {
   const router = useRouter();
   const hydrated = useHomeStore((s) => s.hydrated);
   const prefs = useHomeStore((s) => s.prefs);
-  const records = useHomeStore((s) => s.records);
   const setPrefs = useHomeStore((s) => s.setPrefs);
-  const toggleHidden = useHomeStore((s) => s.toggleHidden);
-  const unfollow = useHomeStore((s) => s.unfollow);
   const { minElevDeg } = prefs;
 
   const showAbout = () => {
@@ -103,30 +96,6 @@ export default function SettingsSheet({ open, onClose }: Props) {
 
         <Row label="Radio bands">
           <BandPicker ready={hydrated} />
-        </Row>
-
-        <Row label="Following">
-          {prefs.following.length === 0 ? (
-            <p className="settings-sheet__empty">No satellites followed yet.</p>
-          ) : (
-            <ul className="settings-sheet__following">
-              {prefs.following.map((id) => {
-                const name = nameFor(id, { records, custom: prefs.custom });
-                const hidden = prefs.hidden.includes(id);
-                return (
-                  <li key={id} className="settings-sheet__sat">
-                    <span className="settings-sheet__sat-name">{name}</span>
-                    <Button size="sm" aria-label={`${hidden ? "Show" : "Hide"} ${name} on map`} onClick={() => toggleHidden(id)}>
-                      {hidden ? "Show" : "Hide"}
-                    </Button>
-                    <Button size="sm" tone="danger" aria-label={`Unfollow ${name}`} onClick={() => unfollow(id)}>
-                      Unfollow
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
         </Row>
 
         <Row label="Theme"><ThemeToggle /></Row>

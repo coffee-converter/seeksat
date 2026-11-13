@@ -74,6 +74,8 @@ interface Props {
   zoneNote?: string | null;
   /** Shown under the heading (the 24 hour strip on desktop). */
   strip?: ReactNode;
+  /** Beside the heading, before the mode switch (the Following button). */
+  headAction?: ReactNode;
   onUnfollow: (noradId: number) => void;
   onFollow: (noradId: number) => void;
   /** The follow cap message for the viewed satellite, when blocked. */
@@ -126,7 +128,7 @@ const rowsClass = cx("pass-list__rows", surfaceClass({ padded: false }));
 // under day headings, each opening in place.
 export default function PassList({
   cards: followedCards, viewingCard = null, tracks, colors, observer, mode, minElevDeg, nowMs, onModeChange,
-  zoneNote = null, strip, onUnfollow, onFollow, followBlocked, openChart, clouds = null, skyType, onOpenRow,
+  zoneNote = null, strip, headAction = null, onUnfollow, onFollow, followBlocked, openChart, clouds = null, skyType, onOpenRow,
 }: Props) {
   const baseId = useId();
   const headingId = `${baseId}-title`;
@@ -326,6 +328,7 @@ export default function PassList({
     <section className="pass-list" aria-labelledby={headingId}>
       <div className="pass-list__head">
         <h2 id={headingId} className="home-heading">Passes</h2>
+        {headAction}
         <Segmented label="Pass mode" size="sm" options={MODES} value={mode} onChange={onModeChange} />
       </div>
       {zoneNote && <p className="pass-list__zone">{zoneNote}</p>}
