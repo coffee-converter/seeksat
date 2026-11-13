@@ -37,6 +37,28 @@
    2 px ring in the water colour, and an 11 px bold name 0.8 em right of the
    centre with a 1.5 px halo. --focus-color is the satellite's colour, set by
    FlatMap. Taps go through to the canvas, which tests the marker itself. */
+/* The live sight line (FlatMap drawSight): over the canvas, under the
+   markers, drawn in the same frame as the satellite's dot. Dashed while the
+   satellite is up; round dots while it is not up yet or has set. */
+.flat-map__sight {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.flat-map__sight path {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-opacity: 0.9;
+  stroke-dasharray: 3 3;
+}
+.flat-map__sight path.flat-map__sight--below {
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 0.2 4;
+}
 .flat-map__focus {
   width: 10px;
   height: 10px;
