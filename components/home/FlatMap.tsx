@@ -1350,10 +1350,11 @@ export default function FlatMap({
     if (map && atHome.current && view === "flat") refitHome(map);
   }, [dotsKey, view, refitHome]);
 
-  // A paused pass frames its path and the observer; Back to live (or closing
-  // the row) returns the camera to where it was.
+  // A paused pass frames its path and the observer, again after a switch
+  // between the globe and Mercator; Back to live (or closing the row) returns
+  // the camera to where it was (or the new view's home, after a switch).
   const framedKey = useRef<string | null>(null);
-  const beforePause = useRef<{ cam: Camera; atHome: boolean } | null>(null);
+  const beforePause = useRef<{ cam: Camera; atHome: boolean; view: View } | null>(null);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -1362,19 +1363,24 @@ export default function FlatMap({
       const b = beforePause.current;
       beforePause.current = null;
       if (b) {
-        atHome.current = b.atHome;
-        if (b.atHome) refitHome(map);
+        const sameView = b.view === view;
+        atHome.current = b.atHome || !sameView;
+        if (atHome.current) refitHome(map);
         else moveTo(map, b.cam);
       }
       return;
     }
-    if (framedKey.current === paused.key) return;
+    const frameKey = `${paused.key}|${view}`;
+    if (framedKey.current === frameKey) return;
+    // A projection switch jumps to the new view's home first: frame from
+    // there at once rather than easing across it.
+    const switched = framedKey.current != null && framedKey.current.startsWith(`${paused.key}|`);
     const sat = sats.find((x) => x.passPath && (x.passPath.coordinates as unknown[]).length);
     if (!sat?.passPath) return;
-    framedKey.current = paused.key;
+    framedKey.current = frameKey;
     if (!beforePause.current) {
       const c = map.getCenter();
-      beforePause.current = { cam: { center: [c.lng, c.lat], zoom: map.getZoom() }, atHome: atHome.current };
+      beforePause.current = { cam: { center: [c.lng, c.lat], zoom: map.getZoom() }, atHome: atHome.current, view };
     }
     setFollowing(false);
     // Frame the visibility circle, centred on the observer: every visible
@@ -1448,8 +1454,9 @@ export default function FlatMap({
       }
     }
     atHome.current = false;
-    moveTo(map, { center, zoom });
-  }, [paused, sats, observer, mapReady, moveTo, refitHome, setFollowing]);
+    if (switched) map.jumpTo({ center, zoom });
+    else moveTo(map, { center, zoom });
+  }, [paused, sats, observer, view, mapReady, moveTo, refitHome, setFollowing]);
 
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
