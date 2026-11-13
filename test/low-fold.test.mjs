@@ -6,7 +6,7 @@ const NOW = 1_000_000;
 const row = (key, maxElevDeg, startMs = NOW + 60_000, endMs = startMs + 300_000) => ({ key, pass: { maxElevDeg, startMs, endMs } });
 
 test('folds passes under 5 degrees, keeping order', () => {
-  const rows = [row('a', 3), row('b', 40), row('c', 4.9), row('d', 12)];
+  const rows = [row('a', 3), row('b', 40), row('c', 4.4), row('d', 12)];
   const { shown, folded } = splitLowRows(rows, NOW);
   assert.deepEqual(shown.map((r) => r.key), ['b', 'd']);
   assert.deepEqual(folded.map((r) => r.key), ['a', 'c']);
@@ -33,4 +33,10 @@ test('all low, none low, and empty', () => {
 test('label is singular or plural', () => {
   assert.equal(lowFoldLabel(1), '1 low pass (under 5°)');
   assert.equal(lowFoldLabel(3), '3 low passes (under 5°)');
+});
+
+test('the cut is on the degree as shown: 4.6 reads "5°" and stays, 4.4 folds', () => {
+  const { shown, folded } = splitLowRows([row('a', 4.6), row('b', 4.4)], NOW);
+  assert.deepEqual(shown.map((r) => r.key), ['a']);
+  assert.deepEqual(folded.map((r) => r.key), ['b']);
 });
