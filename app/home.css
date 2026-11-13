@@ -250,7 +250,9 @@
 /* Phones: a slim pill, the time and Live. */
 @media (max-width: 599.98px) {
   .flat-map__paused { gap: var(--sp-6); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-8); font-size: var(--fs-sm); }
-  .flat-map__paused .flat-map__live { min-height: 28px; padding: var(--sp-2) var(--sp-8); }
+  .flat-map__paused .flat-map__live { position: relative; min-height: 28px; padding: var(--sp-2) var(--sp-8); }
+  /* Slim to look at, a full 44 px to tap: the hit area reaches past it. */
+  .flat-map__paused .flat-map__live::after { content: ""; position: absolute; inset: calc(-1 * var(--sp-8)) calc(-1 * var(--sp-4)); }
   .flat-map__long { display: none; }
   .flat-map__short { display: inline; }
 }
@@ -467,23 +469,11 @@
 .home-error { margin: 0; color: var(--danger-text); }
 
 
-/* Settings row under the map. */
-/* One settings group: the location on top, then the controls in a row. */
-.home-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-8) var(--sp-12);
-}
-.home-controls__elev { display: flex; align-items: center; }
-/* What the elevation setting does, on its own line under the controls. */
+/* The settings stepper (Settings > Lowest pass) and the bands picker: two
+   quiet buttons and the value in one outlined box. */
+.home-controls__elev { display: flex; align-items: center; border: var(--line-input); border-radius: var(--radius-md); overflow: hidden; }
 .home-controls__bands { flex-basis: 100%; }
 .home-controls__band-row { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-8); }
-.home-controls__hint { flex: 1 0 100%; }
-/* The place keeps another clock: said under the location, where it applies. */
-.home-controls__zone { margin-top: calc(-1 * var(--sp-4)); }
-/* The stepper: two quiet buttons and the value in one outlined box. */
-.home-controls__elev { border: var(--line-input); border-radius: var(--radius-md); overflow: hidden; }
 .home-controls__value {
   min-width: 4.5em;
   /* As tall as the stepper buttons beside it, the value centred. */
@@ -499,30 +489,8 @@
   font-variant-numeric: tabular-nums;
 }
 .home-controls__pending { visibility: hidden; }
-/* Narrow phones: just enough tighter that mode and elevation share a line. */
 @media (max-width: 379.98px) {
-  .home-controls { padding: var(--sp-8); gap: var(--sp-8); }
   .home-controls__value { padding: 0 var(--sp-6); }
-}
-.home-controls__place {
-  flex: 1 0 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-8);
-  min-width: 0;
-  max-width: 100%;
-  font-weight: var(--fw-semibold);
-  color: var(--text-strong);
-}
-/* Sky type (visual mode): at the end of the location row, in body weight. */
-.home-controls__sky { font-weight: var(--fw-regular); }
-.home-controls__place .home-controls__sky { margin-left: auto; align-self: center; }
-.home-controls__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .home-banner {
@@ -1639,8 +1607,6 @@
   .live-dial__pulse { animation: none; }
 }
 .live-dial__caption { margin-top: var(--sp-4); text-align: center; font-size: var(--fs-sm); color: var(--map-muted); }
-.live-view__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin: 0; }
-.live-view__nums dd { margin: var(--sp-2) 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); white-space: nowrap; }
 .live-view__panel .note { margin: var(--sp-4) 0 0; }
 /* The Doppler curve for the pass (components/live/LiveDopplerCurve.tsx). */
 .live-doppler { margin: var(--sp-8) 0 0; }
@@ -1670,13 +1636,8 @@
 /* Focus lands here when the dock opens so screen readers start at the title;
    it is not a control, so it shows no ring. */
 .live-dock__title:focus { outline: none; }
-.live-dock__title:focus { outline: none; }
 .live-dock__title:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
 /* The 380 px panel: smaller readouts so three tiles and the frequency fit. */
-@container live-dock (max-width: 400px) {
-  .live-view__nums { gap: var(--sp-6); }
-  .live-view__nums dd { font-size: var(--fs-lg); }
-}
 @media (max-width: 380px) {
   .live-view__tune-mhz { font-size: var(--fs-2xl); }
 }

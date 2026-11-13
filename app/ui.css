@@ -112,7 +112,8 @@
 
 @media (pointer: coarse) {
   .btn { min-height: 44px; }
-  .btn--icon { min-width: 44px; }
+  .btn--icon,
+  .btn--icon.btn--sm { min-width: 44px; min-height: 44px; }
   /* Inline in text: 24 px, the WCAG minimum, so it never splits its line. */
   .btn--link { min-height: 24px; }
 }
