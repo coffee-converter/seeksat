@@ -43,6 +43,29 @@
   pointer-events: none;
 }
 .flat-map__focus.maplibregl-marker-covered { visibility: hidden; }
+/* An opened pass's rise and set: a dot in its colour and the time beside it. */
+.flat-map__end { width: 9px; height: 9px; pointer-events: none; }
+.flat-map__end.maplibregl-marker-covered { visibility: hidden; }
+.flat-map__end-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--end-color, var(--map-accent));
+  box-shadow: 0 0 0 1.5px var(--map-ocean);
+}
+.flat-map__end-time {
+  position: absolute;
+  left: calc(100% + var(--sp-6));
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--end-color, var(--map-accent));
+  -webkit-text-stroke: 3px var(--map-ocean);
+  paint-order: stroke fill;
+}
 .flat-map__focus-dot {
   position: absolute;
   inset: 0;

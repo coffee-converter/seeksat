@@ -966,6 +966,7 @@ export default function FlatMap({
       markAlt.className = "flat-map__focus-alt";
       markName.append(markNameText, markAlt);
       markEl.append(markDot, markName);
+      markerOf.current = gl.Marker;
       focusMark.current = {
         marker: new gl.Marker({ element: markEl, subpixelPositioning: true, opacityWhenCovered: "0" }),
         el: markEl,
@@ -1349,6 +1350,44 @@ export default function FlatMap({
     const map = mapRef.current;
     if (map && atHome.current && view === "flat") refitHome(map);
   }, [dotsKey, view, refitHome]);
+
+  // The opened pass's rise and set: a dot and its time each, as HTML markers
+  // (like the focus name), which MapLibre hides on the far side of the globe;
+  // its own text labels there showed through the Earth.
+  const markerOf = useRef<(typeof import("maplibre-gl"))["Marker"] | null>(null);
+  const endMarks = useRef<{ marker: Marker; el: HTMLElement; time: HTMLElement }[]>([]);
+  useEffect(() => {
+    const map = mapRef.current;
+    const MarkerCtor = markerOf.current;
+    if (!map || !mapReady || !MarkerCtor) return;
+    const sat = sats.find((s) => s.passEnds?.length);
+    const ends = sat?.passEnds ?? [];
+    const marks = endMarks.current;
+    while (marks.length > ends.length) marks.pop()?.marker.remove();
+    ends.forEach((end, i) => {
+      let m = marks[i];
+      if (!m) {
+        const el = document.createElement("div");
+        el.className = "flat-map__end";
+        el.setAttribute("aria-hidden", "true");
+        const dot = document.createElement("span");
+        dot.className = "flat-map__end-dot";
+        const time = document.createElement("span");
+        time.className = "flat-map__end-time";
+        el.append(dot, time);
+        m = { marker: new MarkerCtor({ element: el, subpixelPositioning: true, opacityWhenCovered: "0" }), el, time };
+        marks.push(m);
+        m.marker.setLngLat([end.lonDeg, end.latDeg]).addTo(map);
+      }
+      if (sat) m.el.style.setProperty("--end-color", sat.color);
+      if (m.time.textContent !== end.label) m.time.textContent = end.label;
+      m.marker.setLngLat([end.lonDeg, end.latDeg]);
+    });
+  }, [sats, mapReady]);
+  useEffect(() => () => {
+    for (const m of endMarks.current) m.marker.remove();
+    endMarks.current = [];
+  }, []);
 
   // A paused pass frames its path and the observer, again after a switch
   // between the globe and Mercator; Back to live (or closing the row) returns

@@ -163,7 +163,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-ends', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -395,8 +395,8 @@ test('an opened pass draws its path and a sight line from the observer to its pe
     passEnds: [{ lonDeg: 0, latDeg: 0, label: '5:41 PM' }, { lonDeg: 10, latDeg: 8, label: '5:48 PM' }],
   }] });
   const f = lit['ss-pass'].features;
-  assert.deepEqual(f.map((x) => x.properties.part).sort(), ['end', 'end', 'shadow', 'sunlit']);
-  assert.deepEqual(f.filter((x) => x.properties.part === 'end').map((x) => x.properties.label), ['5:41 PM', '5:48 PM']);
+  // The rise and set marks are HTML markers, not features.
+  assert.deepEqual(f.map((x) => x.properties.part).sort(), ['shadow', 'sunlit']);
   // No peak, no observer: path only.
   assert.equal(overlayData({ sats: [{ ...sat, passPeak: undefined }] })['ss-pass'].features.length, 1);
 });
