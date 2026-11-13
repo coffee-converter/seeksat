@@ -397,6 +397,7 @@ export default function PassSection({
             name={track.shortName}
             track={track as unknown as HomeTrack}
             pass={pass}
+            rating={rating}
             observer={observer}
             mode={mode}
             minElevDeg={minElevDeg}

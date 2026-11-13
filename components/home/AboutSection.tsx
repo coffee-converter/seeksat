@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Details } from "@/components/ui/Disclosure";
 import { linkClass } from "@/lib/ui/classes.mjs";
 import { SATNOGS_URL } from "@/lib/mirror/satnogs.mjs";
+import { RATING_WORDS } from "@/lib/passes/rating-words.mjs";
 
 export default function AboutSection() {
   return (
@@ -16,6 +17,8 @@ export default function AboutSection() {
         <a className={linkClass()} href={SATNOGS_URL} target="_blank" rel="noreferrer">SatNOGS DB</a>
         {" "}(CC BY-SA 4.0), refreshed daily, except a few we check by hand. In radio mode, satellites with known downlinks show a radio mark on the map.
       </p>
+      <p>Visual ratings: {RATING_WORDS.visual}</p>
+      <p>Radio ratings: {RATING_WORDS.radio}</p>
       <p>Cloud forecasts from Open-Meteo and MET Norway. For cloud forecasts, SeekSat&apos;s server asks them about your area, rounded to about 11 km.</p>
       <p>Reminders work only while SeekSat is open, in a tab or as an installed app.</p>
       <p>

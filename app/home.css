@@ -640,6 +640,34 @@
 /* An open row: the sky plot beside where to look, then what to do. */
 .pass-open { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-4) var(--sp-12) var(--sp-12); }
 /* The plot's compass letters sit just outside it: the margins and gap keep them clear. */
+/* The rating badge as a button, and its popover (components/passes/RatingExplainer.tsx). */
+.rating-explainer { position: relative; align-self: flex-start; }
+.rating-explainer__btn {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.rating-explainer__btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.rating-explainer__panel {
+  position: absolute;
+  top: calc(100% + var(--sp-6));
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  width: min(280px, calc(100vw - 2 * var(--sp-24)));
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--bg);
+  border: var(--line-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+}
+.rating-explainer__panel[hidden] { display: none; }
 .pass-open__sky { display: flex; align-items: center; gap: var(--sp-16); }
 .pass-open__plot { flex: 0 0 80px; width: 80px; margin: var(--sp-8) 0 var(--sp-8) var(--sp-4); }
 .pass-open__facts { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }

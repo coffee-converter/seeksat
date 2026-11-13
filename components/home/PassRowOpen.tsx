@@ -5,7 +5,8 @@ import Link from "next/link";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
 import { RadioPanel, aboveTenText } from "@/components/passes/PassPath";
 import { passTime } from "@/components/passes/PassStats";
-import { peakMagText } from "@/components/passes/QualityBadge";
+import { peakMagText, type Quality } from "@/components/passes/QualityBadge";
+import RatingExplainer from "@/components/passes/RatingExplainer";
 import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
 import AlertBell from "@/components/AlertBell";
 import ShareButton from "@/components/sat/ShareButton";
@@ -54,7 +55,7 @@ export interface PassLinks {
 
 /** An opened pass row: the sky plot and where to look, then what to do. */
 export default function PassRowOpen({
-  id, name, track, pass, observer, mode, minElevDeg, nowMs, clouds, viewing = null, onUnfollow, openChart, best = false,
+  id, name, track, pass, observer, mode, minElevDeg, nowMs, clouds, viewing = null, onUnfollow, openChart, best = false, rating,
   onSatPage = false, links, children,
 }: {
   id: string;
@@ -73,6 +74,8 @@ export default function PassRowOpen({
   openChart: OpenChart;
   /** This is the best pass in the next 24 hours. */
   best?: boolean;
+  /** The visual-mode rating; radio ratings come from the pass height. */
+  rating?: Quality;
   /** On the satellite's own page: no page link and no element tags (the page says how old they are). */
   onSatPage?: boolean;
   links?: PassLinks;
@@ -103,6 +106,7 @@ export default function PassRowOpen({
 
   return (
     <div id={id} className="pass-open">
+      <RatingExplainer pass={pass} rating={rating} mode={mode} />
       <div className="pass-open__sky">
         <div className="pass-open__plot">
           <PolarPlotSvg ref={svgRef} />

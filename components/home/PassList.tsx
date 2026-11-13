@@ -293,6 +293,7 @@ export default function PassList({
             name={row.name}
             track={track}
             pass={row.pass}
+            rating={visual ? ratingOf(row.pass) : undefined}
             observer={observer}
             mode={mode}
             minElevDeg={minElevDeg}
