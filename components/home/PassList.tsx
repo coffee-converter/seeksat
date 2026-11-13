@@ -16,6 +16,7 @@ import { BestLine, UpNowLine } from "./BestLine";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
 import { DOCKED_QUERY, useKeepRowInPlace } from "./useKeepRowInPlace";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
+import { MODE_HINT_TEXT, dismissModeHint, modeHintWanted } from "@/lib/home/mode-hint.mjs";
 import {
   FollowChip, ViewingTag, bestPassOf, liveOk, passRating,
   type Card, type HomeObserver, type OpenChart, type Pass, type Track, type ViewingProps,
@@ -117,6 +118,18 @@ export default function PassList({
   const tz = observer.tz;
 
   const [showAll, setShowAll] = useState(false);
+  // The one-time mode note: unknown (nothing drawn) until storage is read.
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    try { setHint((modeHintWanted as (s: Storage) => boolean)(window.localStorage)); } catch { /* hidden */ }
+  }, []);
+  const pickMode = (next: "radio" | "visual") => {
+    if (hint) {
+      setHint(false);
+      try { (dismissModeHint as (s: Storage) => void)(window.localStorage); } catch { /* ignore */ }
+    }
+    onModeChange(next);
+  };
   // The one open row: opening another closes it.
   const [openKey, setOpenKey] = useState<string | null>(null);
   // The row opened for the viewer (desktop's first pass), until they toggle it.
@@ -353,8 +366,9 @@ export default function PassList({
       <div className="pass-list__head">
         <h2 id={headingId} className="heading-section">Passes</h2>
         {headAction}
-        <Segmented label="Pass mode" size="sm" options={MODES} value={mode} onChange={onModeChange} />
+        <Segmented label="Pass mode" size="sm" options={MODES} value={mode} onChange={pickMode} />
       </div>
+      {hint && <p className="note note--sm pass-list__hint">{MODE_HINT_TEXT}</p>}
       {zoneNote && <p className="note note--sm pass-list__zone">{zoneNote}</p>}
       {line}
       {strip}
