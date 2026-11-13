@@ -105,8 +105,11 @@ export function useMapSats({
     if (!pass || !passTrack) return null;
     try {
       const path = passLineOf(passTrack, pass.startMs, pass.endMs);
-      // Solid in sunlight, dashed in Earth's shadow.
-      const { sunlit, shadow } = splitSun(path, passTrack.ecefAt);
+      // Visual: solid in sunlight, dashed in Earth's shadow. Radio: sunlight
+      // does not matter, so the whole pass is solid.
+      const { sunlit, shadow } = radio
+        ? { sunlit: path as Shape, shadow: null as unknown as Shape }
+        : splitSun(path, passTrack.ecefAt);
       const first = path.coordinates[0]?.[0];
       const last = path.coordinates.at(-1)?.at(-1);
       const ends = [
@@ -134,7 +137,7 @@ export function useMapSats({
     }
     // The pass by its times, not its object identity (rows rebuild each minute).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [passTrack, pass?.noradId, pass?.startMs, pass?.endMs, pass?.peakMs, pass?.riseLabel, pass?.setLabel, minElevDeg]);
+  }, [passTrack, pass?.noradId, pass?.startMs, pass?.endMs, pass?.peakMs, pass?.riseLabel, pass?.setLabel, minElevDeg, radio]);
   const pausedId = pass?.paused ? pass.noradId : null;
 
   // Positions every second.

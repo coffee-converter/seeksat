@@ -69,7 +69,7 @@ export default function PassRowOpen({
   clouds: Forecast | null;
   /** Set for the viewed (not followed) satellite: Follow replaces Unfollow. */
   viewing?: ViewingProps | null;
-  /** Unfollow (or Follow, when viewing); left out, there is no follow chip. */
+  /** Follow, when viewing (a followed satellite's card has no follow chip). */
   onUnfollow?: () => void;
   openChart: OpenChart;
   /** This is the best pass in the next 24 hours. */
@@ -168,7 +168,9 @@ export default function PassRowOpen({
           <Icon name="calendar" /> Calendar
         </Button>
         {!onSatPage && <ElementTags track={track} nowMs={nowMs} />}
-        {onUnfollow && <FollowChip viewing={viewing} onUnfollow={onUnfollow} />}
+        {/* Follow, for a satellite being viewed. Unfollow is not a pass's
+            action: it lives in the Following list and on the satellite's page. */}
+        {onUnfollow && viewing && <FollowChip viewing={viewing} onUnfollow={onUnfollow} />}
         {best && <span className="pass-open__best">Best pass in the next 24 hours</span>}
       </div>
     </div>
@@ -210,7 +212,7 @@ export function AlwaysRowOpen({ id, name, track, pointing, observer, mode, nowMs
       )}
       <div className="pass-open__more">
         <ElementTags track={track} nowMs={nowMs} />
-        <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
+        {viewing && <FollowChip viewing={viewing} onUnfollow={onUnfollow} />}
         <SatPageLink track={track} name={name} />
       </div>
     </div>
