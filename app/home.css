@@ -1528,7 +1528,15 @@
 .live-view__hero-item { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0; }
 .live-view__hero-label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.08em; }
 .live-view__hero-value { color: var(--text-strong); font-size: var(--fs-hero); font-weight: var(--fw-semibold); line-height: var(--lh-tight); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.live-view__trend { margin-left: var(--sp-4); color: var(--map-accent); font-size: 0.7em; }
+/* Centred on the number's height (a smaller glyph on the baseline hung low). */
+.live-view__trend {
+  display: inline-block;
+  margin-left: var(--sp-4);
+  color: var(--map-accent);
+  font-size: 0.6em;
+  font-weight: var(--fw-semibold);
+  vertical-align: 0.3em;
+}
 .live-view__status { margin: 0; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
 .live-view__status strong { color: var(--text-strong); }
 .live-view__status span { color: var(--map-muted); }

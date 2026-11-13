@@ -434,3 +434,19 @@ test('after its pass has set, the live line toward the satellite says already se
   const label = overlayData({ sats: [gone], observer })['ss-marks'].features.find((f) => f.properties.kind === 'sight-label');
   assert.match(label.properties.label, /, already set$/);
 });
+
+test('sightFrom gives the refracted elevation, as the circle and pass times use', async () => {
+  const { sightFrom } = await import('../lib/map/overlays.mjs');
+  const { satAltitudeDeg } = await import('../lib/pass-finder/visibility.js');
+  const { geodeticToEcef } = await import('../lib/coords.js');
+  const observer = { latDeg: 40, lonDeg: -90 };
+  // A satellite just under the geometric horizon still reads as up.
+  for (let lon = -110; lon > -130; lon -= 0.05) {
+    const geo = satAltitudeDeg(observer, geodeticToEcef(40, lon, 420_000));
+    if (geo < 0 && geo > -0.4) {
+      assert.ok(sightFrom(observer, lon, 40, 420).elDeg >= 0, `geometric ${geo}`);
+      return;
+    }
+  }
+  assert.fail('no sample just below the horizon');
+});
