@@ -259,13 +259,13 @@ export function SearchBar({ onView, onClearFocus, onDone }: Props) {
                 pressedLook="accent"
                 tabIndex={-1}
                 className="search-bar__follow"
-                aria-label={`${followed ? "Following" : "Follow"} ${r.name}`}
+                aria-label={`${followed ? "Saved" : "Save"} ${r.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFollow(r);
                 }}
               >
-                {followed ? "Following" : "Follow"}
+                {followed ? "Saved" : "Save"}
               </Button>
             </li>
           );

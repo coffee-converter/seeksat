@@ -17,7 +17,7 @@ import { useUnits } from "@/lib/ui/use-units";
 import { currentUnits } from "@/lib/units.mjs";
 import { canvasMismatch } from "@/lib/map/canvas-check.mjs";
 import { reportNotice } from "@/lib/site/report.mjs";
-import { useFollow } from "@/lib/map/follow-store";
+import { useLock } from "@/lib/map/lock-store";
 import { peekPendingCamera, registerCameraReader, setPendingCamera } from "@/lib/map/share-camera";
 import Button from "@/components/ui/Button";
 import MapLayers from "@/components/map/MapLayers";
@@ -383,8 +383,8 @@ export default function FlatMap({
   // with getState.
   // The units the labels read in; a change re-renders, so they rebuild.
   useUnits();
-  const followOn = useFollow((s) => s.following);
-  const setFollowing = useFollow((s) => s.setFollowing);
+  const lockOn = useLock((s) => s.locked);
+  const setLocked = useLock((s) => s.setLocked);
   const paused = useMapClock((s) => s.paused);
   const backToLive = useMapClock((s) => s.backToLive);
 
@@ -563,7 +563,7 @@ export default function FlatMap({
    *  running ease or gesture (a preset's, a held pointer or pinch) to end, so a
    *  pinch still lets the satellite drift until the fingers lift. True when it jumped. */
   const followJump = useCallback((map: MlMap, f: LiveFocus | null, zoom?: number): boolean => {
-    if (!f || handHeld.current || map.isMoving() || !useFollow.getState().following) return false;
+    if (!f || handHeld.current || map.isMoving() || !useLock.getState().locked) return false;
     selfJump.current = true;
     try {
       const center: LngLat = [f.lonDeg, f.latDeg];
@@ -1115,11 +1115,11 @@ export default function FlatMap({
       pushFootprint(liveFocus(latest.current.sats));
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
-      syncZoomAround(map, useFollow.getState().following);
+      syncZoomAround(map, useLock.getState().locked);
       syncGestures();
       const canvas = map.getCanvas();
       canvas.setAttribute("role", "img");
-      canvas.setAttribute("aria-label", "Map of followed satellites");
+      canvas.setAttribute("aria-label", "Map of your saved satellites");
       canvas.tabIndex = 0;
       // MapLibre opens the compact attribution at start and folds it only on a
       // drag, which cooperative gestures never send on a phone. Fold it once the
@@ -1249,7 +1249,7 @@ export default function FlatMap({
       // carry no originalEvent. A single wheel tick starts its move without
       // one, so the wheel handler is asked too.
       const release = () => {
-        if (useFollow.getState().following) setFollowing(false);
+        if (useLock.getState().locked) setLocked(false);
       };
       map.on("movestart", (e: { originalEvent?: Event }) => {
         if (!e.originalEvent && !map.scrollZoom.isActive()) return;
@@ -1298,14 +1298,14 @@ export default function FlatMap({
       // It starts after MapLibre's own handling of the event, which stops any
       // camera move begun inside a listener while a handler is active.
       map.on("dblclick", (e: MapMouseEvent) => {
-        if (!useFollow.getState().following) return;
+        if (!useLock.getState().locked) return;
         lockZoomBy(map, e.originalEvent.shiftKey ? -1 : 1);
       });
       // Following, the wheel and the +/- keys zoom through the frame loop too
       // (MapLibre's scroll zoom is off then; its keyboard handler is skipped).
       const box = map.getCanvasContainer();
       const onWheel = (e: WheelEvent) => {
-        if (!useFollow.getState().following) return;
+        if (!useLock.getState().locked) return;
         // Cooperative gestures: a plain wheel scrolls the page, as MapLibre's does.
         const coop = map.cooperativeGestures;
         if (coop.isEnabled() && !e.ctrlKey && !coop.isBypassed(e)) {
@@ -1320,7 +1320,7 @@ export default function FlatMap({
         if (dz) lockZoomBy(map, dz, wheel ? LOCK_ZOOM_MS : 0);
       };
       const onKey = (e: KeyboardEvent) => {
-        if (!useFollow.getState().following || e.altKey || e.ctrlKey || e.metaKey) return;
+        if (!useLock.getState().locked || e.altKey || e.ctrlKey || e.metaKey) return;
         const dir = e.key === "+" || e.key === "=" ? 1 : e.key === "-" || e.key === "_" ? -1 : 0;
         if (!dir) return;
         e.preventDefault();
@@ -1380,7 +1380,7 @@ export default function FlatMap({
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setLocked, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {
@@ -1402,10 +1402,10 @@ export default function FlatMap({
   // be when the ease ends, then the frame loop's jumps take over (they wait
   // for the ease). The Satellite GP preset is already easing there.
   useEffect(() => {
-    if (!followOn) zoomGoal.current = null;
+    if (!lockOn) zoomGoal.current = null;
     const map = mapRef.current;
-    if (map) syncZoomAround(map, followOn);
-    if (map && followOn && !map.isMoving() && !reducedMotion()) {
+    if (map) syncZoomAround(map, lockOn);
+    if (map && lockOn && !map.isMoving() && !reducedMotion()) {
       const f = liveFocus(latest.current.sats, mapNow() + LOCK_EASE_MS);
       if (f) {
         const c = map.project(map.getCenter());
@@ -1417,7 +1417,7 @@ export default function FlatMap({
       }
     }
     frames.current?.wake();
-  }, [followOn, syncZoomAround, liveFocus]);
+  }, [lockOn, syncZoomAround, liveFocus]);
 
   const toggleFull = useCallback(() => {
     const shell = shellRef.current;
@@ -1481,7 +1481,7 @@ export default function FlatMap({
     const prev = shownView.current;
     if (prev === view) return;
     shownView.current = view;
-    setFollowing(false);
+    setLocked(false);
     const map = mapRef.current;
     if (!map) return;
     // Before the style loads, style.load applies the projection.
@@ -1495,8 +1495,8 @@ export default function FlatMap({
     syncGestures();
     // With the live view open, frame it again as it framed on opening (a
     // paused pass reframes itself).
-    if (useMapClock.getState().liveView) useFollow.getState().fitFootprint();
-  }, [view, homeView, setFollowing, limitZoom, syncFill, syncGestures]);
+    if (useMapClock.getState().liveView) useLock.getState().fitFootprint();
+  }, [view, homeView, setLocked, limitZoom, syncFill, syncGestures]);
 
   // An untouched home view follows the observer (it arrives after mount, once
   // prefs load). Choosing a new place moves there even if the map was moved:
@@ -1515,10 +1515,10 @@ export default function FlatMap({
       // not go back to the camera from before it.
       beforePause.current = null;
       atHome.current = true;
-      setFollowing(false);
+      setLocked(false);
     }
     if (atHome.current) refitHome(map);
-  }, [obsLon, obsLat, refitHome, setFollowing]);
+  }, [obsLon, obsLat, refitHome, setLocked]);
   // An untouched flat home view refits when the dots first arrive or the set
   // shown changes, so they are in view; not on every tick as they move.
   const dotsKey = sats.filter((s) => s.emphasis !== "hidden").map((s) => s.noradId).join(",");
@@ -1642,7 +1642,7 @@ export default function FlatMap({
   // in view, with no lock (the circle holds the pass while it is up).
   // Otherwise (a high orbit, or opened from the Up now line) it stays locked
   // on, zoomed so the satellite's footprint fills the map.
-  const fitTick = useFollow((s) => s.fitTick);
+  const fitTick = useLock((s) => s.fitTick);
   const fitDone = useRef(0);
   useEffect(() => {
     const map = mapRef.current;
@@ -1657,7 +1657,7 @@ export default function FlatMap({
     const passRing = sat?.passRing;
     if (f && o && passRing && passRing.length > 2) {
       fitDone.current = fitTick;
-      setFollowing(false);
+      setLocked(false);
       const center: LngLat = [o.lonDeg, o.latDeg];
       const zoom = fitRingZoom(map, center, [...passRing, [f.lonDeg, f.latDeg]], pad, map.getZoom());
       atHome.current = false;
@@ -1669,7 +1669,7 @@ export default function FlatMap({
     const path = sat?.passPath ? (sat.passPath.coordinates as number[][][]).flat() : [];
     if (f && o && path.length > 1) {
       fitDone.current = fitTick;
-      setFollowing(false);
+      setLocked(false);
       const pts = [...path, [o.lonDeg, o.latDeg], [f.lonDeg, f.latDeg]];
       // Longitudes unwrapped around you, so a track over the date line frames as one piece.
       const lons = pts.map(([lon]) => lon + 360 * Math.round((o.lonDeg - lon) / 360));
@@ -1691,7 +1691,7 @@ export default function FlatMap({
     const zoom = fitRingZoom(map, center, ring, pad, map.getZoom());
     atHome.current = false;
     moveTo(map, { center, zoom });
-  }, [fitTick, sats, mapReady, liveFocus, fitRingZoom, moveTo, setFollowing]);
+  }, [fitTick, sats, mapReady, liveFocus, fitRingZoom, moveTo, setLocked]);
 
   // A paused pass frames its path and the observer, again after a switch
   // between the globe and Mercator; Back to live (or closing the row) returns
@@ -1750,7 +1750,7 @@ export default function FlatMap({
       const c = map.getCenter();
       beforePause.current = { cam: { center: [c.lng, c.lat], zoom: map.getZoom() }, atHome: atHome.current, view };
     }
-    setFollowing(false);
+    setLocked(false);
     // Frame the visibility circle, centred on the observer: every visible
     // pass runs inside it, so you and the whole pass are in view. Without it,
     // the path and the observer.
@@ -1800,7 +1800,7 @@ export default function FlatMap({
     atHome.current = false;
     if (switched) map.jumpTo({ center, zoom });
     else moveTo(map, { center, zoom });
-  }, [paused, openSat, observer, view, mapReady, moveTo, refitHome, setFollowing, reframe, fitRingZoom]);
+  }, [paused, openSat, observer, view, mapReady, moveTo, refitHome, setLocked, reframe, fitRingZoom]);
 
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
@@ -1808,10 +1808,10 @@ export default function FlatMap({
     centreOn.current = selectedId;
     // Lock on stays on from one satellite to the next (it eases over below);
     // clearing the selection ends it.
-    if (selectedId == null || !useFollow.getState().following) setFollowing(false);
+    if (selectedId == null || !useLock.getState().locked) setLocked(false);
     // A pending leave was for the previous selection.
     window.clearTimeout(leaveTimer.current);
-  }, [selectedId, setFollowing]);
+  }, [selectedId, setLocked]);
   // The parent's clock tick passes new props each second. The frame loop
   // moves the cap while it runs; paused, or with no focus, this does.
   useEffect(() => {
@@ -1829,7 +1829,7 @@ export default function FlatMap({
         // shrank it far out when the focus was nearer the equator.
         // The live position, not the props one: a satellite page's first
         // props come from its cached render time, up to an hour old.
-        if (useFollow.getState().following) {
+        if (useLock.getState().locked) {
           // Locked on: ease to where it will be when the ease ends, then the
           // frame loop's jumps take over, as turning Lock on does.
           const at = sat.positionAt(mapNow() + LOCK_EASE_MS) ?? sat.position;
@@ -1853,7 +1853,7 @@ export default function FlatMap({
   useEffect(() => registerCameraReader(() => {
     const map = mapRef.current;
     if (!map) return null;
-    const lock = useFollow.getState().following;
+    const lock = useLock.getState().locked;
     if (atHome.current && !lock) return { zoom: null, center: null, lock: false };
     const c = map.getCenter().wrap();
     return { zoom: discZoom(latest.current.view, map.getZoom(), c.lat), center: [c.lng, c.lat], lock };
@@ -1882,8 +1882,8 @@ export default function FlatMap({
     const zoom = cam.zoom == null ? map.getZoom()
       : view === "globe" ? cam.zoom + Math.log2(Math.cos((Math.min(Math.abs(center[1]), 85.05) * Math.PI) / 180)) : cam.zoom;
     map.jumpTo({ center, zoom });
-    if (cam.lock) setFollowing(true);
-  }, [sats, view, mapReady, liveFocus, setFollowing]);
+    if (cam.lock) setLocked(true);
+  }, [sats, view, mapReady, liveFocus, setLocked]);
 
   // Between props, move the other dots and the GeoJSON footprint every
   // DOT_MS, and the focus while the frame loop idles. Nothing here sets
@@ -1988,7 +1988,7 @@ export default function FlatMap({
       placeMark(map, f);
       // A live sight line ends on the dot: drawn with it, in the same frame.
       drawSight(map);
-      if (zoomGoal.current && !useFollow.getState().following) zoomGoal.current = null;
+      if (zoomGoal.current && !useLock.getState().locked) zoomGoal.current = null;
       const z = zoomGoal.current ? goalAt(zoomGoal.current, at ?? now) : null;
       if (followJump(map, f, z?.zoom)) {
         map.redraw();
@@ -2017,7 +2017,7 @@ export default function FlatMap({
       placeMark(map, f);
     };
     const wanted = () =>
-      !document.hidden && inView && (fast || useFollow.getState().following || zoomGoal.current != null);
+      !document.hidden && inView && (fast || useLock.getState().locked || zoomGoal.current != null);
     const sync = () => {
       if (!wanted()) {
         if (id !== undefined) {
@@ -2075,7 +2075,7 @@ export default function FlatMap({
     const map = mapRef.current;
     if (!map) return;
     atHome.current = true;
-    setFollowing(false);
+    setLocked(false);
     moveTo(map, homeView(map));
   };
   const focusNow = focusOf(sats);
@@ -2095,7 +2095,7 @@ export default function FlatMap({
     });
     if (!cam) return;
     atHome.current = false;
-    setFollowing(p === "sat");
+    setLocked(p === "sat");
     moveTo(map, { center: cam.center, zoom: easeZoom(map.getZoom(), cam.zoom) });
   };
   // Picking your place again: On you on the globe, the home view on Mercator.
@@ -2104,11 +2104,11 @@ export default function FlatMap({
     const map = mapRef.current;
     if (!map || !observer) return;
     atHome.current = false;
-    setFollowing(false);
+    setLocked(false);
     moveTo(map, { center: [observer.lonDeg, observer.latDeg] });
   };
   // Picking the place you are already on (the location sheet) centres on it too.
-  const homeTick = useFollow((s) => s.homeTick);
+  const homeTick = useLock((s) => s.homeTick);
   const homeSeen = useRef(homeTick);
   useEffect(() => {
     if (homeTick === homeSeen.current) return;
@@ -2118,7 +2118,7 @@ export default function FlatMap({
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
-    if (useFollow.getState().following) {
+    if (useLock.getState().locked) {
       lockZoomBy(map, delta);
       return;
     }
@@ -2167,7 +2167,7 @@ export default function FlatMap({
           onViewChange={onProjectionChange}
           presets={presetsNow}
           onPreset={goTo}
-          followOn={followOn}
+          lockOn={lockOn}
           onReset={reset}
           share={share}
           legend={legendList}
@@ -2223,15 +2223,15 @@ export default function FlatMap({
           variant="overlay"
           size="sm"
           className="flat-map__lock"
-          pressed={followOn}
-          aria-label={followOn ? `Locked on ${focusName}` : `Lock on ${focusName}`}
-          onClick={() => setFollowing(!followOn)}
+          pressed={lockOn}
+          aria-label={lockOn ? `Locked on ${focusName}` : `Lock on ${focusName}`}
+          onClick={() => setLocked(!lockOn)}
         >
           {/* A padlock, not the crosshair your own location wears. Room
               allowing, it names the satellite. */}
-          <Icon name={followOn ? "lock" : "unlock"} />
-          <span className="flat-map__lock-long">{followOn ? `Locked onto ${focusName}` : `Lock onto ${focusName}`}</span>
-          <span className="flat-map__lock-short">{followOn ? "Locked on" : "Lock on"}</span>
+          <Icon name={lockOn ? "lock" : "unlock"} />
+          <span className="flat-map__lock-long">{lockOn ? `Locked onto ${focusName}` : `Lock onto ${focusName}`}</span>
+          <span className="flat-map__lock-short">{lockOn ? "Locked on" : "Lock on"}</span>
         </Button>
       ) : null}
       {/* Zoom in and out at the bottom right, desktop only (phones pinch). */}

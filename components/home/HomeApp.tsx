@@ -538,7 +538,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       ) : observer && (
         <>
           {!following && (
-            <p className="note">You aren&apos;t following any satellites. Search to add one.</p>
+            <p className="note">You haven&apos;t saved any satellites. Search to add one.</p>
           )}
           {showList && nowMs != null && (
             <PassList
@@ -554,7 +554,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               zoneNote={zoneNote(tz, viewerZone(), nowMs) as string | null}
               headAction={(
                 <Button size="sm" variant="quiet" className="pass-list__following" aria-haspopup="dialog" onClick={() => setFollowingOpen(true)}>
-                  {`Following · ${prefs.following.length}`}
+                  {`My satellites · ${prefs.following.length}`}
                 </Button>
               )}
               strip={following && shownCards && (

@@ -15,7 +15,7 @@ interface Props {
   presets: Array<{ id: Preset; label: string }>;
   onPreset: (id: Preset) => void;
   /** The camera is following the focus (the satellite view shows pressed). */
-  followOn: boolean;
+  lockOn: boolean;
   /** Mercator's way back to its home view. */
   onReset: () => void;
   /** The Share button for the whole view. */
@@ -32,7 +32,7 @@ const VIEWS = PROJECTIONS.map((p: { id: string; label: string }) => ({ value: p.
  * places it): Escape or a press outside closes it, Tab stays inside while it
  * is open, and focus goes back to the button on close.
  */
-export default function MapLayers({ view, onViewChange, presets, onPreset, followOn, onReset, share, legend }: Props) {
+export default function MapLayers({ view, onViewChange, presets, onPreset, lockOn, onReset, share, legend }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -107,7 +107,7 @@ export default function MapLayers({ view, onViewChange, presets, onPreset, follo
               <Button
                 key={p.id}
                 size="sm"
-                pressed={p.id === "sat" ? followOn : undefined}
+                pressed={p.id === "sat" ? lockOn : undefined}
                 onClick={() => {
                   onPreset(p.id);
                   close();

@@ -601,7 +601,7 @@
 /* Pass list (components/home/PassList.tsx): one compact row per pass under
    day headings, each a button that opens the pass in place (PassRowOpen). */
 .pass-list { display: flex; flex-direction: column; gap: var(--sp-8); }
-.pass-list__head { display: flex; align-items: center; gap: var(--sp-8); }
+.pass-list__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
 .pass-list__head .heading-section { margin: 0 auto 0 0; }
 .pass-list__following { white-space: nowrap; }
 .pass-list__zone { margin: calc(-1 * var(--sp-4)) 0 0; }

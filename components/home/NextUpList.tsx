@@ -189,7 +189,7 @@ export function ViewingTag({ viewing }: { viewing: ViewingProps | null }) {
   return viewing ? <span className="pass-card__tag pass-card__tag--viewing">viewing</span> : null;
 }
 
-/** Unfollow, or for the viewed satellite, Follow. */
+/** Remove, or for the viewed satellite, Save. */
 export function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | null; onUnfollow: () => void }) {
   if (viewing) {
     return (
@@ -199,11 +199,11 @@ export function FollowChip({ viewing, onUnfollow }: { viewing: ViewingProps | nu
         title={viewing.blocked ?? undefined}
         onClick={viewing.onFollow}
       >
-        {"\u2606 Follow"}
+        {"\u2606 Save"}
       </Button>
     );
   }
-  return <Button size="sm" variant="quiet" onClick={onUnfollow}>Unfollow</Button>;
+  return <Button size="sm" variant="quiet" onClick={onUnfollow}>Remove</Button>;
 }
 
 export type ChartKind = "sky" | "radio" | "live";

@@ -46,7 +46,7 @@ test('ghost and hidden satellites are not listed; ghosts get one faint-dot line'
     minElevDeg: 10,
   });
   assert.deepEqual(items.map((i) => i.kind), ['sat', 'ghost', 'track', 'footprint', 'night', 'note']);
-  assert.equal(items[1].label, 'Faint dots: the other satellites you follow');
+  assert.equal(items[1].label, 'Faint dots: the other satellites you saved');
 });
 
 test('the tick copy ignores ghosts', () => {

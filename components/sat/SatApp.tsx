@@ -384,7 +384,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             disabled={!following && Boolean(blocked)}
             onClick={toggleFollow}
           >
-            {following ? "Following" : "Follow"}
+            {following ? "Saved" : "Save"}
           </Button>
           {settings.observer && (
             <ShareButton url={headerLink} title={data.name} size="button" />

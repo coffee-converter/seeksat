@@ -24,7 +24,7 @@ interface Props {
 
 /**
  * The followed satellites, each in its map colour: its name opens its page
- * (a pasted satellite has none), then Hide or Show on the map, and Unfollow.
+ * (a pasted satellite has none), then Hide or Show on the map, and Remove.
  * Opened by the Following button over the pass list.
  */
 export default function FollowingSheet({ open, onClose, colors }: Props) {
@@ -35,9 +35,9 @@ export default function FollowingSheet({ open, onClose, colors }: Props) {
   const pasted = new Set(prefs.custom.map((c) => c.noradId));
 
   return (
-    <Modal open={open} onClose={onClose} size="sheet" title="Following">
+    <Modal open={open} onClose={onClose} size="sheet" title="My satellites">
       {prefs.following.length === 0 ? (
-        <p className="note">No satellites followed yet. Search to add one.</p>
+        <p className="note">No saved satellites yet. Search to add one.</p>
       ) : (
         <ul className="following-sheet">
           {prefs.following.map((id) => {
@@ -67,8 +67,8 @@ export default function FollowingSheet({ open, onClose, colors }: Props) {
                 <Button size="sm" aria-label={`${hidden ? "Show" : "Hide"} ${name} on map`} onClick={() => toggleHidden(id)}>
                   {hidden ? "Show" : "Hide"}
                 </Button>
-                <Button size="sm" tone="danger" aria-label={`Unfollow ${name}`} onClick={() => unfollow(id)}>
-                  Unfollow
+                <Button size="sm" tone="danger" aria-label={`Remove ${name}`} onClick={() => unfollow(id)}>
+                  Remove
                 </Button>
               </li>
             );

@@ -168,8 +168,8 @@ export default function PassRowOpen({
           <Icon name="calendar" /> Calendar
         </Button>
         {!onSatPage && <ElementTags track={track} nowMs={nowMs} />}
-        {/* Follow, for a satellite being viewed. Unfollow is not a pass's
-            action: it lives in the Following list and on the satellite's page. */}
+        {/* Save, for a satellite being viewed. Removing one is not a pass's
+            action: it lives in My satellites and on the satellite's page. */}
         {onUnfollow && viewing && <FollowChip viewing={viewing} onUnfollow={onUnfollow} />}
         {best && <span className="pass-open__best">Best pass in the next 24 hours</span>}
       </div>

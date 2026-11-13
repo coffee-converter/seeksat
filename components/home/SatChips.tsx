@@ -69,7 +69,7 @@ export default function SatChips({ chips, pending = null, onFollow, focusId, onF
   }, [pendingId]);
   if (chips.length === 0 && !pending) return null;
   return (
-    <ul className="sat-chips" aria-label="Followed satellites" ref={ref} data-more={more || undefined}>
+    <ul className="sat-chips" aria-label="Saved satellites" ref={ref} data-more={more || undefined}>
       {chips.map((c) => {
         const focused = c.noradId === focusId;
         return (

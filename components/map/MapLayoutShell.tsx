@@ -12,7 +12,7 @@ import MapShell from "@/components/MapShell";
 import { shellClassFor } from "@/lib/map/shell-route.mjs";
 import { useMapScene } from "@/lib/map/scene-store";
 import { useHomeStore, watchPrefs } from "@/lib/home/store";
-import { useFollow } from "@/lib/map/follow-store";
+import { useLock } from "@/lib/map/lock-store";
 import { useMapClock } from "@/lib/map/map-clock";
 import { reverseGeocodeName } from "@/lib/pass-finder/geocode.js";
 import { usePassViewStore } from "@/lib/ui/pass-view";
@@ -74,7 +74,7 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
 
   // Lock on is off whenever a page loads, including a hop between satellites.
   useEffect(() => {
-    useFollow.getState().setFollowing(false);
+    useLock.getState().setLocked(false);
   }, [pathname]);
 
   // A shared link's view (lib/share/view-link.mjs): laid over the prefs until
@@ -106,13 +106,13 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
   const shownId = scene?.selectedId ?? null;
   const dockFollow = useRef<DockFollow>(null);
   useEffect(() => {
-    const { following, setFollowing } = useFollow.getState();
+    const { locked: following, setLocked } = useLock.getState();
     const publishedId = useMapScene.getState().scene?.selectedId ?? null;
     const step = followStep(dockFollow.current, { dockId, shownId, publishedId, following });
     dockFollow.current = step.state;
-    if (step.follow != null) setFollowing(step.follow);
+    if (step.follow != null) setLocked(step.follow);
     // Locking on for the live view also zooms so its footprint fills the map.
-    if (step.follow === true && dockId != null) useFollow.getState().fitFootprint();
+    if (step.follow === true && dockId != null) useLock.getState().fitFootprint();
   }, [dockId, shownId]);
 
   // A new page starts at the top of the panel, but the first render does not.

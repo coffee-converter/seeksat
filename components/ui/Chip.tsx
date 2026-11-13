@@ -33,8 +33,8 @@ export default function Chip({ color, label, focused = false, hidden = false, on
         <button
           type="button"
           className="chip__name chip__whole"
-          aria-label={`Follow ${label}`}
-          title={followBlocked ?? `Follow ${label}`}
+          aria-label={`Save ${label}`}
+          title={followBlocked ?? `Save ${label}`}
           disabled={Boolean(followBlocked)}
           onClick={onFollow}
         >
@@ -42,7 +42,7 @@ export default function Chip({ color, label, focused = false, hidden = false, on
           {label}
           <span className="chip__follow" aria-hidden="true">
             <Icon name="star" size={14} />
-            Follow
+            Save
           </span>
         </button>
       ) : (

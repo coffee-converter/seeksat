@@ -29,7 +29,7 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, tota
       </p>
       <div className="focus-bar__actions">
         <Button size="sm" className="focus-bar__follow" on={followed} disabled={!followed && Boolean(blocked)} onClick={onToggleFollow}>
-          {followed ? "★" : "☆"}<span className="focus-bar__word"> {followed ? "Following" : "Follow"}</span>
+          {followed ? "★" : "☆"}<span className="focus-bar__word"> {followed ? "Saved" : "Save"}</span>
         </Button>
         <Button size="sm" onClick={onShowAll}>{text.showAll}</Button>
       </div>

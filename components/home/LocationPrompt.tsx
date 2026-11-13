@@ -198,12 +198,12 @@ export function PopularList({ names }: { names: ReadonlyMap<number, string> }) {
               <Button
                 variant="primary"
                 pressed={on}
-                aria-label={`Follow ${name}`}
+                aria-label={`Save ${name}`}
                 disabled={!on && full}
-                title={!on && full ? `You can follow up to ${MAX_FOLLOWING} satellites` : undefined}
+                title={!on && full ? `You can save up to ${MAX_FOLLOWING} satellites` : undefined}
                 onClick={() => (on ? unfollow(id) : follow(id))}
               >
-                {on ? "Following" : "Follow"}
+                {on ? "Saved" : "Save"}
               </Button>
             </li>
           );
