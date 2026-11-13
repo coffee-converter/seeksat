@@ -41,7 +41,7 @@ export function ratingText(
 const BAR_COUNT = 5;
 
 /** Poor, Fair, Good, Great or Excellent for a pass, after 1 to 5 signal bars:
- *  one word per bar count. The word and the bars carry it; the colour (red to
+ *  one word per bar count. The word and the bars carry it; the colour (grey to
  *  green) only backs them up. Below Good it says why in a few words ("Poor:
  *  faint", "Fair: 14° up"); the
  *  tooltip keeps the full reason. `rating` (visual mode) replaces the

@@ -482,7 +482,7 @@
   line-height: var(--lh-body);
   color: var(--muted);
 }
-/* The word and its signal bars take the bar count's colour, red to green. */
+/* The word and its signal bars take the bar count's colour, grey to green. */
 .quality--b1 { color: var(--q1); }
 .quality--b2 { color: var(--q2); }
 .quality--b3 { color: var(--q3); }
