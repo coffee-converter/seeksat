@@ -109,6 +109,18 @@ interface Props {
 
 // The home pass list: every pass in the next 48 hours as one compact row
 // under day headings, each opening in place.
+/** Whether the opened row is wholly on screen in the list's scroller (the
+ *  docked panel, or the window below the pinned header, as its
+ *  scroll-margin-top says), so the Best line need not scroll to it. */
+function fullyInView(row: HTMLElement): boolean {
+  const panel = row.closest<HTMLElement>(".map-shell__panel");
+  const scrolls = panel != null && panel.scrollHeight > panel.clientHeight && getComputedStyle(panel).overflowY !== "visible";
+  const box = scrolls ? panel.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+  const inset = parseFloat(getComputedStyle(row).scrollMarginTop) || 0;
+  const r = row.getBoundingClientRect();
+  return r.top >= box.top + inset - 1 && r.bottom <= box.bottom + 1;
+}
+
 export default function PassList({
   cards: followedCards, viewingCard = null, tracks, colors, observer, mode, minElevDeg, nowMs, onModeChange,
   zoneNote = null, strip, headAction = null, onUnfollow, onFollow, followBlocked, openChart, clouds = null, skyType, onOpenRow,
@@ -247,7 +259,8 @@ export default function PassList({
     if (!key) return;
     scrollTo.current = null;
     const row = document.querySelector(`[aria-controls="${CSS.escape(panelId(key))}"]`)?.closest("li");
-    row?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+    if (!row || fullyInView(row)) return;
+    row.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
   });
 
   const line = (() => {
