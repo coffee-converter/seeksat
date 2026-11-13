@@ -100,7 +100,7 @@ export function RadioPanel({ track, observer, pass, nowMs, banded, onMore }: {
   ].filter(Boolean).join(", ") : "";
   return (
     <Surface padded="sm" className="pass-card__radio">
-      <dl className="radio-rows">
+      <dl className="kv radio-rows">
         <dt>Listen</dt>
         <dd className="radio-rows__freq num">{`${mhz(link.hz)}${link.mode ? ` ${link.mode.toUpperCase()}` : ""}`}</dd>
         <dd className="radio-rows__note num">{swing ?? ""}</dd>

@@ -9,6 +9,7 @@ import { satName } from "@/lib/home/names.mjs";
 import { markFromList } from "@/lib/home/list-origin.mjs";
 import { satPath } from "@/lib/sat/page-data.mjs";
 import { linkClass } from "@/lib/ui/classes.mjs";
+import Icon from "@/components/ui/Icon";
 
 const nameFor = satName as (
   id: number,
@@ -48,7 +49,7 @@ export default function FollowingSheet({ open, onClose, colors }: Props) {
                 className="following-sheet__sat"
                 style={{ "--sat-color": colors.get(id) ?? "var(--map-muted)" } as CSSProperties}
               >
-                <span className="following-sheet__dot" aria-hidden="true" />
+                <span className="sat-dot" aria-hidden="true" />
                 {pasted.has(id) ? (
                   <span className="following-sheet__name">{name}</span>
                 ) : (
@@ -60,7 +61,7 @@ export default function FollowingSheet({ open, onClose, colors }: Props) {
                       onClose();
                     }}
                   >
-                    {`${name} ›`}
+                    {name}<Icon name="chevron-right" />
                   </Link>
                 )}
                 <Button size="sm" aria-label={`${hidden ? "Show" : "Hide"} ${name} on map`} onClick={() => toggleHidden(id)}>

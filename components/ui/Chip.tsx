@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { cx } from "@/lib/ui/classes.mjs";
 import RadioMark from "./RadioMark";
+import Icon from "./Icon";
 
 interface Props {
   /** The dot and focus-ring colour. */
@@ -23,7 +24,7 @@ export default function Chip({ color, label, focused = false, hidden = false, on
   return (
     <li className={cx("chip", hidden && "chip--hidden", focused && "chip--focus")} style={{ "--chip-color": color } as CSSProperties}>
       <button type="button" className="chip__name" aria-pressed={focused} onClick={onSelect}>
-        {radio ? <RadioMark className="chip__radio" label="known downlinks" /> : <span className="chip__dot" aria-hidden="true" />}
+        {radio ? <RadioMark className="chip__radio" label="known downlinks" /> : <span className="sat-dot sat-dot--sm" aria-hidden="true" />}
         {label}
       </button>
       {onToggleHidden ? (
@@ -34,11 +35,7 @@ export default function Chip({ color, label, focused = false, hidden = false, on
           title={hidden ? "Show on the map" : "Hide on the map"}
           onClick={onToggleHidden}
         >
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <path d="M1 8s2.6-5 7-5 7 5 7 5-2.6 5-7 5-7-5-7-5z" fill="none" stroke="currentColor" strokeWidth="1.4" />
-            <circle cx="8" cy="8" r="2" fill="currentColor" />
-            {hidden && <path d="M2 14 14 2" stroke="currentColor" strokeWidth="1.4" />}
-          </svg>
+          <Icon name={hidden ? "eye-off" : "eye"} size={14} />
         </button>
       ) : null}
     </li>

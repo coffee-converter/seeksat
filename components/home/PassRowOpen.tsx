@@ -20,6 +20,7 @@ import {
   ElementTags, FollowChip, downloadPassIcs, isPasted, liveOk, passShareUrl, reminderUrl, usePassPlot,
   type HomeObserver, type OpenChart, type Pass, type Track, type ViewingProps,
 } from "./NextUpList";
+import Icon from "@/components/ui/Icon";
 
 const compass = compassOf as (azDeg: number) => string;
 type PathStep = { key: "start" | "peak" | "end"; label: string; ms: number };
@@ -32,12 +33,12 @@ function at(ms: number, azDeg: number | null | undefined, timeZone?: string, ele
   return where ? `${passTime(ms, timeZone)}, ${where}` : passTime(ms, timeZone);
 }
 
-/** The "{name} page ›" link, for a satellite that has a page. */
+/** The "{name} page" link, for a satellite that has a page. */
 export function SatPageLink({ track, name }: { track: Track; name: string }) {
   if (isPasted(track)) return null;
   return (
     <Link className={`pass-open__page ${buttonClass({ variant: "link", size: "sm" })}`} href={`/sat/${track.noradId}`} onClick={markFromList}>
-      {`${name} page ›`}
+      {`${name} page`}<Icon name="chevron-right" />
     </Link>
   );
 }
@@ -91,7 +92,7 @@ export default function PassRowOpen({
           <PolarPlotSvg ref={svgRef} />
         </div>
         <div className="pass-open__facts">
-          <dl className="pass-open__steps">
+          <dl className="kv pass-open__steps">
             {start && <div><dt>{start.label}</dt><dd>{at(start.ms, pass.startAzDeg, tz)}</dd></div>}
             <div><dt>Highest</dt><dd>{at(pass.peakMs, pass.peakAzDeg, tz, pass.maxElevDeg)}</dd></div>
             {end && <div><dt>{end.label}</dt><dd>{at(end.ms, pass.endAzDeg, tz)}</dd></div>}
@@ -133,7 +134,7 @@ export default function PassRowOpen({
       <div className="pass-open__more">
         {visual ? radioButton("quiet") : skyButton("quiet")}
         <Button size="sm" variant="quiet" title="Add to calendar" onClick={() => downloadPassIcs({ track, observer, pass, mode, minElevDeg })}>
-          <span aria-hidden="true">📅</span> Calendar
+          <Icon name="calendar" /> Calendar
         </Button>
         <ElementTags track={track} nowMs={nowMs} />
         <FollowChip viewing={viewing} onUnfollow={onUnfollow} />

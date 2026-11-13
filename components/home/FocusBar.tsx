@@ -3,6 +3,7 @@
 import { focusBarText } from "@/lib/home/focus.mjs";
 import { useFollow } from "@/lib/map/follow-store";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 
 type BarText = { title: string; showAll: string; follow: string; lock: { off: string; on: string } };
 const textOf = focusBarText as (name: string, isFollowed: boolean, total: number) => BarText;
@@ -55,7 +56,7 @@ export default function FocusBar({ name, followed, blocked, onToggleFollow, mode
               Details
             </Button>
             <Button size="sm" iconOnly className="focus-bar__close" aria-label="Close details" onClick={onClose}>
-              <span className="focus-bar__x" aria-hidden="true">{"×"}</span>
+              <Icon name="close" />
             </Button>
           </>
         ) : (

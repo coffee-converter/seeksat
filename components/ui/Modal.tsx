@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Button from "./Button";
 import { useFocusTrap } from "./useFocusTrap";
 import { cx, modalClass } from "@/lib/ui/classes.mjs";
+import Icon from "./Icon";
 
 interface Props {
   open: boolean;
@@ -76,7 +77,7 @@ export default function Modal({ open, onClose, title, size = "dialog", tone = "p
           <div className="modal__actions">
             {actions}
             <Button ref={closeRef} variant="quiet" tone="danger" iconOnly aria-label="Close" onClick={() => onCloseRef.current()}>
-              <span aria-hidden="true">✕</span>
+              <Icon name="close" />
             </Button>
           </div>
         </header>

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Button from "./Button";
+import Icon from "./Icon";
 import { cx } from "@/lib/ui/classes.mjs";
 
 interface DisclosureProps {
@@ -14,7 +15,7 @@ interface DisclosureProps {
   children: ReactNode;
 }
 
-// A "⋯" button and the less-used actions it reveals. It is outlined like the
+// A "more" (three dots) button and the less-used actions it reveals. It is outlined like the
 // buttons beside it, so it reads as one; its accessible name says More or
 // Less and which pass it is for, and the tooltip says what it does. The
 // wrapper and panel are display: contents, so the actions join the row.
@@ -31,7 +32,7 @@ export function Disclosure({ id, open, onToggle, label, children }: DisclosurePr
         title={`${word} actions`}
         onClick={onToggle}
       >
-        <span aria-hidden="true">⋯</span>
+        <Icon name="more" />
       </Button>
       <div id={id} className="disclosure__panel" hidden={!open}>
         {children}
@@ -42,11 +43,12 @@ export function Disclosure({ id, open, onToggle, label, children }: DisclosurePr
 
 /** A native fold: <details> with a chevron summary. Pass `open` and
  *  `onToggle` to control it; `className` places it in a layout. */
-export function Details({ summary, defaultOpen, open, onToggle, className, children }: {
-  summary: ReactNode; defaultOpen?: boolean; open?: boolean; onToggle?: (open: boolean) => void; className?: string; children: ReactNode;
+export function Details({ id, summary, defaultOpen, open, onToggle, className, children }: {
+  id?: string; summary: ReactNode; defaultOpen?: boolean; open?: boolean; onToggle?: (open: boolean) => void; className?: string; children: ReactNode;
 }) {
   return (
     <details
+      id={id}
       className={cx("details", className)}
       open={open ?? defaultOpen}
       onToggle={onToggle ? (e) => onToggle(e.currentTarget.open) : undefined}

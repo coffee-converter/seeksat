@@ -30,6 +30,7 @@ import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 import Button from "@/components/ui/Button";
 import { usePlaceZone } from "@/components/usePlaceZone";
+import Icon from "@/components/ui/Icon";
 
 // The chart painters load on the first chart open, not with the page.
 const DAY_MS = 86_400_000;
@@ -520,7 +521,7 @@ export default function PassSection({
                                     ? <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>
                                     : <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>}
                                   <Button size="sm" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
-                                    <span aria-hidden="true">{"📅"}</span> Calendar
+                                    <Icon name="calendar" /> Calendar
                                   </Button>
                                   {track && (
                                     <AlertBell

@@ -174,8 +174,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-12);
   padding: var(--sp-6) 0; border-bottom: var(--line-subtle);
 }
-.sat-etable dt { color: var(--map-muted); }
-.sat-etable dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; text-align: right; }
+.sat-etable dd { text-align: right; }
 @media (min-width: 480px) {
   .sat-etable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sat-etable__row--wide { grid-column: 1 / -1; }

@@ -6,6 +6,7 @@ import Segmented from "@/components/ui/Segmented";
 import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { PROJECTIONS } from "@/lib/map/view.mjs";
 import type { Preset } from "@/components/home/FlatMap";
+import Icon from "@/components/ui/Icon";
 
 interface Props {
   view: "flat" | "globe";
@@ -82,7 +83,7 @@ export default function MapLayers({ view, onViewChange, presets, onPreset, follo
         aria-controls={panelId}
         onClick={() => setOpen((o) => !o)}
       >
-        <span aria-hidden="true">{"◱"}</span>
+        <Icon name="layers" />
       </Button>
       <div
         ref={panelRef}

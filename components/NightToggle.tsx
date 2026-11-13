@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { applyMode, readMode, readNight, writeNight } from "@/lib/ui/theme.mjs";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
@@ -40,9 +41,7 @@ export default function NightToggle() {
       aria-label="Night vision"
       onClick={toggle}
     >
-      <svg className="night-toggle__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-      </svg>
+      <Icon name="moon" className="night-toggle__icon" />
       <span className="night-toggle__label">Night vision</span>
     </Button>
   );

@@ -50,7 +50,7 @@ export default function ElementsTable({
     <section className="sat-elements" aria-labelledby="sat-elements-title">
       <h2 id="sat-elements-title" className="heading-section">Mean elements</h2>
       <AgeLine age={age} source={source} fetchedText={fetchedText} />
-      <dl className="sat-etable num">
+      <dl className="kv sat-etable num">
         {rows.map(([k, v]) => (
           <div key={k} className="sat-etable__row">
             <dt>{k}</dt>

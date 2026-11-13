@@ -52,7 +52,7 @@ export default function PassStats({ pass, nowMs, timeZone, mag = null, maxSub, w
 }) {
   const stats = statsOf(pass, nowMs, { timeZone, clock: passTime, weekday });
   return (
-    <dl className={`pass-card__stats${className ? ` ${className}` : ""}`}>
+    <dl className={`kv pass-card__stats${className ? ` ${className}` : ""}`}>
       <StatCell stat={stats.first} live={stats.first.label === "Ends"} />
       <StatCell stat={maxSub === undefined ? stats.max : { ...stats.max, sub: maxSub }} />
       <StatCell stat={{ ...stats.last, sub: mag }} />

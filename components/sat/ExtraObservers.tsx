@@ -6,6 +6,7 @@ import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
+import Icon from "@/components/ui/Icon";
 
 interface Props {
   /** A shared view: show these places, with no way to add or remove one. */
@@ -86,7 +87,7 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
                 aria-label={`Remove ${o.name}`}
                 onClick={() => removeObserver(o.id)}
               >
-                {"×"}
+                <Icon name="close" />
               </Button>}
             </li>
           ))}

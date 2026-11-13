@@ -145,7 +145,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
         {turn && <p className="live-view__turn">{turn}</p>}
         {compassNote && <p className="note">{compassNote}</p>}
         {live && live.azDeg != null && live.elDeg != null && (
-          <dl className="live-view__nums num">
+          <dl className="kv live-view__nums num">
             <Surface><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></Surface>
             <Surface><dt>Elevation</dt><dd>{`${Math.round(live.elDeg)}°`}</dd></Surface>
             <Surface><dt>Range</dt><dd>{`${Math.round(live.rangeKm!).toLocaleString()} km`}</dd></Surface>

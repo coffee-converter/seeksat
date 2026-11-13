@@ -252,6 +252,7 @@
   gap: var(--sp-8);
   padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-12);
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 .search-bar__name { min-width: 0; overflow-wrap: anywhere; }
 /* The follow star: its own tap target, so a row tap still means view. */
@@ -259,7 +260,7 @@
 .search-bar__star-glyph { font-size: var(--fs-xl); line-height: 1; }
 .search-bar__star-glyph--on { color: var(--warn); }
 .search-bar__option:hover,
-.search-bar__option[aria-selected="true"] { background: rgba(var(--accent-rgb), 0.16); }
+.search-bar__option[aria-selected="true"] { background: var(--option-on); }
 .search-bar__id { color: var(--map-muted); font-size: 0.85em; }
 .search-bar__radio { margin-left: var(--sp-4); color: var(--accent); }
 .search-bar__note { margin: var(--sp-6) var(--sp-2) 0; color: var(--map-muted); }
@@ -287,7 +288,7 @@
   color: var(--map-accent);
   font-family: var(--font-brand);
   font-size: var(--fs-2xl);
-  font-weight: 600; /* brand */
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.01em;
   line-height: var(--lh-tight);
 }
@@ -325,7 +326,7 @@
 
 /* A value that just changed (useFlash). */
 @keyframes tick { from { background: var(--flash-bg); color: var(--flash-text); } to { background: transparent; } }
-.is-ticking { animation: tick 700ms ease-out; }
+.is-ticking { animation: tick var(--dur-flash) ease-out; }
 .flash-text { border-radius: var(--radius-sm); }
 @media (prefers-reduced-motion: reduce) {
   .is-ticking { animation: none; }
@@ -507,11 +508,10 @@
 /* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
 /* Where to look, in words. It may wrap on a phone; a time never breaks. */
 /* Where the pass goes, in the stat columns under Starts, Max and Lasts. */
-.pass-path__step dt { color: var(--map-muted); font-size: var(--fs-sm); }
 /* "Below 10°" stays whole; its compass point may drop to the next line. */
 .pass-path__label { white-space: nowrap; }
 .pass-path__dir { color: var(--map-text); font-weight: var(--fw-semibold); white-space: nowrap; }
-.pass-path__step dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pass-path__step dd { font-size: var(--fs-md); white-space: nowrap; }
 /* Radio mode: what to listen and transmit on, as a small table. */
 .radio-rows {
   display: grid;
@@ -520,8 +520,6 @@
   gap: var(--sp-2) var(--sp-12);
   margin: 0;
 }
-.radio-rows dt { color: var(--map-muted); font-size: var(--fs-sm); }
-.radio-rows dd { margin: 0; }
 .radio-rows__freq { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); white-space: nowrap; }
 .radio-rows__note { justify-self: end; text-align: right; color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__radio-more { margin-top: var(--sp-4); }
@@ -537,8 +535,7 @@
 .pass-card__stats { grid-template-columns: repeat(3, auto); justify-content: space-between; column-gap: var(--sp-12); row-gap: var(--sp-8); }
 /* No min-width: 0 here: a squeezed column broke "Max" into letters. The
    grid's own minimum keeps each column as wide as its longest word. */
-.pass-card__stat dt { font-size: var(--fs-sm); color: var(--map-muted); white-space: nowrap; }
-.pass-card__stat dd { margin: 0; }
+.pass-card__stat dt { white-space: nowrap; }
 .pass-card__stat-value {
   color: var(--text-strong);
   font-size: var(--fs-lg);
@@ -580,6 +577,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 .pass-row__btn:hover { background: var(--btn-hover); }
 /* Inset, so the list's rounded clip never cuts the ring. */
@@ -640,8 +638,7 @@
   font-variant-numeric: tabular-nums;
 }
 .pass-open__steps div { display: contents; }
-.pass-open__steps dt { color: var(--map-muted); font-size: var(--fs-sm); }
-.pass-open__steps dd { margin: 0; color: var(--map-text); font-size: var(--fs-md); white-space: nowrap; }
+.pass-open__steps dd { font-size: var(--fs-md); white-space: nowrap; }
 .pass-open__seen { margin: 0; color: var(--map-muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .pass-open__seen .pass-card__tag:first-child { margin-left: 0; }
 .pass-open__actions,
@@ -856,7 +853,6 @@
 .focus-bar__title { flex: 1 1 auto; min-width: 0; margin: 0; font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
 .focus-bar__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .focus-bar .focus-bar__close { min-width: 40px; min-height: 40px; }
-.focus-bar__x { font-size: var(--fs-xl); line-height: 1; }
 /* Details jumps to the drawer title, which only sits below the map under 1100 px. */
 @media (min-width: 1100px) { .focus-bar .focus-bar__details { display: none; } }
 .focus-bar__note { flex-basis: 100%; }
@@ -949,10 +945,7 @@
   line-height: var(--lh-body);
 }
 .home-about { scroll-margin-top: calc(var(--header-h, 64px) + var(--sp-8)); }
-.home-about__summary { cursor: pointer; color: var(--map-text); }
-.home-about__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .home-about p { margin: var(--sp-8) 0 0; }
-.home-about a { color: var(--map-accent); }
 
 /* Map shell (components/MapShell.tsx), shared by / and /sat/<id>.
    Under 1100 px: one column, a sticky top bar, a tall map, the panel below.
@@ -1030,6 +1023,7 @@
 .location-pill[data-ready="false"] { visibility: hidden; }
 .location-pill__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .location-pill__caret { flex: none; color: var(--map-muted); }
+.location-pill__pin { color: var(--danger); }
 /* ThemeToggle (components/ThemeToggle.tsx): segmented from 700 px, one cycling
    button below, so the phone header row never crowds the wordmark. */
 .theme-toggle[data-ready="false"] { visibility: hidden; }
@@ -1302,8 +1296,7 @@
 .live-dial__sat { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
 .live-dial__caption { margin-top: var(--sp-4); text-align: center; font-size: var(--fs-sm); color: var(--map-muted); }
 .live-view__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin: 0; }
-.live-view__nums dt { font-size: var(--fs-sm); color: var(--map-muted); }
-.live-view__nums dd { margin: var(--sp-2) 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.live-view__nums dd { margin: var(--sp-2) 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); white-space: nowrap; }
 .live-view__radio .note { margin: var(--sp-4) 0 0; }
 .live-view__tune { margin: 0; display: flex; align-items: baseline; gap: var(--sp-12); flex-wrap: wrap; }
 .live-view__tune-label { font-size: var(--fs-md); color: var(--map-muted); }
@@ -1370,6 +1363,7 @@
   border-radius: var(--radius-sm);
   background-color: var(--sat-color);
   box-shadow: 0 0 0 1px var(--timeline-day);
+  transition: inset var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
 .timeline__bar--ok::before { opacity: 0.85; }
 .timeline__bar--low::before { opacity: 0.7; }
@@ -1401,16 +1395,13 @@
   .cloud { display: none; }
 }
 
-/* SettingsSheet (components/map/SettingsSheet.tsx): label over control, one row each. */
+/* SettingsSheet (components/map/SettingsSheet.tsx): SettingRows, then links. */
 .settings-sheet { display: flex; flex-direction: column; }
-.settings-sheet__row { display: flex; flex-direction: column; gap: var(--sp-6); padding: var(--sp-12) 0; border-bottom: var(--line-subtle); }
-.settings-sheet__control { min-width: 0; }
-.settings-sheet__control .home-controls__elev { display: inline-flex; }
+.settings-sheet .home-controls__elev { display: inline-flex; }
 /* The Following sheet: one row per followed satellite, its map colour first. */
 .following-sheet { list-style: none; margin: 0; padding: 0; }
 .following-sheet__sat { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-6) 0; border-bottom: var(--line-subtle); }
 .following-sheet__sat:last-child { border-bottom: 0; }
-.following-sheet__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--sat-color); }
 .following-sheet__name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--map-text); text-align: left; }
 .following-sheet__name.btn { justify-content: flex-start; }
 .settings-sheet__nav { border-bottom: var(--line-subtle); }

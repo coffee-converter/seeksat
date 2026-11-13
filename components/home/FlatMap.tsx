@@ -18,6 +18,7 @@ import { useFollow } from "@/lib/map/follow-store";
 import { peekPendingCamera, registerCameraReader, setPendingCamera } from "@/lib/map/share-camera";
 import Button from "@/components/ui/Button";
 import MapLayers from "@/components/map/MapLayers";
+import Icon from "@/components/ui/Icon";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -1615,7 +1616,7 @@ export default function FlatMap({
           legend={legendList}
         />
         <Button variant="overlay" iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
-          <span aria-hidden="true">{"⛶"}</span>
+          <Icon name={full ? "exit-fullscreen" : "fullscreen"} />
         </Button>
       </div>
     </div>

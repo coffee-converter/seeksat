@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { canRemind as canRemindFn, addAlert, makeAlert, removeAlert, DEFAULT_LEAD_MIN } from "@/lib/alerts/alerts.mjs";
 import { readAlerts, watchAlerts, writeAlerts, type PassAlert } from "@/lib/alerts/store";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 
 export const OPEN_TAB_NOTE = "Reminders work only while SeekSat is open, in a tab or as an installed app.";
 const BLOCKED_NOTE = "Your browser blocked notifications. Allow them for this site to get reminders.";
@@ -23,7 +24,7 @@ const canRemind = canRemindFn as (p: { startMs: number }, nowMs: number) => bool
 const add = addAlert as (l: PassAlert[], a: PassAlert) => PassAlert[];
 const remove = removeAlert as (l: PassAlert[], id: string) => PassAlert[];
 
-/** A "🔔 Remind me" chip, pressed while set: remind me 10 minutes before this pass, while SeekSat is open. */
+/** A bell "Remind me" chip, pressed while set: remind me 10 minutes before this pass, while SeekSat is open. */
 export default function AlertBell({ noradId, name, pass, url }: Props) {
   const id = `${noradId}:${pass.startMs}`;
   const [on, setOn] = useState(false);
@@ -77,7 +78,7 @@ export default function AlertBell({ noradId, name, pass, url }: Props) {
         title={on ? "Cancel reminder" : `Reminder ${DEFAULT_LEAD_MIN} min before`}
         onClick={toggle}
       >
-        <span aria-hidden="true">{"🔔"}</span> Remind me
+        <Icon name="bell" /> Remind me
       </Button>
       {note && <span className="alert-note" role="status">{note}</span>}
     </>
