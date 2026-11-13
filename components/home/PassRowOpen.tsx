@@ -4,7 +4,7 @@ import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
 import { RadioPanel, aboveTenText } from "@/components/passes/PassPath";
-import { passTime } from "@/components/passes/PassStats";
+import { passTimeZoned } from "@/components/passes/PassStats";
 import { peakMagText, type Quality } from "@/components/passes/QualityBadge";
 import RatingExplainer from "@/components/passes/RatingExplainer";
 import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
@@ -31,7 +31,7 @@ const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number; n
 function at(ms: number, azDeg: number | null | undefined, timeZone?: string, elevDeg?: number): string {
   const where = [elevDeg != null ? `${Math.round(elevDeg)}°` : null, azDeg != null ? compass(azDeg) : null]
     .filter(Boolean).join(" ");
-  return where ? `${passTime(ms, timeZone)}, ${where}` : passTime(ms, timeZone);
+  return where ? `${passTimeZoned(ms, timeZone)}, ${where}` : passTimeZoned(ms, timeZone);
 }
 
 /** The "{name} page" link, for a satellite that has a page. */

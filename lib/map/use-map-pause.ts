@@ -7,7 +7,7 @@ import { useEffect, useMemo } from "react";
 import { passArc, visibilityRing } from "./pass-arc.mjs";
 import { subpoint } from "./geometry.mjs";
 import { useMapClock } from "./map-clock";
-import { passTime } from "@/components/passes/PassStats";
+import { passTimeZoned } from "@/components/passes/PassStats";
 import type { MapPass } from "@/components/home/useMapSats";
 
 /** The open pass row a page reports: its key and the pass's times. */
@@ -87,7 +87,7 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   const zone = timeZone ?? open?.timeZone;
   useEffect(() => {
     if (key == null || peakMs == null) clear();
-    else pause({ key, atMs: peakMs, label: passTime(peakMs, zone) });
+    else pause({ key, atMs: peakMs, label: passTimeZoned(peakMs, zone) });
   }, [key, peakMs, zone, pause, clear]);
   useEffect(() => () => useMapClock.getState().clear(), []);
   const isPaused = paused != null && key != null && paused.key === key;
@@ -96,8 +96,8 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
     paused: isPaused, ring,
     // The card's own rise and set when they are the same moment (within a
     // minute and a half, rounding apart), so the map and the card agree.
-    riseLabel: passTime(row && Math.abs(row.startMs - p.startMs) <= SAME_MS ? row.startMs : p.startMs, zone),
-    setLabel: passTime(row && Math.abs(row.endMs - p.endMs) <= SAME_MS ? row.endMs : p.endMs, zone),
+    riseLabel: passTimeZoned(row && Math.abs(row.startMs - p.startMs) <= SAME_MS ? row.startMs : p.startMs, zone),
+    setLabel: passTimeZoned(row && Math.abs(row.endMs - p.endMs) <= SAME_MS ? row.endMs : p.endMs, zone),
   } : null;
   // Paused only while the store is paused for this very row: closing the row
   // (or Back to live) goes live in the same render that brings the other

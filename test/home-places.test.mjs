@@ -46,27 +46,27 @@ test('placeName falls back to "Your location" for an empty name', () => {
   assert.equal(placeName({ ...chi, name: '   ' }), 'Your location');
 });
 
-test('placeLabels: coordinates under generic or repeated names, none under unique ones', () => {
+test('placeLabels: every place has its coordinates under it, unless its name is them', () => {
   const gpsA = { name: 'My location', latDeg: 41.88, lonDeg: -87.63, source: 'gps' };
-  const gpsB = { name: 'My location', latDeg: 40.71, lonDeg: -74.01, source: 'gps' };
   const blank = { name: '', latDeg: 35.68, lonDeg: 139.69, source: 'coords' };
-  assert.deepEqual(placeLabels([chi, tok]), [{ name: 'Chicago', coords: null }, { name: 'Tokyo', coords: null }]);
-  assert.deepEqual(placeLabels([gpsA, chi, gpsB, blank]), [
-    { name: 'My location', coords: '41.9, -87.6' },
-    { name: 'Chicago', coords: null },
-    { name: 'My location', coords: '40.7, -74.0' },
-    { name: 'Your location', coords: '35.7, 139.7' },
+  const typed = { name: '41.8781, -87.6298', latDeg: 41.8781, lonDeg: -87.6298, source: 'coords' };
+  assert.deepEqual(placeLabels([chi, tok]), [
+    { name: 'Chicago', coords: '41.88, -87.63' },
+    { name: 'Tokyo', coords: '35.68, 139.69' },
   ]);
-  // A single GPS place is generic too.
-  assert.deepEqual(placeLabels([gpsA]), [{ name: 'My location', coords: '41.9, -87.6' }]);
+  assert.deepEqual(placeLabels([gpsA, blank, typed]), [
+    { name: 'My location', coords: '41.88, -87.63' },
+    { name: 'Your location', coords: '35.68, 139.69' },
+    { name: '41.8781, -87.6298', coords: null },
+  ]);
   // Two places with the same name are told apart.
   const springIl = { name: 'Springfield', latDeg: 39.8, lonDeg: -89.64, source: 'place' };
   const springMo = { name: 'Springfield', latDeg: 37.21, lonDeg: -93.29, source: 'place' };
-  assert.deepEqual(placeLabels([springIl, springMo]).map((l) => l.coords), ['39.8, -89.6', '37.2, -93.3']);
+  assert.deepEqual(placeLabels([springIl, springMo]).map((l) => l.coords), ['39.80, -89.64', '37.21, -93.29']);
 });
 
 test('placeLabels adds decimals until close places read differently', () => {
-  const a = { name: 'My location', latDeg: 41.881, lonDeg: -87.631, source: 'gps' };
-  const b = { name: 'My location', latDeg: 41.912, lonDeg: -87.642, source: 'gps' };
-  assert.deepEqual(placeLabels([a, b]).map((l) => l.coords), ['41.88, -87.63', '41.91, -87.64']);
+  const a = { name: 'My location', latDeg: 41.8812, lonDeg: -87.6311, source: 'gps' };
+  const b = { name: 'My location', latDeg: 41.8838, lonDeg: -87.6342, source: 'gps' };
+  assert.deepEqual(placeLabels([a, b]).map((l) => l.coords), ['41.881, -87.631', '41.884, -87.634']);
 });

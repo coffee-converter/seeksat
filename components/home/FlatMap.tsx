@@ -1340,13 +1340,24 @@ export default function FlatMap({
     syncGestures();
   }, [view, homeView, setFollowing, limitZoom, syncFill, syncGestures]);
 
-  // An untouched home view follows the observer (it arrives after mount, once prefs load).
+  // An untouched home view follows the observer (it arrives after mount, once
+  // prefs load). Choosing a new place moves there even if the map was moved:
+  // it is a deliberate change of where you are.
   const obsLon = observer?.lonDeg ?? null;
   const obsLat = observer?.latDeg ?? null;
+  const lastObs = useRef<string | null>(null);
   useEffect(() => {
     const map = mapRef.current;
-    if (map && atHome.current) refitHome(map);
-  }, [obsLon, obsLat, refitHome]);
+    const key = obsLon == null || obsLat == null ? null : `${obsLon},${obsLat}`;
+    const moved = lastObs.current != null && key != null && key !== lastObs.current;
+    if (key != null) lastObs.current = key;
+    if (!map) return;
+    if (moved && !useMapClock.getState().paused) {
+      atHome.current = true;
+      setFollowing(false);
+    }
+    if (atHome.current) refitHome(map);
+  }, [obsLon, obsLat, refitHome, setFollowing]);
   // An untouched flat home view refits when the dots first arrive or the set
   // shown changes, so they are in view; not on every tick as they move.
   const dotsKey = sats.filter((s) => s.emphasis !== "hidden").map((s) => s.noradId).join(",");

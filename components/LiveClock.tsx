@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Icon from "@/components/ui/Icon";
+import { otherClock } from "@/components/passes/PassStats";
 
 /** "14:12:07" in UTC. */
 export function utcClock(ms: number): string {
@@ -23,20 +24,26 @@ export function localClock(ms: number, timeZone?: string): string {
  * A null `nowMs` (a page whose clock starts after mount) shows dashes.
  */
 export default function LiveClock({
-  nowMs, timeZone, compact = false, pausedMs = null,
+  nowMs, timeZone, compact = false, pausedMs = null, place = null,
 }: {
   nowMs: number | null;
   timeZone?: string;
   compact?: boolean;
   /** The map is paused at this time (an opened pass): shown in place of now. */
   pausedMs?: number | null;
+  /** The location the passes are for: when its clock differs from the
+   *  viewer's, the second line gives its time ("at Mendoza"), not "your time". */
+  place?: { name: string; timeZone: string } | null;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const paused = pausedMs != null;
   const ms = paused ? pausedMs : nowMs;
   const utc = ms == null ? "--:--:--" : utcClock(ms);
-  const local = mounted && ms != null ? `${localClock(ms, timeZone)}, your time` : "";
+  const elsewhere = mounted && ms != null && place != null && otherClock(ms, place.timeZone);
+  const local = !mounted || ms == null ? ""
+    : elsewhere && place ? `${localClock(ms, place.timeZone)} at ${place.name}`
+      : `${localClock(ms, timeZone)}, your time`;
 
   return (
     <div

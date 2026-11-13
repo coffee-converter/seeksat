@@ -9,7 +9,9 @@ import {
   addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, toggleHiddenIn, unfollowIn,
 } from "./actions.mjs";
 import { MAX_FOLLOWING, PREFS_KEY, defaultPrefs, loadPrefs, parsePrefs, savePrefs } from "./prefs.mjs";
-import { withPlace } from "./places.mjs";
+import { samePlace, withPlace } from "./places.mjs";
+
+const sameAs = samePlace as (a: HomeLocation, b: HomeLocation) => boolean;
 import { localStore } from "../safe-storage.mjs";
 import { DEFAULT_PROJECTION, defaultProjectionFor } from "../map/view.mjs";
 import { fetchRecords } from "./records.mjs";
@@ -91,6 +93,8 @@ interface HomeState {
   setPrefs: (patch: Partial<Prefs>) => void;
   /** Make this the home place; the old one moves into recent. */
   choosePlace: (location: HomeLocation) => void;
+  /** Drop a place from the recent list. */
+  removeRecent: (place: HomeLocation) => void;
   loadRecords: () => Promise<void>;
   reloadIfStale: (nowMs: number) => Promise<void>;
   setFocusId: (id: number | null) => void;
@@ -170,6 +174,11 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     get().setPrefs(withPlace(saved
       ? { location: saved.location, recent: saved.recent }
       : { location: prefs.location, recent: prefs.recent }, loc));
+  },
+  removeRecent: (place) => {
+    get().hydrate();
+    const recent = (storedPrefs()?.recent ?? get().prefs.recent).filter((p) => !sameAs(p, place));
+    get().setPrefs({ recent });
   },
   setPrefs: (patch) => {
     get().hydrate();

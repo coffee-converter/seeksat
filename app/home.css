@@ -530,7 +530,9 @@
 .location-sheet { display: flex; flex-direction: column; gap: var(--sp-12); }
 .location-sheet__places { list-style: none; margin: 0; padding: 0; border-top: var(--line-subtle); }
 .location-sheet__places > li + li { border-top: var(--line-subtle); }
-.btn.location-sheet__place { width: 100%; justify-content: flex-start; align-items: flex-start; }
+.location-sheet__row { display: flex; align-items: flex-start; gap: var(--sp-4); }
+.btn.location-sheet__place { flex: 1 1 auto; min-width: 0; width: 100%; justify-content: flex-start; align-items: flex-start; }
+.location-sheet__remove { flex: none; color: var(--map-muted); }
 .location-sheet__tick { flex: none; width: var(--sp-16); color: var(--map-accent); }
 .location-sheet__text { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; text-align: left; white-space: normal; }
 .location-sheet__name { color: var(--map-text); overflow-wrap: anywhere; }

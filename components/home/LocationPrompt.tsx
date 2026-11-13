@@ -126,7 +126,9 @@ export default function LocationPrompt({ onDone, onCancel, variant = "card" }: P
       setMessage(`No place found for "${typed}".`);
       return;
     }
-    save({ name: typed, latDeg: found.latDeg, lonDeg: found.lonDeg, source: "place" });
+    // Named as the map knows it ("nyc" saves as "New York, New York"),
+    // or as typed when the lookup gives no name.
+    save({ name: found.placeName || typed, latDeg: found.latDeg, lonDeg: found.lonDeg, source: "place" });
   };
 
   const form = (

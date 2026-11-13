@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { barPositions } from "@/lib/live/progress.mjs";
 import { clockFormat } from "@/lib/clock.mjs";
+import { otherClock, zoneAbbr } from "@/components/passes/PassStats";
 
 const positions = barPositions as (o: { startMs: number; peakMs: number | null; endMs: number; nowMs: number }) => {
   nowFrac: number; peakFrac: number | null; peakLabelFrac: number | null;
@@ -29,7 +30,7 @@ export default function LivePassBar({ startMs, startLabel, startShownMs, peakMs,
   const mark = (label: string, ms: number | null) => (
     <>
       <span className="live-bar__label">{label}</span>
-      {ms != null && <span className="live-bar__time num">{clock.format(ms)}</span>}
+      {ms != null && <span className="live-bar__time num">{otherClock(ms, timeZone) ? `${clock.format(ms)} ${zoneAbbr(ms, timeZone!)}` : clock.format(ms)}</span>}
     </>
   );
   return (
