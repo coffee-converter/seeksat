@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import PolarPlotSvg from "@/components/passes/PolarPlotSvg";
 import { RadioPanel, aboveTenText } from "@/components/passes/PassPath";
@@ -43,9 +43,19 @@ export function SatPageLink({ track, name }: { track: Track; name: string }) {
   );
 }
 
+/** The satellite page's own links for a pass, in place of the one-place
+ *  defaults: a share and reminder link that keep every place, and an .ics
+ *  that names them. */
+export interface PassLinks {
+  share: () => string;
+  remind: () => string;
+  calendar: () => void;
+}
+
 /** An opened pass row: the sky plot and where to look, then what to do. */
 export default function PassRowOpen({
-  id, name, track, pass, observer, mode, minElevDeg, nowMs, clouds, viewing, onUnfollow, openChart, best,
+  id, name, track, pass, observer, mode, minElevDeg, nowMs, clouds, viewing = null, onUnfollow, openChart, best = false,
+  onSatPage = false, links, children,
 }: {
   id: string;
   name: string;
@@ -57,11 +67,17 @@ export default function PassRowOpen({
   nowMs: number;
   clouds: Forecast | null;
   /** Set for the viewed (not followed) satellite: Follow replaces Unfollow. */
-  viewing: ViewingProps | null;
-  onUnfollow: () => void;
+  viewing?: ViewingProps | null;
+  /** Unfollow (or Follow, when viewing); left out, there is no follow chip. */
+  onUnfollow?: () => void;
   openChart: OpenChart;
   /** This is the best pass in the next 24 hours. */
-  best: boolean;
+  best?: boolean;
+  /** On the satellite's own page: no page link and no element tags (the page says how old they are). */
+  onSatPage?: boolean;
+  links?: PassLinks;
+  /** Notes under the sky plot: tags, bearings, caveats. */
+  children?: ReactNode;
 }) {
   const svgRef = usePassPlot(track, observer, pass, nowMs);
   const banded = useHomeStore((st) => st.prefs.bands) != null;
@@ -112,6 +128,7 @@ export default function PassRowOpen({
           )}
         </div>
       </div>
+      {children}
       {!visual && (
         <RadioPanel track={track} observer={observer} pass={pass} nowMs={nowMs} banded={banded} onMore={(e) => openChart("radio", track, pass, e)} />
       )}
@@ -122,22 +139,22 @@ export default function PassRowOpen({
           </Button>
         )}
         {visual ? skyButton() : radioButton()}
-        <AlertBell noradId={track.noradId} name={track.shortName} pass={pass} url={reminderUrl(track)} />
+        <AlertBell noradId={track.noradId} name={track.shortName} pass={pass} url={links?.remind ?? reminderUrl(track)} />
         {shareable && (
           <ShareButton
-            url={() => passShareUrl({ track, observer, pass, mode, minElevDeg }) ?? ""}
+            url={links?.share ?? (() => passShareUrl({ track, observer, pass, mode, minElevDeg }) ?? "")}
             title={`${name} from ${observer.name}`}
           />
         )}
-        <SatPageLink track={track} name={name} />
+        {!onSatPage && <SatPageLink track={track} name={name} />}
       </div>
       <div className="pass-open__more">
         {visual ? radioButton("quiet") : skyButton("quiet")}
-        <Button size="sm" variant="quiet" title="Add to calendar" onClick={() => downloadPassIcs({ track, observer, pass, mode, minElevDeg })}>
+        <Button size="sm" variant="quiet" title="Add to calendar" onClick={links?.calendar ?? (() => downloadPassIcs({ track, observer, pass, mode, minElevDeg }))}>
           <Icon name="calendar" /> Calendar
         </Button>
-        <ElementTags track={track} nowMs={nowMs} />
-        <FollowChip viewing={viewing} onUnfollow={onUnfollow} />
+        {!onSatPage && <ElementTags track={track} nowMs={nowMs} />}
+        {onUnfollow && <FollowChip viewing={viewing} onUnfollow={onUnfollow} />}
         {best && <span className="pass-open__best">Best pass in the next 24 hours</span>}
       </div>
     </div>

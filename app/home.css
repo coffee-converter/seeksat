@@ -544,8 +544,6 @@
 }
 .pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
-.pass-card__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
-.more-panel__note { flex: 1 0 100%; margin: var(--sp-2) 0 0; }
 
 /* Pass list (components/home/PassList.tsx): one compact row per pass under
    day headings, each a button that opens the pass in place (PassRowOpen). */
@@ -646,6 +644,9 @@
 /* The page link closes the main line, at its far end. */
 .pass-open__page { margin-left: auto; }
 .pass-open__more .pass-card__tag { margin-left: 0; }
+/* The satellite page's notes under the plot: tags, then the bearings. */
+.pass-open__notes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-8); margin: 0; }
+.pass-open__notes .pass-card__tag { margin-left: 0; }
 .pass-open__best { color: var(--map-accent); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
 
 /* chart-block:begin */

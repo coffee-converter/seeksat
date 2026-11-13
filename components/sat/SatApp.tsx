@@ -427,6 +427,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         onFreqPicked={(hz) => { pickedFreq.current = hz; setLinkFreq(hz); }}
         onNextPass={setNextPass}
         clouds={clouds}
+        color={colors.get(data.noradId)}
       />
 
       {usable && liveNow && elementsNow ? (

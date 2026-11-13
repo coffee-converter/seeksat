@@ -7,8 +7,8 @@ import Segmented from "@/components/ui/Segmented";
 import { passList, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
 import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
-import { cx, surfaceClass } from "@/lib/ui/classes.mjs";
 import type { Forecast } from "@/lib/sky/use-clouds";
+import PassRow, { passRowsClass as rowsClass } from "./PassRow";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
 import {
   FollowChip, ViewingTag, bestPassOf, passRating,
@@ -89,40 +89,6 @@ interface Props {
   onOpenRow: (noradId: number | null) => void;
 }
 
-/** One row: when, what, and how good, as a button that opens it in place. */
-function PassRow({ id, color, time, sub, now = false, name, tag, detail, rating, open, onToggle, children }: {
-  id: string;
-  color: string;
-  time: string;
-  sub?: string;
-  now?: boolean;
-  name: string;
-  tag?: ReactNode;
-  detail: string;
-  rating?: ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <li className="pass-row" style={{ "--sat-color": color } as CSSProperties}>
-      <button type="button" className="pass-row__btn" aria-expanded={open} aria-controls={id} onClick={onToggle}>
-        <span className="pass-row__when">
-          <span className="pass-row__time">{time}</span>
-          {sub && <span className={cx("pass-row__sub", now && "pass-row__sub--now")}>{sub}</span>}
-        </span>
-        <span className="pass-row__what">
-          <span className="pass-row__name">{name}{tag}</span>
-          <span className="pass-row__detail">{detail}</span>
-        </span>
-        <span className="pass-row__rating">{rating}</span>
-      </button>
-      {open && children}
-    </li>
-  );
-}
-
-const rowsClass = cx("pass-list__rows", surfaceClass({ padded: false }));
 
 // The home pass list: every pass in the next 48 hours as one compact row
 // under day headings, each opening in place.
