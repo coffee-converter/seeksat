@@ -559,6 +559,7 @@ export default function PassSection({
               onClose={onClose}
               preferredFreqHz={preferredFreqHz}
               onFreqChange={onFreqChange}
+              mode={mode}
             />
           )}
         </>

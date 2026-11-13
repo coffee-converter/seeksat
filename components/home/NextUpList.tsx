@@ -210,7 +210,7 @@ export type OpenChart = (kind: ChartKind, track: Track, pass: Pass, e: React.Mou
 
 /** The sky, radio and live chart modals, shared by the pass list and the
  *  timeline: `open` records its trigger so closing returns focus to it. */
-export function usePassCharts(observer: HomeObserver | null, minElevDeg: number) {
+export function usePassCharts(observer: HomeObserver | null, minElevDeg: number, mode: "radio" | "visual" = "radio") {
   // The subject is captured when a chart opens, so a card refresh or the
   // clock never repaints an open chart.
   const [subject, setSubject] = useState<ChartSubject | null>(null);
@@ -231,7 +231,7 @@ export function usePassCharts(observer: HomeObserver | null, minElevDeg: number)
   }, []);
 
   const modals = chartsLoaded
-    ? <PassChartModals subject={subject} chart={chart} onChartChange={setChart} onClose={onClose} />
+    ? <PassChartModals subject={subject} chart={chart} onChartChange={setChart} onClose={onClose} mode={mode} />
     : null;
   return { open, modals };
 }

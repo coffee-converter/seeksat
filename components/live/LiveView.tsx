@@ -6,6 +6,8 @@ import Button from "@/components/ui/Button";
 import Surface from "@/components/ui/Surface";
 import LiveDial from "@/components/live/LiveDial";
 import LivePassBar from "@/components/live/LivePassBar";
+import LiveLight from "@/components/live/LiveLight";
+import LiveDopplerCurve from "@/components/live/LiveDopplerCurve";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
@@ -49,13 +51,19 @@ interface Props {
   uplink: Uplink | null;
   /** The chosen downlink's mode ("fm", "lrpt"), shown beside its frequency. */
   downlinkMode?: string | null;
+  /** The home or sat page mode: visual shows brightness and shadow in place
+   *  of the frequencies. */
+  mode?: "radio" | "visual";
   onChart: (kind: "sky" | "radio") => void;
   onClose: () => void;
 }
 
 // The pass right now: where to point, how long until it rises, peaks or
-// sets, and where to tune. Sampled once (1 s steps), read four times a second.
-export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downlinkMode = null, onChart, onClose }: Props) {
+// sets, and where to tune (or, watching, how bright it is). Sampled once
+// (1 s steps), read four times a second.
+export default function LiveView({
+  subject, freqHz, downlinkLabel, uplink, downlinkMode = null, mode = "radio", onChart, onClose,
+}: Props) {
   const { track, obs, pass, minElevDeg } = subject;
   const samples = useMemo(() => build({
     track, obs, anchorMs: (pass as { peakMs: number }).peakMs, minElevDeg, freqHz, purpose: "csv",
@@ -180,7 +188,12 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
             <Surface><dt>Range</dt><dd>{`${Math.round(live.rangeKm!).toLocaleString()} km`}</dd></Surface>
           </dl>
         )}
-        <Surface as="section" className="live-view__radio" aria-label="Tuning">
+        {mode === "visual" ? (
+          span && live && (
+            <LiveLight track={track} obs={obs} startMs={span.firstMs} endMs={span.lastMs} nowMs={now} phase={live.phase} />
+          )
+        ) : (
+        <Surface as="section" className="live-view__panel" aria-label="Tuning">
           {tune === "none" ? null : tune === "pick" ? (
             <p className="note">Pick a frequency in the radio chart to see where to tune.</p>
           ) : tune === "over" ? (
@@ -220,12 +233,14 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
                   </>
                 );
               })()}
+              <LiveDopplerCurve samples={samples} nowMs={now} />
               <p className="note">{"Predicted. The satellite's own offset is unknown."}</p>
             </>
           ) : (
             <p className="note">{`${((freqHz ?? 0) / 1e6).toFixed(3)} MHz once it rises.`}</p>
           )}
         </Surface>
+        )}
         <div className="live-view__actions">
           {hasCompass && !compassOn && (
             <Button size="sm" onClick={startCompass}>Use phone compass</Button>

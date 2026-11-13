@@ -415,7 +415,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   if (!showList && highlightId != null) setHighlightId(null);
 
   // One set of chart modals for the pass list and the 24 hour strip.
-  const { open: openChart, modals: chartModals } = usePassCharts(observer, prefs.minElevDeg);
+  const { open: openChart, modals: chartModals } = usePassCharts(observer, prefs.minElevDeg, prefs.mode);
   const openTimelinePass = useCallback((noradId: number, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
     const track = allTracks.get(noradId);
     if (track) openChart("sky", track, pass, e);

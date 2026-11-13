@@ -31,11 +31,15 @@ interface Props {
   preferredFreqHz?: number | null;
   /** Fired when the user picks a frequency in the radio chart. */
   onFreqChange?: (hz: number | null) => void;
+  /** The page's mode, for the live view's panels. */
+  mode?: "radio" | "visual";
 }
 
 // The sky chart, radio chart and live view for one pass. Loaded on first use, so
 // the painters stay out of the page's first bundle.
-export default function PassChartModals({ subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange }: Props) {
+export default function PassChartModals({
+  subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange, mode = "radio",
+}: Props) {
   // Back closes an open chart instead of leaving the page.
   useBackCloses(chart != null, onClose);
   const noradId = subject?.track.noradId ?? null;
@@ -143,6 +147,7 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
           downlinkLabel={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.label ?? null}
           uplink={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.uplink ?? null}
           downlinkMode={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.mode ?? null}
+          mode={mode}
           onChart={onChartChange}
           onClose={onClose}
         />
