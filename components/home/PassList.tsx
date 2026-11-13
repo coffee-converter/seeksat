@@ -9,6 +9,7 @@ import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import PassRow, { passRowsClass as rowsClass } from "./PassRow";
+import LowFold from "./LowFold";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
 import { DOCKED_QUERY, useKeepRowInPlace } from "./useKeepRowInPlace";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
@@ -301,7 +302,9 @@ export default function PassList({
       {groups.map((group) => (
         <div key={group.key} className="pass-list__group">
           <h3 className="heading-group pass-list__day">{group.label}</h3>
-          <ul className={rowsClass}>{group.rows.map((row) => passRow(row, null))}</ul>
+          <ul className={rowsClass}>
+            <LowFold rows={group.rows} nowMs={nowMs} openKey={openKey} renderRow={(row) => passRow(row, null)} />
+          </ul>
         </div>
       ))}
       {more > 0 && (

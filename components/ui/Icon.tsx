@@ -17,6 +17,7 @@ const PATHS = {
   more: <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="3" />,
   "chevron-right": <path d="m9 6 6 6-6 6" />,
   "chevron-down": <path d="m6 9 6 6 6-6" />,
+  "chevron-up": <path d="m6 15 6-6 6 6" />,
   fullscreen: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
   "exit-fullscreen": <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />,
   layers: <path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />,

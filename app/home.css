@@ -609,6 +609,9 @@
 .pass-row__detail { color: var(--map-muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .pass-row__rating { justify-self: end; }
 .pass-row__rating .quality { margin-left: 0; }
+/* The line that folds a day's very low passes: a quiet button, one row tall. */
+.pass-row--fold { padding: var(--sp-2) var(--sp-8); }
+.pass-fold__btn { gap: var(--sp-6); }
 /* The viewed satellite with no pass to list: why, and Follow. */
 .pass-row__note {
   position: relative;

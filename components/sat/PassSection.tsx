@@ -7,6 +7,7 @@ import ExtraObservers from "@/components/sat/ExtraObservers";
 import LocationPrompt from "@/components/home/LocationPrompt";
 import { passRating, type HomeObserver, type Pass as HomePass, type Track as HomeTrack } from "@/components/home/NextUpList";
 import PassRow, { passRowsClass } from "@/components/home/PassRow";
+import LowFold from "@/components/home/LowFold";
 import PassRowOpen from "@/components/home/PassRowOpen";
 import { useKeepRowInPlace } from "@/components/home/useKeepRowInPlace";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
@@ -517,7 +518,9 @@ export default function PassSection({
                   {groups.map((group) => (
                     <div key={group.heading} className="pass-list__group">
                       <h3 className="heading-group pass-list__day">{group.heading}</h3>
-                      <ul className={passRowsClass}>{group.rows.map(passRow)}</ul>
+                      <ul className={passRowsClass}>
+                        <LowFold rows={group.rows} nowMs={nowMs} openKey={openKey} renderRow={passRow} />
+                      </ul>
                     </div>
                   ))}
                 </div>
