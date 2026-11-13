@@ -215,3 +215,20 @@ test('satellite-level results link to the satellite page', async () => {
   // A synthesized satellite links by its NORAD number too.
   assert.equal((await getPositionTool({ satellite: '25485' }, synDeps)).url, 'https://seeksat.com/sat/25485');
 });
+
+import { radioPassTool, whatsUpNowTool, searchSatellitesTool } from '../lib/mcp/tools.mjs';
+
+test('inputs: old names are aliases, NORAD numbers work, and out-of-range numbers fail clearly', async () => {
+  const at = { lat: 0, lon: 100 };
+  const a = await radioPassTool({ satellite: 25544, ...at, minElevation: 20, time: '2024-01-02T00:00:00Z' }, deps);
+  const b = await radioPassTool({ satellite: '25544', ...at, minElevationDeg: 20, passTime: '2024-01-02T00:00:00Z' }, deps);
+  assert.deepEqual(a, b);
+  assert.equal(a.interpretedAs.utc, '2024-01-02T00:00:00.000Z');
+  const fp = await findPassesTool({ satellite: 25544, ...at, mode: 'radio', minElevation: 30 }, deps);
+  for (const p of fp.passes) assert.ok(p.peakElevationDeg >= 30);
+  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...at, windowHours: 500 }, deps), /windowHours must be more than 0 and at most 240 hours \(got 500\)/);
+  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...at, minElevation: 95 }, deps), /minElevation must be 0 to 90 degrees/);
+  await assert.rejects(() => bestPassTool({ satellite: 'iss', ...at, limit: 0 }, deps), /limit must be a whole number 1 to 20/);
+  await assert.rejects(() => whatsUpNowTool({ ...at, limit: 51 }, deps), /limit must be a whole number 1 to 50/);
+  await assert.rejects(() => searchSatellitesTool({ query: 'iss', limit: 21 }, { ...deps, search: async () => [] }), /limit must be a whole number 1 to 20/);
+});
