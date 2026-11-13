@@ -306,8 +306,14 @@ export default function PassSection({
     setChosenKey(null);
     setChart(null);
   }, [placeKey]);
+  // The open row left the list (its pass ended, or a new search dropped it):
+  // nothing is open, so the pass view and the paused map let go.
+  const rowsShown = view?.kind === "rows";
+  useEffect(() => {
+    if (chosenKey && rowsShown && !openRowPass) setChosenKey(null);
+  }, [chosenKey, rowsShown, openRowPass]);
   // On a phone an open row is the pass view (map and card only); Back closes it.
-  usePassView(openKey != null, () => setChosenKey(null));
+  usePassView(openRowPass != null, () => setChosenKey(null));
   // Back to live on the map closes the open row.
   const resumeTick = useMapClock((s) => s.resumeTick);
   const seenTick = useRef(resumeTick);
