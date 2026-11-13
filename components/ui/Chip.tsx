@@ -17,17 +17,34 @@ interface Props {
   onToggleHidden?: () => void;
   /** Known radio downlinks (shown in radio mode): the dot becomes the radio mark. */
   radio?: boolean;
+  /** A selected satellite you do not follow: a dashed chip whose button
+   *  follows it (in place of the eye). */
+  onFollow?: () => void;
+  /** Why following is blocked (the cap): the follow button is off, this its tip. */
+  followBlocked?: string | null;
 }
 
 /** One chip: a dot and a name (selects), plus an eye (hides). Render inside a <ul>. */
-export default function Chip({ color, label, focused = false, hidden = false, onSelect, onToggleHidden, radio = false }: Props) {
+export default function Chip({ color, label, focused = false, hidden = false, onSelect, onToggleHidden, radio = false, onFollow, followBlocked = null }: Props) {
   return (
-    <li className={cx("chip", hidden && "chip--hidden", focused && "chip--focus")} style={{ "--chip-color": color } as CSSProperties}>
+    <li className={cx("chip", hidden && "chip--hidden", focused && "chip--focus", onFollow && "chip--unfollowed")} style={{ "--chip-color": color } as CSSProperties}>
       <button type="button" className="chip__name" aria-pressed={focused} onClick={onSelect}>
         {radio ? <RadioMark className="chip__radio" label="known downlinks" /> : <span className="sat-dot sat-dot--sm" aria-hidden="true" />}
         {label}
       </button>
-      {onToggleHidden ? (
+      {onFollow ? (
+        <button
+          type="button"
+          className="chip__follow"
+          aria-label={`Follow ${label}`}
+          title={followBlocked ?? `Follow ${label}`}
+          disabled={Boolean(followBlocked)}
+          onClick={onFollow}
+        >
+          <Icon name="star" size={14} />
+          Follow
+        </button>
+      ) : onToggleHidden ? (
         <button
           type="button"
           className="chip__eye"

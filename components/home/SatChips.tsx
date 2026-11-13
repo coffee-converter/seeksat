@@ -12,8 +12,20 @@ export interface Chip {
   radio?: boolean;
 }
 
+/** A selected satellite you do not follow, shown dashed after the others. */
+export interface PendingChip {
+  noradId: number;
+  name: string;
+  color: string;
+  radio?: boolean;
+  /** Why following is blocked (the cap), or null. */
+  blocked: string | null;
+}
+
 interface Props {
   chips: Chip[];
+  pending?: PendingChip | null;
+  onFollow?: (noradId: number) => void;
   focusId: number | null;
   /** Tap: focus this one, or null to unfocus the focused chip. */
   onFocus: (noradId: number | null) => void;
@@ -22,7 +34,7 @@ interface Props {
 
 // One chip per followed satellite, laid over the top of the map. The strip
 // scrolls sideways inside itself, never the page.
-export default function SatChips({ chips, focusId, onFocus, onToggleHidden }: Props) {
+export default function SatChips({ chips, pending = null, onFollow, focusId, onFocus, onToggleHidden }: Props) {
   // Which ends have chips scrolled out of sight ("start", "end"), for the fade.
   const ref = useRef<HTMLUListElement>(null);
   const [more, setMore] = useState("");
@@ -42,8 +54,20 @@ export default function SatChips({ chips, focusId, onFocus, onToggleHidden }: Pr
       el.removeEventListener("scroll", check);
       ro?.disconnect();
     };
-  }, [chips.length]);
-  if (chips.length === 0) return null;
+  }, [chips.length, pending?.noradId]);
+  // The dashed chip sits last, where it stays once followed: scrolled into
+  // the strip's view when it appears.
+  const pendingId = pending?.noradId;
+  useEffect(() => {
+    if (pendingId == null) return;
+    // After layout (and the chip's font) settles: to the strip's very end.
+    const id = requestAnimationFrame(() => {
+      const el = ref.current;
+      if (el) el.scrollLeft = el.scrollWidth;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [pendingId]);
+  if (chips.length === 0 && !pending) return null;
   return (
     <ul className="sat-chips" aria-label="Followed satellites" ref={ref} data-more={more || undefined}>
       {chips.map((c) => {
@@ -61,6 +85,18 @@ export default function SatChips({ chips, focusId, onFocus, onToggleHidden }: Pr
           />
         );
       })}
+      {pending && (
+        <ChipView
+          key={`pending-${pending.noradId}`}
+          color={pending.color}
+          label={pending.name}
+          focused={pending.noradId === focusId}
+          radio={pending.radio}
+          onSelect={() => onFocus(pending.noradId === focusId ? null : pending.noradId)}
+          onFollow={() => onFollow?.(pending.noradId)}
+          followBlocked={pending.blocked}
+        />
+      )}
     </ul>
   );
 }

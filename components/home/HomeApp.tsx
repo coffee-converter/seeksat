@@ -36,7 +36,7 @@ import { useLiveDock } from "@/lib/live/dock-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import Button from "@/components/ui/Button";
 import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
-import SatChips, { type Chip } from "@/components/home/SatChips";
+import SatChips, { type Chip, type PendingChip } from "@/components/home/SatChips";
 import { useMediaQuery } from "@/lib/ui/use-media-query";
 import { DOCKED_QUERY } from "./useKeepRowInPlace";
 import { useLiveHeldRow, useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
@@ -469,9 +469,24 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     radio: prefs.mode === "radio" && ((allTracks.get(id) as { downlinks?: unknown[] } | undefined)?.downlinks?.length ?? 0) > 0,
   })), [prefs.following, prefs.hidden, allTracks, colors, theme, prefs.mode]);
 
+  // A selected satellite you do not follow: a dashed chip after the others,
+  // with Follow (desktop; phones and tablets keep the focus bar).
+  const pending = useMemo<PendingChip | null>(() => {
+    if (focusId == null || prefs.following.includes(focusId)) return null;
+    const sat = sats.find((x) => x.noradId === focusId);
+    return {
+      noradId: focusId,
+      name: allTracks.get(focusId)?.shortName ?? nameOf(focusId),
+      color: sat?.color ?? SAT_PALETTES[theme][0],
+      radio: prefs.mode === "radio" && ((allTracks.get(focusId) as { downlinks?: unknown[] } | undefined)?.downlinks?.length ?? 0) > 0,
+      blocked: followBlockedMessage(prefs.following, focusId) as string | null,
+    };
+  }, [focusId, prefs.following, prefs.mode, sats, allTracks, nameOf, theme]);
+  const showChips = hydrated && docked;
+
   usePublishMapScene({
-    chips: hydrated && docked && chips.length > 0 && (
-      <SatChips chips={chips} focusId={mapFocusId} onFocus={(id) => { focusOn(id); }} onToggleHidden={toggleHidden} />
+    chips: showChips && (chips.length > 0 || pending) && (
+      <SatChips chips={chips} pending={pending} onFollow={follow} focusId={mapFocusId} onFocus={(id) => { focusOn(id); }} onToggleHidden={toggleHidden} />
     ),
     above: locationFirst && <LocationPrompt />,
     sats,
@@ -481,7 +496,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     selectedId: mapFocusId,
     minElevDeg: prefs.minElevDeg,
     onSelect: focusOn,
-    top: focusId != null && (
+    top: focusId != null && !showChips && (
       <FocusBar
         name={nameOf(focusId)}
         followed={prefs.following.includes(focusId)}

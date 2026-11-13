@@ -35,7 +35,7 @@ import { useClouds } from "@/lib/sky/use-clouds";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
-import SatChips, { type Chip } from "@/components/home/SatChips";
+import SatChips, { type Chip, type PendingChip } from "@/components/home/SatChips";
 import { CATALOG } from "@/lib/catalog.mjs";
 import Button from "@/components/ui/Button";
 import SiteFooter from "@/components/home/SiteFooter";
@@ -265,6 +265,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const following = prefs.following.includes(data.noradId);
   const blocked = followBlockedMessage(prefs.following, data.noradId) as string | null;
   const toggleFollow = () => (following ? unfollow(data.noradId) : follow(data.noradId));
+  // This page's satellite, not followed: a dashed chip after the others, with Follow.
+  const pending: PendingChip | null = following ? null : {
+    noradId: data.noradId,
+    name: mapTracks.get(data.noradId)?.shortName ?? CATALOG.find((c) => c.noradId === data.noradId)?.shortName ?? data.name,
+    color: colors.get(data.noradId) ?? SAT_PALETTES[theme][0],
+    radio: settings.mode === "radio" && (mapTracks.get(data.noradId)?.downlinks.length ?? 0) > 0,
+    blocked,
+  };
 
   usePublishMapScene({
     sats,
@@ -275,7 +283,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     minElevDeg: settings.minElevDeg,
     onSelect: selectOrClose,
     chips: hydrated && (
-      <SatChips chips={chips} focusId={focusId} onFocus={selectOrClose} onToggleHidden={onChipHide} />
+      <SatChips chips={chips} pending={pending} onFollow={follow} focusId={focusId} onFocus={selectOrClose} onToggleHidden={onChipHide} />
     ),
     // A search result opens that satellite's page; Esc in an empty search closes.
     search: { onView: openOther, onClearFocus: onClose },
