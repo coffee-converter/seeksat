@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { passList, passKey, rowWhen, rowDetail, quietLines, ROW_LIMIT } from '../lib/home/pass-list.mjs';
+import { passList, passKey, rowWhen, rowDetail, quietLines, ROW_LIMIT, durationWords } from '../lib/home/pass-list.mjs';
 
 const p = (startIso, minutes, maxElevDeg, startAzDeg, endAzDeg, extra = {}) => {
   const startMs = Date.parse(startIso);
@@ -132,4 +132,11 @@ test('rowDetail', () => {
   const pass = { maxElevDeg: 54.4, durationMs: 5 * 60e3, startAzDeg: 225, endAzDeg: 45 };
   assert.equal(rowDetail(pass), '54° · 5 min · SW→NE');
   assert.equal(rowDetail({ ...pass, endAzDeg: null }), '54° · 5 min');
+});
+
+test('a long pass reads in hours, not thousands of minutes', () => {
+  assert.equal(durationWords(5 * 60_000), '5 min');
+  assert.equal(durationWords(80 * 60_000), '1 h 20 min');
+  assert.equal(durationWords(120 * 60_000), '2 h');
+  assert.equal(durationWords(1648 * 60_000), '27 h');
 });
