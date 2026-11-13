@@ -197,6 +197,13 @@
   gap: var(--sp-4);
 }
 .flat-map__lock .icon { width: 16px; height: 16px; }
+.flat-map__lock-short { display: none; }
+/* Phones: the short words, so it never crowds the map's corner. */
+@media (max-width: 599.98px) {
+  .flat-map__lock-long { display: none; }
+  .flat-map__lock-short { display: inline; }
+}
+.flat-map__lock-long { max-width: 40cqw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A paused pass: the time it shows, and the way back to live. */
 .flat-map__paused {
   position: absolute;

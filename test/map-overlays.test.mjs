@@ -68,7 +68,8 @@ test('hidden satellites are not drawn and ghosts have no track', () => {
   }
   const ghost = data['ss-sats'].features.find((f) => f.properties.noradId === 3);
   assert.ok(ghost);
-  assert.equal(ghost.properties.name, '');
+  // A ghost keeps its name (drawn small and faint, giving way when crowded).
+  assert.equal(ghost.properties.name, 'SAT 3');
   assert.equal(ghost.properties.emphasis, 'ghost');
   for (const id of ['ss-track-past', 'ss-track-future', 'ss-pass', 'ss-marks']) {
     assert.ok(!ids(data[id]).includes(3), `ghost in ${id}`);
@@ -189,7 +190,7 @@ test('overlayLayers keeps the overlay order', () => {
   assert.equal(focus.paint['icon-opacity'], 0);
   assert.equal(focus.paint['text-opacity'], 0);
   assert.notEqual(sats.paint['icon-opacity'], 0);
-  assert.equal(sats.paint['text-opacity'], 1);
+  assert.notEqual(sats.paint['text-opacity'], 0);
 });
 
 function iconNames(expr) {

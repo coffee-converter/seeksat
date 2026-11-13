@@ -8,6 +8,7 @@ import LocationPrompt from "@/components/home/LocationPrompt";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
+import { useFollow } from "@/lib/map/follow-store";
 
 interface Props {
   open: boolean;
@@ -39,7 +40,8 @@ export default function LocationSheet({ open, onClose }: Props) {
         <LocationPrompt variant="sheet" onDone={onClose} />
         {(location || recent.length > 0) && (
           <ul className="location-sheet__places" aria-label="Places">
-            {location && <PlaceRow place={location} label={labels[0]} current onPick={onClose} />}
+            {/* The current place again: the map goes back to it. */}
+            {location && <PlaceRow place={location} label={labels[0]} current onPick={() => { useFollow.getState().centreHome(); onClose(); }} />}
             {recent.map((p, i) => (
               <PlaceRow key={`${p.latDeg},${p.lonDeg}`} place={p} label={labelOf(i)} onPick={() => pick(p)} onRemove={() => removeRecent(p)} />
             ))}

@@ -1955,6 +1955,14 @@ export default function FlatMap({
   };
   // A tap on your location marker: On you on the globe, the home view on Mercator.
   centreOnYou.current = () => (view === "globe" && observer ? goTo("you") : reset());
+  // Picking the place you are already on (the location sheet) centres on it too.
+  const homeTick = useFollow((s) => s.homeTick);
+  const homeSeen = useRef(homeTick);
+  useEffect(() => {
+    if (homeTick === homeSeen.current) return;
+    homeSeen.current = homeTick;
+    centreOnYou.current?.();
+  }, [homeTick]);
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
@@ -2063,8 +2071,11 @@ export default function FlatMap({
           aria-label={followOn ? `Locked on ${focusName}` : `Lock on ${focusName}`}
           onClick={() => setFollowing(!followOn)}
         >
-          <Icon name="target" />
-          <span>{followOn ? "Locked on" : "Lock on"}</span>
+          {/* A padlock, not the crosshair your own location wears. Room
+              allowing, it names the satellite. */}
+          <Icon name={followOn ? "lock" : "unlock"} />
+          <span className="flat-map__lock-long">{followOn ? `Locked onto ${focusName}` : `Lock onto ${focusName}`}</span>
+          <span className="flat-map__lock-short">{followOn ? "Locked on" : "Lock on"}</span>
         </Button>
       ) : null}
       {/* Zoom in and out at the bottom right, desktop only (phones pinch). */}

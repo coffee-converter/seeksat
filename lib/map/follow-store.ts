@@ -10,6 +10,9 @@ export interface FollowState {
    *  fills the view (the docked live view does, as it locks on). */
   fitTick: number;
   fitFootprint(): void;
+  /** Bumped to ask the map to centre on you (the current place picked again). */
+  homeTick: number;
+  centreHome(): void;
 }
 
 export const useFollow = create<FollowState>((set) => ({
@@ -17,4 +20,6 @@ export const useFollow = create<FollowState>((set) => ({
   setFollowing: (on) => set({ following: on }),
   fitTick: 0,
   fitFootprint: () => set((s) => ({ fitTick: s.fitTick + 1 })),
+  homeTick: 0,
+  centreHome: () => set((s) => ({ homeTick: s.homeTick + 1 })),
 }));
