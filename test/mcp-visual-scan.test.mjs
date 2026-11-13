@@ -8,6 +8,7 @@ import { createLru } from '../lib/mcp/radio-scan.mjs';
 import { roughVisualScore, byRoughVisual } from '../lib/mcp/visual-scan.mjs';
 import { bestPassTool, byQuality, VISUAL_SCAN_MAX_HOURS } from '../lib/mcp/tools.mjs';
 import { findPasses } from '../lib/mcp/passes.mjs';
+import { withLocalTimes } from '../lib/mcp/local-time.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
 import { GOES16_LINE1, GOES16_LINE2, recordFrom } from './fixtures/orbits.mjs';
 
@@ -71,7 +72,7 @@ test('visual best_pass scan matches the full engine run over every satellite', a
   assert.deepEqual(out.passes.map((p) => [p.noradId, p.rise, p.quality]), brute.map((p) => [p.noradId, p.rise, p.quality]));
   const { noradId, satellite, shortName, url, ...row } = out.best;
   const { noradId: _id, ...bruteRow } = brute[0];
-  assert.deepEqual(row, bruteRow);
+  assert.deepEqual(row, withLocalTimes(bruteRow, 'Australia/Sydney'));
   assert.equal(satellite, RECS.get(noradId).name);
   assert.equal(url, `https://seeksat.com/sat/${noradId}`);
   assert.equal(out.weather.used, false);

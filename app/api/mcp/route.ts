@@ -71,6 +71,9 @@ const asResult = (res: unknown) => {
 // Tool hints (MCP ToolAnnotations): every tool only reads, and asking twice
 // changes nothing. Tools that can geocode a place name, fetch weather or look
 // up a time zone reach services outside SeekSat, so they are open-world.
+// How every time input is read, and how results give times.
+const TIME_IN = 'ISO 8601 with Z or an offset, e.g. "2026-11-14T21:00:00-06:00"; a time with no offset, e.g. "2026-11-14T21:00", is read in the observer\'s time zone, and the result echoes how it was read (interpretedAs).';
+
 const LOCAL = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const ONLINE = { ...LOCAL, openWorldHint: true };
 
@@ -118,12 +121,15 @@ const mcpHandler = createMcpHandler(
       'get_position',
       {
         title: 'Satellite position',
-        description: 'Get the current (or at a given time) sub-point latitude/longitude, altitude, and sunlit state of a satellite, with url (its page on seeksat.com).',
+        description: 'Get the current (or at a given time) sub-point latitude/longitude, altitude, and sunlit state of a satellite, with url (its page on seeksat.com). A location is optional: it only sets the time zone for local times and for reading a time with no offset (UTC without one).',
         inputSchema: {
           satellite: z.string(),
-          time: z.string().optional().describe('ISO 8601; defaults to now'),
+          time: z.string().optional().describe(`when, default now. ${TIME_IN}`),
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional().describe('place name, geocoded if lat/lon omitted; optional'),
         },
-        annotations: LOCAL,
+        annotations: ONLINE,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -163,7 +169,7 @@ const mcpHandler = createMcpHandler(
           lat: z.number().min(-90).max(90).optional(),
           lon: z.number().min(-180).max(180).optional(),
           location: z.string().optional(),
-          time: z.string().describe('ISO 8601 time of the pass'),
+          time: z.string().describe(`time of the pass. ${TIME_IN}`),
         },
         annotations: ONLINE,
       },
@@ -184,7 +190,7 @@ const mcpHandler = createMcpHandler(
           lat: z.number().min(-90).max(90).optional(),
           lon: z.number().min(-180).max(180).optional(),
           location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-          time: z.string().optional().describe('ISO 8601. Charts the pass occurring around this time (use a pass\'s rise or peak from find_passes/best_pass). Omit to chart the next pass from now.'),
+          time: z.string().optional().describe(`charts the pass occurring around this time (use a pass's rise or peak from find_passes/best_pass). Omit to chart the next pass from now. ${TIME_IN}`),
           mode: z.enum(['visual', 'radio']).optional(),
         },
         annotations: ONLINE,
@@ -192,18 +198,10 @@ const mcpHandler = createMcpHandler(
       async (args) => {
         const { tier, keyId } = getRequestContext();
         logUsage({ tool: 'get_pass_chart', tier, keyId, satellite: args.satellite });
-        try {
-          const res = await getPassChartTool(args, deps, tier);
-          // Image LAST so it's the trailing content block: clients that render
-          // the final block inline (rather than only inside the tool-call
-          // accordion) are more likely to surface the chart in the response.
-          return res.pngBase64
-            ? { content: [
-                { type: 'text' as const, text: res.summary },
-                { type: 'image' as const, data: res.pngBase64, mimeType: 'image/png' },
-              ] }
-            : { content: [{ type: 'text' as const, text: res.summary }] };
-        } catch (e) { return asError(e); }
+        // JSON (with the summary) first and the image LAST, so it is the
+        // trailing content block: clients that render the final block inline
+        // are more likely to surface the chart in the response.
+        try { return asResult(await getPassChartTool(args, deps, tier)); } catch (e) { return asError(e); }
       },
     );
 
@@ -237,7 +235,7 @@ const mcpHandler = createMcpHandler(
           lon: z.number().min(-180).max(180).optional(),
           location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
           frequencyMHz: z.number().positive().max(300000).optional().describe('downlink to compute Doppler for, in MHz. Default: the satellite\'s default known downlink.'),
-          passTime: z.string().optional().describe('ISO time near the wanted pass\'s peak (e.g. from find_passes). Default: the next pass.'),
+          passTime: z.string().optional().describe(`a time near the wanted pass's peak (e.g. from find_passes), past or future. Default: the next pass. ${TIME_IN}`),
           minElevationDeg: z.number().min(0).max(90).optional().describe('lowest peak elevation that counts as a pass. Default 10.'),
           windowHours: z.number().positive().max(240).optional().describe('how far ahead to look for a pass, in hours. Default 48.'),
         },
@@ -308,7 +306,7 @@ const mcpHandler = createMcpHandler(
           lat: z.number().min(-90).max(90).optional(),
           lon: z.number().min(-180).max(180).optional(),
           location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-          time: z.string().optional().describe('ISO 8601 time of the sighting. Default: now.'),
+          time: z.string().optional().describe(`time of the sighting. Default: now. ${TIME_IN}`),
           azimuth: z.number().min(0).max(360).optional().describe('where it was, in degrees from north (90 = east). Give this or direction.'),
           direction: z.string().optional().describe('where it was, as a compass word: N, NNE, NE, ... or "north-east".'),
           elevation: z.number().min(0).max(90).describe('how high it was, in degrees above the horizon (90 = straight up).'),

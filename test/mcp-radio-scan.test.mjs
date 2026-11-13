@@ -10,6 +10,7 @@ import {
 } from '../lib/mcp/radio-scan.mjs';
 import { bestPassTool, byRadioQuality, RADIO_SCAN_MAX_HOURS } from '../lib/mcp/tools.mjs';
 import { findPasses } from '../lib/mcp/passes.mjs';
+import { withLocalTimes } from '../lib/mcp/local-time.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, recordFrom } from './fixtures/orbits.mjs';
 
@@ -146,7 +147,7 @@ for (const where of [{ latDeg: 42.19, lonDeg: -88.21 }, { latDeg: -33.9, lonDeg:
     // The rows are the same rows find_passes gives, plus who and what to tune.
     const { noradId, satellite, shortName, downlinks, url, ...row } = out.best;
     const { noradId: _id, ...bruteRow } = brute[0];
-    assert.deepEqual(row, bruteRow);
+    assert.deepEqual(row, withLocalTimes(bruteRow, out.resolvedLocation.timeZone));
     assert.equal(satellite, recs.get(noradId).name);
     assert.equal(url, `https://seeksat.com/sat/${noradId}`);
     assert.ok(downlinks.length === 1 && downlinks[0].frequencyMHz > 100 && downlinks[0].mode);
@@ -182,7 +183,7 @@ test('radio scan: the coarse sweep is cached per cell and hour, and the window i
   const b = await bestPassTool({ lat: 42.2, lon: -88.2, mode: 'radio' }, deps);
   assert.equal(calls.radioIds, 1, 'the second ask in the same cell and hour reuses the sweep');
   assert.ok(a.best && b.best);
-  assert.deepEqual(b.resolvedLocation, { latDeg: 42.2, lonDeg: -88.2, displayName: null });
+  assert.deepEqual(b.resolvedLocation, { latDeg: 42.2, lonDeg: -88.2, displayName: null, timeZone: 'America/Chicago' });
   await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', minElevation: 30 }, deps);
   assert.equal(calls.radioIds, 2, 'another minimum elevation is another sweep');
   const long = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', windowHours: 200 }, deps);

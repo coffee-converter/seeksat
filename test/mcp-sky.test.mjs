@@ -198,7 +198,7 @@ test('identify_satellite checks its inputs', async () => {
   await assert.rejects(() => identifySatelliteTool({ ...SYDNEY, direction: 'up-ish', elevation: 30 }, d), /unknown direction: up-ish/);
   await assert.rejects(() => identifySatelliteTool({ ...SYDNEY, azimuth: 40 }, d), /elevation is required/);
   await assert.rejects(() => identifySatelliteTool({ ...SYDNEY, azimuth: 40, elevation: 95 }, d), /elevation is required/);
-  await assert.rejects(() => identifySatelliteTool({ ...SYDNEY, azimuth: 40, elevation: 30, time: 'last night' }, d), /invalid time/);
+  await assert.rejects(() => identifySatelliteTool({ ...SYDNEY, azimuth: 40, elevation: 30, time: 'last night' }, d), /time "last night" is not a time I can read\. Use ISO 8601, e\.g\. "2026-11-14T21:00:00-06:00"/);
   await assert.rejects(() => identifySatelliteTool({ ...SYDNEY, azimuth: 40, elevation: 30, travel: 'away' }, d), /unknown direction of travel/);
   // Time defaults to now.
   const now = await identifySatelliteTool({ ...SYDNEY, azimuth: 40, elevation: 30 }, d);
