@@ -1,7 +1,7 @@
 // test/mcp-passes.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findPasses, getPosition, nextPassWindow } from '../lib/mcp/passes.mjs';
+import { findPasses, getPosition, nextPassWindow, ESTIMATED_MAG_NOTE, ESTIMATED_QUALITY_CAP } from '../lib/mcp/passes.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 import { ISS_OMM, ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 
@@ -78,25 +78,34 @@ test('getPosition works for a 6-digit, OMM-only record', () => {
 // sunlit, dark-sky passes within 48 h of START.
 const VIS_OBS = { latDeg: -30, lonDeg: 150 };
 
-test('findPasses (visual) leaves peakMagnitude null when standardMag is null', () => {
-  const { passes } = findPasses({
-    record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS,
-    startMs: START, windowHours: 48, mode: 'visual', standardMag: null,
-  });
+test('findPasses (visual) estimates the magnitude when standardMag is null, and caps quality at Fair', () => {
+  const args = { record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS, startMs: START, windowHours: 72, mode: 'visual' };
+  const { passes } = findPasses({ ...args, standardMag: null });
+  const known = findPasses({ ...args, standardMag: -1.8 }).passes;
   assert.ok(passes.length > 0, 'finds a visual pass');
-  for (const p of passes) {
-    assert.equal(p.peakMagnitude, null);
-    assert.ok(p.quality > 0, 'quality does not depend on magnitude');
-  }
+  assert.equal(passes.length, known.length);
+  passes.forEach((p, i) => {
+    assert.equal(typeof p.peakMagnitude, 'number');
+    assert.equal(p.peakMagnitudeEstimated, true);
+    assert.ok(p.brightnessNote.startsWith(ESTIMATED_MAG_NOTE));
+    assert.match(p.brightnessNote, /Fair/);
+    assert.ok(p.quality > 0 && p.quality <= ESTIMATED_QUALITY_CAP, `quality ${p.quality}`);
+    assert.ok(p.quality <= known[i].quality);
+    // The cautious guess (a small satellite) is far fainter than the ISS.
+    assert.ok(p.peakMagnitude > known[i].peakMagnitude + 5);
+  });
+  // Even the 83-degree pass: a guessed magnitude this faint rates Poor (0.2).
+  assert.ok(passes.some((p, i) => p.quality < known[i].quality));
+  assert.equal(passes.find((p) => p.peakElevationDeg > 80).quality, 0.2);
 });
 
-test('findPasses (visual) guesses no magnitude when standardMag is not given', () => {
+test('findPasses (visual) treats a missing standardMag as unknown brightness', () => {
   const { passes } = findPasses({
     record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS,
     startMs: START, windowHours: 48, mode: 'visual',
   });
   assert.ok(passes.length > 0);
-  for (const p of passes) assert.equal(p.peakMagnitude, null);
+  for (const p of passes) assert.equal(p.peakMagnitudeEstimated, true);
 });
 
 test('findPasses (visual) still computes a magnitude when standardMag is known', () => {
@@ -106,6 +115,20 @@ test('findPasses (visual) still computes a magnitude when standardMag is known',
   });
   assert.ok(passes.length > 0);
   assert.equal(typeof passes[0].peakMagnitude, 'number');
+  assert.equal(passes[0].peakMagnitudeEstimated, false);
+  assert.equal('brightnessNote' in passes[0], false);
+});
+
+test('findPasses (radio) estimates an unknown magnitude without capping quality', () => {
+  const args = { record: { line1: LINE1, line2: LINE2 }, observer: { latDeg: 0, lonDeg: 100 }, startMs: START, mode: 'radio' };
+  const guessed = findPasses(args).passes;
+  const known = findPasses({ ...args, standardMag: -1.8 }).passes;
+  assert.ok(guessed.length > 0);
+  assert.deepEqual(guessed.map((p) => p.quality), known.map((p) => p.quality));
+  for (const p of guessed) {
+    assert.equal(p.peakMagnitudeEstimated, true);
+    assert.equal(p.brightnessNote, ESTIMATED_MAG_NOTE);
+  }
 });
 
 test('findPasses and nextPassWindow work on an OMM-only (6-digit) record', () => {
@@ -141,8 +164,9 @@ test('Molniya passes come back from the MCP search, several hours long', () => {
 
 test('MCP pass rows keep their shape', () => {
   const [p] = findPasses({ record: { line1: LINE1, line2: LINE2 }, observer: { latDeg: 0, lonDeg: 100 }, startMs: START, mode: 'radio' }).passes;
-  assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'durationSec', 'entersShadow', 'inProgress', 'leavesShadow', 'peak',
-    'peakElevationDeg', 'peakMagnitude', 'quality', 'rise', 'set', 'sunlit', 'visibleFrom', 'visibleUntil']);
+  assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'brightnessNote', 'durationSec', 'entersShadow', 'inProgress', 'leavesShadow',
+    'peak', 'peakElevationDeg', 'peakMagnitude', 'peakMagnitudeEstimated', 'quality', 'rise', 'set', 'sunlit', 'visibleFrom',
+    'visibleUntil']);
 });
 
 test('findPasses flags elements that cannot be propagated', () => {

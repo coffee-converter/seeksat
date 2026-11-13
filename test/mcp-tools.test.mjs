@@ -101,23 +101,53 @@ test('tools say "no orbit data" when getRecord resolves undefined (unknown)', as
   await assert.rejects(() => getPositionTool({ satellite: 'iss' }, d), /no orbit data for ISS \(ZARYA\) \(25544\) yet/);
 });
 
-import { bestPassTool } from '../lib/mcp/tools.mjs';
+import { bestPassTool, byQuality } from '../lib/mcp/tools.mjs';
 
 // A synthesized (non-curated) satellite has no standardMag: visual passes
-// must report peakMagnitude null rather than a made-up number.
+// report the engine's cautious estimate, flagged, with quality capped at Fair.
 const SYN = { ...REC, noradId: 25485, name: 'SYNTH SAT' };
 const synDeps = { ...deps, getRecord: async (id) => (id === 25485 ? SYN : null) };
 const VIS = { lat: -30, lon: 150, mode: 'visual' };
 
-test('find_passes / next_visible_pass / best_pass leave magnitude null for a synthesized satellite', async () => {
+test('find_passes / next_visible_pass / best_pass flag an estimated magnitude for a synthesized satellite', async () => {
   const fp = await findPassesTool({ satellite: '25485', ...VIS }, synDeps);
   assert.ok(fp.passes.length > 0, 'fixture yields visual passes');
-  for (const p of fp.passes) assert.equal(p.peakMagnitude, null);
+  for (const p of fp.passes) {
+    assert.equal(typeof p.peakMagnitude, 'number');
+    assert.equal(p.peakMagnitudeEstimated, true);
+    assert.match(p.brightnessNote, /estimated/i);
+    assert.ok(p.quality <= 0.4);
+  }
   const nv = await nextVisiblePassTool({ satellite: 25485, ...VIS }, synDeps);
-  assert.equal(nv.pass.peakMagnitude, null);
+  assert.equal(nv.pass.peakMagnitudeEstimated, true);
   const bp = await bestPassTool({ satellite: '25485', ...VIS }, synDeps);
   assert.ok(bp.best);
-  assert.equal(bp.best.peakMagnitude, null);
+  assert.equal(bp.best.peakMagnitudeEstimated, true);
+});
+
+test('best_pass ranks a known bright satellite over one with a guessed magnitude on the same orbit', async () => {
+  // ISS (standardMag -1.8) and METEOR-M2 3 (unknown) flying the same orbit:
+  // identical geometry, so only the brightness cap can separate them.
+  const twin = { ...deps, getRecord: async (id) => (id === 25544 ? REC : id === 57166 ? { ...REC, noradId: 57166, name: 'METEOR-M2 3' } : null) };
+  const out = await bestPassTool({ ...VIS, limit: 20 }, twin);
+  assert.equal(out.best.satellite, 'ISS (ZARYA)');
+  const guessed = out.passes.filter((p) => p.peakMagnitudeEstimated);
+  const known = out.passes.filter((p) => !p.peakMagnitudeEstimated);
+  assert.ok(guessed.length > 0 && known.length === guessed.length, 'both are listed, pass for pass');
+  for (const p of guessed) assert.ok(p.quality <= 0.4);
+  // In this fixture every guessed pass is faint enough to rate Poor, so all of
+  // the ISS passes come first.
+  assert.ok(out.passes.findLastIndex((p) => !p.peakMagnitudeEstimated) < out.passes.findIndex((p) => p.peakMagnitudeEstimated));
+});
+
+test('byQuality: on equal quality a known magnitude beats a guess, then the brighter pass', () => {
+  const rows = [
+    { id: 'guess', quality: 0.4, peakMagnitude: 1, peakMagnitudeEstimated: true },
+    { id: 'faint', quality: 0.4, peakMagnitude: 3, peakMagnitudeEstimated: false },
+    { id: 'bright', quality: 0.4, peakMagnitude: -2, peakMagnitudeEstimated: false },
+    { id: 'top', quality: 0.9, peakMagnitude: 4, peakMagnitudeEstimated: false },
+  ];
+  assert.deepEqual(rows.sort(byQuality).map((r) => r.id), ['top', 'bright', 'faint', 'guess']);
 });
 
 test('synthesized satellites are named from the record; curated ones keep the curated name', async () => {
