@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
-import { altText, awayText, overlayColors, overlayData, overlayImages, overlayLayers, sightFrom } from "@/lib/map/overlays.mjs";
+import { altText, awayText, overlayColors, overlayData, overlayImages, overlayLayers, sightFeatures as sightFeaturesOf, sightFrom } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
@@ -121,6 +121,7 @@ export type Preset = "you" | "sat" | "north" | "south" | "night";
 type LegendItem = { key: string; kind: string; label: string; color?: string };
 const altLine = altText as (altKm: number) => string;
 const awayLabel = awayText as (rangeKm: number) => string;
+const sightFeatures = sightFeaturesOf as (s: MapSat, observer: MapObserver | null) => unknown[];
 const sightOf = sightFrom as (o: { latDeg: number; lonDeg: number; elevM?: number }, lon: number, lat: number, altKm: number) => { rangeKm: number; elDeg: number };
 /** The distance label's width per character (9.5 px text) and the room the
  *  icons at the line's ends take (your crosshair, the dot and its radio arcs). */
@@ -200,7 +201,14 @@ type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; nameText:
 /** A Lock on zoom, eased by the frame loop's jump: from and to zoom, start (ms) and length. */
 type ZoomGoal = { from: number; to: number; t0: number; dur: number };
 /** The frame loop's controls while a satellite is focused (the frame effect). */
-type Frames = { running: () => boolean; wake: () => void; tick: () => void; measure: () => void };
+type Frames = {
+  running: () => boolean;
+  /** The frame loop moves a live sight line (its satellite is the focus). */
+  movesSight: () => boolean;
+  wake: () => void;
+  tick: () => void;
+  measure: () => void;
+};
 
 /** How often the other dots and the GeoJSON footprint move; the focus moves every frame. */
 const DOT_MS = 200;
@@ -399,6 +407,17 @@ export default function FlatMap({
       });
     }
     return out;
+  }, []);
+  /** The live sight lines at ms, as the ss-sight source. */
+  const sightAt = useCallback((ms: number) => {
+    const { sats: s, observer: o } = latest.current;
+    const features: unknown[] = [];
+    for (const x of s) {
+      if (!x.passLive) continue;
+      const sub = x.positionAt(ms);
+      if (sub) features.push(...sightFeatures({ ...x, position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg }, altKm: sub.altKm }, o));
+    }
+    return { type: "FeatureCollection", features };
   }, []);
   // The focus's last placed sample, kept for a sample that fails.
   const lastFocus = useRef<{ noradId: number; focus: LiveFocus } | null>(null);
@@ -1813,24 +1832,23 @@ export default function FlatMap({
       // Only what moves: the dots, the focus footprint while there is one,
       // and the night bands when due. The observer and an emptied footprint
       // go with push().
-      const data = buildData({ sats: liveSats(false), tracks: false, marks: false });
+      const moved = liveSats(false);
+      const data = buildData({ sats: moved, tracks: false, marks: false });
       const footprint = data["ss-footprint"] as { features: unknown[] };
       // A live pass's sight line (and its distance label) ends at the
-      // satellite: rebuilt here with the marks, so it keeps up with the dot
-      // instead of waiting for the next full push.
-      const sightMarks = latest.current.sats.some((x) => x.passLive)
-        ? (() => {
-          const s = liveSats();
-          return buildData({ sats: s, observer: latest.current.observer, shortTrackIds: shortTracks(map, s), tracks: false })["ss-marks"];
-        })()
+      // satellite. The frame loop moves it with a focused dot; this places
+      // it otherwise.
+      const live = moved.filter((x) => x.passLive);
+      const sight = live.length > 0 && !frames.current?.movesSight()
+        ? { type: "FeatureCollection", features: live.flatMap((x) => sightFeatures(x, latest.current.observer)) }
         : null;
       setOverlayData(map, {
         "ss-sats": data["ss-sats"],
         ...(footprint.features.length > 0 && { "ss-footprint": footprint }),
-        ...(sightMarks ? { "ss-marks": sightMarks } : {}),
+        ...(sight ? { "ss-sight": sight } : {}),
         ...(refreshNight(map.getZoom()) && { "ss-night": night.current?.data }),
       });
-      if (sightMarks) syncSightLabels(map);
+      if (live.length > 0) syncSightLabels(map);
     };
     const stop = () => {
       if (id !== undefined) window.clearInterval(id);
@@ -1894,6 +1912,7 @@ export default function FlatMap({
       const pb = map.project([a.lonDeg + wrapLon(b.lonDeg - a.lonDeg), b.latDeg]);
       fast = Math.hypot(pb.x - pa.x, pb.y - pa.y) > FRAME_PX;
     };
+    const focusLive = () => latest.current.sats.some((x) => x.emphasis === "focus" && x.passLive);
     const frame = (at?: number) => {
       // Asked first, so next frame this runs ahead of the map's own render.
       id = requestAnimationFrame(frame);
@@ -1904,6 +1923,8 @@ export default function FlatMap({
       const f = liveFocus(latest.current.sats, ms);
       pushFootprint(f);
       placeMark(map, f);
+      // A live sight line ends on the dot: moved with it, at the same instant.
+      if (focusLive()) setOverlayData(map, { "ss-sight": sightAt(ms) });
       if (zoomGoal.current && !useFollow.getState().following) zoomGoal.current = null;
       const z = zoomGoal.current ? goalAt(zoomGoal.current, at ?? now) : null;
       if (followJump(map, f, z?.zoom)) {
@@ -1948,6 +1969,7 @@ export default function FlatMap({
     };
     frames.current = {
       running: () => id !== undefined,
+      movesSight: () => id !== undefined && focusLive(),
       wake: sync,
       measure: remeasure,
       tick: () => {
@@ -1980,7 +2002,7 @@ export default function FlatMap({
         mark.shown = false;
       }
     };
-  }, [hasFocus, mapReady, liveFocus, pushFootprint, placeMark, followJump, syncGestures, push]);
+  }, [hasFocus, mapReady, liveFocus, pushFootprint, placeMark, followJump, syncGestures, push, sightAt]);
   // A new focus moves at its own speed.
   const focusKey = sats.find((s) => s.emphasis === "focus")?.noradId ?? null;
   useEffect(() => {

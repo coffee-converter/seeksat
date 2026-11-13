@@ -408,7 +408,7 @@ test('a live open pass draws a sight line with the distance, only while the sate
   assert.equal(awayText(1578.2), '1,578 km away');
   const observer = { latDeg: 40, lonDeg: -90 };
   const up = { ...SATS[0], position: { lonDeg: -88, latDeg: 41 }, altKm: 420, passLive: true };
-  const marks = overlayData({ sats: [up], observer })['ss-marks'].features;
+  const marks = overlayData({ sats: [up], observer })['ss-sight'].features;
   assert.equal(marks.filter((f) => f.properties.kind === 'sight').length, 1);
   // The label sits at the line's middle, turned along it (never upside down).
   const label = marks.find((f) => f.properties.kind === 'sight-label');
@@ -422,7 +422,7 @@ test('a live open pass draws a sight line with the distance, only while the sate
   // Below the horizon (half a world away): no sight line, a faint dotted one
   // toward it, labelled not up yet.
   const down = { ...up, position: { lonDeg: 90, latDeg: -40 } };
-  const downMarks = overlayData({ sats: [down], observer })['ss-marks'].features;
+  const downMarks = overlayData({ sats: [down], observer })['ss-sight'].features;
   assert.equal(downMarks.filter((f) => f.properties.kind === 'sight').length, 0);
   assert.equal(downMarks.filter((f) => f.properties.kind === 'sight-below').length, 1);
   assert.match(downMarks.find((f) => f.properties.kind === 'sight-label').properties.label, /not up yet$/);
@@ -431,7 +431,7 @@ test('a live open pass draws a sight line with the distance, only while the sate
 test('after its pass has set, the live line toward the satellite says already set', () => {
   const observer = { latDeg: 40, lonDeg: -90 };
   const gone = { ...SATS[0], position: { lonDeg: 90, latDeg: -40 }, altKm: 420, passLive: true, passAfter: true };
-  const label = overlayData({ sats: [gone], observer })['ss-marks'].features.find((f) => f.properties.kind === 'sight-label');
+  const label = overlayData({ sats: [gone], observer })['ss-sight'].features.find((f) => f.properties.kind === 'sight-label');
   assert.match(label.properties.label, /, already set$/);
 });
 
