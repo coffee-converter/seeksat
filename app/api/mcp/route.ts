@@ -14,6 +14,9 @@ import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
 import { parseProKeys, resolveTier } from '@/lib/mcp/auth.mjs';
 import { runWithRequestContext, getRequestContext } from '@/lib/mcp/request-context.mjs';
 import { logUsage } from '@/lib/mcp/usage.mjs';
+import { createLru } from '@/lib/mcp/radio-scan.mjs';
+import { BAND_IDS } from '@/lib/radio/bands.mjs';
+import { RADIO_WORDS } from '@/lib/radio/modes.mjs';
 
 const PRO_KEYS = parseProKeys(process.env.MCP_PRO_KEYS);
 
@@ -31,6 +34,10 @@ const deps = {
   fetchWeather: (lat: number, lon: number) => fetchCloudForecast(lat, lon),
   now: () => Date.now(),
   search: (q: string, limit: number, opts?: { radio?: boolean }) => getCatalogReader().search(q, limit, opts),
+  radioIds: () => getCatalogReader().radioIds(),
+  // Stage 1 of the all-satellite radio scan, per 0.25 degree cell and hour
+  // (lib/mcp/radio-scan.mjs). Lives as long as the server instance.
+  radioScanCache: createLru(32),
 };
 
 const asText = (obj: unknown) => ({
@@ -242,16 +249,18 @@ const mcpHandler = createMcpHandler(
       'best_pass',
       {
         title: 'Best pass',
-        description: 'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. A pass whose brightness is only estimated (peakMagnitudeEstimated) never outranks a known bright one on a tie, and its visual quality is capped at Fair. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
+        description: 'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. In radio mode with no satellite it scans every satellite with known downlinks (several hundred), optionally only those with a downlink in `bands` or of a kind in `modes`, over 24 hours by default (72 at most); it reports how many it scanned, and each pass lists the satellite\'s downlinks. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. A pass whose brightness is only estimated (peakMagnitudeEstimated) never outranks a known bright one on a tie, and its visual quality is capped at Fair. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
         inputSchema: {
           satellite: z.string().optional().describe('NORAD id or name (e.g. "iss") to rank one satellite. Omit to scan and rank across every tracked satellite.'),
           lat: z.number().min(-90).max(90).optional(),
           lon: z.number().min(-180).max(180).optional(),
           location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-          windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 72; max 240 (10 days).'),
+          windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 72; max 240 (10 days). A radio scan with no satellite named defaults to 24 and stops at 72.'),
           minElevation: z.number().min(0).max(90).optional().describe('ignore passes peaking below this many degrees. Default 10.'),
           limit: z.number().int().positive().max(20).optional().describe('how many ranked passes to return. Default 3.'),
           mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye sunlit passes after dark; "radio" = all line-of-sight passes.'),
+          bands: z.array(z.enum(BAND_IDS as unknown as [string, ...string[]])).optional().describe('radio scan only: keep satellites with a downlink in these bands, e.g. ["2m", "70cm"]. Default: any band.'),
+          modes: z.array(z.enum(RADIO_WORDS as unknown as [string, ...string[]])).optional().describe('radio scan only: keep satellites with a downlink of one of these kinds, matched on its mode or label, e.g. ["fm", "apt", "sstv"]. Default: any.'),
           chart: z.boolean().optional().describe('When true, also render the winning pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the best pass.'),
         },
         annotations: ONLINE,
