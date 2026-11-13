@@ -1368,6 +1368,9 @@ export default function FlatMap({
     limitZoom(map);
     syncFill();
     syncGestures();
+    // With the live view open, frame it again as it framed on opening (a
+    // paused pass reframes itself).
+    if (useMapClock.getState().liveView) useFollow.getState().fitFootprint();
   }, [view, homeView, setFollowing, limitZoom, syncFill, syncGestures]);
 
   // An untouched home view follows the observer (it arrives after mount, once
@@ -1532,6 +1535,26 @@ export default function FlatMap({
       const zoom = fitRingZoom(map, center, [...passRing, [f.lonDeg, f.latDeg]], pad, map.getZoom());
       atHome.current = false;
       moveTo(map, { center, zoom });
+      return;
+    }
+    // No circle (a high orbit, whose circle would cover half the planet) but
+    // its pass known: frame you, the satellite and the pass track together.
+    const path = sat?.passPath ? (sat.passPath.coordinates as number[][][]).flat() : [];
+    if (f && o && path.length > 1) {
+      fitDone.current = fitTick;
+      setFollowing(false);
+      const pts = [...path, [o.lonDeg, o.latDeg], [f.lonDeg, f.latDeg]];
+      // Longitudes unwrapped around you, so a track over the date line frames as one piece.
+      const lons = pts.map(([lon]) => lon + 360 * Math.round((o.lonDeg - lon) / 360));
+      const lats = pts.map(([, lat]) => lat);
+      const cam = map.cameraForBounds(
+        [[Math.min(...lons), Math.max(-85, Math.min(...lats))], [Math.max(...lons), Math.min(85, Math.max(...lats))]],
+        { padding: pad, maxZoom: 7 },
+      );
+      if (!cam?.center) return;
+      const c = cam.center as { lng: number; lat: number } | [number, number];
+      atHome.current = false;
+      moveTo(map, { center: Array.isArray(c) ? c : [c.lng, c.lat], zoom: cam.zoom ?? map.getZoom() });
       return;
     }
     const ring = (sat?.footprint?.coordinates as number[][][] | undefined)?.[0];

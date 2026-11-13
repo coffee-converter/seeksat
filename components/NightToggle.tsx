@@ -16,7 +16,7 @@ const DARK_QUERY = "(prefers-color-scheme: dark)";
  * (app/home.css).
  * Read after mount, like ThemeToggle, so server and client renders match.
  */
-export default function NightToggle() {
+export default function NightToggle({ stateLabel = false }: { stateLabel?: boolean } = {}) {
   const [on, setOn] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -42,8 +42,8 @@ export default function NightToggle() {
       onClick={toggle}
     >
       <Icon name="moon" className="night-toggle__icon" />
-      {/* The settings row already says "Night vision". */}
-      <span className="night-toggle__label">{on ? "On" : "Off"}</span>
+      {/* In Settings the row already says "Night vision": the state alone. */}
+      <span className="night-toggle__label">{stateLabel ? (on ? "On" : "Off") : "Night vision"}</span>
     </Button>
   );
 }

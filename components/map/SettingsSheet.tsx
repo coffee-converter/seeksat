@@ -111,7 +111,7 @@ export default function SettingsSheet({ open, onClose }: Props) {
         </SettingRow>
 
         <SettingRow label="Theme"><ThemeToggle /></SettingRow>
-        <SettingRow label="Night vision"><NightToggle /></SettingRow>
+        <SettingRow label="Night vision"><NightToggle stateLabel /></SettingRow>
 
         <div className="settings-sheet__nav">
           <Button variant="quiet" className="settings-sheet__link" onClick={showAbout}>

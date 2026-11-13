@@ -27,10 +27,12 @@ const pct = (f: number) => `${(f * 100).toFixed(2)}%`;
 export default function LivePassBar({ startMs, startLabel, startShownMs, peakMs, endMs, nowMs, timeZone }: Props) {
   const { nowFrac, peakFrac, peakLabelFrac } = positions({ startMs, peakMs, endMs, nowMs });
   const clock = clockOf(undefined, timeZone);
-  const mark = (label: string, ms: number | null) => (
+  // The zone, when the place's clock differs from the viewer's, only on the
+  // last time: on all three the labels ran into each other.
+  const mark = (label: string, ms: number | null, zoned = false) => (
     <>
       <span className="live-bar__label">{label}</span>
-      {ms != null && <span className="live-bar__time num">{otherClock(ms, timeZone) ? `${clock.format(ms)} ${zoneAbbr(ms, timeZone!)}` : clock.format(ms)}</span>}
+      {ms != null && <span className="live-bar__time num">{zoned && otherClock(ms, timeZone) ? `${clock.format(ms)} ${zoneAbbr(ms, timeZone!)}` : clock.format(ms)}</span>}
     </>
   );
   return (
@@ -44,7 +46,7 @@ export default function LivePassBar({ startMs, startLabel, startShownMs, peakMs,
         {peakLabelFrac != null && peakMs != null && (
           <li className="live-bar__mark live-bar__mark--peak" style={{ left: pct(peakLabelFrac) }}>{mark("Peak", peakMs)}</li>
         )}
-        <li className="live-bar__mark live-bar__mark--end">{mark("Set", endMs)}</li>
+        <li className="live-bar__mark live-bar__mark--end">{mark("Set", endMs, true)}</li>
       </ol>
     </div>
   );
