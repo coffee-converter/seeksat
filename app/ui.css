@@ -539,3 +539,21 @@ select.field__control {
 
 /* The radio mark icon (components/ui/RadioMark.tsx): sits on the text line. */
 .radio-mark { display: inline-block; flex: none; vertical-align: -0.15em; }
+
+/* Placeholder rows while passes are found (components/home/PassSkeleton.tsx):
+   real row structure with the text hidden, so the height matches. */
+.pass-skel__row { cursor: default; pointer-events: none; }
+.pass-skel__row::before { display: none; }
+.pass-skel .pass-skel__bit {
+  align-self: start;
+  width: fit-content;
+  border-radius: var(--radius-sm);
+  background: var(--btn-hover);
+  color: transparent;
+  user-select: none;
+}
+.pass-skel__rows { animation: skel-pulse var(--dur-pulse) var(--ease) infinite; }
+@keyframes skel-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .pass-skel__rows { animation: none; }
+}

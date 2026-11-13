@@ -1,5 +1,6 @@
 "use client";
 
+import PassSkeleton from "./PassSkeleton";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FocusBar from "./FocusBar";
@@ -520,9 +521,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               onOpenRow={setHighlightId}
             />
           )}
-          {listNote === "Finding passes..." ? (
-            <p className="note" role="status">{listNote}</p>
-          ) : listNote && <p className="note">{listNote}</p>}
+          {listNote && <PassSkeleton label={listNote} />}
           {(!following || keepPopular) && <PopularList names={popularNames} />}
         </>
       )}

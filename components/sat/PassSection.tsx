@@ -7,6 +7,7 @@ import ExtraObservers from "@/components/sat/ExtraObservers";
 import LocationPrompt from "@/components/home/LocationPrompt";
 import { passRating, type HomeObserver, type Pass as HomePass, type Track as HomeTrack } from "@/components/home/NextUpList";
 import PassRow, { passRowsClass } from "@/components/home/PassRow";
+import PassSkeleton from "@/components/home/PassSkeleton";
 import LowFold from "@/components/home/LowFold";
 import PassRowOpen from "@/components/home/PassRowOpen";
 import { useKeepRowInPlace } from "@/components/home/useKeepRowInPlace";
@@ -454,10 +455,10 @@ export default function PassSection({
           )}
           {observer && !showPrompt && (shared ? <ExtraObservers readOnly observers={extra} /> : <ExtraObservers />)}
           {observer && !showPrompt && (!view ? (
-            <p className="note" role="status">Finding passes...</p>
+            <PassSkeleton />
           ) : (
             <>
-              {busy && <p className="note" role="status">Finding passes...</p>}
+              {busy && <p className="sr-only" role="status">Finding passes...</p>}
               {placesText && (
                 <div className="sat-places-line" role="status">
                   <p>{placesText}</p>

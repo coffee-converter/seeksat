@@ -87,7 +87,7 @@ as icons. To add one, draw it on the 24 px grid and add it to `PATHS`.
 
 `--dur-fast` (120 ms) for hover and press colour changes, `--dur-base`
 (200 ms) for small moves, `--dur-slow` (300 ms) for sheets sliding in,
-`--dur-flash` (700 ms) for a value that just changed. One easing, `--ease`.
+`--dur-flash` (700 ms) for a value that just changed, `--dur-pulse` (1600 ms) for the loading rows' slow pulse. One easing, `--ease`.
 Reduced motion sets every duration to 0. Every hover change has a
 transition; nothing animates on its own except the live dot.
 
