@@ -10,6 +10,8 @@ import { cardHeadline } from "@/lib/home/next-up.mjs";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import PassRow, { passRowsClass as rowsClass } from "./PassRow";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
+import { DOCKED_QUERY, useKeepRowInPlace } from "./useKeepRowInPlace";
+import { toggleOpen } from "@/lib/ui/open-row.mjs";
 import {
   FollowChip, ViewingTag, bestPassOf, passRating,
   type Card, type HomeObserver, type OpenChart, type Pass, type Track, type ViewingProps,
@@ -51,8 +53,6 @@ function countAtOrBefore(edges: number[], ms: number): number {
   return lo;
 }
 
-/** The docked layout, where the first pass starts open. */
-const DESKTOP_QUERY = "(min-width: 1100px)";
 const MODES = [{ value: "visual" as const, label: "Visual" }, { value: "radio" as const, label: "Radio" }];
 
 /** Row keys start with the NORAD id ("25544:1794…", "25544:viewing"). */
@@ -103,17 +103,15 @@ export default function PassList({
   const tz = observer.tz;
 
   const [showAll, setShowAll] = useState(false);
-  // Open rows by key, in the order they were opened.
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  // The one open row: opening another closes it.
+  const [openKey, setOpenKey] = useState<string | null>(null);
   // The row opened for the viewer (desktop's first pass), until they toggle it.
   const [autoKey, setAutoKey] = useState<string | null>(null);
-  const toggle = (key: string) => {
+  const keepInPlace = useKeepRowInPlace();
+  const toggle = (key: string, button: HTMLElement) => {
     if (key === autoKey) setAutoKey(null);
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
+    keepInPlace(button);
+    setOpenKey((prev) => toggleOpen(prev, key));
   };
 
   const cards = useMemo(
@@ -172,23 +170,23 @@ export default function PassList({
     }
     if (seeded.current) return;
     seeded.current = true;
-    if (!window.matchMedia(DESKTOP_QUERY).matches) return;
-    setOpen((prev) => new Set(prev).add(firstKey));
+    if (!window.matchMedia(DOCKED_QUERY).matches) return;
+    setOpenKey(firstKey);
     setAutoKey(firstKey);
   }, [firstKey]);
 
-  // Forget open rows that left the list (a pass ended, the mode changed).
+  // Forget the open row once it leaves the list (a pass ended, the mode changed).
   const keyList = keys.join(" ");
   useEffect(() => {
     const live = new Set(keyList.split(" "));
-    setOpen((prev) => ([...prev].every((k) => live.has(k)) ? prev : new Set([...prev].filter((k) => live.has(k)))));
+    setOpenKey((prev) => (prev != null && !live.has(prev) ? null : prev));
   }, [keyList]);
 
-  // Report the latest row the viewer opened that is still in the list (the
+  // Report the row the viewer opened while it is still in the list (the
   // prune above lands a render later). The auto-opened row is not reported,
   // so the map stays at rest until the viewer picks a row.
-  const lastOpen = [...open].reverse().find((k) => k !== autoKey && keys.includes(k));
-  const openId = lastOpen ? idOfKey(lastOpen) : null;
+  const viewerOpen = openKey != null && openKey !== autoKey && keys.includes(openKey) ? openKey : null;
+  const openId = viewerOpen ? idOfKey(viewerOpen) : null;
   const reported = useRef<number | null>(null);
   useEffect(() => {
     if (openId === reported.current) return;
@@ -199,7 +197,7 @@ export default function PassList({
   const passRow = (row: Row, viewing: ViewingProps | null) => {
     const track = tracks.get(row.noradId);
     const { time, sub } = whenOf(row.pass, nowMs, tz);
-    const isOpen = open.has(row.key);
+    const isOpen = openKey === row.key;
     const id = panelId(row.key);
     return (
       <PassRow
@@ -214,7 +212,7 @@ export default function PassList({
         detail={detailOf(row.pass)}
         rating={<QualityBadge pass={row.pass} rating={visual ? ratingOf(row.pass) : undefined} maxShown pill />}
         open={isOpen}
-        onToggle={() => toggle(row.key)}
+        onToggle={(button) => toggle(row.key, button)}
       >
         {track && (
           <PassRowOpen
@@ -251,8 +249,8 @@ export default function PassList({
         tag={<ViewingTag viewing={viewing} />}
         detail={`Az ${Math.round(azDeg)}° · El ${Math.round(elDeg)}°`}
         rating={visual ? null : <QualityBadge pass={{ maxElevDeg: elDeg }} maxShown pill />}
-        open={open.has(key)}
-        onToggle={() => toggle(key)}
+        open={openKey === key}
+        onToggle={(button) => toggle(key, button)}
       >
         {track && (
           <AlwaysRowOpen

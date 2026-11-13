@@ -8,13 +8,15 @@ import LocationPrompt from "@/components/home/LocationPrompt";
 import { passRating, type HomeObserver, type Pass as HomePass, type Track as HomeTrack } from "@/components/home/NextUpList";
 import PassRow, { passRowsClass } from "@/components/home/PassRow";
 import PassRowOpen from "@/components/home/PassRowOpen";
+import { useKeepRowInPlace } from "@/components/home/useKeepRowInPlace";
+import { toggleOpen } from "@/lib/ui/open-row.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows, printAccuracyNote, rowAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen, directionText } from "@/lib/sat/pass-rows.mjs";
+import { passRows, printAccuracyNote, rowAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, directionText } from "@/lib/sat/pass-rows.mjs";
 import QualityBadge from "@/components/passes/QualityBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
@@ -56,7 +58,6 @@ type Track = { name: string; shortName: string; noradId: number };
 
 const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) => View;
 const bearings = directionText as (pass: { startAzDeg: number; endAzDeg: number }) => string;
-const rowOpen = isRowOpen as (key: string, sharedKey: string | null, toggled: ReadonlySet<string>) => boolean;
 const whenOf = rowWhen as (pass: HomePass, nowMs: number, timeZone?: string) => { time: string; sub: string };
 const detailOf = rowDetail as (pass: HomePass) => string;
 const underWay = underWayAt as (pass: HomePass, nowMs: number) => boolean;
@@ -260,13 +261,15 @@ export default function PassSection({
   const sharedKey = sharedHit?.kind === "row" ? sharedHit.key : null;
   // Ten days of passes is a long page on a phone: show two days, then a button.
   const [showAll, setShowAll] = useState(false);
-  // Rows whose More was toggled; the shared row starts open (isRowOpen).
-  const [openRows, setOpenRows] = useState<ReadonlySet<string>>(() => new Set());
-  const toggleRow = (key: string) => setOpenRows((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
+  // The one open row: the shared row until the viewer taps one (undefined),
+  // then the row they opened, or none.
+  const [chosenKey, setChosenKey] = useState<string | null | undefined>(undefined);
+  const openKey = chosenKey === undefined ? sharedKey : chosenKey;
+  const keepInPlace = useKeepRowInPlace();
+  const toggleRow = (key: string, button: HTMLElement) => {
+    keepInPlace(button);
+    setChosenKey(toggleOpen(openKey, key) as string | null);
+  };
   const rowCount = view?.kind === "rows"
     ? (showAll ? view.rows.length : (initialRowCount as (r: Row[], n: number, o: { sharedKey: string | null }) => number)(view.rows, bucketMs, { sharedKey }))
     : 0;
@@ -365,7 +368,6 @@ export default function PassSection({
   const passRow = (row: Row) => {
     const pass = row.pass as unknown as HomePass;
     const isShared = row.key === sharedKey;
-    const open = rowOpen(row.key, sharedKey, openRows);
     const id = `pass-open-${row.key}`;
     // Up when the search ran: its rise is not known here, so it reads "Now".
     const { time, sub } = whenOf(startIsRise(pass) ? pass : { ...pass, riseUnknown: true }, nowMs, observer?.tz);
@@ -384,8 +386,8 @@ export default function PassSection({
         tag={isShared ? <span className="pass-card__tag">shared</span> : null}
         detail={detailOf(pass)}
         rating={<QualityBadge pass={pass} rating={rating} maxShown pill />}
-        open={open}
-        onToggle={() => toggleRow(row.key)}
+        open={row.key === openKey}
+        onToggle={(button) => toggleRow(row.key, button)}
       >
         {track && observer && (
           <PassRowOpen

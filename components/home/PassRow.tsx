@@ -19,14 +19,15 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
   detail: string;
   rating?: ReactNode;
   open: boolean;
-  onToggle: () => void;
+  /** Called with the row's button, so the list can keep it in place. */
+  onToggle: (button: HTMLButtonElement) => void;
   className?: string;
   ref?: Ref<HTMLLIElement>;
   children: ReactNode;
 }) {
   return (
     <li ref={ref} className={cx("pass-row", className)} style={{ "--sat-color": color } as CSSProperties}>
-      <button type="button" className="pass-row__btn" aria-expanded={open} aria-controls={id} onClick={onToggle}>
+      <button type="button" className="pass-row__btn" aria-expanded={open} aria-controls={id} onClick={(e) => onToggle(e.currentTarget)}>
         <span className="pass-row__when">
           <span className="pass-row__time">{time}</span>
           {sub && <span className={cx("pass-row__sub", now && "pass-row__sub--now")}>{sub}</span>}
