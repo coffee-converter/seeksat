@@ -1340,9 +1340,10 @@
 @media (max-width: 1099.98px) {
   .timeline { display: none; }
 }
+/* One 16 px lane; passes that overlap in time stack in 11 px lanes. */
 .timeline__strip {
   position: relative;
-  height: 16px;
+  height: calc(var(--lanes, 1) * var(--lane-h, 16px));
   border-radius: var(--radius-sm);
   background: var(--timeline-day);
 }
@@ -1365,8 +1366,8 @@
 .timeline__bar {
   --bw: max(calc(var(--w) * 100%), 8px);
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: calc(var(--lane, 0) * var(--lane-h, 16px));
+  height: var(--lane-h, 16px);
   left: clamp(0px, calc(var(--mid) * 100% - var(--bw) / 2), calc(100% - var(--bw)));
   width: var(--bw);
   margin: 0;

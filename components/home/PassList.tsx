@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import QualityBadge from "@/components/passes/QualityBadge";
+import QualityBadge, { type Quality } from "@/components/passes/QualityBadge";
 import Button from "@/components/ui/Button";
 import Segmented from "@/components/ui/Segmented";
-import { passList, quietLine, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
+import { passList, passUnderWay, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import { cx, surfaceClass } from "@/lib/ui/classes.mjs";
 import type { Forecast } from "@/lib/sky/use-clouds";
@@ -17,13 +17,15 @@ import {
 type StationaryCard = Extract<Card, { kind: "stationary" }>;
 type Row = { key: string; noradId: number; name: string; pass: Pass; now: boolean };
 type Group = { key: string; label: string; rows: Row[] };
+type Quiet = { none: string[]; neverUp: string[]; unusable: string[]; missing: number[] };
 
 const listOf = passList as (o: { cards: Card[]; nowMs: number; timeZone?: string; limit?: number }) => {
-  groups: Group[]; more: number; always: StationaryCard[]; quiet: string[];
+  groups: Group[]; more: number; always: StationaryCard[]; quiet: Quiet;
 };
 const whenOf = rowWhen as (pass: Pass, nowMs: number, timeZone?: string) => { time: string; sub: string };
 const detailOf = rowDetail as (pass: Pass) => string;
-const quietOf = quietLine as (names: string[]) => string | null;
+const quietOf = quietLines as (quiet: Quiet) => string[];
+const underWay = passUnderWay as (pass: Pass, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
 
 /** The docked layout, where the first pass starts open. */
@@ -45,7 +47,7 @@ interface Props {
   minElevDeg: number;
   nowMs: number;
   onModeChange: (mode: "radio" | "visual") => void;
-  /** "Times shown in Tokyo time", when the place keeps another clock. */
+  /** "Times are Tokyo time (UTC+9).", when the place keeps another clock. */
   zoneNote?: string | null;
   /** Shown under the heading (the 24 hour strip on desktop). */
   strip?: ReactNode;
@@ -129,14 +131,29 @@ export default function PassList({
   );
   // The rows only move with the cards and the day, so build them once a
   // minute, not on every one-second tick ("in N min" is read per row below).
-  const minute = Math.floor(nowMs / 60_000);
+  const minuteMs = Math.floor(nowMs / 60_000) * 60_000;
   const limit = showAll ? Infinity : ROW_LIMIT;
   const { groups, more, always, quiet } = useMemo(
-    () => listOf({ cards, nowMs: minute * 60_000, timeZone: tz, limit }),
-    [cards, minute, tz, limit],
+    () => listOf({ cards, nowMs: minuteMs, timeZone: tz, limit }),
+    [cards, minuteMs, tz, limit],
   );
-  const quietText = quietOf(quiet);
-  const best = bestPassOf(followedCards, { mode, skyType, clouds, nowMs });
+  const quietText = useMemo(() => quietOf(quiet), [quiet]);
+  // Ratings read the cards, the sky and the forecast; rate once a minute, not per tick.
+  const best = useMemo(
+    () => bestPassOf(followedCards, { mode, skyType, clouds, nowMs: minuteMs }),
+    [followedCards, mode, skyType, clouds, minuteMs],
+  );
+  const ratingOf = useMemo(() => {
+    const cache = new Map<Pass, Quality>();
+    return (pass: Pass) => {
+      let q = cache.get(pass);
+      if (!q) {
+        q = passRating(pass, { mode, skyType, clouds, nowMs: minuteMs });
+        cache.set(pass, q);
+      }
+      return q;
+    };
+  }, [mode, skyType, clouds, minuteMs]);
   const viewingOf = (id: number): ViewingProps | null => (viewingCard && viewingCard.noradId === id
     ? { onFollow: () => onFollow(id), blocked: followBlocked }
     : null);
@@ -200,7 +217,7 @@ export default function PassList({
         name={row.name}
         tag={<ViewingTag viewing={viewing} />}
         detail={detailOf(row.pass)}
-        rating={<QualityBadge pass={row.pass} rating={visual ? passRating(row.pass, { mode, skyType, clouds, nowMs }) : undefined} maxShown pill />}
+        rating={<QualityBadge pass={row.pass} rating={visual ? ratingOf(row.pass) : undefined} maxShown pill />}
         open={isOpen}
         onToggle={() => toggle(row.key)}
       >
@@ -265,7 +282,7 @@ export default function PassList({
     const viewing = viewingOf(card.noradId);
     if (card.kind === "pass") {
       const { pass } = card;
-      return passRow({ key, noradId: card.noradId, name: card.name, pass, now: Boolean(pass.inProgress) }, viewing);
+      return passRow({ key, noradId: card.noradId, name: card.name, pass, now: underWay(pass, nowMs) }, viewing);
     }
     if (card.kind === "stationary" && card.visible) return alwaysRow(card, key, viewing);
     return (
@@ -304,7 +321,7 @@ export default function PassList({
           <ul className={rowsClass}>{always.map((card) => alwaysRow(card, `${card.noradId}:always`, null))}</ul>
         </div>
       )}
-      {quietText && <p className="pass-list__quiet">{quietText}</p>}
+      {quietText.map((line) => <p key={line} className="pass-list__quiet">{line}</p>)}
     </section>
   );
 }

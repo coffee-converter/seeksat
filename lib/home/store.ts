@@ -161,7 +161,17 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     set({ prefs: { ...loaded, projection }, projectionChosen: loaded.projection != null, hydrated: true });
   },
 
-  choosePlace: (loc) => get().setPrefs(withPlace(get().prefs, loc)),
+  choosePlace: (loc) => {
+    get().hydrate();
+    // Build the recent list from what is saved now: another tab may have
+    // picked a place since this one loaded.
+    const saved = storedPrefs();
+    const { prefs } = get();
+    get().setPrefs(withPlace({
+      location: saved?.location ?? prefs.location,
+      recent: saved?.recent ?? prefs.recent,
+    }, loc));
+  },
   setPrefs: (patch) => {
     get().hydrate();
     // Apply the patch to what is saved now, not to this tab's copy: another

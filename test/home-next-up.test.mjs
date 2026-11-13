@@ -49,6 +49,26 @@ test('an in-progress pass sorts first, then stationary, then missing', () => {
   assert.match(cardHeadline(cards[0], nowMs), /^ISS now, max \d+°$/);
 });
 
+test('a pass under way keeps its real rise time, whenever the cards are made', () => {
+  const tracks = new Map([[iss.noradId, iss]]);
+  const at = (iso) => nextUp({ ...base, tracks, nowMs: Date.parse(iso) })[0].pass;
+  const a = at('2026-03-01T13:18:00Z');
+  const b = at('2026-03-01T13:20:00Z');
+  assert.equal(a.inProgress, true);
+  assert.ok(a.startMs < Date.parse('2026-03-01T13:18:00Z'), 'rose before the cards were made');
+  assert.ok(Math.abs(a.startMs - b.startMs) < 60_000, 'same rise both times');
+  assert.ok(!a.riseUnknown);
+});
+
+test('a pass that ended before now is not on the card', () => {
+  const tracks = new Map([[iss.noradId, iss]]);
+  const nowMs = Date.parse('2026-03-01T13:18:00Z');
+  const first = nextUp({ ...base, tracks, nowMs })[0].pass;
+  const after = nextUp({ ...base, tracks, nowMs: first.endMs + 60_000 })[0];
+  assert.ok(after.upcoming.every((p) => p.endMs > first.endMs + 60_000));
+  assert.ok(after.pass.startMs > first.endMs);
+});
+
 test('an upcoming pass sorts ahead of stationary cards', () => {
   const tracks = new Map([[goes.noradId, goes], [iss.noradId, iss]]);
   const cards = nextUp({ ...base, tracks, nowMs: T0 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { passList, rowWhen, rowDetail, quietLine, ROW_LIMIT } from '../lib/home/pass-list.mjs';
+import { passList, passKey, rowWhen, rowDetail, quietLines, ROW_LIMIT } from '../lib/home/pass-list.mjs';
 
 const p = (startIso, minutes, maxElevDeg, startAzDeg, endAzDeg, extra = {}) => {
   const startMs = Date.parse(startIso);
@@ -75,10 +75,40 @@ test('non-pass cards', () => {
     nowMs: NOW, timeZone: 'UTC',
   });
   assert.deepEqual(r.always, [st]);
-  assert.deepEqual(r.quiet, ['AO-91', 'X', '3']);
+  assert.deepEqual(r.quiet, { none: ['AO-91'], neverUp: [], unusable: ['X'], missing: [3] });
   assert.deepEqual(r.groups, []);
-  assert.equal(quietLine(['AO-91', 'FO-29']), 'No passes in the next 48 h: AO-91, FO-29');
-  assert.equal(quietLine([]), null);
+});
+
+test('quietLines gives one line per reason, and none when there is nothing to say', () => {
+  assert.deepEqual(quietLines({ none: ['AO-91', 'FO-29'], neverUp: ['G'], unusable: ['X'], missing: [3, 4] }), [
+    'No passes in the next 48 h: AO-91, FO-29',
+    'Never rises here: G',
+    "Can't predict passes from this orbit data: X",
+    'Not in the catalog right now: NORAD 3, NORAD 4',
+  ]);
+  assert.deepEqual(quietLines({ none: [], neverUp: [], unusable: [], missing: [] }), []);
+});
+
+test('a pass that started after the cards were made reads Now and sorts first', () => {
+  const a = card(1, 'A', [p('2026-11-12T19:58:00Z', 5, 40, 0, 90)]);
+  const b = card(2, 'B', [p('2026-11-12T20:30:00Z', 5, 40, 0, 90)]);
+  const { groups } = passList({ cards: [b, a], nowMs: NOW, timeZone: 'UTC' });
+  assert.equal(groups[0].rows[0].name, 'A');
+  assert.equal(groups[0].rows[0].now, true);
+  assert.equal(rowWhen(a.pass, NOW, 'UTC').sub, 'Now');
+});
+
+test('a pass that has ended drops out before the next refresh', () => {
+  const a = card(1, 'A', [p('2026-11-12T19:50:00Z', 5, 40, 0, 90), p('2026-11-12T21:00:00Z', 5, 40, 0, 90)]);
+  const { groups } = passList({ cards: [a], nowMs: NOW, timeZone: 'UTC' });
+  assert.equal(groups.flatMap((g) => g.rows).length, 1);
+});
+
+test('a pass under way since before the search is keyed by its end and reads to its set time', () => {
+  const cut = p('2026-11-12T19:00:00Z', 90, 40, 0, 90, { inProgress: true, riseUnknown: true });
+  const later = { ...cut, startMs: cut.startMs + 10 * 60_000 };
+  assert.equal(passKey(1, cut), passKey(1, later));
+  assert.deepEqual(rowWhen(cut, NOW, 'UTC'), { time: 'Now', sub: 'to 8:30 PM' });
 });
 
 test('a satellite that never sets but stays below the horizon is quiet, not always up', () => {
@@ -86,7 +116,7 @@ test('a satellite that never sets but stays below the horizon is quiet, not alwa
   const down = { kind: 'stationary', noradId: 8, name: 'H', visible: false, pointing: { azDeg: 1, elDeg: -5 } };
   const r = passList({ cards: [down, up, { kind: 'none', noradId: 1, name: 'AO-91' }], nowMs: NOW, timeZone: 'UTC' });
   assert.deepEqual(r.always, [up]);
-  assert.deepEqual(r.quiet, ['H', 'AO-91']);
+  assert.deepEqual(r.quiet, { none: ['AO-91'], neverUp: ['H'], unusable: [], missing: [] });
 });
 
 test('rowDetail', () => {

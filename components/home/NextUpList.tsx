@@ -47,6 +47,8 @@ export interface Pass {
   endElevDeg?: number | null;
   visible: boolean;
   inProgress: boolean;
+  /** In progress since before the search began: startMs is the search start, not the rise. */
+  riseUnknown?: boolean;
   runsPastEnd?: boolean;
   /** Radio mode only: time above 10° and 30°. */
   msAbove10?: number;
