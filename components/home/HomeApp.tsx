@@ -429,7 +429,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     const about = document.getElementById("about") as HTMLDetailsElement | null;
     if (!about) return;
     about.open = true;
-    // After the rows (and desktop's open first row) have drawn.
+    // After the rows have drawn.
     requestAnimationFrame(() => about.scrollIntoView({ block: "start" }));
   }, [listSettled]);
   // An open row's highlight goes with the list (it reports only while shown).

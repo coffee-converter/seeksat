@@ -14,11 +14,10 @@ import PassRow, { passRowsClass as rowsClass } from "./PassRow";
 import LowFold from "./LowFold";
 import { BestLine, UpNowLine } from "./BestLine";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
-import { DOCKED_QUERY, useKeepRowInPlace } from "./useKeepRowInPlace";
+import { useKeepRowInPlace } from "./useKeepRowInPlace";
 import { useMapClock } from "@/lib/map/map-clock";
 import type { OpenPassRow } from "@/lib/map/use-map-pause";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
-import { splitLowRows } from "@/lib/ui/low-fold.mjs";
 import { MODE_HINT_TEXT, dismissModeHint, modeHintWanted } from "@/lib/home/mode-hint.mjs";
 import {
   FollowChip, ViewingTag, bestPassOf, liveOk, passRating,
@@ -135,11 +134,10 @@ export default function PassList({
   };
   // The one open row: opening another closes it.
   const [openKey, setOpenKey] = useState<string | null>(null);
-  // The row opened for the viewer (desktop's first pass), until they toggle it.
-  const [autoKey, setAutoKey] = useState<string | null>(null);
+  // Nothing opens by itself: an open row pauses the map at its pass, so the
+  // page loads live with every row closed.
   const keepInPlace = useKeepRowInPlace();
   const toggle = (key: string, button: HTMLElement) => {
-    if (key === autoKey) setAutoKey(null);
     keepInPlace(button);
     setOpenKey((prev) => toggleOpen(prev, key));
   };
@@ -194,31 +192,11 @@ export default function PassList({
   const colorOf = (id: number) => colors.get(id) ?? "var(--map-muted)";
 
   const pinnedKey = viewingCard ? `${viewingCard.noradId}:viewing` : null;
-  // The first row a reader sees: never one folded away as a low pass, so the
-  // auto-opened row is at the top rather than inside the fold.
-  const firstKey = groups
-    .map((g) => (splitLowRows as (rows: typeof g.rows, nowMs: number) => { shown: typeof g.rows })(g.rows, nowMs).shown[0]?.key)
-    .find((k) => k != null) ?? null;
   const keys = [
     ...(pinnedKey ? [pinnedKey] : []),
     ...groups.flatMap((g) => g.rows.map((r) => r.key)),
     ...always.map((c) => `${c.noradId}:always`),
   ];
-
-  // From 1100 px the first pass starts open; read when it first shows, and
-  // again after the list has run empty (new mode, place or follows).
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (!firstKey) {
-      seeded.current = false;
-      return;
-    }
-    if (seeded.current) return;
-    seeded.current = true;
-    if (!window.matchMedia(DOCKED_QUERY).matches) return;
-    setOpenKey(firstKey);
-    setAutoKey(firstKey);
-  }, [firstKey]);
 
   // Forget the open row once it leaves the list (a pass ended, the mode changed).
   const keyList = keys.join(" ");
@@ -227,10 +205,9 @@ export default function PassList({
     setOpenKey((prev) => (prev != null && !live.has(prev) ? null : prev));
   }, [keyList]);
 
-  // Report the row the viewer opened while it is still in the list (the
-  // prune above lands a render later). The auto-opened row is not reported,
-  // so the map stays at rest until the viewer picks a row.
-  const viewerOpen = openKey != null && openKey !== autoKey && keys.includes(openKey) ? openKey : null;
+  // Report the open row while it is still in the list (the prune above
+  // lands a render later).
+  const viewerOpen = openKey != null && keys.includes(openKey) ? openKey : null;
   const openPass = !viewerOpen ? null
     : viewerOpen === pinnedKey ? (viewingCard?.kind === "pass" ? viewingCard.pass : null)
       : groups.flatMap((g) => g.rows).find((r) => r.key === viewerOpen)?.pass ?? null;
@@ -262,7 +239,6 @@ export default function PassList({
   const openBest = () => {
     if (!bestKey) return;
     if (!keys.includes(bestKey)) setShowAll(true);
-    if (bestKey === autoKey) setAutoKey(null);
     setOpenKey(bestKey);
     scrollTo.current = bestKey;
   };
