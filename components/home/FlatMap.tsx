@@ -1815,11 +1815,22 @@ export default function FlatMap({
       // go with push().
       const data = buildData({ sats: liveSats(false), tracks: false, marks: false });
       const footprint = data["ss-footprint"] as { features: unknown[] };
+      // A live pass's sight line (and its distance label) ends at the
+      // satellite: rebuilt here with the marks, so it keeps up with the dot
+      // instead of waiting for the next full push.
+      const sightMarks = latest.current.sats.some((x) => x.passLive)
+        ? (() => {
+          const s = liveSats();
+          return buildData({ sats: s, observer: latest.current.observer, shortTrackIds: shortTracks(map, s), tracks: false })["ss-marks"];
+        })()
+        : null;
       setOverlayData(map, {
         "ss-sats": data["ss-sats"],
         ...(footprint.features.length > 0 && { "ss-footprint": footprint }),
+        ...(sightMarks ? { "ss-marks": sightMarks } : {}),
         ...(refreshNight(map.getZoom()) && { "ss-night": night.current?.data }),
       });
+      if (sightMarks) syncSightLabels(map);
     };
     const stop = () => {
       if (id !== undefined) window.clearInterval(id);
@@ -1852,7 +1863,7 @@ export default function FlatMap({
       io?.disconnect();
       stop();
     };
-  }, [liveSats, refreshNight, push]);
+  }, [liveSats, refreshNight, push, syncSightLabels]);
 
   // Every frame while a satellite is focused, the map is made and in view, the
   // tab shows, and the dot moves visibly per frame (or Lock on is on): place
