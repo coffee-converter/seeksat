@@ -26,7 +26,7 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
   children: ReactNode;
 }) {
   return (
-    <li ref={ref} className={cx("pass-row", className)} style={{ "--sat-color": color } as CSSProperties}>
+    <li ref={ref} className={cx("pass-row", open && "pass-row--open", className)} style={{ "--sat-color": color } as CSSProperties}>
       <button type="button" className="pass-row__btn" aria-expanded={open} aria-controls={id} onClick={(e) => onToggle(e.currentTarget)}>
         <span className="pass-row__when">
           <span className="pass-row__time">{time}</span>

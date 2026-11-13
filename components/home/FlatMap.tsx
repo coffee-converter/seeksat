@@ -59,6 +59,8 @@ export interface MapSat {
   passPeak?: { lonDeg: number; latDeg: number };
   /** The visibility circle's radius around the observer, in degrees. */
   passReachDeg?: number;
+  /** That circle traced on the ellipsoid (a closed [lon, lat] line), when known. */
+  passRing?: number[][];
 }
 
 export interface MapObserver {
@@ -132,7 +134,7 @@ const shapeId = (o: object | null | undefined) => {
   return id;
 };
 function trackKey(sats: MapSat[], short: Set<number>, detail: number): string {
-  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}:${shapeId(s.passPath)}:${shapeId(s.passSunlit)}`);
+  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}:${shapeId(s.passPath)}:${shapeId(s.passSunlit)}:${shapeId(s.passRing)}`);
   return `${detail}|${[...short].sort().join(",")}|${parts.join(";")}`;
 }
 const home = homeCamera as (

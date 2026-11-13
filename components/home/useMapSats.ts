@@ -43,6 +43,8 @@ export interface MapPass {
   endMs: number;
   /** The closest approach (highest point). */
   peakMs: number;
+  /** The visibility circle around the observer, as a closed [lon, lat] line. */
+  ring?: number[][] | null;
   /** The map is paused at peakMs: the satellite's own circle and track ticks go. */
   paused?: boolean;
   /** "5:41 PM" and "5:48 PM", in the place's zone, for the rise and set marks. */
@@ -166,11 +168,12 @@ export function useMapSats({
           passSunlit: passShape.sunlit,
           passShadow: passShape.shadow,
           passEnds: passShape.ends,
+          ...(pass?.ring && { passRing: pass.ring }),
           ...(passShape.peak && { passPeak: passShape.peak }),
           ...(passShape.reachDeg != null && { passReachDeg: passShape.reachDeg }),
         }),
       });
     }
     return { sats };
-  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId]);
+  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId, pass?.ring]);
 }

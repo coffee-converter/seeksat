@@ -73,6 +73,8 @@
   --input-border: #626d7e;
   --tile-bg: #171c24;
   --tile-hover: #1c222c;
+  /* An opened pass row, lifted off the list. */
+  --row-open-bg: #212836;
   --flash-bg: rgba(143, 180, 230, 0.24);
   --flash-text: #ffffff;
   /* --modal-dark-bg, the always-dark chart dialogs' panel (Modal tone="dark"),
@@ -158,6 +160,7 @@
   --input-border: #808a99;
   --tile-bg: #ffffff;
   --tile-hover: #f3f5f8;
+  --row-open-bg: #ffffff;
   --flash-bg: rgba(44, 90, 153, 0.16);
   --flash-text: #0b1220;
   /* A shade firmer than --border: the light land and panels are close in tone. */

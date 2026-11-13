@@ -64,3 +64,17 @@ test('geometricElevFor undoes refraction: 0 apparent is about half a degree belo
   assert.ok(Math.abs(apparentAltDeg(e)) < 0.01);
   assert.ok(Math.abs(apparentAltDeg(geometricElevFor(20)) - 20) < 0.01);
 });
+
+test('the visibility ring sits where the satellite is exactly at the horizon', async () => {
+  const { visibilityRing } = await import('../lib/map/pass-arc.mjs');
+  const { satAltitudeDeg } = await import('../lib/pass-finder/visibility.js');
+  const { apparentAltDeg } = await import('../lib/refraction.js');
+  const obs = { latDeg: 41.9, lonDeg: -87.6, elevM: 0 };
+  const ring = visibilityRing(obs, 420, 0, 36);
+  assert.deepEqual(ring[0], ring.at(-1));
+  for (const [lon, lat] of ring.slice(0, -1)) {
+    const v = geodeticToEcef(lat, lon, 420_000);
+    const e = apparentAltDeg(satAltitudeDeg(obs, Array.isArray(v) ? v : [v.x, v.y, v.z]));
+    assert.ok(Math.abs(e) < 0.01, `elevation ${e} at ${lat}, ${lon}`);
+  }
+});

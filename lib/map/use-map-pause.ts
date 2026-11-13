@@ -4,7 +4,8 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { passArc } from "./pass-arc.mjs";
+import { passArc, visibilityRing } from "./pass-arc.mjs";
+import { subpoint } from "./geometry.mjs";
 import { useMapClock } from "./map-clock";
 import { passTime } from "@/components/passes/PassStats";
 import type { MapPass } from "@/components/home/useMapSats";
@@ -60,6 +61,20 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [track, obsLat, obsLon, minElevDeg, row?.startMs, row?.endMs, row?.peakMs]);
   const p = row && (arc ? { startMs: arc.riseMs, endMs: arc.setMs, peakMs: arc.closestMs } : row);
+  // The visibility circle, traced with the same elevation math, at the
+  // satellite's mean height where it rises and sets.
+  const ring = useMemo(() => {
+    if (!arc || !track || obsLat == null || obsLon == null) return null;
+    const alts = [arc.riseMs, arc.setMs]
+      .map((ms) => track.ecefAt(new Date(ms)))
+      .filter((e): e is number[] => e != null)
+      .map((e) => (subpoint as (v: number[]) => { altKm: number })(e).altKm);
+    if (!alts.length) return null;
+    const alt = alts.reduce((a, b) => a + b, 0) / alts.length;
+    return (visibilityRing as (o: { latDeg: number; lonDeg: number }, altKm: number, minElevDeg: number) => number[][])(
+      { latDeg: obsLat, lonDeg: obsLon }, alt, minElevDeg,
+    );
+  }, [arc, track, obsLat, obsLon, minElevDeg]);
   const upNow = p != null && nowMs != null && p.startMs <= nowMs && nowMs < p.endMs;
   const key = open && p && !upNow && !live ? open.key : null;
   const peakMs = p?.peakMs ?? null;
@@ -72,7 +87,11 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   const isPaused = paused != null && key != null && paused.key === key;
   const mapPass = open && p ? {
     noradId: open.noradId, startMs: p.startMs, endMs: p.endMs, peakMs: p.peakMs,
-    paused: isPaused, riseLabel: passTime(p.startMs, zone), setLabel: passTime(p.endMs, zone),
+    paused: isPaused, ring, riseLabel: passTime(p.startMs, zone), setLabel: passTime(p.endMs, zone),
   } : null;
-  return { mapNowMs: paused?.atMs ?? nowMs, mapPass };
+  // Paused only while the store is paused for this very row: closing the row
+  // (or Back to live) goes live in the same render that brings the other
+  // satellites' tracks back, so they never draw a frame at the paused time.
+  const pausedHere = paused != null && key != null && paused.key === key;
+  return { mapNowMs: pausedHere ? paused.atMs : nowMs, mapPass };
 }
