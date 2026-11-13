@@ -75,3 +75,13 @@ test('labelSpot steps across the track toward the centre, inside the ring', () =
     assert.ok(Math.hypot(p.x, p.y) <= R - 14 + 1e-9 || Math.hypot(x, y) < R / 3, `${x},${y}`);
   }
 });
+
+test('minuteTicks: a long pass gets coarser ticks, at most about two dozen', async () => {
+  const { tickStepMin } = await import('../lib/live/dome.mjs');
+  assert.equal(tickStepMin(10 * 60_000), 1);
+  assert.equal(tickStepMin(40 * 60_000), 2);
+  assert.equal(tickStepMin(22 * 3600_000), 60);
+  const day = Array.from({ length: 200 }, (_, i) => ({ tMs: i * 7 * 60_000, azDeg: i, elDeg: 30 }));
+  const ticks = minuteTicks(day);
+  assert.ok(ticks.length <= 25 && ticks.length >= 15, `${ticks.length} ticks`);
+});
