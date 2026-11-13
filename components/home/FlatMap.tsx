@@ -1798,7 +1798,9 @@ export default function FlatMap({
   // the satellite to have a position, then leaves the camera alone.
   useEffect(() => {
     centreOn.current = selectedId;
-    setFollowing(false);
+    // Lock on stays on from one satellite to the next (it eases over below);
+    // clearing the selection ends it.
+    if (selectedId == null || !useFollow.getState().following) setFollowing(false);
     // A pending leave was for the previous selection.
     window.clearTimeout(leaveTimer.current);
   }, [selectedId, setFollowing]);
@@ -1819,8 +1821,17 @@ export default function FlatMap({
         // shrank it far out when the focus was nearer the equator.
         // The live position, not the props one: a satellite page's first
         // props come from its cached render time, up to an hour old.
-        const at = sat.positionAt(mapNow()) ?? sat.position;
-        moveTo(map, { center: [at.lonDeg, at.latDeg] });
+        if (useFollow.getState().following) {
+          // Locked on: ease to where it will be when the ease ends, then the
+          // frame loop's jumps take over, as turning Lock on does.
+          const at = sat.positionAt(mapNow() + LOCK_EASE_MS) ?? sat.position;
+          if (reducedMotion()) map.jumpTo({ center: [at.lonDeg, at.latDeg] });
+          else map.easeTo({ center: [at.lonDeg, at.latDeg], duration: LOCK_EASE_MS });
+          frames.current?.wake();
+        } else {
+          const at = sat.positionAt(mapNow()) ?? sat.position;
+          moveTo(map, { center: [at.lonDeg, at.latDeg] });
+        }
       }
     }
     // Out of view (a phone scrolled down to the list), the push waits until
