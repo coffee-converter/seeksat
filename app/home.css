@@ -550,6 +550,10 @@
 .pass-list__head .heading-section { margin: 0 auto 0 0; }
 .pass-list__following { white-space: nowrap; }
 .pass-list__zone { margin: calc(-1 * var(--sp-4)) 0 0; }
+/* The install note under the pass list (components/home/InstallNote.tsx). */
+.install-note { display: flex; align-items: center; gap: var(--sp-8); }
+.install-note__text { flex: 1 1 auto; margin: 0; min-width: 0; color: var(--map-muted); }
+.install-note > .btn { flex: none; }
 .pass-list__hint { margin: calc(-1 * var(--sp-4)) 0 0; }
 .pass-list__group { display: flex; flex-direction: column; gap: var(--sp-4); }
 .pass-list__day { margin: var(--sp-4) 0 0; padding: 0 var(--sp-4); }

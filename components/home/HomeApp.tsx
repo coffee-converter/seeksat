@@ -29,6 +29,7 @@ import { useTrueNow } from "@/lib/ui/use-true-now";
 import { useClouds } from "@/lib/sky/use-clouds";
 import { passCloud } from "@/components/passes/CloudBadge";
 import AboutSection from "./AboutSection";
+import InstallNote from "./InstallNote";
 import SiteFooter from "./SiteFooter";
 import { usePublishMapScene } from "@/lib/map/scene-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
@@ -521,6 +522,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               onOpenRow={setHighlightId}
             />
           )}
+          <InstallNote show={showList && nowMs != null} />
           {listNote && <PassSkeleton label={listNote} />}
           {(!following || keepPopular) && <PopularList names={popularNames} />}
         </>
