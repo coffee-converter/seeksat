@@ -3,7 +3,7 @@ import { cx } from "@/lib/ui/classes.mjs";
 // Line icons on a 24 px grid, 2 px strokes in currentColor, so an icon takes
 // its button's colour, hover and disabled look. Always decorative: the
 // button or link around it carries the name (aria-label or its text).
-// The cog, layers, pin, calendar and bell follow Feather (MIT).
+// The cog, layers, pin, calendar, bell and star follow Feather (MIT).
 
 const PATHS = {
   search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></>,
@@ -27,6 +27,7 @@ const PATHS = {
   pin: <><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" /></>,
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
   bell: <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />,
+  star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />,
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -557,6 +557,19 @@
 /* A Surface holding the rows flush; it clips the rows' hover fill to its corners. */
 .pass-list__rows { margin: 0; padding: 0; list-style: none; overflow: hidden; }
 .pass-list__more { align-self: flex-start; }
+/* The Best or Up now line over the list (components/home/BestLine.tsx): one
+   slim line, the words giving way with an ellipsis. */
+.best-line { display: flex; align-items: center; gap: var(--sp-8); width: 100%; font-size: var(--fs-md); }
+@media (pointer: coarse) { .best-line--best { min-height: 44px; } }
+.best-line--now { padding-block: var(--sp-4); padding-right: var(--sp-4); }
+.best-line__words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.best-line__label { color: var(--map-muted); }
+.best-line--now .best-line__label { color: var(--map-accent); font-weight: var(--fw-semibold); }
+.best-line__icon { flex: none; color: var(--map-accent); }
+.best-line__go { flex: none; color: var(--map-muted); }
+.best-line__live { flex: none; }
+/* The Best line scrolls a row to the top of the list's scroller. */
+.pass-list .pass-row { scroll-margin-top: var(--sp-8); }
 .pass-row + .pass-row { border-top: var(--line-subtle); }
 /* When, what, how good: the time column is wide enough for "10:45 PM", the
    middle gives way with an ellipsis, the rating keeps its width. */
@@ -1196,6 +1209,8 @@
   html[data-first-visit] .map-shell .map-shell__map { position: relative; top: auto; }
   /* About, opened from the menu, lands below the strip, not under it. */
   .map-shell:not(.sat) .home-about { scroll-margin-top: calc(var(--header-h) + 72px + var(--sp-16)); }
+  /* Below the map's strip, which stays over the rows. */
+  .map-shell:not(.sat) .pass-list .pass-row { scroll-margin-top: calc(var(--header-h) + 72px + var(--sp-8)); }
 }
 
 /* Docked: the map fills the window under the top bar, beside the panel. */

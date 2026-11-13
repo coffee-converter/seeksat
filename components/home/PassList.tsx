@@ -4,17 +4,20 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type R
 import QualityBadge, { type Quality } from "@/components/passes/QualityBadge";
 import Button from "@/components/ui/Button";
 import Segmented from "@/components/ui/Segmented";
-import { passList, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
+import { passKey, passList, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
+import { bestLine, upNowLine, upNowPass } from "@/lib/home/best-line.mjs";
+import { satAltAzDeg } from "@/lib/pass-finder/visibility.js";
 import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import PassRow, { passRowsClass as rowsClass } from "./PassRow";
 import LowFold from "./LowFold";
+import { BestLine, UpNowLine } from "./BestLine";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
 import { DOCKED_QUERY, useKeepRowInPlace } from "./useKeepRowInPlace";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
 import {
-  FollowChip, ViewingTag, bestPassOf, passRating,
+  FollowChip, ViewingTag, bestPassOf, liveOk, passRating,
   type Card, type HomeObserver, type OpenChart, type Pass, type Track, type ViewingProps,
 } from "./NextUpList";
 
@@ -31,6 +34,16 @@ const detailOf = rowDetail as (pass: Pass) => string;
 const quietOf = quietLines as (quiet: Quiet) => string[];
 const underWay = underWayAt as (pass: Pass, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
+const keyOf = passKey as (noradId: number, pass: Pass) => string;
+type Words = { label: string; text: string };
+const bestWords = bestLine as (o: { name: string; pass: Pass; nowMs: number; timeZone?: string }) => Words;
+const upNowOf = upNowPass as (cards: Card[], nowMs: number) => { noradId: number; name: string; pass: Pass } | null;
+const upNowWords = upNowLine as (o: { name: string; pass: Pass; nowMs: number; azDeg?: number | null }) => Words;
+const altAz = satAltAzDeg as (obs: HomeObserver, ecef: number[]) => { alt: number; az: number };
+
+function reducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 /** Every pass start and end across the cards, sorted. */
 function edgesOf(cards: Card[]): number[] {
@@ -114,6 +127,8 @@ export default function PassList({
     keepInPlace(button);
     setOpenKey((prev) => toggleOpen(prev, key));
   };
+  // The row the Best line opened, scrolled into view once it has rendered.
+  const scrollTo = useRef<string | null>(null);
 
   const cards = useMemo(
     () => (viewingCard ? followedCards.filter((c) => c.noradId !== viewingCard.noradId) : followedCards),
@@ -133,10 +148,19 @@ export default function PassList({
   }, [cards, minuteMs, crossed, tz, limit]);
   const quietText = useMemo(() => quietOf(quiet), [quiet]);
   // Ratings read the cards, the sky and the forecast; rate once a minute, not per tick.
+  // The soonest pass counts: the Best line names it even when it comes first.
   const best = useMemo(
-    () => bestPassOf(followedCards, { mode, skyType, clouds, nowMs: minuteMs }),
+    () => bestPassOf(followedCards, { mode, skyType, clouds, nowMs: minuteMs }, { skipSoonest: false }),
     [followedCards, mode, skyType, clouds, minuteMs],
   );
+  // A followed pass up now, and where the satellite is, at most once a second.
+  const upNow = upNowOf(followedCards, nowMs);
+  const upTrack = upNow ? tracks.get(upNow.noradId) : undefined;
+  const secondMs = Math.floor(nowMs / 1000) * 1000;
+  const upAzDeg = useMemo(() => {
+    const ecef = upTrack?.ecefAt(new Date(secondMs));
+    return ecef ? altAz(observer, ecef).az : null;
+  }, [upTrack, observer, secondMs]);
   const ratingOf = useMemo(() => {
     const cache = new Map<Pass, Quality>();
     return (pass: Pass) => {
@@ -194,6 +218,41 @@ export default function PassList({
     reported.current = openId;
     onOpenRow(openId);
   }, [openId, onOpenRow]);
+
+  // The Best line's row: the viewed satellite's pinned row when it is that
+  // pass, else its row in the list (perhaps past "Show more").
+  const bestKey = !best || best.pass.endMs <= nowMs ? null
+    : viewingCard?.noradId === best.noradId
+      ? (viewingCard.kind === "pass" && viewingCard.pass.startMs === best.pass.startMs ? pinnedKey : null)
+      : keyOf(best.noradId, best.pass);
+  const openBest = () => {
+    if (!bestKey) return;
+    if (!keys.includes(bestKey)) setShowAll(true);
+    if (bestKey === autoKey) setAutoKey(null);
+    setOpenKey(bestKey);
+    scrollTo.current = bestKey;
+  };
+  useEffect(() => {
+    const key = scrollTo.current;
+    if (!key) return;
+    scrollTo.current = null;
+    const row = document.querySelector(`[aria-controls="${CSS.escape(panelId(key))}"]`)?.closest("li");
+    row?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+  });
+
+  const line = (() => {
+    if (upNow) {
+      const words = upNowWords({ name: upNow.name, pass: upNow.pass, nowMs, azDeg: upAzDeg });
+      const onLive = upTrack && liveOk(upNow.pass, nowMs)
+        ? (e: React.MouseEvent<HTMLButtonElement>) => openChart("live", upTrack, upNow.pass, e)
+        : null;
+      return <UpNowLine words={words} onLive={onLive} />;
+    }
+    if (best && bestKey) {
+      return <BestLine words={bestWords({ name: best.name, pass: best.pass, nowMs, timeZone: tz })} onOpen={openBest} />;
+    }
+    return null;
+  })();
 
   const passRow = (row: Row, viewing: ViewingProps | null) => {
     const track = tracks.get(row.noradId);
@@ -297,6 +356,7 @@ export default function PassList({
         <Segmented label="Pass mode" size="sm" options={MODES} value={mode} onChange={onModeChange} />
       </div>
       {zoneNote && <p className="note note--sm pass-list__zone">{zoneNote}</p>}
+      {line}
       {strip}
       {viewingCard && pinnedKey && <ul className={rowsClass}>{pinned(viewingCard, pinnedKey)}</ul>}
       {groups.map((group) => (

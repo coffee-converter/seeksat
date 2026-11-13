@@ -43,7 +43,7 @@ const ROLES: Array<[string, string, string]> = [
   ["note note--sm", "Times are Tokyo time (UTC+9).", "A line under a heading or control: zone notes, hints."],
 ];
 
-const ICONS: IconName[] = ["search", "settings", "close", "more", "chevron-right", "chevron-down", "fullscreen", "exit-fullscreen", "layers", "eye", "eye-off", "moon", "pin", "calendar", "bell"];
+const ICONS: IconName[] = ["search", "settings", "close", "more", "chevron-right", "chevron-down", "fullscreen", "exit-fullscreen", "layers", "eye", "eye-off", "moon", "pin", "calendar", "bell", "star"];
 
 const SAMPLE = "The ISS rises in the north-west at 21:04, climbs to 72° and fades into shadow two minutes later. Bring binoculars.";
 const IS_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i;

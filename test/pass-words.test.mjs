@@ -58,6 +58,13 @@ test('bestPass: level then elevation, null when soonest', () => {
   assert.equal(bestPass([card(1, [p(1000, 5), p(5000, 8)])], { rate }), null);
 });
 
+test('bestPass: skipSoonest false keeps a best pass that is also the soonest', () => {
+  const rate = (c, pass) => passQuality(pass);
+  const soonest = [card(1, [p(1000, 80), p(2000, 30)])];
+  assert.equal(bestPass(soonest, { rate, skipSoonest: false }).pass.startMs, 1000);
+  assert.equal(bestPass([card(1, [p(1000, 5), p(5000, 8)])], { rate, skipSoonest: false }), null);
+});
+
 const P = (over = {}) => ({
   startMs: 0, peakMs: 300_000, endMs: 600_000, startAzDeg: 225, peakAzDeg: 315, endAzDeg: 45,
   maxElevDeg: 31, startElevDeg: 0, endElevDeg: 0, ...over,

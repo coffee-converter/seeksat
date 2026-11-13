@@ -17,6 +17,7 @@ const INPUT_ALLOW = [];
 const BESPOKE = {
   'components/home/PassRow.tsx': ['pass-row__btn'], // one pass as a row that opens in place
   'components/home/Timeline.tsx': ['timeline__bar'], // one pass as a bar on the 24 h strip
+  'components/home/BestLine.tsx': ['best-line'], // the Best line, which opens that pass's row
   'app/design-27b284ec240e9ac9/DesignBible.tsx': ['bible__tap'], // the interactive Surface specimen
 };
 

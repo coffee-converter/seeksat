@@ -83,7 +83,9 @@ const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
 export const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 const elevRating = passQuality as (pass: Pass) => Quality;
 export type Best = { noradId: number; name: string; pass: Pass; rating: Quality };
-const bestOf = bestPass as unknown as (cards: Card[], o: { rate: (card: Card, pass: Pass) => Quality; nowMs: number; hours: number }) => Best | null;
+const bestOf = bestPass as unknown as (
+  cards: Card[], o: { rate: (card: Card, pass: Pass) => Quality; nowMs: number; hours: number; skipSoonest?: boolean },
+) => Best | null;
 
 /** A satellite pasted as elements on this device: it has no page and no share link. */
 export const isPasted = (track: Track) => track.record?.source === "pasted";
@@ -105,9 +107,9 @@ export function passRating(pass: Pass, { mode, skyType, clouds, nowMs }: RateOpt
 }
 
 /** The best pass among the followed ones in the next 24 hours, rated as
- *  their cards are; null when it is the soonest or rates below Good. */
-export function bestPassOf(cards: Card[], o: RateOptions): Best | null {
-  return bestOf(cards, { rate: (_card, pass) => passRating(pass, o), nowMs: o.nowMs, hours: 24 });
+ *  their cards are; null when it rates below Good, or (skipSoonest) is the soonest. */
+export function bestPassOf(cards: Card[], o: RateOptions, { skipSoonest = true }: { skipSoonest?: boolean } = {}): Best | null {
+  return bestOf(cards, { rate: (_card, pass) => passRating(pass, o), nowMs: o.nowMs, hours: 24, skipSoonest });
 }
 
 /** The share link for a pass from one place, or null for a pasted satellite.
