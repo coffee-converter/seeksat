@@ -11,6 +11,8 @@ export type Quality = { level: "good" | "ok" | "low"; label: string; reason: str
 export type RatedPass = {
   maxElevDeg?: number;
   peakMag?: number | null;
+  /** The magnitude is a guess (the satellite's size is not known). */
+  peakMagEstimated?: boolean;
   peakMagSunAltDeg?: number | null;
   peakSunAltDeg?: number | null;
 };
@@ -23,7 +25,8 @@ export const visualRating = visualQuality as (
 
 /** "mag −2.1" for a pass with a known peak magnitude, else null. */
 export function peakMagText(pass: RatedPass): string | null {
-  return pass.peakMag == null ? null : `mag ${(formatMag as (m: number) => string)(pass.peakMag)}`;
+  if (pass.peakMag == null) return null;
+  return `${pass.peakMagEstimated ? "est. " : ""}mag ${(formatMag as (m: number) => string)(pass.peakMag)}`;
 }
 
 const shortOf = ratingShort as (q: Quality, pass: { maxElevDeg?: number }, o: { mode: string }) => string | null;

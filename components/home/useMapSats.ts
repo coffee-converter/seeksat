@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
 import { footprintFeature, footprintRadiusDeg, passLine, splitTrack, subpoint, trackTicks, tickStepMin } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
-import { splitBySun } from "@/lib/map/pass-arc.mjs";
+import { geometricElevFor, splitBySun } from "@/lib/map/pass-arc.mjs";
 
 export interface Layer {
   noradId: number;
@@ -109,7 +109,16 @@ export function useMapSats({
       const peak = ecef ? subOf(ecef) : null;
       // How far from the observer a satellite at the peak's height is above
       // the lowest pass setting: the visibility circle the map frames.
-      const reachDeg = peak ? (footprintRadiusDeg as (altKm: number, minElevDeg: number) => number)(peak.altKm, minElevDeg) : null;
+      // Its height where it rises and sets (where the circle meets the
+      // path), and the horizon refraction allows, as the pass search uses.
+      const endAlts = [pass.startMs, pass.endMs]
+        .map((ms) => passTrack.ecefAt(new Date(ms)))
+        .filter((e): e is number[] => e != null)
+        .map((e) => subOf(e).altKm);
+      const reachAlt = endAlts.length ? endAlts.reduce((a, b) => a + b, 0) / endAlts.length : peak?.altKm;
+      const reachDeg = reachAlt != null
+        ? (footprintRadiusDeg as (altKm: number, minElevDeg: number) => number)(reachAlt, (geometricElevFor as (d: number) => number)(minElevDeg))
+        : null;
       return { noradId: pass.noradId, path: path as Shape, sunlit, shadow, ends, peak: peak && { lonDeg: peak.lonDeg, latDeg: peak.latDeg }, reachDeg };
     } catch {
       return null;

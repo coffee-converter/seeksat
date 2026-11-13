@@ -143,15 +143,16 @@ test('visual ISS passes carry a peak magnitude from a dark, sunlit sample', () =
     assert.ok(Number.isFinite(p.peakSunAltDeg) && p.peakSunAltDeg <= TWILIGHT_SUN_DEG);
   }
 });
-test('a track with no published brightness gets a null peakMag but keeps the other fields', () => {
+test('a track with no published brightness gets an estimated (faint) peakMag', () => {
   const r = findPasses({ track: ISS, observers: [EN52VE], mode: 'visual', startMs: T0, endMs: T0 + 3 * DAY });
   assert.equal(ISS.standardMag, null);
   assert.ok(r.passes.length >= 1);
   for (const p of r.passes) {
     for (const k of MAG_FIELDS) assert.ok(k in p, k);
-    assert.equal(p.peakMag, null);
-    assert.equal(p.peakMagSunAltDeg, null);
-    assert.equal(p.peakMagElDeg, null);
+    if (p.peakMag == null) continue; // no dark, sunlit sample in this window
+    assert.equal(p.peakMagEstimated, true);
+    // The cautious default is far fainter than the ISS's own -1.8.
+    assert.ok(p.peakMag > 2, `peakMag ${p.peakMag}`);
     assert.ok(Number.isFinite(p.peakSunAltDeg));
   }
 });
@@ -194,8 +195,11 @@ test('peakMagnitude skips twilight samples even inside the window it is given', 
   // Over the twilight half alone, nothing qualifies.
   const twilight = peakMagnitude(ISS_BRIGHT, [DUSK_OBS], radio.startMs, radio.peakMs);
   assert.deepEqual(twilight, { peakMag: null, peakMagSunAltDeg: null, peakMagElDeg: null });
-  // No published brightness: no magnitude at all.
-  assert.deepEqual(peakMagnitude(ISS, [DUSK_OBS], radio.startMs, radio.endMs), { peakMag: null, peakMagSunAltDeg: null, peakMagElDeg: null });
+  // No published brightness: a guess from the cautious default, 7.8 mag
+  // fainter than the ISS's -1.8, and marked as estimated.
+  const guess = peakMagnitude(ISS, [DUSK_OBS], radio.startMs, radio.endMs);
+  assert.equal(guess.peakMagEstimated, true);
+  assert.ok(Math.abs(guess.peakMag - dark.peakMag - 7.8) < 0.01, `${guess.peakMag} vs ${dark.peakMag}`);
 });
 test('peakMagnitude needs every observer in a dark sky', () => {
   const radio = duskRadioPass();

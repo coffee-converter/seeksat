@@ -138,3 +138,13 @@ test('cloud and twilight keep the bars inside the reduced level', () => {
   assert.equal(visualQuality(p(25, -8), city).bars, 2);
   assert.equal(visualQuality(p(5, -15), city).bars, 1);
 });
+
+test('an estimated magnitude never rates above Fair, and says it is a guess', async () => {
+  const { visualQuality } = await import('../lib/sky/visual-rating.mjs');
+  const bright = { peakMag: -3, peakMagSunAltDeg: -20, maxElevDeg: 80, peakSunAltDeg: -20 };
+  assert.ok(visualQuality(bright).bars >= 4);
+  const guess = visualQuality({ ...bright, peakMagEstimated: true });
+  assert.ok(guess.bars <= 2);
+  assert.equal(guess.label, 'Fair');
+  assert.match(guess.reason, /^Estimated peak mag/);
+});

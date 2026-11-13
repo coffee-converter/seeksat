@@ -740,6 +740,42 @@ export default function FlatMap({
       window.visualViewport?.removeEventListener("resize", check);
     };
   }, [mapReady]);
+  /** Set the focus name beside its dot, square to the way it is moving, so it
+   *  never sits on the track; paused on a pass, on the side away from you (the
+   *  sight line). Rechecked at most twice a second. */
+  const labelAt = useRef<{ t: number; nx: number; ny: number }>({ t: 0, nx: 1, ny: 0 });
+  const placeLabel = useCallback((map: MlMap, mark: FocusMark, f: LiveFocus) => {
+    const now = performance.now();
+    if (now - labelAt.current.t < 500) return;
+    labelAt.current.t = now;
+    const sat = latest.current.sats.find((s) => s.selected);
+    const ms = mapNow();
+    const ahead = sat?.positionAt(ms + 60_000);
+    if (!ahead) return;
+    const p0 = map.project([f.lonDeg, f.latDeg]);
+    const p1 = map.project([ahead.lonDeg, ahead.latDeg]);
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;
+    // The perpendicular on the right of travel, or the left one when that
+    // side faces the observer (the sight line) or the label would go up-left
+    // of a mostly level track (names read best to the right).
+    let nx = -dy / len;
+    let ny = dx / len;
+    const o = latest.current.observer;
+    if (o && useMapClock.getState().paused) {
+      const po = map.project([o.lonDeg, o.latDeg]);
+      if (nx * (po.x - p0.x) + ny * (po.y - p0.y) > 0) { nx = -nx; ny = -ny; }
+    } else if (nx < 0) {
+      nx = -nx; ny = -ny;
+    }
+    const prev = labelAt.current;
+    if (Math.abs(prev.nx - nx) < 0.05 && Math.abs(prev.ny - ny) < 0.05) return;
+    labelAt.current = { t: now, nx, ny };
+    mark.el.style.setProperty("--label-nx", nx.toFixed(3));
+    mark.el.style.setProperty("--label-ny", ny.toFixed(3));
+  }, []);
   /** Put the focus marker at f, or hide it when the track cannot place it. */
   const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
     const mark = focusMark.current;
@@ -764,6 +800,7 @@ export default function FlatMap({
       mark.el.classList.toggle("flat-map__focus--radio", f.radio);
     }
     mark.marker.setLngLat([f.lonDeg, f.latDeg]);
+    placeLabel(map, mark, f);
     if (!mark.shown) {
       mark.marker.addTo(map);
       mark.shown = true;

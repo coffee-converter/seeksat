@@ -68,11 +68,16 @@
 /* Arc radii 7 and 10 px, as on the map's dots. */
 .flat-map__focus--radio::before { width: 16px; height: 16px; }
 .flat-map__focus--radio::after { width: 22px; height: 22px; }
+/* Placed square to the track (FlatMap placeLabel sets --label-nx/-ny, a unit
+   vector in screen space): its near edge 0.9em out along that direction, so
+   a level track puts it above or below, a steep one to the side. */
 .flat-map__focus-name {
+  --nx: var(--label-nx, 1);
+  --ny: var(--label-ny, 0);
   position: absolute;
-  left: calc(50% + 0.8em);
-  top: 50%;
-  transform: translateY(-50%);
+  left: calc(50% + var(--nx) * 0.9em);
+  top: calc(50% + var(--ny) * 0.9em);
+  transform: translate(calc((var(--nx) - 1) * 50%), calc((var(--ny) - 1) * 50%));
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   line-height: 1;

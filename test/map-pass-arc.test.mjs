@@ -55,3 +55,12 @@ test('splitBySun breaks the line where the light changes, sharing the point', as
   assert.deepEqual(sunlit.coordinates, [[[0, 0], [1, 1], [2, 2]]]);
   assert.deepEqual(shadow.coordinates, [[[2, 2], [3, 3]]]);
 });
+
+test('geometricElevFor undoes refraction: 0 apparent is about half a degree below', async () => {
+  const { geometricElevFor } = await import('../lib/map/pass-arc.mjs');
+  const { apparentAltDeg } = await import('../lib/refraction.js');
+  const e = geometricElevFor(0);
+  assert.ok(e < -0.4 && e > -0.7, `${e}`);
+  assert.ok(Math.abs(apparentAltDeg(e)) < 0.01);
+  assert.ok(Math.abs(apparentAltDeg(geometricElevFor(20)) - 20) < 0.01);
+});
