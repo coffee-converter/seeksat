@@ -262,7 +262,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   );
 
   // An opened pass pauses the map at its peak (not while a live view is docked).
-  const { mapNowMs, mapPass } = useMapPause(openRow, { nowMs, timeZone: tz, live: liveId != null });
+  const { mapNowMs, mapPass } = useMapPause(openRow, {
+    nowMs, timeZone: tz, live: liveId != null,
+    track: openRow ? allTracks.get(openRow.noradId) : null, observer: location, minElevDeg: prefs.minElevDeg,
+  });
   const { sats } = useMapSats({
     layers, tracks: allTracks, colors, nowMs: mapNowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio", pass: mapPass,
   });
@@ -397,8 +400,17 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     return () => window.removeEventListener("online", reload);
   }, [fromCache, loadRecords]);
 
-  // The cards, only while they were computed for the current inputs.
-  const shownCards = cardState && cardState.key === cardKey ? cardState.cards : null;
+  // The cards, only while they were computed for the current inputs. A
+  // mode or lowest-pass change keeps the last cards up until the new ones
+  // land (a moment), so the Best line and rows do not blink out and back.
+  const restKey = useMemo(
+    () => cardJobKey({ following: prefs.following, custom: prefs.custom, observer, mode: "visual", minElevDeg: 0 }),
+    [prefs.following, prefs.custom, observer],
+  );
+  const restKeyOf = useRef(new Map<string, string>());
+  restKeyOf.current.set(cardKey, restKey);
+  const sameRest = cardState != null && restKeyOf.current.get(cardState.key) === restKey;
+  const shownCards = cardState && (cardState.key === cardKey || sameRest) ? cardState.cards : null;
   const following = prefs.following.length > 0;
   // While cards load the list keeps its heading (and the mode switch just
   // pressed), with a note in place of the rows.

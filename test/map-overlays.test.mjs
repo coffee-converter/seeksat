@@ -163,7 +163,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-path', 'ss-pass-sight', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-reach', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-ends', 'ss-pass-times', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -377,10 +377,26 @@ test('an opened pass draws its path and a sight line from the observer to its pe
   const sat = { ...SATS[0], passPath: { type: 'MultiLineString', coordinates: [[[0, 0], [5, 5], [10, 8]]] }, passPeak: { lonDeg: 5, latDeg: 5 } };
   const data = overlayData({ sats: [sat], observer: { latDeg: 2, lonDeg: 3 } });
   const parts = data['ss-pass'].features.map((f) => f.properties.part).sort();
-  assert.deepEqual(parts, ['path', 'sight']);
+  assert.deepEqual(parts, ['sight', 'sunlit']);
   const sight = data['ss-pass'].features.find((f) => f.properties.part === 'sight').geometry.coordinates;
   assert.ok(Math.abs(sight[0][0] - 3) < 1e-9 && Math.abs(sight[0][1] - 2) < 1e-9);
   assert.ok(Math.abs(sight.at(-1)[0] - 5) < 1e-9 && Math.abs(sight.at(-1)[1] - 5) < 1e-9);
+  // With a reach, a ring around the observer of that radius.
+  const withReach = overlayData({ sats: [{ ...sat, passReachDeg: 20 }], observer: { latDeg: 40, lonDeg: -90 } });
+  const ring = withReach['ss-pass'].features.find((f) => f.properties.part === 'reach').geometry.coordinates;
+  assert.deepEqual(ring[0], ring.at(-1));
+  const lats = ring.map((c) => c[1]);
+  assert.ok(Math.abs(Math.max(...lats) - 60) < 0.5 && Math.abs(Math.min(...lats) - 20) < 0.5);
+  // Split by light, with rise and set marks.
+  const lit = overlayData({ sats: [{
+    ...sat,
+    passSunlit: { type: 'MultiLineString', coordinates: [[[0, 0], [5, 5]]] },
+    passShadow: { type: 'MultiLineString', coordinates: [[[5, 5], [10, 8]]] },
+    passEnds: [{ lonDeg: 0, latDeg: 0, label: '5:41 PM' }, { lonDeg: 10, latDeg: 8, label: '5:48 PM' }],
+  }] });
+  const f = lit['ss-pass'].features;
+  assert.deepEqual(f.map((x) => x.properties.part).sort(), ['end', 'end', 'shadow', 'sunlit']);
+  assert.deepEqual(f.filter((x) => x.properties.part === 'end').map((x) => x.properties.label), ['5:41 PM', '5:48 PM']);
   // No peak, no observer: path only.
   assert.equal(overlayData({ sats: [{ ...sat, passPeak: undefined }] })['ss-pass'].features.length, 1);
 });

@@ -244,17 +244,23 @@ export default function PassSection({
   const firstPass = view && view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
   // One "elements are old" note, on the first pass it applies to.
   const oldNote = view && view.kind === "rows" ? (rowAccuracyNote as (rows: Row[]) => { key: string; text: string } | null)(view.rows) : null;
+  // While a new search runs (a mode or setting change), the last report
+  // stays, so the Next pass card under the title does not blink out and back.
+  const heldReport = useRef<NextPassReport>(undefined);
   const nextReport = useMemo<NextPassReport>(() => {
     if (!track) return { kind: "unavailable" };
     if (!observer) return undefined;
     if (failed) return { kind: "failed" };
-    if (!result) return undefined;
+    if (!result) return heldReport.current;
     const r = result as { kind?: string; visible?: boolean; pointing?: unknown[] };
     if (r.kind === "unavailable") return { kind: "unavailable" };
     if (r.kind === "stationary") return r.pointing?.[0] ? { kind: "stationary", visible: Boolean(r.visible) } : { kind: "unavailable" };
     return firstPass ? { kind: "pass", pass: firstPass, timeZone: observer.tz } : { kind: "none" };
   }, [track, observer, failed, result, firstPass]);
-  useEffect(() => { onNextPass?.(nextReport); }, [nextReport, onNextPass]);
+  useEffect(() => {
+    heldReport.current = observer ? nextReport : undefined;
+    onNextPass?.(nextReport);
+  }, [nextReport, observer, onNextPass]);
 
   // The shared pass: highlighted in the list, or a note that it is over.
   const sharedHit = useMemo<SharedHit>(() => {

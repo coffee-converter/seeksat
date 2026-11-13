@@ -3,7 +3,8 @@
 // this keeps the map clock (lib/map/map-clock.ts) in step with it.
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { passArc } from "./pass-arc.mjs";
 import { useMapClock } from "./map-clock";
 import { passTime } from "@/components/passes/PassStats";
 import type { MapPass } from "@/components/home/useMapSats";
@@ -23,15 +24,42 @@ export interface OpenPassRow {
  * set (a live view is docked). Clears when the page goes. Returns the time
  * the map draws at and the pass to draw.
  */
-export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = false }: {
+type Arc = { riseMs: number; setMs: number; closestMs: number };
+const arcOf = passArc as (
+  ecefAt: (d: Date) => number[] | null,
+  observer: { latDeg: number; lonDeg: number },
+  pass: { startMs: number; endMs: number; peakMs: number },
+  minElevDeg: number,
+) => Arc;
+
+export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = false, track, observer, minElevDeg = 0 }: {
   nowMs: number | null;
   timeZone?: string;
   live?: boolean;
+  /** The open row's satellite, to find the whole arc (rise to set) and its closest point. */
+  track?: { ecefAt: (d: Date) => number[] | null } | null;
+  observer?: { latDeg: number; lonDeg: number } | null;
+  minElevDeg?: number;
 }): { mapNowMs: number | null; mapPass: MapPass | null } {
   const pause = useMapClock((s) => s.pause);
   const clear = useMapClock((s) => s.clear);
   const paused = useMapClock((s) => s.paused);
-  const p = open?.pass ?? null;
+  const row = open?.pass ?? null;
+  // The whole arc and the closest point. A visual row's times are only the
+  // part you can see, which can start or stop mid-sky.
+  const obsLat = observer?.latDeg;
+  const obsLon = observer?.lonDeg;
+  const arc = useMemo<Arc | null>(() => {
+    if (!row || !track || obsLat == null || obsLon == null) return null;
+    try {
+      return arcOf(track.ecefAt, { latDeg: obsLat, lonDeg: obsLon }, row, minElevDeg);
+    } catch {
+      return null;
+    }
+    // The row by its times, not its identity (rows rebuild each minute).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [track, obsLat, obsLon, minElevDeg, row?.startMs, row?.endMs, row?.peakMs]);
+  const p = row && (arc ? { startMs: arc.riseMs, endMs: arc.setMs, peakMs: arc.closestMs } : row);
   const upNow = p != null && nowMs != null && p.startMs <= nowMs && nowMs < p.endMs;
   const key = open && p && !upNow && !live ? open.key : null;
   const peakMs = p?.peakMs ?? null;
@@ -41,6 +69,10 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
     else pause({ key, atMs: peakMs, label: passTime(peakMs, zone) });
   }, [key, peakMs, zone, pause, clear]);
   useEffect(() => () => useMapClock.getState().clear(), []);
-  const mapPass = open && p ? { noradId: open.noradId, startMs: p.startMs, endMs: p.endMs, peakMs: p.peakMs } : null;
+  const isPaused = paused != null && key != null && paused.key === key;
+  const mapPass = open && p ? {
+    noradId: open.noradId, startMs: p.startMs, endMs: p.endMs, peakMs: p.peakMs,
+    paused: isPaused, riseLabel: passTime(p.startMs, zone), setLabel: passTime(p.endMs, zone),
+  } : null;
   return { mapNowMs: paused?.atMs ?? nowMs, mapPass };
 }

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
-import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
+import { altText, overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
@@ -46,10 +46,19 @@ export interface MapSat {
   tickMin: number;
   /** Known radio downlinks: the dot gets the radio mark. */
   radio?: boolean;
-  /** An opened pass's ground path, drawn bold. */
+  /** Height above the ellipsoid, km: shown under the name. */
+  altKm?: number;
+  /** An opened pass's ground path, rise to set, drawn bold. */
   passPath?: GeoShape;
+  /** That path split by light: solid in sunlight, dashed in Earth's shadow. */
+  passSunlit?: GeoShape;
+  passShadow?: GeoShape;
+  /** The rise and set points, with their times. */
+  passEnds?: { lonDeg: number; latDeg: number; label: string }[];
   /** Where that pass comes closest (its highest point): the sight line's end. */
   passPeak?: { lonDeg: number; latDeg: number };
+  /** The visibility circle's radius around the observer, in degrees. */
+  passReachDeg?: number;
 }
 
 export interface MapObserver {
@@ -98,6 +107,7 @@ type Camera = { center: LngLat; zoom: number };
 type Move = { center: LngLat; zoom?: number };
 export type Preset = "you" | "sat" | "north" | "south" | "night";
 type LegendItem = { key: string; kind: string; label: string; color?: string };
+const altLine = altText as (altKm: number) => string;
 const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
 type SourceData = Record<string, unknown>;
 const buildData = overlayData as (o: {
@@ -122,7 +132,7 @@ const shapeId = (o: object | null | undefined) => {
   return id;
 };
 function trackKey(sats: MapSat[], short: Set<number>, detail: number): string {
-  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}:${shapeId(s.passPath)}`);
+  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}:${shapeId(s.passPath)}:${shapeId(s.passSunlit)}`);
   return `${detail}|${[...short].sort().join(",")}|${parts.join(";")}`;
 }
 const home = homeCamera as (
@@ -167,7 +177,7 @@ type Theme = "dark" | "light";
 /** The focused satellite now, as its dot, the footprint and the follow jump need it. */
 type LiveFocus = SelectedSub & { name: string; color: string; footprint: boolean; radio: boolean };
 /** The focused satellite's dot and name: a marker the frame loop moves. */
-type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; shown: boolean; label: string; color: string; radio: boolean };
+type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; nameText: HTMLElement; alt: HTMLElement; shown: boolean; label: string; color: string; radio: boolean };
 /** A Lock on zoom, eased by the frame loop's jump: from and to zoom, start (ms) and length. */
 type ZoomGoal = { from: number; to: number; t0: number; dur: number };
 /** The frame loop's controls while a satellite is focused (the frame effect). */
@@ -362,6 +372,7 @@ export default function FlatMap({
       out.push({
         ...x,
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
+        altKm: sub.altKm,
         footprint: x.footprint ? footprintOf(sub, sub.altKm, elev) : null,
         ...(withTicks && x.ticksAt && { trackTicks: x.ticksAt(ms) }),
       });
@@ -742,9 +753,11 @@ export default function FlatMap({
       mark.color = f.color;
       mark.el.style.setProperty("--focus-color", f.color);
     }
-    if (f.name !== mark.label) {
-      mark.label = f.name;
-      mark.name.textContent = f.name;
+    const alt = altLine(f.altKm);
+    if (`${f.name}|${alt}` !== mark.label) {
+      mark.label = `${f.name}|${alt}`;
+      mark.nameText.textContent = f.name;
+      mark.alt.textContent = alt;
     }
     if (f.radio !== mark.radio) {
       mark.radio = f.radio;
@@ -909,11 +922,17 @@ export default function FlatMap({
       markDot.className = "flat-map__focus-dot";
       const markName = document.createElement("span");
       markName.className = "flat-map__focus-name";
+      const markNameText = document.createElement("span");
+      const markAlt = document.createElement("span");
+      markAlt.className = "flat-map__focus-alt";
+      markName.append(markNameText, markAlt);
       markEl.append(markDot, markName);
       focusMark.current = {
         marker: new gl.Marker({ element: markEl, subpixelPositioning: true, opacityWhenCovered: "0" }),
         el: markEl,
         name: markName,
+        nameText: markNameText,
+        alt: markAlt,
         shown: false,
         label: "",
         color: "",
@@ -1319,25 +1338,38 @@ export default function FlatMap({
       beforePause.current = { cam: { center: [c.lng, c.lat], zoom: map.getZoom() }, atHome: atHome.current };
     }
     setFollowing(false);
-    const pts = (sat.passPath.coordinates as number[][][]).flat();
-    if (observer) pts.push([observer.lonDeg, observer.latDeg]);
-    // Longitudes unwrapped around the first point, so a path over the date
-    // line frames as one piece.
-    const ref = pts[0][0];
-    const lons = pts.map(([lon]) => lon + 360 * Math.round((ref - lon) / 360));
-    const lats = pts.map(([, lat]) => lat);
+    // Frame the visibility circle, centred on the observer: every visible
+    // pass runs inside it, so you and the whole pass are in view. Without it,
+    // the path and the observer.
+    let lons: number[];
+    let lats: number[];
+    const reach = sat.passReachDeg;
+    if (observer && reach && reach > 0) {
+      const dLon = Math.min(179, reach / Math.max(0.05, Math.cos((observer.latDeg * Math.PI) / 180)));
+      lons = [observer.lonDeg - dLon, observer.lonDeg + dLon];
+      lats = [Math.max(-89, observer.latDeg - reach), Math.min(89, observer.latDeg + reach)];
+    } else {
+      const pts = (sat.passPath.coordinates as number[][][]).flat();
+      if (observer) pts.push([observer.lonDeg, observer.latDeg]);
+      // Longitudes unwrapped around the first point, so a path over the date
+      // line frames as one piece.
+      const ref = pts[0][0];
+      lons = pts.map(([lon]) => lon + 360 * Math.round((ref - lon) / 360));
+      lats = pts.map(([, lat]) => lat);
+    }
     const el = map.getContainer();
     const h = el.clientHeight || 1;
     const w = el.clientWidth || 1;
     // Room for the chips row on top and the paused chip below.
-    const pad = { top: Math.min(64, h / 4), bottom: Math.min(60, h / 4), left: Math.min(32, w / 6), right: Math.min(32, w / 6) };
+    // Even top and bottom, so the observer stays in the middle.
+    const pad = { top: Math.min(60, h / 4), bottom: Math.min(60, h / 4), left: Math.min(24, w / 6), right: Math.min(24, w / 6) };
     const cam = map.cameraForBounds(
       [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
       { padding: pad, maxZoom: 7 },
     );
     if (!cam?.center) return;
     const c = cam.center as { lng: number; lat: number } | [number, number];
-    const center: LngLat = Array.isArray(c) ? c : [c.lng, c.lat];
+    const center: LngLat = observer && reach && reach > 0 ? [observer.lonDeg, observer.latDeg] : Array.isArray(c) ? c : [c.lng, c.lat];
     atHome.current = false;
     moveTo(map, { center, zoom: cam.zoom });
   }, [paused, sats, observer, mapReady, moveTo, refitHome, setFollowing]);

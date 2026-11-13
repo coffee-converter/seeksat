@@ -2,8 +2,9 @@
 // FlatMap's MapSat list. Shared by the home and satellite pages.
 import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
-import { footprintFeature, passLine, splitTrack, subpoint, trackTicks, tickStepMin } from "@/lib/map/geometry.mjs";
+import { footprintFeature, footprintRadiusDeg, passLine, splitTrack, subpoint, trackTicks, tickStepMin } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
+import { splitBySun } from "@/lib/map/pass-arc.mjs";
 
 export interface Layer {
   noradId: number;
@@ -25,19 +26,28 @@ export type Sub = { latDeg: number; lonDeg: number; altKm: number };
 const subOf = subpoint as (ecef: number[]) => Sub;
 const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
 const splitOf = splitTrack as (track: unknown, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
-const passLineOf = passLine as (track: unknown, startMs: number, endMs: number) => Shape;
+type TimedLine = { type: string; coordinates: number[][][]; times: number[][] };
+const passLineOf = passLine as (track: unknown, startMs: number, endMs: number) => TimedLine;
+const splitSun = splitBySun as (line: TimedLine, ecefAt: (d: Date) => number[] | null) => { sunlit: Shape; shadow: Shape };
 const ticksOf = trackTicks as (track: unknown, nowMs: number, lineFromMs: number) => MapSat["trackTicks"];
 const NO_LINE: Shape = { type: "MultiLineString", coordinates: [] };
 const NO_TRACK: Split = { trackPast: NO_LINE, trackFuture: NO_LINE, trackTicks: [] };
 
 const TRACK_REFRESH_MS = 60_000;
 
-/** An opened pass row: its path is drawn on the map. */
+/** An opened pass row: its whole arc is drawn on the map (lib/map/pass-arc.mjs). */
 export interface MapPass {
   noradId: number;
+  /** Rise and set above the lowest pass setting. */
   startMs: number;
   endMs: number;
+  /** The closest approach (highest point). */
   peakMs: number;
+  /** The map is paused at peakMs: the satellite's own circle and track ticks go. */
+  paused?: boolean;
+  /** "5:41 PM" and "5:48 PM", in the place's zone, for the rise and set marks. */
+  riseLabel?: string;
+  setLabel?: string;
 }
 
 export function useMapSats({
@@ -87,15 +97,27 @@ export function useMapSats({
     if (!pass || !passTrack) return null;
     try {
       const path = passLineOf(passTrack, pass.startMs, pass.endMs);
+      // Solid in sunlight, dashed in Earth's shadow.
+      const { sunlit, shadow } = splitSun(path, passTrack.ecefAt);
+      const first = path.coordinates[0]?.[0];
+      const last = path.coordinates.at(-1)?.at(-1);
+      const ends = [
+        first && { lonDeg: first[0], latDeg: first[1], label: pass.riseLabel ?? "" },
+        last && { lonDeg: last[0], latDeg: last[1], label: pass.setLabel ?? "" },
+      ].filter(Boolean) as NonNullable<MapSat["passEnds"]>;
       const ecef = passTrack.ecefAt(new Date(pass.peakMs));
       const peak = ecef ? subOf(ecef) : null;
-      return { noradId: pass.noradId, path, peak: peak && { lonDeg: peak.lonDeg, latDeg: peak.latDeg } };
+      // How far from the observer a satellite at the peak's height is above
+      // the lowest pass setting: the visibility circle the map frames.
+      const reachDeg = peak ? (footprintRadiusDeg as (altKm: number, minElevDeg: number) => number)(peak.altKm, minElevDeg) : null;
+      return { noradId: pass.noradId, path: path as Shape, sunlit, shadow, ends, peak: peak && { lonDeg: peak.lonDeg, latDeg: peak.latDeg }, reachDeg };
     } catch {
       return null;
     }
     // The pass by its times, not its object identity (rows rebuild each minute).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [passTrack, pass?.noradId, pass?.startMs, pass?.endMs, pass?.peakMs]);
+  }, [passTrack, pass?.noradId, pass?.startMs, pass?.endMs, pass?.peakMs, pass?.riseLabel, pass?.setLabel, minElevDeg]);
+  const pausedId = pass?.paused ? pass.noradId : null;
 
   // Positions every second.
   return useMemo(() => {
@@ -113,14 +135,18 @@ export function useMapSats({
         noradId,
         name: t.shortName,
         color: colors.get(noradId) ?? SAT_PALETTES.dark[0],
-        // Only satellites that draw a track get ticks.
+        // Only satellites that draw a track get ticks; none while paused on
+        // a pass (they would count from the paused time).
         ...(ground.get(noradId) ?? NO_TRACK),
+        ...(pausedId === noradId && { trackTicks: [], ticksAt: undefined }),
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
+        altKm: sub.altKm,
         positionAt: (ms) => {
           const e = t.ecefAt(new Date(ms));
           return e ? subOf(e) : null;
         },
-        footprint: focus ? footprintOf(sub, sub.altKm, minElevDeg) : null,
+        // Paused on a pass, the visibility circle around you takes its place.
+        footprint: focus && pausedId !== noradId ? footprintOf(sub, sub.altKm, minElevDeg) : null,
         selected: focus,
         emphasis,
         orbitClass: t.orbitClass,
@@ -128,10 +154,14 @@ export function useMapSats({
         radio: radio && t.downlinks.length > 0,
         ...(passShape?.noradId === noradId && {
           passPath: passShape.path,
+          passSunlit: passShape.sunlit,
+          passShadow: passShape.shadow,
+          passEnds: passShape.ends,
           ...(passShape.peak && { passPeak: passShape.peak }),
+          ...(passShape.reachDeg != null && { passReachDeg: passShape.reachDeg }),
         }),
       });
     }
     return { sats };
-  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape]);
+  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId]);
 }

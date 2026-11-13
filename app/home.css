@@ -81,6 +81,9 @@
   -webkit-text-stroke: 3px var(--map-ocean);
   paint-order: stroke fill;
 }
+/* The focused satellite's height, a smaller line under its name. */
+.flat-map__focus-alt { display: block; margin-top: var(--sp-2); font-size: 0.85em; font-weight: var(--fw-regular); }
+.flat-map__focus-alt:empty { display: none; }
 .flat-map__nogl {
   position: absolute;
   inset: 0;
@@ -981,6 +984,15 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--swatch, var(--map-accent)) 30%, transparent);
 }
+/* The opened pass: solid in sunlight, then dashed in shadow. */
+.map-legend__swatch--pass {
+  height: 4px;
+  background:
+    linear-gradient(var(--swatch, var(--map-accent)), var(--swatch, var(--map-accent))) left / 50% 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--swatch, var(--map-accent)) 0 3px, transparent 3px 6px) right / 50% 100% no-repeat;
+}
+/* The visibility circle around you: a dashed ring in your colour. */
+.map-legend__swatch--reach { border: 1.5px dashed var(--map-observer); border-radius: 50%; }
 .map-legend__swatch--ghost { width: 6px; height: 6px; margin: 0 var(--sp-8); border-radius: 50%; background: var(--map-text); opacity: 0.35; }
 .map-legend__swatch--night { background: var(--map-night); border: var(--line-subtle); }
 .map-legend__swatch--note { display: none; }

@@ -229,7 +229,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   }), [prefs.following, prefs.hidden, data.noradId]);
   // An opened pass pauses the map at its peak.
   const [openRow, setOpenRow] = useState<OpenPassRow | null>(null);
-  const { mapNowMs, mapPass } = useMapPause(openRow, { nowMs });
+  const { mapNowMs, mapPass } = useMapPause(openRow, {
+    nowMs, track: usable ? mapTracks.get(data.noradId) : null, observer: settings.observer, minElevDeg: settings.minElevDeg,
+  });
   const { sats } = useMapSats({
     layers, tracks: mapTracks, colors, nowMs: mapNowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio", pass: mapPass,
   });
