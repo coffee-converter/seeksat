@@ -325,7 +325,6 @@
 /* A value that just changed (useFlash). */
 @keyframes tick { from { background: var(--flash-bg); color: var(--flash-text); } to { background: transparent; } }
 .is-ticking { animation: tick var(--dur-flash) ease-out; }
-.flash-text { border-radius: var(--radius-sm); }
 @media (prefers-reduced-motion: reduce) {
   .is-ticking { animation: none; }
   .live-clock__dot { animation: none; }
@@ -504,12 +503,6 @@
 }
 .pass-card__tag--viewing { color: var(--map-accent); }
 /* Radio facts in the meta: time above 10° and 30°, and the rise Doppler. */
-/* Where to look, in words. It may wrap on a phone; a time never breaks. */
-/* Where the pass goes, in the stat columns under Starts, Max and Lasts. */
-/* "Below 10°" stays whole; its compass point may drop to the next line. */
-.pass-path__label { white-space: nowrap; }
-.pass-path__dir { color: var(--map-text); font-weight: var(--fw-semibold); white-space: nowrap; }
-.pass-path__step dd { font-size: var(--fs-md); white-space: nowrap; }
 /* Radio mode: what to listen and transmit on, as a small table. */
 .radio-rows {
   display: grid;
@@ -521,27 +514,6 @@
 .radio-rows__freq { color: var(--map-text); font-size: var(--fs-md); font-weight: var(--fw-semibold); white-space: nowrap; }
 .radio-rows__note { justify-self: end; text-align: right; color: var(--map-muted); font-size: var(--fs-sm); }
 .pass-card__radio-more { margin-top: var(--sp-4); }
-.pass-card__stats {
-  grid-area: stats;
-  display: grid;
-  gap: var(--sp-8);
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-/* Starts, Max and Lasts, and the path strip under them, in one grid: each
-   column as wide as its widest cell, the columns spread evenly across. */
-.pass-card__stats { grid-template-columns: repeat(3, auto); justify-content: space-between; column-gap: var(--sp-12); row-gap: var(--sp-8); }
-/* No min-width: 0 here: a squeezed column broke "Max" into letters. The
-   grid's own minimum keeps each column as wide as its longest word. */
-.pass-card__stat dt { white-space: nowrap; }
-.pass-card__stat-value {
-  color: var(--text-strong);
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-}
-.pass-card__stat-sub { color: var(--map-muted); font-size: var(--fs-sm); }
-.pass-card__stat-sub--live { color: var(--map-accent); font-weight: var(--fw-semibold); }
 
 /* Pass list (components/home/PassList.tsx): one compact row per pass under
    day headings, each a button that opens the pass in place (PassRowOpen). */
@@ -1409,6 +1381,9 @@
 .live-dock { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; container: live-dock / inline-size; }
 .live-dock__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-8); }
 .live-dock__title { min-width: 0; overflow-wrap: anywhere; }
+/* Focus lands here when the dock opens so screen readers start at the title;
+   it is not a control, so it shows no ring. */
+.live-dock__title:focus { outline: none; }
 .live-dock__title:focus { outline: none; }
 .live-dock__title:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
 /* The 380 px panel: smaller readouts so three tiles and the frequency fit. */

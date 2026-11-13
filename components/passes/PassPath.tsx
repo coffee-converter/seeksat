@@ -1,18 +1,17 @@
 "use client";
 
-// The pass card's path strip and radio panel, shared by the home cards and the
-// satellite page's pass rows.
+// The open pass row's radio panel and its time above 10°, on the home list
+// and the satellite page.
 
 import { useMemo } from "react";
 import type React from "react";
 import { defaultDownlink } from "@/lib/catalog.mjs";
-import { dopplerHzAt, passPath } from "@/lib/passes/pass-words.mjs";
+import { dopplerHzAt } from "@/lib/passes/pass-words.mjs";
 import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 import { needsTone } from "@/lib/radio/uplink.mjs";
 import { formatPassDuration } from "@/lib/passes/format.mjs";
 import Surface from "@/components/ui/Surface";
 import Button from "@/components/ui/Button";
-import { passTime as cardTime } from "@/components/passes/PassStats";
 
 const underWay = underWayAt as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 
@@ -31,31 +30,6 @@ export function aboveTenText(pass: Pass): string | null {
   if (!pass.msAbove10) return null;
   const min = Math.round(pass.msAbove10 / 60_000);
   return `${min >= 1 ? `${min}m` : duration(pass.msAbove10)} \u2265 10°`;
-}
-
-type PathStep = { key: string; label: string; dir: string; ms: number };
-const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number; nowMs?: number }) => PathStep[];
-
-// Each step sits under its stat column: rise under Starts, peak under Max,
-// set under Lasts, so the strip lines up on every card even when a step is left out.
-const COLUMN: Record<string, number> = { start: 1, peak: 2, end: 3 };
-
-/** Where the pass goes, as cells for PassStats' grid, under its columns:
- *  "Rises N / 4:51 AM". One grid sizes both rows' columns, so they line up. */
-export function PassPath({ pass, mode, minElevDeg, nowMs, timeZone }: {
-  pass: Pass; mode: string; minElevDeg: number; nowMs: number; timeZone?: string;
-}) {
-  const steps = pathOf(pass, { mode, minElevDeg, nowMs });
-  return (
-    <>
-      {steps.map((st) => (
-        <div key={st.key} className="pass-path__step" style={{ gridColumn: COLUMN[st.key], gridRow: 2 }}>
-          <dt><span className="pass-path__label">{st.label}</span> <span className="pass-path__dir">{st.dir}</span></dt>
-          <dd className="num">{cardTime(st.ms, timeZone)}</dd>
-        </div>
-      ))}
-    </>
-  );
 }
 
 const khz = (hz: number) => {
