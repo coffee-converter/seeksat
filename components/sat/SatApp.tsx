@@ -190,6 +190,18 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     toggleHidden(id);
     if (id === data.noradId && hiding) onClose();
   }, [toggleHidden, data.noradId, onClose]);
+  // A shared pass link (/sat/ID/share/BLOB) has been read into the page:
+  // the address bar drops back to the satellite's own path, as a shared
+  // view's parameters do (the query is left for the shell to read and strip).
+  // A reload or a copied address is then the visitor's own view.
+  useEffect(() => {
+    if (!sharedIn) return;
+    const { pathname, search, hash } = window.location;
+    const plain = satPath(data.noradId) as string;
+    if (pathname !== plain) window.history.replaceState(window.history.state, "", plain + search + hash);
+    // Once, for the link the page opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Old Show all links carried ?map=all; drop it from the URL. (A shared
   // view's map=globe|flat is the shell's to read.)
   useEffect(() => {
