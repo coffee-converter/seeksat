@@ -11,7 +11,7 @@ import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/
 import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
 import { MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
-import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { mapNow, useMapClock } from "@/lib/map/map-clock";
 import { canvasMismatch } from "@/lib/map/canvas-check.mjs";
 import { reportNotice } from "@/lib/site/report.mjs";
 import { useFollow } from "@/lib/map/follow-store";
@@ -46,6 +46,10 @@ export interface MapSat {
   tickMin: number;
   /** Known radio downlinks: the dot gets the radio mark. */
   radio?: boolean;
+  /** An opened pass's ground path, drawn bold. */
+  passPath?: GeoShape;
+  /** Where that pass comes closest (its highest point): the sight line's end. */
+  passPeak?: { lonDeg: number; latDeg: number };
 }
 
 export interface MapObserver {
@@ -118,7 +122,7 @@ const shapeId = (o: object | null | undefined) => {
   return id;
 };
 function trackKey(sats: MapSat[], short: Set<number>, detail: number): string {
-  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}`);
+  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}:${shapeId(s.passPath)}`);
   return `${detail}|${[...short].sort().join(",")}|${parts.join(";")}`;
 }
 const home = homeCamera as (
@@ -334,18 +338,20 @@ export default function FlatMap({
   // with getState.
   const followOn = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
+  const paused = useMapClock((s) => s.paused);
+  const backToLive = useMapClock((s) => s.backToLive);
 
   // Latest props, read by map event handlers without re-binding them.
   const latest = useRef({ sats, observer, view, onSelect, minElevDeg });
   latest.current = { sats, observer, view, onSelect, minElevDeg };
 
   /** The satellites as of now: props arrive about once a second, so each dot
-   *  and the focus footprint move to trueNow(). A satellite the track cannot
+   *  and the focus footprint move to mapNow(). A satellite the track cannot
    *  place now stays where the props put it, so a failed sample never drops
    *  it (or changes the track key). */
   const liveSats = useCallback((withTicks = true): MapSat[] => {
     const { sats: s, minElevDeg: elev } = latest.current;
-    const ms = trueNow();
+    const ms = mapNow();
     const out: MapSat[] = [];
     for (const x of s) {
       const sub = x.positionAt(ms);
@@ -368,7 +374,7 @@ export default function FlatMap({
    *  Worked out once per update and shared by the dot, the footprint and the
    *  follow jump. A sample the track cannot place keeps the last one, as
    *  liveSats keeps the dot, so the dot and the globe cap do not blink off. */
-  const liveFocus = useCallback((s: MapSat[], ms = trueNow()): LiveFocus | null => {
+  const liveFocus = useCallback((s: MapSat[], ms = mapNow()): LiveFocus | null => {
     const f = s.find((x) => x.emphasis === "focus");
     if (!f) {
       lastFocus.current = null;
@@ -609,7 +615,7 @@ export default function FlatMap({
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
         const c = map.getCenter();
-        const now = new Date(trueNow());
+        const now = new Date(mapNow());
         const cam = { lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(), width: w, height: h };
         const gmstRad = coords.gmstFromDate(now);
         // Light theme: the sky as a printed atlas (dark dots, no Milky Way).
@@ -754,8 +760,9 @@ export default function FlatMap({
   /** Night bands, rebuilt once they would have moved about a pixel at this
    *  zoom (nightRefreshMs); true when rebuilt. */
   const refreshNight = useCallback((zoom: number): boolean => {
-    const now = Date.now();
-    if (night.current && now - night.current.at < nightRefreshMs(zoom)) return false;
+    // The map's clock: a paused pass jumps it, so the gap can be either way.
+    const now = mapNow();
+    if (night.current && Math.abs(now - night.current.at) < nightRefreshMs(zoom)) return false;
     night.current = { at: now, data: buildData({ nightDate: new Date(now) })["ss-night"] };
     return true;
   }, []);
@@ -1181,7 +1188,7 @@ export default function FlatMap({
     const map = mapRef.current;
     if (map) syncZoomAround(map, followOn);
     if (map && followOn && !map.isMoving() && !reducedMotion()) {
-      const f = liveFocus(latest.current.sats, trueNow() + LOCK_EASE_MS);
+      const f = liveFocus(latest.current.sats, mapNow() + LOCK_EASE_MS);
       if (f) {
         const c = map.project(map.getCenter());
         const p = map.project([f.lonDeg, f.latDeg]);
@@ -1285,6 +1292,56 @@ export default function FlatMap({
     if (map && atHome.current && view === "flat") refitHome(map);
   }, [dotsKey, view, refitHome]);
 
+  // A paused pass frames its path and the observer; Back to live (or closing
+  // the row) returns the camera to where it was.
+  const framedKey = useRef<string | null>(null);
+  const beforePause = useRef<{ cam: Camera; atHome: boolean } | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (!paused) {
+      framedKey.current = null;
+      const b = beforePause.current;
+      beforePause.current = null;
+      if (b) {
+        atHome.current = b.atHome;
+        if (b.atHome) refitHome(map);
+        else moveTo(map, b.cam);
+      }
+      return;
+    }
+    if (framedKey.current === paused.key) return;
+    const sat = sats.find((x) => x.passPath && (x.passPath.coordinates as unknown[]).length);
+    if (!sat?.passPath) return;
+    framedKey.current = paused.key;
+    if (!beforePause.current) {
+      const c = map.getCenter();
+      beforePause.current = { cam: { center: [c.lng, c.lat], zoom: map.getZoom() }, atHome: atHome.current };
+    }
+    setFollowing(false);
+    const pts = (sat.passPath.coordinates as number[][][]).flat();
+    if (observer) pts.push([observer.lonDeg, observer.latDeg]);
+    // Longitudes unwrapped around the first point, so a path over the date
+    // line frames as one piece.
+    const ref = pts[0][0];
+    const lons = pts.map(([lon]) => lon + 360 * Math.round((ref - lon) / 360));
+    const lats = pts.map(([, lat]) => lat);
+    const el = map.getContainer();
+    const h = el.clientHeight || 1;
+    const w = el.clientWidth || 1;
+    // Room for the chips row on top and the paused chip below.
+    const pad = { top: Math.min(64, h / 4), bottom: Math.min(60, h / 4), left: Math.min(32, w / 6), right: Math.min(32, w / 6) };
+    const cam = map.cameraForBounds(
+      [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      { padding: pad, maxZoom: 7 },
+    );
+    if (!cam?.center) return;
+    const c = cam.center as { lng: number; lat: number } | [number, number];
+    const center: LngLat = Array.isArray(c) ? c : [c.lng, c.lat];
+    atHome.current = false;
+    moveTo(map, { center, zoom: cam.zoom });
+  }, [paused, sats, observer, mapReady, moveTo, refitHome, setFollowing]);
+
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
   useEffect(() => {
@@ -1310,7 +1367,7 @@ export default function FlatMap({
         // shrank it far out when the focus was nearer the equator.
         // The live position, not the props one: a satellite page's first
         // props come from its cached render time, up to an hour old.
-        const at = sat.positionAt(trueNow()) ?? sat.position;
+        const at = sat.positionAt(mapNow()) ?? sat.position;
         moveTo(map, { center: [at.lonDeg, at.latDeg] });
       }
     }
@@ -1428,7 +1485,7 @@ export default function FlatMap({
     let fast = true;
     const measure = () => {
       const f = latest.current.sats.find((x) => x.emphasis === "focus");
-      const ms = trueNow();
+      const ms = mapNow();
       const a = f?.positionAt(ms);
       const b = f?.positionAt(ms + DOT_MS);
       if (!a || !b) {
@@ -1445,7 +1502,7 @@ export default function FlatMap({
       // The frame's own time rather than the moment this runs, which wanders
       // by a few ms: the dot then steps evenly.
       const now = performance.now();
-      const ms = at === undefined ? trueNow() : trueNow() + at - now;
+      const ms = at === undefined ? mapNow() : mapNow() + at - now;
       const f = liveFocus(latest.current.sats, ms);
       pushFootprint(f);
       placeMark(map, f);
@@ -1552,7 +1609,7 @@ export default function FlatMap({
       focus: focusNow,
       width: el.clientWidth || 1,
       height: el.clientHeight || 1,
-      date: new Date(trueNow()),
+      date: new Date(mapNow()),
     });
     if (!cam) return;
     atHome.current = false;
@@ -1649,7 +1706,15 @@ export default function FlatMap({
       {fill ? null : chipRow}
       {/* Lock on: keep the camera on the focused satellite. A small toggle in
           the corner, in place of a bar across the top of the map. */}
-      {focusName ? (
+      {paused ? (
+        <div className="flat-map__paused" role="status">
+          <Icon name="pause" />
+          <span className="flat-map__paused-text">{`Paused at ${paused.label}`}</span>
+          <Button size="sm" variant="primary" className="flat-map__live" onClick={backToLive}>
+            <span className="live-dot" aria-hidden="true" />Back to live
+          </Button>
+        </div>
+      ) : focusName ? (
         <Button
           variant="overlay"
           size="sm"

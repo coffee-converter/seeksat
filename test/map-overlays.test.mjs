@@ -70,7 +70,7 @@ test('hidden satellites are not drawn and ghosts have no track', () => {
   assert.ok(ghost);
   assert.equal(ghost.properties.name, '');
   assert.equal(ghost.properties.emphasis, 'ghost');
-  for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) {
+  for (const id of ['ss-track-past', 'ss-track-future', 'ss-pass', 'ss-marks']) {
     assert.ok(!ids(data[id]).includes(3), `ghost in ${id}`);
   }
   const keys = Object.fromEntries(data['ss-sats'].features.map((f) => [f.properties.noradId, f.properties.sortKey]));
@@ -163,7 +163,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-path', 'ss-pass-sight', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -258,7 +258,7 @@ test('tracks: false leaves out the track line sources but still builds the marks
   });
   const data = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8, tracks: false });
   assert.equal(reads, 0);
-  for (const id of ['ss-track-past', 'ss-track-future']) assert.ok(!(id in data), id);
+  for (const id of ['ss-track-past', 'ss-track-future', 'ss-pass']) assert.ok(!(id in data), id);
   assert.ok(data['ss-marks'].features.length > 0);
   assert.equal(data['ss-sats'].features.length, 3);
   assert.equal(data['ss-footprint'].features.length, 1);
@@ -371,4 +371,16 @@ test('the radio mark: a flag on dots with downlinks, drawn round normal dots onl
   // Names on the left sit further out on a dot with arcs.
   const sats = overlayLayers(COLORS).find((l) => l.id === 'ss-sats');
   assert.equal(sats.layout['text-variable-anchor-offset'][0], 'case');
+});
+
+test('an opened pass draws its path and a sight line from the observer to its peak', () => {
+  const sat = { ...SATS[0], passPath: { type: 'MultiLineString', coordinates: [[[0, 0], [5, 5], [10, 8]]] }, passPeak: { lonDeg: 5, latDeg: 5 } };
+  const data = overlayData({ sats: [sat], observer: { latDeg: 2, lonDeg: 3 } });
+  const parts = data['ss-pass'].features.map((f) => f.properties.part).sort();
+  assert.deepEqual(parts, ['path', 'sight']);
+  const sight = data['ss-pass'].features.find((f) => f.properties.part === 'sight').geometry.coordinates;
+  assert.ok(Math.abs(sight[0][0] - 3) < 1e-9 && Math.abs(sight[0][1] - 2) < 1e-9);
+  assert.ok(Math.abs(sight.at(-1)[0] - 5) < 1e-9 && Math.abs(sight.at(-1)[1] - 5) < 1e-9);
+  // No peak, no observer: path only.
+  assert.equal(overlayData({ sats: [{ ...sat, passPeak: undefined }] })['ss-pass'].features.length, 1);
 });

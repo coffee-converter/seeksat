@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Icon from "@/components/ui/Icon";
 
 /** "14:12:07" in UTC. */
 export function utcClock(ms: number): string {
@@ -24,19 +25,33 @@ export function localClock(ms: number, timeZone?: string): string {
  * A null `nowMs` (a page whose clock starts after mount) shows dashes.
  */
 export default function LiveClock({
-  nowMs, timeZone, compact = false,
-}: { nowMs: number | null; timeZone?: string; compact?: boolean }) {
+  nowMs, timeZone, compact = false, pausedMs = null,
+}: {
+  nowMs: number | null;
+  timeZone?: string;
+  compact?: boolean;
+  /** The map is paused at this time (an opened pass): shown in place of now. */
+  pausedMs?: number | null;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const utc = nowMs == null ? "--:--:--" : utcClock(nowMs);
-  const local = mounted && nowMs != null ? `${localClock(nowMs, timeZone)}, your time` : "";
+  const paused = pausedMs != null;
+  const ms = paused ? pausedMs : nowMs;
+  const utc = ms == null ? "--:--:--" : utcClock(ms);
+  const local = mounted && ms != null ? `${localClock(ms, timeZone)}, your time` : "";
 
   return (
-    <div className={compact ? "live-clock live-clock--compact" : "live-clock"} role="group" aria-label="Current time">
+    <div
+      className={["live-clock", compact && "live-clock--compact", paused && "live-clock--paused"].filter(Boolean).join(" ")}
+      role="group"
+      aria-label={paused ? "Map time, paused" : "Current time"}
+    >
       <p className="live-clock__utc">
-        <span className="live-clock__dot" aria-hidden="true" />
-        <span className="live-clock__live">Live</span>
-        <time className="live-clock__time num" dateTime={nowMs == null ? undefined : new Date(nowMs).toISOString()}>
+        {paused
+          ? <Icon name="pause" className="live-clock__pause" />
+          : <span className="live-clock__dot" aria-hidden="true" />}
+        <span className="live-clock__live">{paused ? "Paused" : "Live"}</span>
+        <time className="live-clock__time num" dateTime={ms == null ? undefined : new Date(ms).toISOString()}>
           {utc}
         </time>
         <span className="live-clock__zone">UTC</span>

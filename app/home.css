@@ -162,6 +162,26 @@
   gap: var(--sp-4);
 }
 .flat-map__lock .icon { width: 16px; height: 16px; }
+/* A paused pass: the time it shows, and the way back to live. */
+.flat-map__paused {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  max-width: calc(100% - 64px);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-12);
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-full);
+  background: var(--map-panel);
+  color: var(--map-text);
+  box-shadow: var(--shadow-popover);
+}
+.flat-map__paused .icon { flex: none; width: 14px; height: 14px; color: var(--warn); }
+.flat-map__paused-text { white-space: nowrap; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.flat-map__paused .flat-map__live { flex: none; border-radius: var(--radius-full); white-space: nowrap; }
 
 /* The layers menu: a popover under its button, scrolling inside when the
    map is short. Its height follows the map overlay it sits in (a size
@@ -324,6 +344,8 @@
 .live-clock--compact .live-clock__utc { gap: var(--sp-6); }
 .live-clock--compact .live-clock__time { font-size: var(--fs-xl); }
 .live-clock--compact .live-clock__live { font-size: var(--fs-xs); }
+.live-clock--paused .live-clock__live { color: var(--warn); }
+.live-clock__pause { align-self: center; flex: none; width: 10px; height: 10px; color: var(--warn); }
 .live-clock--compact .live-clock__zone { font-size: var(--fs-xs); }
 .live-clock--compact .live-clock__local { font-size: var(--fs-xs); }
 @keyframes live-pulse {

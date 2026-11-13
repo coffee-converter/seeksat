@@ -2,7 +2,7 @@
 // FlatMap's MapSat list. Shared by the home and satellite pages.
 import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
-import { footprintFeature, splitTrack, subpoint, trackTicks, tickStepMin } from "@/lib/map/geometry.mjs";
+import { footprintFeature, passLine, splitTrack, subpoint, trackTicks, tickStepMin } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
 
 export interface Layer {
@@ -25,14 +25,23 @@ export type Sub = { latDeg: number; lonDeg: number; altKm: number };
 const subOf = subpoint as (ecef: number[]) => Sub;
 const footprintOf = footprintFeature as (sub: Sub, altKm: number, minElevDeg: number) => Shape;
 const splitOf = splitTrack as (track: unknown, nowMs: number) => { past: Shape; future: Shape; ticks: MapSat["trackTicks"] };
+const passLineOf = passLine as (track: unknown, startMs: number, endMs: number) => Shape;
 const ticksOf = trackTicks as (track: unknown, nowMs: number, lineFromMs: number) => MapSat["trackTicks"];
 const NO_LINE: Shape = { type: "MultiLineString", coordinates: [] };
 const NO_TRACK: Split = { trackPast: NO_LINE, trackFuture: NO_LINE, trackTicks: [] };
 
 const TRACK_REFRESH_MS = 60_000;
 
+/** An opened pass row: its path is drawn on the map. */
+export interface MapPass {
+  noradId: number;
+  startMs: number;
+  endMs: number;
+  peakMs: number;
+}
+
 export function useMapSats({
-  layers, tracks, colors, nowMs, minElevDeg, radio,
+  layers, tracks, colors, nowMs, minElevDeg, radio, pass = null,
 }: {
   layers: Layer[];
   tracks: ReadonlyMap<number, MapTrack>;
@@ -41,6 +50,8 @@ export function useMapSats({
   minElevDeg: number;
   /** Radio mode: dots with known downlinks get the radio mark. */
   radio: boolean;
+  /** The opened pass, drawn bold with a sight line to its highest point. */
+  pass?: MapPass | null;
 }): { sats: MapSat[] } {
   // Ground tracks are the costly part: once a minute, and only for the
   // satellites that draw one (not ghosts or hidden ones).
@@ -69,6 +80,22 @@ export function useMapSats({
     }
     return out;
   }, [tracks, tracked, trackMinute]);
+
+  // The opened pass's path, rise to set, and where it peaks.
+  const passTrack = pass ? tracks.get(pass.noradId) : undefined;
+  const passShape = useMemo(() => {
+    if (!pass || !passTrack) return null;
+    try {
+      const path = passLineOf(passTrack, pass.startMs, pass.endMs);
+      const ecef = passTrack.ecefAt(new Date(pass.peakMs));
+      const peak = ecef ? subOf(ecef) : null;
+      return { noradId: pass.noradId, path, peak: peak && { lonDeg: peak.lonDeg, latDeg: peak.latDeg } };
+    } catch {
+      return null;
+    }
+    // The pass by its times, not its object identity (rows rebuild each minute).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passTrack, pass?.noradId, pass?.startMs, pass?.endMs, pass?.peakMs]);
 
   // Positions every second.
   return useMemo(() => {
@@ -99,8 +126,12 @@ export function useMapSats({
         orbitClass: t.orbitClass,
         tickMin: tickStepMin(t.periodMs),
         radio: radio && t.downlinks.length > 0,
+        ...(passShape?.noradId === noradId && {
+          passPath: passShape.path,
+          ...(passShape.peak && { passPeak: passShape.peak }),
+        }),
       });
     }
     return { sats };
-  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio]);
+  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape]);
 }

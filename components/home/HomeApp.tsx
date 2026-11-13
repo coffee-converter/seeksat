@@ -36,6 +36,7 @@ import { useLiveDock } from "@/lib/live/dock-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import Button from "@/components/ui/Button";
 import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
+import { useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { usePlaceZone, viewerZone } from "@/components/usePlaceZone";
 import { zoneNote } from "@/lib/time/zone.mjs";
 
@@ -215,7 +216,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   // The satellite of the open pass row stands out on the map, without the
   // camera moving to it (so it is not the scene's selectedId).
-  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [openRow, setOpenRow] = useState<OpenPassRow | null>(null);
+  const highlightId = openRow?.noradId ?? null;
   // A live view docked in the panel selects its satellite on the map while
   // it is open; closing it goes back to the focus (or none).
   const liveId = useLiveDock((s) => s.noradId);
@@ -259,8 +261,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     [location, tz],
   );
 
+  // An opened pass pauses the map at its peak (not while a live view is docked).
+  const { mapNowMs, mapPass } = useMapPause(openRow, { nowMs, timeZone: tz, live: liveId != null });
   const { sats } = useMapSats({
-    layers, tracks: allTracks, colors, nowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio",
+    layers, tracks: allTracks, colors, nowMs: mapNowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio", pass: mapPass,
   });
 
   // Cards: on any input change, every 10 min, and when a pass starts or ends.
@@ -417,7 +421,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     requestAnimationFrame(() => about.scrollIntoView({ block: "start" }));
   }, [listSettled]);
   // An open row's highlight goes with the list (it reports only while shown).
-  if (!showList && highlightId != null) setHighlightId(null);
+  if (!showList && openRow != null) setOpenRow(null);
 
   // One set of chart modals for the pass list and the 24 hour strip.
   const { open: openChart, modals: chartModals } = usePassCharts(observer, prefs.minElevDeg, prefs.mode);
@@ -522,7 +526,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               openChart={openChart}
               clouds={clouds}
               skyType={prefs.skyType}
-              onOpenRow={setHighlightId}
+              onOpenRow={setOpenRow}
             />
           )}
           <InstallNote show={showList && nowMs != null} />

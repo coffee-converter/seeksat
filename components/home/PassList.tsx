@@ -15,6 +15,8 @@ import LowFold from "./LowFold";
 import { BestLine, UpNowLine } from "./BestLine";
 import PassRowOpen, { AlwaysRowOpen } from "./PassRowOpen";
 import { DOCKED_QUERY, useKeepRowInPlace } from "./useKeepRowInPlace";
+import { useMapClock } from "@/lib/map/map-clock";
+import type { OpenPassRow } from "@/lib/map/use-map-pause";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
 import { splitLowRows } from "@/lib/ui/low-fold.mjs";
 import { MODE_HINT_TEXT, dismissModeHint, modeHintWanted } from "@/lib/home/mode-hint.mjs";
@@ -101,8 +103,8 @@ interface Props {
   clouds?: Forecast | null;
   /** The sky type for the visual rating (prefs `skyType`). */
   skyType: string;
-  /** The satellite of the most recently opened row, or null when all are closed. */
-  onOpenRow: (noradId: number | null) => void;
+  /** The row the viewer opened (its satellite and pass), or null when all are closed. */
+  onOpenRow: (open: OpenPassRow | null) => void;
 }
 
 
@@ -229,13 +231,27 @@ export default function PassList({
   // prune above lands a render later). The auto-opened row is not reported,
   // so the map stays at rest until the viewer picks a row.
   const viewerOpen = openKey != null && openKey !== autoKey && keys.includes(openKey) ? openKey : null;
-  const openId = viewerOpen ? idOfKey(viewerOpen) : null;
-  const reported = useRef<number | null>(null);
+  const openPass = !viewerOpen ? null
+    : viewerOpen === pinnedKey ? (viewingCard?.kind === "pass" ? viewingCard.pass : null)
+      : groups.flatMap((g) => g.rows).find((r) => r.key === viewerOpen)?.pass ?? null;
+  const openStart = openPass?.startMs ?? null;
+  const reported = useRef<string | null>(null);
   useEffect(() => {
-    if (openId === reported.current) return;
-    reported.current = openId;
-    onOpenRow(openId);
-  }, [openId, onOpenRow]);
+    const sig = viewerOpen ? `${viewerOpen}@${openStart}` : null;
+    if (sig === reported.current) return;
+    reported.current = sig;
+    onOpenRow(viewerOpen ? { key: viewerOpen, noradId: idOfKey(viewerOpen), pass: openPass } : null);
+    // openPass is read when the row or its pass changes, not on each rebuild.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerOpen, openStart, onOpenRow]);
+  // Back to live on the map closes the row the map was paused for.
+  const resumeTick = useMapClock((s) => s.resumeTick);
+  const seenTick = useRef(resumeTick);
+  useEffect(() => {
+    if (resumeTick === seenTick.current) return;
+    seenTick.current = resumeTick;
+    setOpenKey(null);
+  }, [resumeTick]);
 
   // The Best line's row: the viewed satellite's pinned row when it is that
   // pass, else its row in the list (perhaps past "Show more").

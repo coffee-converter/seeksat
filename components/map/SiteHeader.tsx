@@ -11,6 +11,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SearchBar } from "@/components/home/SearchBar";
 import LiveClock from "@/components/LiveClock";
+import { useMapClock } from "@/lib/map/map-clock";
 import Button from "@/components/ui/Button";
 import { cx } from "@/lib/ui/classes.mjs";
 import { useTrueNow } from "@/lib/ui/use-true-now";
@@ -26,6 +27,7 @@ export default function SiteHeader() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const nowMs = useTrueNow();
+  const pausedMs = useMapClock((s) => s.paused?.atMs ?? null);
   // The page's search handlers are read when called, so a scene publish
   // never re-renders the header.
   const onView = useCallback((id: number) => {
@@ -89,7 +91,7 @@ export default function SiteHeader() {
         >
           <Icon name="search" size={20} />
         </Button>
-        <LiveClock nowMs={nowMs} compact />
+        <LiveClock nowMs={nowMs} pausedMs={pausedMs} compact />
         <Button variant="quiet" iconOnly className="map-shell__more" aria-label="Settings" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
           <Icon name="settings" size={20} />
         </Button>

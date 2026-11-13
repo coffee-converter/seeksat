@@ -13,6 +13,8 @@ import LowFold from "@/components/home/LowFold";
 import PassRowOpen from "@/components/home/PassRowOpen";
 import { useKeepRowInPlace } from "@/components/home/useKeepRowInPlace";
 import { toggleOpen } from "@/lib/ui/open-row.mjs";
+import { useMapClock } from "@/lib/map/map-clock";
+import type { OpenPassRow } from "@/lib/map/use-map-pause";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
@@ -123,12 +125,14 @@ interface Props {
   clouds?: Forecast | null;
   /** The satellite's map colour, for the rows' leading bar. */
   color?: string;
+  /** The open row and its pass (the map pauses at its peak), or null. */
+  onOpenRow?: (open: OpenPassRow | null) => void;
   ref?: React.Ref<PassSectionHandle>;
 }
 
 export default function PassSection({
   track: trackIn, record, epochMs, nowMs, settings, onModeChange, skyType,
-  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null, color = "var(--map-muted)", ref,
+  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null, color = "var(--map-muted)", onOpenRow, ref,
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
@@ -267,6 +271,26 @@ export default function PassSection({
   // then the row they opened, or none.
   const [chosenKey, setChosenKey] = useState<string | null | undefined>(undefined);
   const openKey = chosenKey === undefined ? sharedKey : chosenKey;
+  // Report the open row, so the map can pause at its pass.
+  const openRowPass = openKey && view?.kind === "rows" ? view.rows.find((r) => r.key === openKey)?.pass ?? null : null;
+  const openStart = openRowPass?.startMs ?? null;
+  const reportedOpen = useRef<string | null>(null);
+  useEffect(() => {
+    const sig = openKey && track ? `${openKey}@${openStart}` : null;
+    if (sig === reportedOpen.current) return;
+    reportedOpen.current = sig;
+    onOpenRow?.(sig && track ? { key: openKey as string, noradId: track.noradId, pass: openRowPass && { startMs: openRowPass.startMs, endMs: openRowPass.endMs, peakMs: openRowPass.peakMs as number }, timeZone: observer?.tz } : null);
+    // The pass is read when the row or its times change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openKey, openStart, track, onOpenRow]);
+  // Back to live on the map closes the open row.
+  const resumeTick = useMapClock((s) => s.resumeTick);
+  const seenTick = useRef(resumeTick);
+  useEffect(() => {
+    if (resumeTick === seenTick.current) return;
+    seenTick.current = resumeTick;
+    setChosenKey(null);
+  }, [resumeTick]);
   const keepInPlace = useKeepRowInPlace();
   const toggleRow = (key: string, button: HTMLElement) => {
     keepInPlace(button);

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePublishMapScene } from "@/lib/map/scene-store";
+import { useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { HEADER_PINNED_EVENT } from "@/components/HeaderPinned";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
@@ -226,8 +227,11 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const layers = useMemo(() => pageLayersOf({
     followed: prefs.following, hidden: prefs.hidden, pageId: data.noradId,
   }), [prefs.following, prefs.hidden, data.noradId]);
+  // An opened pass pauses the map at its peak.
+  const [openRow, setOpenRow] = useState<OpenPassRow | null>(null);
+  const { mapNowMs, mapPass } = useMapPause(openRow, { nowMs });
   const { sats } = useMapSats({
-    layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio",
+    layers, tracks: mapTracks, colors, nowMs: mapNowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio", pass: mapPass,
   });
   // One chip per followed satellite, as on the home page: tap to focus,
   // the eye to hide or show.
@@ -409,6 +413,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         onNextPass={setNextPass}
         clouds={clouds}
         color={colors.get(data.noradId)}
+        onOpenRow={setOpenRow}
       />
 
       {usable && liveNow && elementsNow ? (
