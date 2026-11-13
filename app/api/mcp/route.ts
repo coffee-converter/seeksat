@@ -6,7 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool, getPassChartTool, bestPassTool,
-  searchSatellitesTool, radioPassTool, whatsUpNowTool,
+  searchSatellitesTool, radioPassTool, whatsUpNowTool, identifySatelliteTool,
 } from '@/lib/mcp/tools.mjs';
 import { getCatalogReader } from '@/lib/mirror/server.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
@@ -291,7 +291,33 @@ const mcpHandler = createMcpHandler(
       async (args) => {
         const { tier, keyId } = getRequestContext();
         logUsage({ tool: 'whats_up_now', tier, keyId });
-        try { return asText(await whatsUpNowTool(args, deps)); } catch (e) { return asError(e); }
+        try { return asText(await whatsUpNowTool(args, deps, tier)); } catch (e) { return asError(e); }
+      },
+    );
+
+    server.registerTool(
+      'identify_satellite',
+      {
+        title: 'Identify a satellite',
+        description: '"What was that moving light?" Given where and when a light was seen, lists the satellites that were sunlit, above the horizon and within `tolerance` degrees of that spot, best match first, from every satellite in the catalog. Say where it was with azimuth (degrees from north) or direction (a compass word such as "NE"), plus elevation (degrees above the horizon); add travel (the compass direction it was moving towards) to rank by direction of travel too. Each candidate has its azimuth, elevation, angular error, direction of travel, magnitude (often estimated, see magnitudeEstimated), name and a url to its page. time defaults to now.',
+        inputSchema: {
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+          time: z.string().optional().describe('ISO 8601 time of the sighting. Default: now.'),
+          azimuth: z.number().min(0).max(360).optional().describe('where it was, in degrees from north (90 = east). Give this or direction.'),
+          direction: z.string().optional().describe('where it was, as a compass word: N, NNE, NE, ... or "north-east".'),
+          elevation: z.number().min(0).max(90).describe('how high it was, in degrees above the horizon (90 = straight up).'),
+          travel: z.string().optional().describe('the compass direction it was moving towards, e.g. "NE". Optional, but it sharpens the match.'),
+          tolerance: z.number().min(1).max(45).optional().describe('how far off the reported spot a match may be, in degrees. Default 10.'),
+          limit: z.number().int().positive().max(10).optional().describe('how many candidates to return. Default 5.'),
+        },
+        annotations: ONLINE,
+      },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'identify_satellite', tier, keyId });
+        try { return asText(await identifySatelliteTool(args, deps, tier)); } catch (e) { return asError(e); }
       },
     );
   },
