@@ -120,6 +120,5 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   // Paused only while the store is paused for this very row: closing the row
   // (or Back to live) goes live in the same render that brings the other
   // satellites' tracks back, so they never draw a frame at the paused time.
-  const pausedHere = paused != null && key != null && paused.key === key;
-  return { mapNowMs: pausedHere ? paused.atMs : nowMs, mapPass };
+  return { mapNowMs: isPaused ? paused.atMs : nowMs, mapPass };
 }

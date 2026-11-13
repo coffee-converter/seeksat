@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  mapLayers, focusBarText, followLabel, parseFocus, focusHref, focusNavMethod, satPageLayers, showAllCount, focusDestination,
+  mapLayers, focusBarText, parseFocus, focusHref, focusNavMethod, satPageLayers, showAllCount, focusDestination,
 } from '../lib/home/focus.mjs';
 
 const layer = (noradId, emphasis) => ({ noradId, emphasis });
@@ -97,25 +97,13 @@ test('missing arguments default to empty', () => {
 test('focusBarText gives the title and the show all count', () => {
   assert.equal(focusBarText('GOES 16', false, 4).title, 'Viewing GOES 16');
   assert.equal(focusBarText('GOES 16', false, 4).showAll, 'Show all (4)');
-  assert.equal(focusBarText('GOES 16', false, 4).follow, '☆ Follow');
-  assert.equal(focusBarText('ISS', true, 1).follow, '★ Following');
   assert.equal(focusBarText('X', true, 0).showAll, 'Show all (0)');
-});
-
-test('focusBarText gives the lock on copy', () => {
-  assert.deepEqual(focusBarText('ISS', true, 1).lock, { off: 'Lock on', on: 'Locked on' });
-});
-
-test('followLabel names the satellite for the star', () => {
-  assert.equal(followLabel('GOES 16', false), 'Follow GOES 16');
-  assert.equal(followLabel('GOES 16', true), 'Unfollow GOES 16');
 });
 
 test('no copy has an em dash', () => {
   const all = [
     ...Object.values(focusBarText('A', true, 2)).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))),
     ...Object.values(focusBarText('A', false, 2)).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))),
-    followLabel('A', true), followLabel('A', false),
   ];
   for (const s of all) assert.ok(!s.includes('—'), s);
 });

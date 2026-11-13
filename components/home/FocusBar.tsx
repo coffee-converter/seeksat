@@ -3,7 +3,7 @@
 import { focusBarText } from "@/lib/home/focus.mjs";
 import Button from "@/components/ui/Button";
 
-type BarText = { title: string; showAll: string; follow: string; lock: { off: string; on: string } };
+type BarText = { title: string; showAll: string };
 const textOf = focusBarText as (name: string, isFollowed: boolean, total: number) => BarText;
 
 interface Props {

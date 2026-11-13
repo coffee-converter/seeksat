@@ -408,7 +408,10 @@ test('a live open pass draws a sight line with the distance, only while the sate
   assert.equal(awayText(1578.2), '1,578 km away');
   const observer = { latDeg: 40, lonDeg: -90 };
   const up = { ...SATS[0], position: { lonDeg: -88, latDeg: 41 }, altKm: 420, passLive: true };
-  const marks = overlayData({ sats: [up], observer })['ss-sight'].features;
+  const { sightFeatures } = await import('../lib/map/overlays.mjs');
+  const marks = sightFeatures(up, observer);
+  // The map's source takes only the label; the map draws the line.
+  assert.deepEqual(overlayData({ sats: [up], observer })['ss-sight'].features.map((f) => f.properties.kind), ['sight-label']);
   assert.equal(marks.filter((f) => f.properties.kind === 'sight').length, 1);
   // The label sits at the line's middle, turned along it (never upside down).
   const label = marks.find((f) => f.properties.kind === 'sight-label');
@@ -422,7 +425,7 @@ test('a live open pass draws a sight line with the distance, only while the sate
   // Below the horizon (half a world away): no sight line, a faint dotted one
   // toward it, labelled not up yet.
   const down = { ...up, position: { lonDeg: 90, latDeg: -40 } };
-  const downMarks = overlayData({ sats: [down], observer })['ss-sight'].features;
+  const downMarks = sightFeatures(down, observer);
   assert.equal(downMarks.filter((f) => f.properties.kind === 'sight').length, 0);
   assert.equal(downMarks.filter((f) => f.properties.kind === 'sight-below').length, 1);
   assert.match(downMarks.find((f) => f.properties.kind === 'sight-label').properties.label, /not up yet$/);

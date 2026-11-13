@@ -18,8 +18,6 @@ const GPS_GIVE_UP_MS = 20_000;
 interface Props {
   /** Called once a location is saved. */
   onDone?: () => void;
-  /** Shows a Cancel button (when changing an existing location). */
-  onCancel?: () => void;
   /** "card" is the standalone card with its heading; "sheet" sits in the
    *  location sheet, which names it: the search first, then the device. */
   variant?: "card" | "sheet";
@@ -27,7 +25,7 @@ interface Props {
 
 // Where the cards are computed from: the device's position, or a place,
 // "lat, lon" or grid square typed in. Saves to prefs with its source.
-export default function LocationPrompt({ onDone, onCancel, variant = "card" }: Props) {
+export default function LocationPrompt({ onDone, variant = "card" }: Props) {
   const uid = useId();
   const choosePlace = useHomeStore((s) => s.choosePlace);
   const [text, setText] = useState("");
@@ -174,11 +172,6 @@ export default function LocationPrompt({ onDone, onCancel, variant = "card" }: P
       </Button>
       {form}
       {error}
-      {onCancel && (
-        <Button variant="link" onClick={onCancel}>
-          Cancel
-        </Button>
-      )}
     </section>
   );
 }

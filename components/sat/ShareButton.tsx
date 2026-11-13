@@ -9,9 +9,9 @@ interface Props {
   url: string | (() => string);
   title: string;
   label?: string;
-  /** "chip" for a small button, "button" for the page header, "overlay" on
-   *  the map, "link" for a text link (the map layers menu). */
-  size?: "chip" | "button" | "overlay" | "link";
+  /** "chip" for a small button, "button" for the page header, "link" for a
+   *  text link (the map layers menu). */
+  size?: "chip" | "button" | "link";
 }
 
 type State = { kind: "idle" } | { kind: "copied" } | { kind: "manual"; url: string };
@@ -44,7 +44,7 @@ export default function ShareButton({ url, title, label = "Share", size = "chip"
     <>
       <Button
         size={size === "chip" || size === "link" ? "sm" : "md"}
-        variant={size === "overlay" ? "overlay" : size === "link" ? "link" : undefined}
+        variant={size === "link" ? "link" : undefined}
         onClick={onClick}
       >
         {state.kind === "copied" ? "Link copied" : label}
