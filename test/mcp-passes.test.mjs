@@ -141,12 +141,61 @@ test('Molniya passes come back from the MCP search, several hours long', () => {
 
 test('MCP pass rows keep their shape', () => {
   const [p] = findPasses({ record: { line1: LINE1, line2: LINE2 }, observer: { latDeg: 0, lonDeg: 100 }, startMs: START, mode: 'radio' }).passes;
-  assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'durationSec', 'inProgress', 'peak', 'peakElevationDeg',
-    'peakMagnitude', 'quality', 'rise', 'set', 'sunlit']);
+  assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'durationSec', 'entersShadow', 'inProgress', 'leavesShadow', 'peak',
+    'peakElevationDeg', 'peakMagnitude', 'quality', 'rise', 'set', 'sunlit', 'visibleFrom', 'visibleUntil']);
 });
 
 test('findPasses flags elements that cannot be propagated', () => {
   const dead = { noradId: 25544, name: 'ISS', omm: { ...ISS_OMM, MEAN_MOTION: 17.5, EPOCH: '2018-01-01T00:00:00.000000', BSTAR: 0.01 }, epochMs: Date.parse('2018-01-01T00:00:00Z') };
   const r = findPasses({ record: dead, observer: EN52VE, startMs: Date.parse('2026-03-01T12:00:00Z') });
   assert.deepEqual(r, { passes: [], stationary: null, unavailable: true });
+});
+
+// The seen part of a pass, and where it crosses the shadow edge. With the
+// LINE1/LINE2 fixture, evening passes over (-30, 150) fade into Earth's
+// shadow mid-sky, and dawn passes over (50, 0) appear out of it.
+const VIS_ARGS = { record: { line1: LINE1, line2: LINE2 }, startMs: START, windowHours: 72, standardMag: -1.8 };
+
+test('visual pass rows: the seen window is the row itself, and an evening pass fades into shadow', () => {
+  const { passes } = findPasses({ ...VIS_ARGS, observer: VIS_OBS, mode: 'visual' });
+  assert.ok(passes.length > 0);
+  for (const p of passes) {
+    assert.equal(p.visibleFrom, p.rise);
+    assert.equal(p.visibleUntil, p.set);
+    assert.equal(p.leavesShadow, null);
+  }
+  // Every one of these ends in shadow while still up, so "set" is the fade.
+  assert.ok(passes.every((p) => p.entersShadow === p.set), JSON.stringify(passes.map((p) => [p.set, p.entersShadow])));
+});
+
+test('visual pass rows: a dawn pass appears out of the shadow mid-sky', () => {
+  const { passes } = findPasses({ ...VIS_ARGS, windowHours: 48, observer: { latDeg: 50, lonDeg: 0 }, mode: 'visual' });
+  const dawn = passes.filter((p) => p.leavesShadow);
+  assert.ok(dawn.length > 0, 'finds a pass leaving the shadow');
+  for (const p of dawn) {
+    assert.equal(p.leavesShadow, p.rise);
+    assert.equal(p.visibleFrom, p.rise);
+    assert.equal(p.entersShadow, null);
+  }
+});
+
+test('radio pass rows say when the pass can be seen: null in daylight, cut short by the shadow', () => {
+  const { passes } = findPasses({ ...VIS_ARGS, observer: VIS_OBS, mode: 'radio' });
+  const never = passes.filter((p) => p.visibleFrom === null);
+  const seen = passes.filter((p) => p.visibleFrom !== null);
+  assert.ok(never.length > 0 && seen.length > 0);
+  for (const p of never) assert.equal(p.visibleUntil, null);
+  for (const p of seen) {
+    assert.ok(p.rise <= p.visibleFrom && p.visibleFrom < p.visibleUntil && p.visibleUntil <= p.set);
+  }
+  // The same pass in visual mode is exactly the seen part of the radio pass.
+  const visual = findPasses({ ...VIS_ARGS, observer: VIS_OBS, mode: 'visual' }).passes;
+  for (const v of visual) {
+    const r = seen.find((p) => p.visibleFrom === v.rise);
+    assert.ok(r, `radio pass for ${v.rise}`);
+    assert.equal(r.visibleUntil, v.set);
+    assert.equal(r.entersShadow, v.entersShadow);
+  }
+  // One of them goes into shadow before it sets: seen until then, not to the set.
+  assert.ok(seen.some((p) => p.entersShadow && p.entersShadow < p.set && p.visibleUntil === p.entersShadow));
 });
