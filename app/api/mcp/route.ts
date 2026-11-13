@@ -38,6 +38,10 @@ const deps = {
   // Stage 1 of the all-satellite radio scan, per 0.25 degree cell and hour
   // (lib/mcp/radio-scan.mjs). Lives as long as the server instance.
   radioScanCache: createLru(32),
+  // The visual best_pass scan: the popular satellites plus CelesTrak's
+  // visual group, with its own stage 1 cache (lib/mcp/visual-scan.mjs).
+  visualIds: () => getCatalogReader().visualIds(),
+  visualScanCache: createLru(32),
   skyCatalog: () => getCatalogReader().skyCatalog(),
 };
 
@@ -91,7 +95,7 @@ const mcpHandler = createMcpHandler(
       'find_passes',
       {
         title: 'Find passes',
-        description: 'List ALL upcoming passes of one satellite over a location, ranked by a quality score. Returns an array of passes, each with rise/peak/set times, peak elevation (deg), brightness (magnitude - lower/more-negative is brighter; peakMagnitudeEstimated true means the satellite\'s size is unknown, so the magnitude is a cautious guess and visual quality stops at Fair, 0.4), duration, a quality score 0-1, and when it can be seen by eye: visibleFrom/visibleUntil (null if never on that pass) plus leavesShadow/entersShadow when it appears or fades mid-sky at the edge of Earth\'s shadow (sunlit is only the state at the peak). Scans windowHours ahead (default 48, up to 240 = 10 days), so this is the tool for comparing passes or finding the best/brightest one over a span of days - not just the next one. mode "visual" returns only sunlit, after-dark (naked-eye) passes; "radio" returns all line-of-sight passes. Provide lat+lon or a location string. Feed any pass\'s peak time to get_pass_chart (to draw it) or get_pass_weather (to check clouds). To rank across ALL tracked satellites at once, use best_pass.',
+        description: 'List ALL upcoming passes of one satellite over a location, ranked by a quality score. Returns an array of passes, each with rise/peak/set times, peak elevation (deg), brightness (magnitude - lower/more-negative is brighter; peakMagnitudeEstimated true means the satellite\'s size is unknown, so the magnitude is a cautious guess and visual quality stops at Fair, 0.4), duration, a quality score 0-1, and when it can be seen by eye: visibleFrom/visibleUntil (null if never on that pass) plus leavesShadow/entersShadow when it appears or fades mid-sky at the edge of Earth\'s shadow (sunlit is only the state at the peak). Scans windowHours ahead (default 48, up to 240 = 10 days), so this is the tool for comparing passes or finding the best/brightest one over a span of days - not just the next one. mode "visual" returns only sunlit, after-dark (naked-eye) passes; "radio" returns all line-of-sight passes. Provide lat+lon or a location string. Feed any pass\'s peak time to get_pass_chart (to draw it) or get_pass_weather (to check clouds). To rank passes across many satellites at once, use best_pass.',
         inputSchema: {
           satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
           lat: z.number().min(-90).max(90).optional(),
@@ -250,13 +254,13 @@ const mcpHandler = createMcpHandler(
       'best_pass',
       {
         title: 'Best pass',
-        description: 'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. In radio mode with no satellite it scans every satellite with known downlinks (several hundred), optionally only those with a downlink in `bands` or of a kind in `modes`, over 24 hours by default (72 at most); it reports how many it scanned, and each pass lists the satellite\'s downlinks. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. A pass whose brightness is only estimated (peakMagnitudeEstimated) never outranks a known bright one on a tie, and its visual quality is capped at Fair. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
+        description: 'Find the best upcoming pass(es) over a location, ranked by quality ("what\'s the best pass tonight?"). Give `satellite` to rank that one satellite\'s passes. Omit it to scan: in visual mode (default) the popular satellites plus every satellite in CelesTrak\'s visual group (the brightest objects in the sky, a few hundred, many of them spent rocket bodies), over 72 hours by default (168 at most); in radio mode every satellite with known downlinks (several hundred), optionally only those with a downlink in `bands` or of a kind in `modes`, over 24 hours by default (72 at most). A scan reports satellitesScanned and counts what it skipped, and radio passes list the satellite\'s downlinks. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. Visual quality (0-1) folds in peak height, sky darkness, how long it can be seen, and the cloud forecast for the location where the forecast reaches (cloudCoverPct at the peak; `weather` says whether a forecast was used); without one, clouds count as a neutral 0.5. A pass whose brightness is only estimated (peakMagnitudeEstimated) is capped at Fair (0.4) and never outranks a known bright one on a tie. Radio quality is peak height and pass length only. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass.',
         inputSchema: {
-          satellite: z.string().optional().describe('NORAD id or name (e.g. "iss") to rank one satellite. Omit to scan and rank across every tracked satellite.'),
+          satellite: z.string().optional().describe('NORAD id or name (e.g. "iss") to rank one satellite. Omit to scan: visual mode scans the popular satellites plus CelesTrak\'s visual group, radio mode every satellite with known downlinks.'),
           lat: z.number().min(-90).max(90).optional(),
           lon: z.number().min(-180).max(180).optional(),
           location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-          windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 72; max 240 (10 days). A radio scan with no satellite named defaults to 24 and stops at 72.'),
+          windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 72; max 240 (10 days). With no satellite named, a visual scan stops at 168, and a radio scan defaults to 24 and stops at 72.'),
           minElevation: z.number().min(0).max(90).optional().describe('ignore passes peaking below this many degrees. Default 10.'),
           limit: z.number().int().positive().max(20).optional().describe('how many ranked passes to return. Default 3.'),
           mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye sunlit passes after dark; "radio" = all line-of-sight passes.'),

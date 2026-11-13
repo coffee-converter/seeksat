@@ -139,7 +139,7 @@ for (const where of [{ latDeg: 42.19, lonDeg: -88.21 }, { latDeg: -33.9, lonDeg:
     const { deps } = depsFor(recs);
     const out = await bestPassTool({ lat: where.latDeg, lon: where.lonDeg, mode: 'radio', limit: 5 }, deps);
     const brute = bruteForce(recs, where).slice(0, 5);
-    assert.equal(out.scannedSatellites, 80);
+    assert.equal(out.satellitesScanned, 80);
     assert.equal(out.matchedSatellites, 80);
     assert.equal(out.windowHours, 24);
     assert.deepEqual(out.passes.map((p) => [p.noradId, p.rise, p.quality]), brute.map((p) => [p.noradId, p.rise, p.quality]));
@@ -203,7 +203,7 @@ test('radio scan counts what it cannot rank: geosynchronous, no orbit, dead elem
   const { deps } = depsFor(all, { radioIds: async () => [...all.keys(), 90100] });
   const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio' }, deps);
   assert.deepEqual(out.skippedCounts, { 'geosynchronous: no passes': 1, "elements can't be propagated": 1, 'no orbit data yet': 1 });
-  assert.equal(out.scannedSatellites, 5);
+  assert.equal(out.satellitesScanned, 5);
 });
 
 test('a named satellite or visual mode keeps the old best_pass path; radio rows list downlinks', async () => {
@@ -211,7 +211,7 @@ test('a named satellite or visual mode keeps the old best_pass path; radio rows 
   const { deps, calls } = depsFor(recs);
   const named = await bestPassTool({ satellite: '90001', lat: 42.19, lon: -88.21, mode: 'radio' }, deps);
   assert.equal(calls.radioIds, 0);
-  assert.equal(named.scannedSatellites, 1);
+  assert.equal(named.satellitesScanned, 1);
   assert.equal(named.best.downlinks[0].frequencyMHz, 437.1);
   const visual = await bestPassTool({ lat: 42.19, lon: -88.21 }, deps);
   assert.equal(calls.radioIds, 0);
@@ -229,7 +229,7 @@ test('benchmark: a 400-satellite radio scan over 24 hours takes well under a few
   await bestPassTool({ ...loc, lat: 42.2 }, deps);
   const warmMs = performance.now() - t0;
   console.log(`radio scan, 400 satellites, 24 h: ${coldMs.toFixed(0)} ms cold, ${warmMs.toFixed(0)} ms from the cache (${cold.checkedInDetail} checked in detail)`);
-  assert.equal(cold.scannedSatellites, 400);
+  assert.equal(cold.satellitesScanned, 400);
   // About 0.3 s on a quiet laptop; the limit leaves room for a busy machine.
   assert.ok(coldMs < 5000, `took ${coldMs} ms`);
   assert.ok(warmMs < coldMs);

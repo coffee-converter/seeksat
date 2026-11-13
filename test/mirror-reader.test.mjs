@@ -317,6 +317,15 @@ test('radioIds: curated and SatNOGS satellites with downlinks that the snapshot 
   assert.deepEqual(await empty.radioIds(), []);
 });
 
+test('visualIds: snapshot satellites in the visual group, ascending', async () => {
+  const s = snap([rec(70003, 'R/B', { groups: ['visual'] }), rec(25544, 'ISS (ZARYA)', { groups: ['active', 'visual'] }), rec(70001, 'QUIET')]);
+  const { reader, calls } = make({ store: createMemorySnapshotStore(s) });
+  assert.deepEqual(await reader.visualIds(), [25544, 70003]);
+  assert.deepEqual(calls, []);
+  const { reader: empty } = make({ store: createMemorySnapshotStore(null) });
+  assert.deepEqual(await empty.visualIds(), []);
+});
+
 test('skyCatalog: every snapshot satellite with its downlinks, one list per snapshot', async () => {
   const s = snap([rec(25544, 'ISS (ZARYA)'), rec(70001, 'QUIET'), rec(70002, 'TALKER')]);
   s.downlinks = { 70002: [{ hz: 145_800_000, label: 'Mode V SSTV', mode: 'sstv', source: 'satnogs', default: true }] };

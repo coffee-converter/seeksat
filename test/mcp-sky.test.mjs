@@ -46,7 +46,7 @@ test('whats_up_now (visual): sunlit satellites in a dark sky, brightest first', 
   const out = await whatsUpNowTool({ ...SYDNEY }, depsAt(DUSK));
   assert.equal(out.skyDark, true);
   assert.ok(out.sunAltitudeDeg < -6);
-  assert.equal(out.scannedSatellites, 300);
+  assert.equal(out.satellitesScanned, 300);
   assert.ok(out.satellites.length >= 3, `${out.satellites.length} up`);
   assert.equal(out.aboveCount, out.satellites.length);
   const mags = out.satellites.map((s) => s.magnitude);
@@ -139,7 +139,7 @@ test('identify_satellite: the satellite at the reported spot is the best match',
     assert.equal(top.url, s.url);
     assert.equal(top.magnitude, s.magnitude);
     assert.equal(out.skyDark, true);
-    assert.equal(out.scannedSatellites, 300);
+    assert.equal(out.satellitesScanned, 300);
     assert.match(top.travel, /^(N|NE|E|SE|S|SW|W|NW)$/);
     assert.equal(top.travelErrorDeg, null);
   }
