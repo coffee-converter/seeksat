@@ -1182,12 +1182,12 @@ export default function FlatMap({
             best = focusId;
           }
         }
-        // Your location marker, when no satellite was hit: back to the view
-        // centred on you.
+        // Your location marker, when no satellite was hit: pan to it, at
+        // the zoom you are at.
         if (best == null) {
           const you = map.queryRenderedFeatures([[x - HIT_PX, y - HIT_PX], [x + HIT_PX, y + HIT_PX]], { layers: ["ss-observer"] });
           if (you.length) {
-            centreOnYou.current?.();
+            panToYou.current?.();
             return;
           }
         }
@@ -1523,6 +1523,8 @@ export default function FlatMap({
   // (like the focus name), which MapLibre hides on the far side of the globe;
   // its own text labels there showed through the Earth.
   const centreOnYou = useRef<(() => void) | null>(null);
+  /** A tap on your location marker: pan to it, keeping the zoom. */
+  const panToYou = useRef<(() => void) | null>(null);
   const markerOf = useRef<(typeof import("maplibre-gl"))["Marker"] | null>(null);
   const endMarks = useRef<{ marker: Marker; el: HTMLElement; time: HTMLElement }[]>([]);
   useEffect(() => {
@@ -2077,8 +2079,15 @@ export default function FlatMap({
     setFollowing(p === "sat");
     moveTo(map, { center: cam.center, zoom: easeZoom(map.getZoom(), cam.zoom) });
   };
-  // A tap on your location marker: On you on the globe, the home view on Mercator.
+  // Picking your place again: On you on the globe, the home view on Mercator.
   centreOnYou.current = () => (view === "globe" && observer ? goTo("you") : reset());
+  panToYou.current = () => {
+    const map = mapRef.current;
+    if (!map || !observer) return;
+    atHome.current = false;
+    setFollowing(false);
+    moveTo(map, { center: [observer.lonDeg, observer.latDeg] });
+  };
   // Picking the place you are already on (the location sheet) centres on it too.
   const homeTick = useFollow((s) => s.homeTick);
   const homeSeen = useRef(homeTick);
