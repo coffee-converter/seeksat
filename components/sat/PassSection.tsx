@@ -296,6 +296,15 @@ export default function PassSection({
     // The pass is read when the row or its times change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openKey, openStart, track, onOpenRow]);
+  // A new location closes the open row and any chart: they were for the old place.
+  const placeKey = observer ? `${observer.latDeg},${observer.lonDeg}` : null;
+  const shownPlace = useRef(placeKey);
+  useEffect(() => {
+    if (shownPlace.current === placeKey) return;
+    shownPlace.current = placeKey;
+    setChosenKey(null);
+    setChart(null);
+  }, [placeKey]);
   // On a phone an open row is the pass view (map and card only); Back closes it.
   usePassView(openKey != null, () => setChosenKey(null));
   // Back to live on the map closes the open row.

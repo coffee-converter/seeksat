@@ -8,6 +8,8 @@ import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import SettingRow from "@/components/ui/SettingRow";
+import Segmented from "@/components/ui/Segmented";
+import { useUnits } from "@/lib/ui/use-units";
 import { useHomeStore } from "@/lib/home/store";
 import { MIN_ELEV_MAX, stepMinElev } from "@/lib/home/view.mjs";
 import { SKY_TYPES } from "@/lib/sky/visual-rating.mjs";
@@ -35,6 +37,9 @@ export default function SettingsSheet({ open, onClose }: Props) {
   const prefs = useHomeStore((s) => s.prefs);
   const setPrefs = useHomeStore((s) => s.setPrefs);
   const { minElevDeg } = prefs;
+  // What Auto picked, or what the setting means, in a few words.
+  const units = useUnits();
+  const unitsHint = `Distances in ${units === "imperial" ? "miles" : "kilometres"}${prefs.units === "auto" ? ", from your device's region" : ""}.`;
 
   const showAbout = () => {
     onClose();
@@ -84,6 +89,21 @@ export default function SettingsSheet({ open, onClose }: Props) {
               +
             </Button>
           </div>
+        </SettingRow>
+
+        <SettingRow label="Units">
+          <Segmented
+            label="Units"
+            size="sm"
+            options={[
+              { value: "auto", label: "Auto" },
+              { value: "metric", label: "Metric" },
+              { value: "imperial", label: "Imperial" },
+            ]}
+            value={prefs.units}
+            onChange={(units) => setPrefs({ units })}
+          />
+          <p className="note note--sm settings-sheet__hint">{unitsHint}</p>
         </SettingRow>
 
         <SettingRow label="Radio bands">

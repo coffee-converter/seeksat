@@ -236,6 +236,14 @@ export default function PassList({
     // openPass is read when the row or its pass changes, not on each rebuild.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerOpen, openStart, onOpenRow]);
+  // A new location closes the open row: its pass was for the old place.
+  const placeKey = `${observer.latDeg},${observer.lonDeg}`;
+  const shownPlace = useRef(placeKey);
+  useEffect(() => {
+    if (shownPlace.current === placeKey) return;
+    shownPlace.current = placeKey;
+    setOpenKey(null);
+  }, [placeKey]);
   // On a phone an open row is the pass view (map and card only); Back closes it.
   usePassView(openKey != null, () => setOpenKey(null));
   // Back to live on the map closes the row the map was paused for.

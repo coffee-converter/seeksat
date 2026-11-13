@@ -130,9 +130,9 @@ test('homeCamera globe centres on the observer, then the focus', () => {
   const g = homeCamera('globe', { observer, focus, width: 1024, height: 800 });
   assert.deepEqual(g.center, [-88, 41.9]);
   const cos = Math.cos((41.9 * Math.PI) / 180);
-  assert.ok(Math.abs(g.zoom - (Math.log2(800 / 512) + 1.7 + Math.log2(cos))) < 1e-9, `zoom ${g.zoom}`);
+  assert.ok(Math.abs(g.zoom - (Math.log2(800 / 512) + 1.85 + Math.log2(cos))) < 1e-9, `zoom ${g.zoom}`);
   // On the equator the disc needs no latitude correction.
-  assert.ok(Math.abs(homeCamera('globe', { observer: { latDeg: 0, lonDeg: 0 }, width: 512, height: 512 }).zoom - 1.7) < 1e-9);
+  assert.ok(Math.abs(homeCamera('globe', { observer: { latDeg: 0, lonDeg: 0 }, width: 512, height: 512 }).zoom - 1.85) < 1e-9);
   assert.deepEqual(homeCamera('globe', { observer: null, focus, width: 1024, height: 800 }).center, [100, -10]);
   assert.deepEqual(homeCamera('globe', { width: 1024, height: 800 }).center, [0, 20]);
 });

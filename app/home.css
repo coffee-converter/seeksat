@@ -1711,6 +1711,7 @@
 .following-sheet__sat:last-child { border-bottom: 0; }
 .following-sheet__name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--map-text); text-align: left; }
 .following-sheet__name.btn { justify-content: flex-start; }
+.settings-sheet__hint { margin: var(--sp-6) 0 0; }
 .settings-sheet__nav { border-bottom: var(--line-subtle); }
 /* About (a button) and feedback (a link) both sit flush with the labels above. */
 .settings-sheet__nav .settings-sheet__link { display: flex; width: 100%; justify-content: space-between; align-items: center; padding: var(--sp-12) 0; }

@@ -10,6 +10,8 @@ import LiveLight from "@/components/live/LiveLight";
 import LiveDopplerCurve from "@/components/live/LiveDopplerCurve";
 import LiveDock from "@/components/live/LiveDock";
 import NightToggle from "@/components/NightToggle";
+import { useUnits } from "@/lib/ui/use-units";
+import { distanceText } from "@/lib/units.mjs";
 import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
 import { useMediaQuery } from "@/lib/ui/use-media-query";
 import { LIVE_DOCK_HOST_ID } from "@/lib/live/dock-store";
@@ -152,7 +154,8 @@ export default function LiveView({
   // Climbing or sinking: the height a few seconds on.
   const soon = samples.length ? stateAt(samples, now + 4000) : null;
   const climbing = live?.elDeg != null && soon?.elDeg != null ? soon.elDeg >= live.elDeg : null;
-  const away = live?.rangeKm != null ? `${Math.round(live.rangeKm).toLocaleString()} km away` : null;
+  const units = useUnits();
+  const away = live?.rangeKm != null ? `${(distanceText as (km: number, u: string) => string)(live.rangeKm, units)} away` : null;
   // Under the big reading: before rise the peak (the hero has the countdown
   // and direction); during, the set countdown, peak and range; else the status.
   const statusParts = (!live ? [status]

@@ -52,6 +52,8 @@ export interface Prefs {
   hidden: number[];
   /** The bands the radio covers (lib/radio/bands.mjs BAND_IDS), or null for all. */
   bands: string[] | null;
+  /** Distances and speeds: from the device's region, or set. */
+  units: "auto" | "metric" | "imperial";
 }
 /** The parts of a shared view laid over the prefs (lib/share/view-link.mjs). */
 export type SharedView = Partial<Pick<Prefs, "following" | "hidden" | "mode" | "projection">>;

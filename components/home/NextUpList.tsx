@@ -230,6 +230,14 @@ export function usePassCharts(observer: HomeObserver | null, minElevDeg: number,
     setChart(null);
     refocus(trigger.current);
   }, []);
+  // A new location closes any chart or live view: it was for the old place.
+  const placeKey = observer ? `${observer.latDeg},${observer.lonDeg}` : null;
+  const shownPlace = useRef(placeKey);
+  useEffect(() => {
+    if (shownPlace.current === placeKey) return;
+    shownPlace.current = placeKey;
+    setChart(null);
+  }, [placeKey]);
 
   const modals = chartsLoaded
     ? <PassChartModals subject={subject} chart={chart} onChartChange={setChart} onClose={onClose} mode={mode} />

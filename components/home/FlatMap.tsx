@@ -12,6 +12,8 @@ import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
 import { MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
 import { mapNow, useMapClock } from "@/lib/map/map-clock";
+import { useUnits } from "@/lib/ui/use-units";
+import { currentUnits } from "@/lib/units.mjs";
 import { canvasMismatch } from "@/lib/map/canvas-check.mjs";
 import { reportNotice } from "@/lib/site/report.mjs";
 import { useFollow } from "@/lib/map/follow-store";
@@ -136,8 +138,9 @@ const shapeId = (o: object | null | undefined) => {
   return id;
 };
 function trackKey(sats: MapSat[], short: Set<number>, detail: number): string {
+  // The units too: the pass's sight label is built with the tracks.
   const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}:${shapeId(s.passPath)}:${shapeId(s.passSunlit)}:${shapeId(s.passRing)}`);
-  return `${detail}|${[...short].sort().join(",")}|${parts.join(";")}`;
+  return `${detail}|${(currentUnits as () => string)()}|${[...short].sort().join(",")}|${parts.join(";")}`;
 }
 const home = homeCamera as (
   view: View,
@@ -350,6 +353,8 @@ export default function FlatMap({
   // keep it), Reset view, another preset or a new focus stops it. A shared
   // store, so other controls can show and toggle it; the dot loop reads it
   // with getState.
+  // The units the labels read in; a change re-renders, so they rebuild.
+  useUnits();
   const followOn = useFollow((s) => s.following);
   const setFollowing = useFollow((s) => s.setFollowing);
   const paused = useMapClock((s) => s.paused);
@@ -1068,6 +1073,15 @@ export default function FlatMap({
             best = focusId;
           }
         }
+        // Your location marker, when no satellite was hit: back to the view
+        // centred on you.
+        if (best == null) {
+          const you = map.queryRenderedFeatures([[x - HIT_PX, y - HIT_PX], [x + HIT_PX, y + HIT_PX]], { layers: ["ss-observer"] });
+          if (you.length) {
+            centreOnYou.current?.();
+            return;
+          }
+        }
         if (best == null || !Number.isFinite(best)) return;
         // A tap on the focused satellite leaves it, unless it was the first
         // click of a double-click (a zoom): MapLibre sends a click for each.
@@ -1081,6 +1095,22 @@ export default function FlatMap({
           }, DBLCLICK_MS);
         } else latest.current.onSelect(best);
       });
+      // A pointing hand over what a click acts on (a satellite or your
+      // location marker), checked at most once a frame.
+      let hoverRaf = 0;
+      let hoverAt: { x: number; y: number } | null = null;
+      map.on("mousemove", (e: MapMouseEvent) => {
+        hoverAt = e.point;
+        if (hoverRaf) return;
+        hoverRaf = requestAnimationFrame(() => {
+          hoverRaf = 0;
+          if (!styleReady.current || !hoverAt) return;
+          const { x, y } = hoverAt;
+          const hits = map.queryRenderedFeatures([[x - HIT_PX, y - HIT_PX], [x + HIT_PX, y + HIT_PX]], { layers: [...SAT_LAYERS, "ss-observer"] });
+          map.getCanvas().style.cursor = hits.length ? "pointer" : "";
+        });
+      });
+      map.on("mouseout", () => { map.getCanvas().style.cursor = ""; });
       // A second click or tap, or a zoom by hand, means it was not a plain
       // tap: on touch MapLibre's double-tap zoom stops the second click and
       // dblclick, and with Lock on no double-tap zoom stops the second click.
@@ -1352,7 +1382,10 @@ export default function FlatMap({
     const moved = lastObs.current != null && key != null && key !== lastObs.current;
     if (key != null) lastObs.current = key;
     if (!map) return;
-    if (moved && !useMapClock.getState().paused) {
+    if (moved) {
+      // The open pass closes with the new place (and the map goes live): do
+      // not go back to the camera from before it.
+      beforePause.current = null;
       atHome.current = true;
       setFollowing(false);
     }
@@ -1369,6 +1402,7 @@ export default function FlatMap({
   // The opened pass's rise and set: a dot and its time each, as HTML markers
   // (like the focus name), which MapLibre hides on the far side of the globe;
   // its own text labels there showed through the Earth.
+  const centreOnYou = useRef<(() => void) | null>(null);
   const markerOf = useRef<(typeof import("maplibre-gl"))["Marker"] | null>(null);
   const endMarks = useRef<{ marker: Marker; el: HTMLElement; time: HTMLElement }[]>([]);
   useEffect(() => {
@@ -1472,8 +1506,12 @@ export default function FlatMap({
     return zoom;
   }, []);
 
-  // The docked live view locks on and asks for the footprint to fill the
-  // map: centred on the satellite, zoomed to its circle.
+  // The docked live view asks for a framing as it opens. With its pass open
+  // (a visibility circle known), the circle centred on you, widened to take
+  // in the satellite before it rises: you, the satellite and its whole pass
+  // in view, with no lock (the circle holds the pass while it is up).
+  // Otherwise (a high orbit, or opened from the Up now line) it stays locked
+  // on, zoomed so the satellite's footprint fills the map.
   const fitTick = useFollow((s) => s.fitTick);
   const fitDone = useRef(0);
   useEffect(() => {
@@ -1481,18 +1519,29 @@ export default function FlatMap({
     if (!map || !mapReady || fitTick === fitDone.current) return;
     const f = liveFocus(latest.current.sats);
     const sat = latest.current.sats.find((x) => x.selected);
-    const ring = (sat?.footprint?.coordinates as number[][][] | undefined)?.[0];
-    if (!f || !ring || ring.length < 3) return;
-    fitDone.current = fitTick;
+    const o = latest.current.observer;
     const el = map.getContainer();
     const h = el.clientHeight || 1;
     const w = el.clientWidth || 1;
     const pad = { top: Math.min(60, h / 4), bottom: Math.min(48, h / 4), left: Math.min(24, w / 6), right: Math.min(24, w / 6) };
+    const passRing = sat?.passRing;
+    if (f && o && passRing && passRing.length > 2) {
+      fitDone.current = fitTick;
+      setFollowing(false);
+      const center: LngLat = [o.lonDeg, o.latDeg];
+      const zoom = fitRingZoom(map, center, [...passRing, [f.lonDeg, f.latDeg]], pad, map.getZoom());
+      atHome.current = false;
+      moveTo(map, { center, zoom });
+      return;
+    }
+    const ring = (sat?.footprint?.coordinates as number[][][] | undefined)?.[0];
+    if (!f || !ring || ring.length < 3) return;
+    fitDone.current = fitTick;
     const center: LngLat = [f.lonDeg, f.latDeg];
     const zoom = fitRingZoom(map, center, ring, pad, map.getZoom());
     atHome.current = false;
     moveTo(map, { center, zoom });
-  }, [fitTick, sats, mapReady, liveFocus, fitRingZoom, moveTo]);
+  }, [fitTick, sats, mapReady, liveFocus, fitRingZoom, moveTo, setFollowing]);
 
   // A paused pass frames its path and the observer, again after a switch
   // between the globe and Mercator; Back to live (or closing the row) returns
@@ -1869,6 +1918,8 @@ export default function FlatMap({
     setFollowing(p === "sat");
     moveTo(map, { center: cam.center, zoom: easeZoom(map.getZoom(), cam.zoom) });
   };
+  // A tap on your location marker: On you on the globe, the home view on Mercator.
+  centreOnYou.current = () => (view === "globe" && observer ? goTo("you") : reset());
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
