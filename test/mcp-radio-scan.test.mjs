@@ -145,7 +145,8 @@ for (const where of [{ latDeg: 42.19, lonDeg: -88.21 }, { latDeg: -33.9, lonDeg:
     assert.equal(out.windowHours, 24);
     assert.deepEqual(out.passes.map((p) => [p.noradId, p.rise, p.quality]), brute.map((p) => [p.noradId, p.rise, p.quality]));
     // The rows are the same rows find_passes gives, plus who and what to tune.
-    const { noradId, satellite, shortName, downlinks, url, ...row } = out.best;
+    const { noradId, satellite, shortName, downlinks, url, elementAge, ...row } = out.best;
+    assert.deepEqual(elementAge, { level: 'fresh', ageDays: 0.1 });
     const { noradId: _id, ...bruteRow } = brute[0];
     assert.deepEqual(row, withLocalTimes(bruteRow, out.resolvedLocation.timeZone));
     assert.equal(satellite, recs.get(noradId).name);
@@ -198,7 +199,7 @@ test('radio scan: the coarse sweep is cached per cell and hour, and the window i
 
 test('radio scan counts what it cannot rank: geosynchronous, no orbit, dead elements', async () => {
   const recs = synthetic(5);
-  const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), downlinks: [{ hz: 1_694_100_000, mode: 'bpsk', label: 'HRIT' }] };
+  const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), epochMs: EPOCH, downlinks: [{ hz: 1_694_100_000, mode: 'bpsk', label: 'HRIT' }] };
   const dead = { ...recs.get(90000), noradId: 90099, omm: { ...ISS_OMM, NORAD_CAT_ID: 90099, MEAN_MOTION: 17.5, EPOCH: '2018-01-01T00:00:00.000000', BSTAR: 0.01 } };
   const all = new Map([...recs, [41866, goes], [90099, dead]]);
   const { deps } = depsFor(all, { radioIds: async () => [...all.keys(), 90100] });

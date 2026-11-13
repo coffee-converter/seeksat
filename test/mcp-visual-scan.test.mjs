@@ -70,7 +70,9 @@ test('visual best_pass scan matches the full engine run over every satellite', a
   // The popular satellites are candidates too; this fixture has no orbits for them.
   assert.ok(out.skippedCounts['no orbit data yet'] >= 1);
   assert.deepEqual(out.passes.map((p) => [p.noradId, p.rise, p.quality]), brute.map((p) => [p.noradId, p.rise, p.quality]));
-  const { noradId, satellite, shortName, url, ...row } = out.best;
+  const { noradId, satellite, shortName, url, elementAge, ...row } = out.best;
+  assert.equal(elementAge.level, 'fresh');
+  assert.equal(out.skippedStaleElements, 0);
   const { noradId: _id, ...bruteRow } = brute[0];
   assert.deepEqual(row, withLocalTimes(bruteRow, 'Australia/Sydney'));
   assert.equal(satellite, RECS.get(noradId).name);
@@ -109,7 +111,7 @@ test('visual scan: a known bright satellite outranks its estimated twin', async 
 });
 
 test('visual scan: stage 1 is cached per cell and hour, the window is capped, geosynchronous is skipped', async () => {
-  const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), groups: ['visual'] };
+  const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), epochMs: EPOCH, groups: ['visual'] };
   const recs = new Map([...synthetic(5), [41866, goes]]);
   const { deps, calls } = depsFor(recs);
   const a = await bestPassTool({ ...SYDNEY, windowHours: 24 }, deps);
