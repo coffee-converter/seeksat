@@ -40,3 +40,10 @@ test('every tool has a title and read-only hints; tools that geocode or fetch ar
     if (/\n {10}location: z\./.test(b)) assert.equal(ann[1], 'ONLINE', `${name} geocodes, so it is open-world`);
   }
 });
+
+test('the /mcp page shows the result notes, and no summary or note uses an em dash', async () => {
+  const { RESULT_NOTES } = await import('../lib/mcp/discovery.mjs');
+  const page = readFileSync(new URL('../app/mcp/page.tsx', import.meta.url), 'utf8');
+  assert.match(page, /RESULT_NOTES\.map/);
+  for (const text of [...TOOL_SUMMARIES.map((t) => t.summary), ...RESULT_NOTES]) assert.equal(text.includes('\u2014'), false, text);
+});

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site.mjs";
 import {
-  TOOL_SUMMARIES, mcpUrl, claudeAddCommand, mcpJsonConfig, ACCESS_NOTE, GITHUB_URL,
+  TOOL_SUMMARIES, RESULT_NOTES, mcpUrl, claudeAddCommand, mcpJsonConfig, ACCESS_NOTE, GITHUB_URL,
 } from "@/lib/mcp/discovery.mjs";
 import "./mcp.css";
 
@@ -46,6 +46,13 @@ export default function McpDocsPage() {
       </section>
 
       <section>
+        <h2>What results include</h2>
+        <ul>
+          {RESULT_NOTES.map((n) => <li key={n}>{n}</li>)}
+        </ul>
+      </section>
+
+      <section>
         <h2>Access</h2>
         <p>{ACCESS_NOTE}</p>
       </section>
@@ -61,6 +68,11 @@ export default function McpDocsPage() {
             rate-limited CelesTrak lookup only for satellites not in it. A flaky
             source returning an older element set can&apos;t clobber good data, and an upstream
             outage just means serving the last-known-good TLE - still SGP4-valid for days.</li>
+          <li><strong>Whole-catalog questions stay fast.</strong> <code>whats_up_now</code> and
+            <code> identify_satellite</code> take one orbit step per satellite at one moment. The radio
+            <code> best_pass</code> scan sweeps every satellite with known downlinks for rough passes
+            (elevation only, skipping time a satellite cannot rise), caches that per area and hour, and
+            runs the full engine only on the best candidates.</li>
           <li><strong>Engine reuse.</strong> Every pass number comes from the same unit-tested
             <code> lib/pass-finder/*</code> modules that drive the web app, so the two faces
             can&apos;t drift.</li>

@@ -114,7 +114,7 @@ const mcpHandler = createMcpHandler(
       'get_position',
       {
         title: 'Satellite position',
-        description: 'Get the current (or at a given time) sub-point latitude/longitude, altitude, and sunlit state of a satellite.',
+        description: 'Get the current (or at a given time) sub-point latitude/longitude, altitude, and sunlit state of a satellite, with url (its page on seeksat.com).',
         inputSchema: {
           satellite: z.string(),
           time: z.string().optional().describe('ISO 8601; defaults to now'),
