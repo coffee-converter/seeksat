@@ -26,3 +26,11 @@ test('dialogs escape the phone panel: Modal portals into <body>, the panel makes
   const panel = read('app/home.css').match(/\.map-shell:not\(\.sat\) \.map-shell__panel\s*\{([^}]*)\}/)[1];
   assert.doesNotMatch(panel, /z-index/);
 });
+
+test('stacked maps (under 1100px) take a third of the screen, home and satellite page alike', () => {
+  const css = read('app/home.css');
+  const m = css.match(/@media \(max-width: 1099\.98px\) \{\s*\.map-shell, \.map-shell\.sat \{ --map-h: max\(220px, 33vh\); \}\s*@supports \(height: 1svh\) \{ \.map-shell, \.map-shell\.sat \{ --map-h: max\(220px, 33svh\); \} \}/);
+  assert.ok(m, 'one rule sets both');
+  // It comes after the satellite page's own phone height, so it wins.
+  assert.ok(css.indexOf(m[0]) > css.indexOf('--map-h: max(220px, 55vh)'));
+});

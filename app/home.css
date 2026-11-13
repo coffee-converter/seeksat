@@ -1192,6 +1192,14 @@
   @supports (height: 1svh) { .map-shell.sat { --map-h: max(220px, 55svh); } }
 }
 
+/* Stacked (under 1100 px): the map takes about a third of the screen, home and
+   satellite page alike, so more of the list shows. Full screen is unaffected
+   (its rule sets the height to auto). */
+@media (max-width: 1099.98px) {
+  .map-shell, .map-shell.sat { --map-h: max(220px, 33vh); }
+  @supports (height: 1svh) { .map-shell, .map-shell.sat { --map-h: max(220px, 33svh); } }
+}
+
 /* Home, stacked: the pass list slides up over the map. The map is sticky with
    a negative top, so scrolling lifts it under the top bar until a 72 px strip
    is left, and the strip stays while the rows scroll under it. A lip on the
