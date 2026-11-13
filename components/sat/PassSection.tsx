@@ -87,7 +87,7 @@ export interface PassSectionHandle {
 
 /** effectiveSettings(): the saved prefs, or a shared view laid over them. */
 export interface PassSettings {
-  observer: { name: string; latDeg: number; lonDeg: number } | null;
+  observer: { name: string; latDeg: number; lonDeg: number; elevM?: number } | null;
   observers: ExtraObserver[];
   mode: "radio" | "visual";
   minElevDeg: number;
@@ -153,8 +153,9 @@ export default function PassSection({
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
       tz,
-      elevM: 0,
-      elevSource: "default",
+      // The ground's height there, once looked up (MapLayoutShell).
+      elevM: location.elevM ?? 0,
+      elevSource: location.elevM != null ? "lookup" : "default",
     },
     [location, tz],
   );

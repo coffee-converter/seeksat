@@ -31,7 +31,7 @@ const SAME_MS = 90_000;
 type Arc = { riseMs: number; setMs: number; closestMs: number };
 const arcOf = passArc as (
   ecefAt: (d: Date) => number[] | null,
-  observer: { latDeg: number; lonDeg: number },
+  observer: { latDeg: number; lonDeg: number; elevM?: number },
   pass: { startMs: number; endMs: number; peakMs: number },
   minElevDeg: number,
 ) => Arc;
@@ -42,7 +42,7 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   live?: boolean;
   /** The open row's satellite, to find the whole arc (rise to set) and its closest point. */
   track?: { ecefAt: (d: Date) => number[] | null } | null;
-  observer?: { latDeg: number; lonDeg: number } | null;
+  observer?: { latDeg: number; lonDeg: number; elevM?: number } | null;
   minElevDeg?: number;
 }): { mapNowMs: number | null; mapPass: MapPass | null } {
   const pause = useMapClock((s) => s.pause);
@@ -56,20 +56,22 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   // part you can see, which can start or stop mid-sky.
   const obsLat = observer?.latDeg;
   const obsLon = observer?.lonDeg;
+  // The site's height: the arc and the circle use it as the pass search does.
+  const obsElev = observer?.elevM ?? 0;
   const arc = useMemo<Arc | null>(() => {
     if (!row || !track || obsLat == null || obsLon == null) return null;
     try {
-      return arcOf(track.ecefAt, { latDeg: obsLat, lonDeg: obsLon }, row, minElevDeg);
+      return arcOf(track.ecefAt, { latDeg: obsLat, lonDeg: obsLon, elevM: obsElev }, row, minElevDeg);
     } catch {
       return null;
     }
     // The row by its times, not its identity (rows rebuild each minute).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [track, obsLat, obsLon, minElevDeg, row?.startMs, row?.endMs, row?.peakMs]);
+  }, [track, obsLat, obsLon, obsElev, minElevDeg, row?.startMs, row?.endMs, row?.peakMs]);
   const p = row && (arc ? { startMs: arc.riseMs, endMs: arc.setMs, peakMs: arc.closestMs } : row);
   // The visibility circle, traced with the same elevation math, at the
   // satellite's mean height where it rises and sets.
-  const ring = useMemo(() => {
+  const rings = useMemo(() => {
     if (!arc || !track || obsLat == null || obsLon == null) return null;
     const alts = [arc.riseMs, arc.setMs]
       .map((ms) => track.ecefAt(new Date(ms)))
@@ -77,10 +79,14 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
       .map((e) => (subpoint as (v: number[]) => { altKm: number })(e).altKm);
     if (!alts.length) return null;
     const alt = alts.reduce((a, b) => a + b, 0) / alts.length;
-    return (visibilityRing as (o: { latDeg: number; lonDeg: number }, altKm: number, minElevDeg: number) => number[][])(
-      { latDeg: obsLat, lonDeg: obsLon }, alt, minElevDeg,
-    );
-  }, [arc, track, obsLat, obsLon, minElevDeg]);
+    const ringAt = visibilityRing as (o: { latDeg: number; lonDeg: number; elevM?: number }, altKm: number, minElevDeg: number) => number[][];
+    const site = { latDeg: obsLat, lonDeg: obsLon, elevM: obsElev };
+    // With a lowest pass setting above 0, the horizon too, drawn faint: what
+    // is physically up, around what the list shows.
+    return { ring: ringAt(site, alt, minElevDeg), horizon: minElevDeg > 0 ? ringAt(site, alt, 0) : null };
+  }, [arc, track, obsLat, obsLon, obsElev, minElevDeg]);
+  const ring = rings?.ring ?? null;
+  const ringHorizon = rings?.horizon ?? null;
   const upNow = p != null && nowMs != null && p.startMs <= nowMs && nowMs < p.endMs;
   const key = open && p && !upNow && !live ? open.key : null;
   const peakMs = p?.peakMs ?? null;
@@ -93,7 +99,7 @@ export function useMapPause(open: OpenPassRow | null, { nowMs, timeZone, live = 
   const isPaused = paused != null && key != null && paused.key === key;
   const mapPass = open && p ? {
     noradId: open.noradId, startMs: p.startMs, endMs: p.endMs, peakMs: p.peakMs,
-    paused: isPaused, ring,
+    paused: isPaused, ring, ringHorizon,
     // The card's own rise and set when they are the same moment (within a
     // minute and a half, rounding apart), so the map and the card agree.
     riseLabel: passTimeZoned(row && Math.abs(row.startMs - p.startMs) <= SAME_MS ? row.startMs : p.startMs, zone),

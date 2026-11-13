@@ -141,6 +141,24 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     return () => { gone = true; };
   }, [loc]);
 
+  // The location's ground height, looked up once through this site's own
+  // /api/elevation and kept with it: the pass math and the brightness use it.
+  // A failed lookup leaves it at sea level, to try again next visit.
+  useEffect(() => {
+    if (!loc || loc.elevM != null) return;
+    let gone = false;
+    fetch(`/api/elevation?lat=${loc.latDeg}&lon=${loc.lonDeg}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { elevM: number | null } | null) => {
+        if (gone || j?.elevM == null) return;
+        const now = useHomeStore.getState().prefs.location;
+        if (!now || now.latDeg !== loc.latDeg || now.lonDeg !== loc.lonDeg) return;
+        useHomeStore.getState().setPrefs({ location: { ...now, elevM: j.elevM } });
+      })
+      .catch(() => {});
+    return () => { gone = true; };
+  }, [loc]);
+
   // Paused on a pass: stacked layouts give the map more of the screen.
   const mapPaused = useMapClock((s) => s.paused != null);
   // A pass open on a phone: the map pinned under the header and the card

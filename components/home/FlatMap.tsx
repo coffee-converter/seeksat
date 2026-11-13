@@ -65,12 +65,16 @@ export interface MapSat {
   passReachDeg?: number;
   /** That circle traced on the ellipsoid (a closed [lon, lat] line), when known. */
   passRing?: number[][];
+  /** The horizon's circle, when the lowest pass setting is above 0 (drawn faint). */
+  passRingHorizon?: number[][];
 }
 
 export interface MapObserver {
   name: string;
   latDeg: number;
   lonDeg: number;
+  /** The ground's height in metres, when known: distances and the sight line use it. */
+  elevM?: number;
 }
 
 export interface SelectedSub {

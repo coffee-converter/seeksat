@@ -49,6 +49,8 @@ export interface MapPass {
   peakMs: number;
   /** The visibility circle around the observer, as a closed [lon, lat] line. */
   ring?: number[][] | null;
+  /** With a lowest pass setting above 0: the horizon's circle, drawn faint. */
+  ringHorizon?: number[][] | null;
   /** The map is paused at peakMs: the satellite's own circle and track ticks go. */
   paused?: boolean;
   /** "5:41 PM" and "5:48 PM", in the place's zone, for the rise and set marks. */
@@ -174,6 +176,7 @@ export function useMapSats({
           passShadow: passShape.shadow,
           passEnds: passShape.ends,
           ...(pass?.ring && passShape.reachDeg != null && { passRing: pass.ring }),
+          ...(pass?.ringHorizon && passShape.reachDeg != null && { passRingHorizon: pass.ringHorizon }),
           // Paused, the sight line runs to the closest approach; live, to
           // where it is now (drawn with the marks, while it is up).
           ...(pausedId === noradId && passShape.peak && { passPeak: passShape.peak }),
@@ -183,5 +186,5 @@ export function useMapSats({
       });
     }
     return { sats };
-  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId, pass?.ring]);
+  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId, pass?.ring, pass?.ringHorizon]);
 }

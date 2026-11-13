@@ -21,6 +21,8 @@ export interface HomeLocation {
   latDeg: number;
   lonDeg: number;
   source: "gps" | "place" | "grid" | "coords";
+  /** The ground's height in metres, looked up once (absent until then). */
+  elevM?: number;
 }
 export interface CustomElements {
   noradId: number;

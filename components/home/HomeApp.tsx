@@ -255,8 +255,9 @@ export default function HomeApp({ initialRecords = [] }: Props) {
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
       tz,
-      elevM: 0,
-      elevSource: "default",
+      // The ground's height there, once looked up (MapLayoutShell).
+      elevM: location.elevM ?? 0,
+      elevSource: location.elevM != null ? "lookup" : "default",
     },
     [location, tz],
   );
