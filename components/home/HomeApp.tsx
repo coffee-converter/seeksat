@@ -36,6 +36,9 @@ import { useLiveDock } from "@/lib/live/dock-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import Button from "@/components/ui/Button";
 import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
+import SatChips, { type Chip } from "@/components/home/SatChips";
+import { useMediaQuery } from "@/lib/ui/use-media-query";
+import { DOCKED_QUERY } from "./useKeepRowInPlace";
 import { useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { usePlaceZone, viewerZone } from "@/components/usePlaceZone";
 import { zoneNote } from "@/lib/time/zone.mjs";
@@ -452,7 +455,23 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     [clouds, nowMs],
   );
 
+  // Desktop (the map docked beside the list): a chip per followed satellite
+  // over the map, as on the satellite page: tap to open it, the eye to hide.
+  // Phones and tablets keep the short map clear (Following · N lists them).
+  const docked = useMediaQuery(DOCKED_QUERY);
+  const toggleHidden = useHomeStore((s) => s.toggleHidden);
+  const chips = useMemo<Chip[]>(() => prefs.following.map((id) => ({
+    noradId: id,
+    name: allTracks.get(id)?.shortName ?? CATALOG.find((c) => c.noradId === id)?.shortName ?? `NORAD ${id}`,
+    color: colors.get(id) ?? SAT_PALETTES[theme][0],
+    hidden: prefs.hidden.includes(id),
+    radio: prefs.mode === "radio" && ((allTracks.get(id) as { downlinks?: unknown[] } | undefined)?.downlinks?.length ?? 0) > 0,
+  })), [prefs.following, prefs.hidden, allTracks, colors, theme, prefs.mode]);
+
   usePublishMapScene({
+    chips: hydrated && docked && chips.length > 0 && (
+      <SatChips chips={chips} focusId={mapFocusId} onFocus={(id) => { focusOn(id); }} onToggleHidden={toggleHidden} />
+    ),
     above: locationFirst && <LocationPrompt />,
     sats,
     observer: location,
