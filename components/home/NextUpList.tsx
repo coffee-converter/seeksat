@@ -47,7 +47,9 @@ export interface Pass {
   endElevDeg?: number | null;
   visible: boolean;
   inProgress: boolean;
-  /** In progress since before the search began: startMs is the search start, not the rise. */
+  /** Under way: startMs is when the cards were made. riseMs is the real
+   *  rise, or riseUnknown when it rose too long ago to find. */
+  riseMs?: number;
   riseUnknown?: boolean;
   runsPastEnd?: boolean;
   /** Radio mode only: time above 10° and 30°. */

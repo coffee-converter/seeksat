@@ -28,6 +28,28 @@ const quietOf = quietLines as (quiet: Quiet) => string[];
 const underWay = passUnderWay as (pass: Pass, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
 
+/** Every pass start and end across the cards, sorted. */
+function edgesOf(cards: Card[]): number[] {
+  const out: number[] = [];
+  for (const c of cards) {
+    if (c.kind !== "pass") continue;
+    for (const p of c.upcoming ?? c.passes ?? [c.pass]) out.push(p.startMs, p.endMs);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/** How many of the sorted `edges` are at or before `ms`. */
+function countAtOrBefore(edges: number[], ms: number): number {
+  let lo = 0;
+  let hi = edges.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (edges[mid] <= ms) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
 /** The docked layout, where the first pass starts open. */
 const DESKTOP_QUERY = "(min-width: 1100px)";
 const MODES = [{ value: "visual" as const, label: "Visual" }, { value: "radio" as const, label: "Radio" }];
@@ -129,14 +151,18 @@ export default function PassList({
     () => (viewingCard ? followedCards.filter((c) => c.noradId !== viewingCard.noradId) : followedCards),
     [followedCards, viewingCard],
   );
-  // The rows only move with the cards and the day, so build them once a
-  // minute, not on every one-second tick ("in N min" is read per row below).
+  // The rows only move when a pass starts or ends, or the day turns: build
+  // them once a minute and at each of those moments, not on every
+  // one-second tick ("in N min" is read per row below).
   const minuteMs = Math.floor(nowMs / 60_000) * 60_000;
+  const edges = useMemo(() => edgesOf(cards), [cards]);
+  const crossed = countAtOrBefore(edges, nowMs);
   const limit = showAll ? Infinity : ROW_LIMIT;
-  const { groups, more, always, quiet } = useMemo(
-    () => listOf({ cards, nowMs: minuteMs, timeZone: tz, limit }),
-    [cards, minuteMs, tz, limit],
-  );
+  const { groups, more, always, quiet } = useMemo(() => {
+    return listOf({ cards, nowMs, timeZone: tz, limit });
+    // nowMs is read when the list rebuilds; minuteMs and crossed say when.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, minuteMs, crossed, tz, limit]);
   const quietText = useMemo(() => quietOf(quiet), [quiet]);
   // Ratings read the cards, the sky and the forecast; rate once a minute, not per tick.
   const best = useMemo(

@@ -78,7 +78,8 @@ export default function Timeline({ cards, tracks, colors, observer, mode, nowMs,
     const cloud = clouds?.(pass) ?? null;
     const q = visual ? visualRating(pass, { skyType, cloud }) : qualityOf(pass);
     const mag = visual ? peakMagText(pass) : null;
-    const label = `${row.name}, ${passTime(pass.startMs, tz)} to ${passTime(pass.endMs, tz)}, `
+    const from = pass.riseUnknown ? "up now" : passTime(pass.riseMs ?? pass.startMs, tz);
+    const label = `${row.name}, ${from} to ${passTime(pass.endMs, tz)}, `
       + `max ${Math.round(pass.maxElevDeg)}°, ${ratingText(q, pass, visual)}${cloud ? `, ${cloud.label}` : ""}${mag ? `, ${mag}` : ""}`;
     return (
       <button

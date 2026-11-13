@@ -167,10 +167,9 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     // picked a place since this one loaded.
     const saved = storedPrefs();
     const { prefs } = get();
-    get().setPrefs(withPlace({
-      location: saved?.location ?? prefs.location,
-      recent: saved?.recent ?? prefs.recent,
-    }, loc));
+    get().setPrefs(withPlace(saved
+      ? { location: saved.location, recent: saved.recent }
+      : { location: prefs.location, recent: prefs.recent }, loc));
   },
   setPrefs: (patch) => {
     get().hydrate();

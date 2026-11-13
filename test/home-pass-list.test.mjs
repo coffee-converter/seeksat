@@ -104,11 +104,20 @@ test('a pass that has ended drops out before the next refresh', () => {
   assert.equal(groups.flatMap((g) => g.rows).length, 1);
 });
 
-test('a pass under way since before the search is keyed by its end and reads to its set time', () => {
-  const cut = p('2026-11-12T19:00:00Z', 90, 40, 0, 90, { inProgress: true, riseUnknown: true });
+test('a pass under way is keyed and timed by its rise, the same before and after it starts', () => {
+  const before = p('2026-11-12T19:58:00Z', 5, 40, 0, 90);
+  const under = { ...p('2026-11-12T20:00:00Z', 3, 40, 0, 90, { inProgress: true }), riseMs: before.startMs + 5_000 };
+  assert.equal(passKey(1, before), passKey(1, under));
+  assert.deepEqual(rowWhen(under, NOW, 'UTC'), { time: '7:58 PM', sub: 'Now' });
+});
+
+test('a pass up since before its rise could be found is "now", to its set time or staying up', () => {
+  const cut = p('2026-11-12T20:00:00Z', 30, 40, 0, 90, { inProgress: true, riseUnknown: true });
   const later = { ...cut, startMs: cut.startMs + 10 * 60_000 };
+  assert.equal(passKey(1, cut), '1:now');
   assert.equal(passKey(1, cut), passKey(1, later));
   assert.deepEqual(rowWhen(cut, NOW, 'UTC'), { time: 'Now', sub: 'to 8:30 PM' });
+  assert.deepEqual(rowWhen({ ...cut, runsPastEnd: true }, NOW, 'UTC'), { time: 'Now', sub: 'stays up' });
 });
 
 test('a satellite that never sets but stays below the horizon is quiet, not always up', () => {

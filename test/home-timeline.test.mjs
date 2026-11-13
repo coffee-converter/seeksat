@@ -32,6 +32,12 @@ test('stripLanes judges overlap at the minimum bar width', () => {
   assert.deepEqual(stripLanes([]), { lanes: [], count: 1 });
 });
 
+test('stripLanes keeps bars inside the strip, as drawn, when judging overlap', () => {
+  // The first is drawn at [0, 0.03], not about its middle at -0.0125.
+  assert.deepEqual(stripLanes([{ x0: 0, x1: 0.005 }, { x0: 0.02, x1: 0.05 }], 0.03).lanes, [0, 1]);
+  assert.deepEqual(stripLanes([{ x0: 0.995, x1: 1 }, { x0: 0.95, x1: 0.98 }], 0.03).lanes, [1, 0]);
+});
+
 test('barSpan clips a pass in progress at the left edge', () => {
   const s = barSpan(pass(NOW - 5 * 60_000, NOW + 5 * 60_000), NOW);
   assert.equal(s.x0, 0);

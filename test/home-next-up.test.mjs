@@ -55,9 +55,16 @@ test('a pass under way keeps its real rise time, whenever the cards are made', (
   const a = at('2026-03-01T13:18:00Z');
   const b = at('2026-03-01T13:20:00Z');
   assert.equal(a.inProgress, true);
-  assert.ok(a.startMs < Date.parse('2026-03-01T13:18:00Z'), 'rose before the cards were made');
-  assert.ok(Math.abs(a.startMs - b.startMs) < 60_000, 'same rise both times');
+  assert.equal(a.startMs, Date.parse('2026-03-01T13:18:00Z'), 'its numbers cover what is left');
+  assert.ok(a.riseMs < a.startMs, 'rose before the cards were made');
+  assert.ok(Math.abs(a.riseMs - b.riseMs) < 60_000, 'same rise both times');
   assert.ok(!a.riseUnknown);
+});
+
+test('an upcoming pass has no riseMs; its start is its rise', () => {
+  const card = nextUp({ ...base, tracks: new Map([[iss.noradId, iss]]), nowMs: T0 })[0];
+  assert.equal(card.pass.inProgress, false);
+  assert.equal(card.pass.riseMs, undefined);
 });
 
 test('a pass that ended before now is not on the card', () => {
