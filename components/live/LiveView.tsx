@@ -9,7 +9,7 @@ import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
 import { needsTone, uplinkDopplerHz } from "@/lib/radio/uplink.mjs";
-import { turnHint, headingFromOrientation } from "@/lib/live/heading.mjs";
+import { turnHint, headingFromOrientation, compassOffered } from "@/lib/live/heading.mjs";
 import { compass } from "@/lib/sat/pass-rows.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 
@@ -26,6 +26,7 @@ const clock = clockText as (ms: number) => string;
 const tuneOf = tuneMode as (live: Live | null, freqHz: number | null) => "none" | "pick" | "tune" | "waiting" | "over";
 const hint = turnHint as (target: number, heading: number) => { deltaDeg: number; text: string };
 const headingOf = headingFromOrientation as (e: unknown, screenAngleDeg?: number) => number | null;
+const offerCompass = compassOffered as (win: unknown) => boolean;
 const NO_READING_MS = 3000;
 const point = compass as (az: number) => string;
 const build = radioSeries as (a: Record<string, unknown>) => { series: { samples: Sample[] } } | null;
@@ -87,7 +88,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
   const [compassOn, setCompassOn] = useState(false);
   // Why the compass isn't steering the dial, when it isn't.
   const [compassNote, setCompassNote] = useState<string | null>(null);
-  const hasOrientation = typeof window !== "undefined" && "DeviceOrientationEvent" in window;
+  // Only phones and tablets: a laptop has the event but no compass behind it.
+  // The view renders on the client only (the chart modals load with ssr off).
+  const [hasCompass] = useState(() => typeof window !== "undefined" && offerCompass(window));
   useEffect(() => {
     if (!compassOn) return;
     let got = false;
@@ -198,7 +201,7 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
           )}
         </Surface>
         <div className="live-view__actions">
-          {hasOrientation && !compassOn && (
+          {hasCompass && !compassOn && (
             <Button size="sm" onClick={startCompass}>Use phone compass</Button>
           )}
           <Button size="sm" onClick={() => onChart("sky")}>Sky chart</Button>
