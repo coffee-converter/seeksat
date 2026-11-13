@@ -49,24 +49,29 @@ test('minuteTicks: a tick at the last sample uses itself as the point after', ()
   assert.deepEqual(last.after, { azDeg: last.azDeg, elDeg: last.elDeg });
 });
 
-test('labelSpot keeps labels inside the horizon ring', () => {
+test('labelSpot steps across the track toward the centre, inside the ring', () => {
   const R = 100;
-  // On the rim at east: pulled in, text runs left.
-  const e = labelSpot(100, 0, R);
-  assert.equal(e.x, 86);
+  // Setting at east, travelling east (straight out): steps to a side, pulled
+  // in from the rim, text running left.
+  const e = labelSpot(100, 0, R, 1, 0);
+  assert.ok(Math.hypot(e.x, e.y) <= 86 + 1e-9);
+  assert.ok(Math.abs(e.y) > 5, 'off the track');
   assert.equal(e.anchor, 'end');
-  // On the rim at west: text runs right.
-  assert.equal(labelSpot(-100, 0, R).anchor, 'start');
-  // At north: centred under the point.
-  const n = labelSpot(0, -100, R);
+  // Setting at north travelling along the rim (east): steps straight in.
+  const n = labelSpot(0, -100, R, 1, 0);
   assert.equal(n.anchor, 'middle');
-  assert.equal(n.y, -86);
-  // Near the centre: pushed out, text runs outward.
-  const c = labelSpot(20, 0, R);
-  assert.equal(c.x, 34);
-  assert.equal(c.anchor, 'start');
-  for (const [x, y] of [[100, 0], [70, 70], [0, 100], [-30, 10], [20, 0]]) {
-    const p = labelSpot(x, y, R);
-    assert.ok(Math.hypot(p.x, p.y) < R, `${x},${y}`);
+  assert.ok(Math.abs(n.y + 86) < 1e-9);
+  // West side: text runs right.
+  assert.equal(labelSpot(-100, 0, R, -1, 0).anchor, 'start');
+  // A low peak at south travelling west: steps toward the centre (up).
+  const lp = labelSpot(0, 80, R, -1, 0);
+  assert.ok(Math.abs(lp.y - 66) < 1e-9);
+  // A high peak just east of the centre travelling north: steps out, text runs right.
+  const hp = labelSpot(20, 0, R, 0, -1);
+  assert.ok(Math.abs(hp.x - 34) < 1e-9);
+  assert.equal(hp.anchor, 'start');
+  for (const [x, y, dx, dy] of [[100, 0, 1, 0], [70, 70, 1, 1], [0, 100, 0, 1], [-30, 10, 0, 1], [20, 0, 0, -1], [50, 50, 0, 0]]) {
+    const p = labelSpot(x, y, R, dx, dy);
+    assert.ok(Math.hypot(p.x, p.y) <= R - 14 + 1e-9 || Math.hypot(x, y) < R / 3, `${x},${y}`);
   }
 });

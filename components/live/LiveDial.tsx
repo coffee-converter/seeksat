@@ -16,7 +16,7 @@ type AzEl = { azDeg: number; elDeg: number };
 type Tick = AzEl & { tMs: number; before: AzEl; after: AzEl };
 const split = splitTrack as (s: Sample[], nowMs: number) => { flown: AzEl[]; ahead: AzEl[] };
 const ticksOf = minuteTicks as (s: Sample[]) => Tick[];
-const spotOf = labelSpot as (x: number, y: number, r: number) => { x: number; y: number; anchor: "start" | "middle" | "end" };
+const spotOf = labelSpot as (x: number, y: number, r: number, dx: number, dy: number) => { x: number; y: number; anchor: "start" | "middle" | "end" };
 const clockOf = clockFormat as (locale: string | undefined, timeZone: string | undefined) => Intl.DateTimeFormat;
 
 function point(azDeg: number, elDeg: number, rotDeg: number): [number, number] {
@@ -26,6 +26,9 @@ function point(azDeg: number, elDeg: number, rotDeg: number): [number, number] {
 }
 
 type Sample = AzEl & { tMs: number };
+type Mark = Sample & { before: AzEl; after: AzEl };
+/** Samples either side of a label's point for the track's direction there. */
+const SIDE = 5;
 
 interface Props {
   track: Sample[];
@@ -44,14 +47,18 @@ export default function LiveDial({ track, now, nowMs, headingDeg, timeZone }: Pr
   // track reaches the horizon (a long pass can be cut short). The ring
   // labels sit opposite the peak, where the track is least likely to be.
   const { marks, ringAz } = useMemo(() => {
-    if (track.length < 2) return { marks: [] as Sample[], ringAz: 135 };
-    let peak = track[0];
-    for (const s of track) if (s.elDeg > peak.elDeg) peak = s;
-    const last = track[track.length - 1];
-    const out: Sample[] = [];
-    if (peak !== track[0] && peak !== last) out.push(peak);
-    if (last.elDeg < 1) out.push(last);
-    return { marks: out, ringAz: (peak.azDeg + 180) % 360 };
+    if (track.length < 2) return { marks: [] as Mark[], ringAz: 135 };
+    let iPeak = 0;
+    track.forEach((s, i) => { if (s.elDeg > track[iPeak].elDeg) iPeak = i; });
+    const iLast = track.length - 1;
+    // Each label knows which way the track runs there, to step off it.
+    const mark = (i: number): Mark => ({
+      ...track[i], before: track[Math.max(0, i - SIDE)], after: track[Math.min(iLast, i + SIDE)],
+    });
+    const out: Mark[] = [];
+    if (iPeak !== 0 && iPeak !== iLast) out.push(mark(iPeak));
+    if (track[iLast].elDeg < 1) out.push(mark(iLast));
+    return { marks: out, ringAz: (track[iPeak].azDeg + 180) % 360 };
   }, [track]);
   const clock = clockOf(undefined, timeZone);
   const p = now ? point(now.azDeg, now.elDeg, rot) : null;
@@ -93,7 +100,9 @@ export default function LiveDial({ track, now, nowMs, headingDeg, timeZone }: Pr
         })}
         {marks.map((m) => {
           const [x, y] = point(m.azDeg, m.elDeg, rot);
-          const at = spotOf(x, y, R);
+          const [ax, ay] = point(m.before.azDeg, m.before.elDeg, rot);
+          const [bx, by] = point(m.after.azDeg, m.after.elDeg, rot);
+          const at = spotOf(x, y, R, bx - ax, by - ay);
           return (
             <text key={m.tMs} x={at.x} y={at.y + 4} textAnchor={at.anchor} className="live-dial__label num">
               {clock.format(m.tMs)}
