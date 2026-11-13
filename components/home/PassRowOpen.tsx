@@ -106,7 +106,6 @@ export default function PassRowOpen({
 
   return (
     <div id={id} className="pass-open">
-      <RatingExplainer pass={pass} rating={rating} mode={mode} />
       <div className="pass-open__sky">
         <div className="pass-open__plot">
           <PolarPlotSvg ref={svgRef} />
@@ -130,6 +129,7 @@ export default function PassRowOpen({
               {pass.visible && <span className="pass-card__tag">visible</span>}
             </p>
           )}
+          <RatingExplainer pass={pass} rating={rating} mode={mode} />
         </div>
       </div>
       {children}

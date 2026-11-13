@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import QualityBadge, { type Quality } from "@/components/passes/QualityBadge";
+import Button from "@/components/ui/Button";
+import { type Quality } from "@/components/passes/QualityBadge";
+import { passQuality } from "@/lib/passes/quality.mjs";
 import { ratingWords } from "@/lib/passes/rating-words.mjs";
 
 const wordsOf = ratingWords as (mode: "radio" | "visual") => string;
+const qualityOf = passQuality as (pass: { maxElevDeg?: number }) => Quality;
 
-/** A pass's rating badge as a button: tapping it says what the rating is based
- *  on. A small popover under the badge; Esc or a press outside closes it and
- *  Esc gives focus back to the badge. */
+/** "Why Fair?": a link-style button that says what the rating is based on, in
+ *  a small popover under it (the row above already shows the badge). Esc or a
+ *  press outside closes it, and Esc gives focus back to the button. */
 export default function RatingExplainer({ pass, rating, mode }: {
   pass: { maxElevDeg?: number }; rating?: Quality; mode: "radio" | "visual";
 }) {
@@ -40,17 +43,16 @@ export default function RatingExplainer({ pass, rating, mode }: {
 
   return (
     <div className="rating-explainer" ref={rootRef}>
-      <button
+      <Button
         ref={buttonRef}
-        type="button"
-        className="rating-explainer__btn"
+        variant="link"
+        size="sm"
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label="What this rating means"
         onClick={() => setOpen((o) => !o)}
       >
-        <QualityBadge pass={pass} rating={rating} maxShown pill />
-      </button>
+        {`Why ${(rating ?? qualityOf(pass)).label}?`}
+      </Button>
       <p id={panelId} className="rating-explainer__panel note note--sm" hidden={!open}>
         {wordsOf(mode)}
       </p>

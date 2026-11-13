@@ -642,19 +642,8 @@
 /* An open row: the sky plot beside where to look, then what to do. */
 .pass-open { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-4) var(--sp-12) var(--sp-12); }
 /* The plot's compass letters sit just outside it: the margins and gap keep them clear. */
-/* The rating badge as a button, and its popover (components/passes/RatingExplainer.tsx). */
+/* "Why Fair?" and its popover (components/passes/RatingExplainer.tsx). */
 .rating-explainer { position: relative; align-self: flex-start; }
-.rating-explainer__btn {
-  display: inline-flex;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-.rating-explainer__btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .rating-explainer__panel {
   position: absolute;
   top: calc(100% + var(--sp-6));
