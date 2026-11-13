@@ -586,12 +586,14 @@
 /* The Best line scrolls a row to the top of the list's scroller. */
 .pass-list .pass-row { scroll-margin-top: var(--sp-8); }
 .pass-row + .pass-row { border-top: var(--line-subtle); }
-/* The opened row lifts off the list as its own card: a gap around it, a
-   lighter panel, an edge in the satellite's colour and a soft shadow. It
-   matches the map, which is paused on this pass. */
+/* The opened row lifts off the list as its own card: a lighter panel, an
+   edge in the satellite's colour and a soft shadow, with a gap below. No
+   gap above or at the sides, so its header stays exactly where the row was
+   (nothing shifts as it opens). It matches the map, paused on this pass. */
 .pass-row--open {
   position: relative;
-  margin: var(--sp-8) var(--sp-6);
+  z-index: 1;
+  margin: 0 0 var(--sp-8);
   border-radius: var(--radius-md);
   background: var(--row-open-bg);
   box-shadow: var(--shadow-popover);
@@ -605,7 +607,6 @@
   border-radius: var(--radius-md);
   pointer-events: none;
 }
-.pass-row + .pass-row--open,
 .pass-row--open + .pass-row { border-top: 0; }
 .pass-row--open .pass-row__btn { border-radius: var(--radius-md) var(--radius-md) 0 0; }
 /* When, what, how good: the time column is wide enough for "10:45 PM", the
@@ -677,23 +678,21 @@
 .pass-open { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-4) var(--sp-12) var(--sp-12); }
 /* The plot's compass letters sit just outside it: the margins and gap keep them clear. */
 /* "Why Fair?" and its popover (components/passes/RatingExplainer.tsx). */
-.rating-explainer { position: relative; align-self: flex-start; }
+/* "Why Fair?" opens its note in place, under the link, inside the card:
+   never clipped by the card or the list, whatever the width. */
+.rating-explainer { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-6); }
 .rating-explainer__panel {
-  position: absolute;
-  top: calc(100% + var(--sp-6));
-  left: 0;
-  z-index: 1;
   box-sizing: border-box;
-  width: min(280px, calc(100vw - 2 * var(--sp-24)));
+  max-width: 100%;
   margin: 0;
   padding: var(--sp-8) var(--sp-12);
   background: var(--bg);
   border: var(--line-subtle);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-popover);
 }
 .rating-explainer__panel[hidden] { display: none; }
-.pass-open__sky { display: flex; align-items: center; gap: var(--sp-16); }
+/* Top-aligned, so opening the "Why" note under the facts does not move the plot. */
+.pass-open__sky { display: flex; align-items: flex-start; gap: var(--sp-16); }
 .pass-open__plot {
   flex: 0 0 80px;
   width: 80px;

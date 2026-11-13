@@ -10,8 +10,9 @@ const wordsOf = ratingWords as (mode: "radio" | "visual") => string;
 const qualityOf = passQuality as (pass: { maxElevDeg?: number }) => Quality;
 
 /** "Why Fair?": a link-style button that says what the rating is based on, in
- *  a small popover under it (the row above already shows the badge). Esc or a
- *  press outside closes it, and Esc gives focus back to the button. */
+ *  a small note that opens under it, in the card (the row above already shows
+ *  the badge). Esc or a press outside closes it, and Esc gives focus back to
+ *  the button. */
 export default function RatingExplainer({ pass, rating, mode }: {
   pass: { maxElevDeg?: number }; rating?: Quality; mode: "radio" | "visual";
 }) {
