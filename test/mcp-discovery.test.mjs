@@ -5,7 +5,7 @@ import { TOOL_SUMMARIES, mcpUrl, claudeAddCommand, mcpJsonConfig } from '../lib/
 
 test('TOOL_SUMMARIES lists every tool the server registers, each with a summary', () => {
   const route = readFileSync(new URL('../app/api/mcp/route.ts', import.meta.url), 'utf8');
-  const registered = [...route.matchAll(/server\.tool\(\s*'([a-z_]+)'/g)].map((m) => m[1]);
+  const registered = [...route.matchAll(/server\.registerTool\(\s*'([a-z_]+)'/g)].map((m) => m[1]);
   assert.ok(registered.length >= 9, registered.join());
   assert.deepEqual([...TOOL_SUMMARIES.map((t) => t.name)].sort(), [...registered].sort());
   for (const t of TOOL_SUMMARIES) assert.ok(t.summary.length > 0, `${t.name} has a summary`);
@@ -22,4 +22,21 @@ test('mcpUrl + claudeAddCommand build from an origin', () => {
 test('mcpJsonConfig parses back to the expected object', () => {
   const cfg = JSON.parse(mcpJsonConfig('https://seeksat.com'));
   assert.equal(cfg.mcpServers.seeksat.url, 'https://seeksat.com/api/mcp');
+});
+
+test('every tool has a title and read-only hints; tools that geocode or fetch are open-world', () => {
+  const route = readFileSync(new URL('../app/api/mcp/route.ts', import.meta.url), 'utf8');
+  assert.match(route, /const LOCAL = \{ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false \};/);
+  assert.match(route, /const ONLINE = \{ \.\.\.LOCAL, openWorldHint: true \};/);
+  assert.equal(/server\.tool\(/.test(route), false, 'no tool registered without annotations');
+  const blocks = route.split(/server\.registerTool\(/).slice(1);
+  assert.ok(blocks.length >= 9);
+  for (const b of blocks) {
+    const name = b.match(/'([a-z_]+)'/)[1];
+    assert.match(b, /\n {8}title: '[^']+',/, `${name} has a title`);
+    const ann = b.match(/annotations: (LOCAL|ONLINE),/);
+    assert.ok(ann, `${name} has annotations`);
+    // A place name is geocoded by an outside service.
+    if (/\n {10}location: z\./.test(b)) assert.equal(ann[1], 'ONLINE', `${name} geocodes, so it is open-world`);
+  }
 });

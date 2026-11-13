@@ -56,12 +56,22 @@ const asResult = (res: unknown) => {
   return asText(res);
 };
 
+// Tool hints (MCP ToolAnnotations): every tool only reads, and asking twice
+// changes nothing. Tools that can geocode a place name, fetch weather or look
+// up a time zone reach services outside SeekSat, so they are open-world.
+const LOCAL = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const ONLINE = { ...LOCAL, openWorldHint: true };
+
 const mcpHandler = createMcpHandler(
   (server: McpServer) => {
-    server.tool(
+    server.registerTool(
       'list_satellites',
-      'List the popular satellites (ISS, Tiangong, Hubble and a few others) with each one\'s current orbit data freshness. This is not the full list: every other tool also accepts any NORAD catalog number, e.g. "25544".',
-      {},
+      {
+        title: 'Popular satellites',
+        description: 'List the popular satellites (ISS, Tiangong, Hubble and a few others) with each one\'s current orbit data freshness. This is not the full list: every other tool also accepts any NORAD catalog number, e.g. "25544".',
+        inputSchema: {},
+        annotations: LOCAL,
+      },
       async () => {
         const { tier, keyId } = getRequestContext();
         logUsage({ tool: 'list_satellites', tier, keyId });
@@ -69,17 +79,21 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'find_passes',
-      'List ALL upcoming passes of one satellite over a location, ranked by a quality score. Returns an array of passes, each with rise/peak/set times, peak elevation (deg), brightness (magnitude - lower/more-negative is brighter; peakMagnitudeEstimated true means the satellite\'s size is unknown, so the magnitude is a cautious guess and visual quality stops at Fair, 0.4), duration, a quality score 0-1, and when it can be seen by eye: visibleFrom/visibleUntil (null if never on that pass) plus leavesShadow/entersShadow when it appears or fades mid-sky at the edge of Earth\'s shadow (sunlit is only the state at the peak). Scans windowHours ahead (default 48, up to 240 = 10 days), so this is the tool for comparing passes or finding the best/brightest one over a span of days - not just the next one. mode "visual" returns only sunlit, after-dark (naked-eye) passes; "radio" returns all line-of-sight passes. Provide lat+lon or a location string. Feed any pass\'s peak time to get_pass_chart (to draw it) or get_pass_weather (to check clouds). To rank across ALL tracked satellites at once, use best_pass.',
       {
-        satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 48; max 240 (10 days). Widen this to find the best pass over the coming days.'),
-        minElevation: z.number().min(0).max(90).optional().describe('only return passes whose peak rises at least this many degrees above the horizon. Default 10.'),
-        mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye, sunlit, after-dark passes; "radio" = all line-of-sight passes regardless of light.'),
+        title: 'Find passes',
+        description: 'List ALL upcoming passes of one satellite over a location, ranked by a quality score. Returns an array of passes, each with rise/peak/set times, peak elevation (deg), brightness (magnitude - lower/more-negative is brighter; peakMagnitudeEstimated true means the satellite\'s size is unknown, so the magnitude is a cautious guess and visual quality stops at Fair, 0.4), duration, a quality score 0-1, and when it can be seen by eye: visibleFrom/visibleUntil (null if never on that pass) plus leavesShadow/entersShadow when it appears or fades mid-sky at the edge of Earth\'s shadow (sunlit is only the state at the peak). Scans windowHours ahead (default 48, up to 240 = 10 days), so this is the tool for comparing passes or finding the best/brightest one over a span of days - not just the next one. mode "visual" returns only sunlit, after-dark (naked-eye) passes; "radio" returns all line-of-sight passes. Provide lat+lon or a location string. Feed any pass\'s peak time to get_pass_chart (to draw it) or get_pass_weather (to check clouds). To rank across ALL tracked satellites at once, use best_pass.',
+        inputSchema: {
+          satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+          windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 48; max 240 (10 days). Widen this to find the best pass over the coming days.'),
+          minElevation: z.number().min(0).max(90).optional().describe('only return passes whose peak rises at least this many degrees above the horizon. Default 10.'),
+          mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye, sunlit, after-dark passes; "radio" = all line-of-sight passes regardless of light.'),
+        },
+        annotations: ONLINE,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -88,12 +102,16 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'get_position',
-      'Get the current (or at a given time) sub-point latitude/longitude, altitude, and sunlit state of a satellite.',
       {
-        satellite: z.string(),
-        time: z.string().optional().describe('ISO 8601; defaults to now'),
+        title: 'Satellite position',
+        description: 'Get the current (or at a given time) sub-point latitude/longitude, altitude, and sunlit state of a satellite.',
+        inputSchema: {
+          satellite: z.string(),
+          time: z.string().optional().describe('ISO 8601; defaults to now'),
+        },
+        annotations: LOCAL,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -102,16 +120,20 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'next_visible_pass',
-      'Convenience shortcut: the single next good visible pass of one satellite from a location. Use this only when the user wants "the next pass." Set chart:true to also render that pass\'s sky chart and return it in this same call (so the user sees the chart without a separate get_pass_chart step). To compare multiple upcoming passes, or to find the best/brightest pass over the next several days, use find_passes (one satellite) or best_pass (ranked across all tracked satellites) instead.',
       {
-        satellite: z.string(),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional(),
-        mode: z.enum(['visual', 'radio']).optional(),
-        chart: z.boolean().optional().describe('When true, also render the pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the pass.'),
+        title: 'Next visible pass',
+        description: 'Convenience shortcut: the single next good visible pass of one satellite from a location. Use this only when the user wants "the next pass." Set chart:true to also render that pass\'s sky chart and return it in this same call (so the user sees the chart without a separate get_pass_chart step). To compare multiple upcoming passes, or to find the best/brightest pass over the next several days, use find_passes (one satellite) or best_pass (ranked across all tracked satellites) instead.',
+        inputSchema: {
+          satellite: z.string(),
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional(),
+          mode: z.enum(['visual', 'radio']).optional(),
+          chart: z.boolean().optional().describe('When true, also render the pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the pass.'),
+        },
+        annotations: ONLINE,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -120,14 +142,18 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'get_pass_weather',
-      'Cloud-cover forecast and viewing probability for a location at a given time. Network-dependent.',
       {
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional(),
-        time: z.string().describe('ISO 8601 time of the pass'),
+        title: 'Pass weather',
+        description: 'Cloud-cover forecast and viewing probability for a location at a given time. Network-dependent.',
+        inputSchema: {
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional(),
+          time: z.string().describe('ISO 8601 time of the pass'),
+        },
+        annotations: ONLINE,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -136,16 +162,20 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'get_pass_chart',
-      'Render a polar sky chart (PNG) of a satellite\'s pass over a location - where to look, with the moon, planets, and stars in their real positions. By default it charts the NEXT pass; pass `time` (the rise or peak of a specific pass from find_passes / best_pass) to chart THAT pass instead - this is how you visualise the best pass rather than just the next one. mode "visual" (default) or "radio".',
       {
-        satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        time: z.string().optional().describe('ISO 8601. Charts the pass occurring around this time (use a pass\'s rise or peak from find_passes/best_pass). Omit to chart the next pass from now.'),
-        mode: z.enum(['visual', 'radio']).optional(),
+        title: 'Pass sky chart',
+        description: 'Render a polar sky chart (PNG) of a satellite\'s pass over a location - where to look, with the moon, planets, and stars in their real positions. By default it charts the NEXT pass; pass `time` (the rise or peak of a specific pass from find_passes / best_pass) to chart THAT pass instead - this is how you visualise the best pass rather than just the next one. mode "visual" (default) or "radio".',
+        inputSchema: {
+          satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+          time: z.string().optional().describe('ISO 8601. Charts the pass occurring around this time (use a pass\'s rise or peak from find_passes/best_pass). Omit to chart the next pass from now.'),
+          mode: z.enum(['visual', 'radio']).optional(),
+        },
+        annotations: ONLINE,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -165,13 +195,17 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'search_satellites',
-      'Search the full satellite catalog (about 15,000 objects) by name, alias or NORAD number, best match first. Use it to turn a name like "SDO" or "NOAA 19" into a NORAD number for the other tools; names outside the popular list only resolve directly on an exact whole-name match. mode "radio" lists satellites with known radio downlinks first among equally good matches.',
       {
-        query: z.string().min(1).describe('a name, part of one, or a NORAD number, e.g. "sdo", "noaa 19", "25544"'),
-        limit: z.number().int().positive().max(20).optional().describe('how many results. Default 10.'),
-        mode: z.enum(['visual', 'radio']).optional(),
+        title: 'Search satellites',
+        description: 'Search the full satellite catalog (about 15,000 objects) by name, alias or NORAD number, best match first. Use it to turn a name like "SDO" or "NOAA 19" into a NORAD number for the other tools; names outside the popular list only resolve directly on an exact whole-name match. mode "radio" lists satellites with known radio downlinks first among equally good matches.',
+        inputSchema: {
+          query: z.string().min(1).describe('a name, part of one, or a NORAD number, e.g. "sdo", "noaa 19", "25544"'),
+          limit: z.number().int().positive().max(20).optional().describe('how many results. Default 10.'),
+          mode: z.enum(['visual', 'radio']).optional(),
+        },
+        annotations: LOCAL,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -180,18 +214,22 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'get_radio_pass',
-      'Radio details for one pass of a satellite over a location: its known downlink (and uplink) frequencies, the Doppler swing, when to tune to what frequency (at 10 and 30 degrees up and closest approach), and a table of time, azimuth, elevation, range and receive frequency for pointing an antenna and tuning a radio. Uses the next pass above minElevationDeg, or the one peaking nearest passTime. A satellite that never sets here (geosynchronous) gets the next 24 hours instead. Give frequencyMHz to use a frequency other than the default downlink. Predictions from published elements: the transmitter\'s own frequency offset is unknown, so the curve\'s shape is what to compare.',
       {
-        satellite: z.string().describe('NORAD id or name, e.g. "iss", "so-50" or 36395'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        frequencyMHz: z.number().positive().max(300000).optional().describe('downlink to compute Doppler for, in MHz. Default: the satellite\'s default known downlink.'),
-        passTime: z.string().optional().describe('ISO time near the wanted pass\'s peak (e.g. from find_passes). Default: the next pass.'),
-        minElevationDeg: z.number().min(0).max(90).optional().describe('lowest peak elevation that counts as a pass. Default 10.'),
-        windowHours: z.number().positive().max(240).optional().describe('how far ahead to look for a pass, in hours. Default 48.'),
+        title: 'Radio pass details',
+        description: 'Radio details for one pass of a satellite over a location: its known downlink (and uplink) frequencies, the Doppler swing, when to tune to what frequency (at 10 and 30 degrees up and closest approach), and a table of time, azimuth, elevation, range and receive frequency for pointing an antenna and tuning a radio. Uses the next pass above minElevationDeg, or the one peaking nearest passTime. A satellite that never sets here (geosynchronous) gets the next 24 hours instead. Give frequencyMHz to use a frequency other than the default downlink. Predictions from published elements: the transmitter\'s own frequency offset is unknown, so the curve\'s shape is what to compare.',
+        inputSchema: {
+          satellite: z.string().describe('NORAD id or name, e.g. "iss", "so-50" or 36395'),
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+          frequencyMHz: z.number().positive().max(300000).optional().describe('downlink to compute Doppler for, in MHz. Default: the satellite\'s default known downlink.'),
+          passTime: z.string().optional().describe('ISO time near the wanted pass\'s peak (e.g. from find_passes). Default: the next pass.'),
+          minElevationDeg: z.number().min(0).max(90).optional().describe('lowest peak elevation that counts as a pass. Default 10.'),
+          windowHours: z.number().positive().max(240).optional().describe('how far ahead to look for a pass, in hours. Default 48.'),
+        },
+        annotations: ONLINE,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
@@ -200,19 +238,23 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       'best_pass',
-      'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. A pass whose brightness is only estimated (peakMagnitudeEstimated) never outranks a known bright one on a tie, and its visual quality is capped at Fair. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
       {
-        satellite: z.string().optional().describe('NORAD id or name (e.g. "iss") to rank one satellite. Omit to scan and rank across every tracked satellite.'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 72; max 240 (10 days).'),
-        minElevation: z.number().min(0).max(90).optional().describe('ignore passes peaking below this many degrees. Default 10.'),
-        limit: z.number().int().positive().max(20).optional().describe('how many ranked passes to return. Default 3.'),
-        mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye sunlit passes after dark; "radio" = all line-of-sight passes.'),
-        chart: z.boolean().optional().describe('When true, also render the winning pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the best pass.'),
+        title: 'Best pass',
+        description: 'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. A pass whose brightness is only estimated (peakMagnitudeEstimated) never outranks a known bright one on a tie, and its visual quality is capped at Fair. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
+        inputSchema: {
+          satellite: z.string().optional().describe('NORAD id or name (e.g. "iss") to rank one satellite. Omit to scan and rank across every tracked satellite.'),
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+          windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 72; max 240 (10 days).'),
+          minElevation: z.number().min(0).max(90).optional().describe('ignore passes peaking below this many degrees. Default 10.'),
+          limit: z.number().int().positive().max(20).optional().describe('how many ranked passes to return. Default 3.'),
+          mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye sunlit passes after dark; "radio" = all line-of-sight passes.'),
+          chart: z.boolean().optional().describe('When true, also render the winning pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the best pass.'),
+        },
+        annotations: ONLINE,
       },
       async (args) => {
         const { tier, keyId } = getRequestContext();
