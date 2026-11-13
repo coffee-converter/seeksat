@@ -217,6 +217,8 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
   --line-input: 1px solid var(--input-border);
   /* A list option that is hovered or chosen (search results). */
   --option-on: rgba(var(--accent-rgb), 0.16);
+  /* The part of a live pass already flown (progress bar, sky dome track). */
+  --live-flown: color-mix(in srgb, var(--map-muted) 45%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; --dur-flash: 0ms; --dur-pulse: 0ms; }

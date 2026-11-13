@@ -5,11 +5,13 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Surface from "@/components/ui/Surface";
 import LiveDial from "@/components/live/LiveDial";
+import LivePassBar from "@/components/live/LivePassBar";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
 import { needsTone, uplinkDopplerHz } from "@/lib/radio/uplink.mjs";
 import { turnHint, headingFromOrientation, compassOffered } from "@/lib/live/heading.mjs";
+import { barStart } from "@/lib/live/progress.mjs";
 import { compass } from "@/lib/sat/pass-rows.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 
@@ -29,6 +31,7 @@ const headingOf = headingFromOrientation as (e: unknown, screenAngleDeg?: number
 const offerCompass = compassOffered as (win: unknown) => boolean;
 const NO_READING_MS = 3000;
 const point = compass as (az: number) => string;
+const startOf = barStart as (pass: unknown, firstMs: number) => { label: string; ms: number | null };
 const build = radioSeries as (a: Record<string, unknown>) => { series: { samples: Sample[] } } | null;
 
 /** An uplink as lib/catalog.mjs and lib/mirror/satnogs.mjs store it. */
@@ -57,6 +60,13 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
   const samples = useMemo(() => build({
     track, obs, anchorMs: (pass as { peakMs: number }).peakMs, minElevDeg, freqHz, purpose: "csv",
   })?.series.samples ?? [], [track, obs, pass, minElevDeg, freqHz]);
+  // The pass's ends and peak, from the samples the countdowns read.
+  const span = useMemo(() => {
+    if (!samples.length) return null;
+    let peak = samples[0];
+    for (const s of samples) if (s.elDeg > peak.elDeg) peak = s;
+    return { firstMs: samples[0].tMs, lastMs: samples[samples.length - 1].tMs, peakMs: peak.tMs };
+  }, [samples]);
   const [now, setNow] = useState(() => trueNow());
   useEffect(() => {
     const id = window.setInterval(() => setNow(trueNow()), 250);
@@ -140,6 +150,20 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
         <p className="live-view__status">
           <strong>{status}</strong>{peak && <span>{` · ${peak}`}</span>}
         </p>
+        {span && live && live.phase !== "after" && (() => {
+          const start = startOf(pass, span.firstMs);
+          return (
+            <LivePassBar
+              startMs={start.ms ?? span.firstMs}
+              startLabel={start.label}
+              startShownMs={start.ms}
+              peakMs={span.peakMs}
+              endMs={span.lastMs}
+              nowMs={now}
+              timeZone={obs.tz}
+            />
+          );
+        })()}
         <LiveDial
           track={samples}
           now={live && live.azDeg != null && live.elDeg != null ? { azDeg: live.azDeg, elDeg: live.elDeg } : null}

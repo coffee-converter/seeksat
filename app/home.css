@@ -1332,6 +1332,28 @@
 .live-view__status strong { color: var(--text-strong); }
 .live-view__status span { color: var(--map-muted); }
 .live-view__turn { margin: calc(-1 * var(--sp-4)) 0 0; text-align: center; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--accent); }
+/* The pass progress bar (components/live/LivePassBar.tsx): flown dim, to
+   come bright, a marker at now. --now is set inline. */
+.live-bar { margin: calc(-1 * var(--sp-4)) 0 0; }
+.live-bar__line {
+  position: relative; height: var(--sp-4); margin: var(--sp-8) 0; border-radius: var(--radius-full);
+  background: linear-gradient(to right, var(--live-flown) var(--now), var(--map-accent) var(--now));
+}
+.live-bar__tick {
+  position: absolute; top: calc(-1 * var(--sp-2)); bottom: calc(-1 * var(--sp-2)); width: var(--sp-2);
+  transform: translateX(-50%); border-radius: var(--radius-full); background: var(--map-text);
+}
+.live-bar__now {
+  position: absolute; top: 50%; left: var(--now); width: var(--sp-12); height: var(--sp-12);
+  transform: translate(-50%, -50%); border-radius: var(--radius-full);
+  background: var(--map-accent); border: var(--sp-2) solid var(--bg);
+}
+.live-bar__marks { position: relative; display: flex; justify-content: space-between; margin: 0; padding: 0; list-style: none; }
+.live-bar__mark { display: flex; flex-direction: column; line-height: var(--lh-tight); }
+.live-bar__mark--end { align-items: flex-end; }
+.live-bar__mark--peak { position: absolute; top: 0; align-items: center; transform: translateX(-50%); }
+.live-bar__label { font-size: var(--fs-xs); color: var(--map-muted); }
+.live-bar__time { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--map-text); white-space: nowrap; }
 .live-dial { margin: 0; }
 .live-dial svg { display: block; width: 100%; max-width: 340px; height: auto; margin: 0 auto; }
 .live-dial__horizon { fill: var(--panel); stroke: var(--map-muted); stroke-width: 1.2; }
