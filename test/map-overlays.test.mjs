@@ -164,7 +164,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-horizon', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-sight-label', 'ss-marks', 'ss-live-sight', 'ss-live-sight-label', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-horizon', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-sight-label', 'ss-marks', 'ss-live-sight-below', 'ss-live-sight', 'ss-live-sight-label', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -419,7 +419,11 @@ test('a live open pass draws a sight line with the distance, only while the sate
   const [lon, lat] = label.geometry.coordinates;
   const lons = line.map((c) => c[0]);
   assert.ok(lon > Math.min(...lons) && lon < Math.max(...lons) && Math.abs(lat - (line[0][1] + line.at(-1)[1]) / 2) < 2);
-  // Below the horizon (half a world away): no line.
+  // Below the horizon (half a world away): no sight line, a faint dotted one
+  // toward it, labelled not up yet.
   const down = { ...up, position: { lonDeg: 90, latDeg: -40 } };
-  assert.equal(overlayData({ sats: [down], observer })['ss-marks'].features.filter((f) => f.properties.kind === 'sight').length, 0);
+  const downMarks = overlayData({ sats: [down], observer })['ss-marks'].features;
+  assert.equal(downMarks.filter((f) => f.properties.kind === 'sight').length, 0);
+  assert.equal(downMarks.filter((f) => f.properties.kind === 'sight-below').length, 1);
+  assert.match(downMarks.find((f) => f.properties.kind === 'sight-label').properties.label, /not up yet$/);
 });

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
-import { altText, overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
+import { altText, awayText, overlayColors, overlayData, overlayImages, overlayLayers, sightFrom } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
 import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
 import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
@@ -118,6 +118,12 @@ type Move = { center: LngLat; zoom?: number };
 export type Preset = "you" | "sat" | "north" | "south" | "night";
 type LegendItem = { key: string; kind: string; label: string; color?: string };
 const altLine = altText as (altKm: number) => string;
+const awayLabel = awayText as (rangeKm: number) => string;
+const sightOf = sightFrom as (o: { latDeg: number; lonDeg: number; elevM?: number }, lon: number, lat: number, altKm: number) => { rangeKm: number; elDeg: number };
+/** The distance label's width per character (9.5 px text) and the room the
+ *  icons at the line's ends take (your crosshair, the dot and its radio arcs). */
+const SIGHT_CHAR_PX = 5.4;
+const SIGHT_ICON_ROOM_PX = 40;
 const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
 type SourceData = Record<string, unknown>;
 const buildData = overlayData as (o: {
@@ -849,6 +855,32 @@ export default function FlatMap({
   }, [liveSats]);
 
   // Push the latest props into the overlay sources.
+  /** The sight line's distance label shows while its text fits between the
+   *  two icons at the line's ends, and hides once it would not: the line's
+   *  length on screen against the text's width plus the icons' room. Run as
+   *  the camera moves and as the data updates. */
+  const syncSightLabels = useCallback((map: MlMap) => {
+    if (!styleReady.current) return;
+    const o = latest.current.observer;
+    const show = (layer: string, target: { lonDeg: number; latDeg: number; altKm?: number } | null) => {
+      if (!map.getLayer(layer)) return;
+      let fits = false;
+      if (o && target) {
+        const a = map.project([o.lonDeg, o.latDeg]);
+        const b = map.project([target.lonDeg, target.latDeg]);
+        const sight = sightOf(o, target.lonDeg, target.latDeg, target.altKm ?? 0);
+        const text = sight.elDeg < 0 ? `${awayLabel(sight.rangeKm)}, not up yet` : awayLabel(sight.rangeKm);
+        fits = Math.hypot(b.x - a.x, b.y - a.y) >= text.length * SIGHT_CHAR_PX + SIGHT_ICON_ROOM_PX;
+      }
+      const want = fits ? 1 : 0;
+      if (map.getPaintProperty(layer, "text-opacity") !== want) map.setPaintProperty(layer, "text-opacity", want);
+    };
+    const sats = latest.current.sats;
+    show("ss-pass-sight-label", sats.find((x) => x.passPeak)?.passPeak ?? null);
+    const live = sats.find((x) => x.passLive);
+    const pos = live ? live.positionAt(mapNow()) : null;
+    show("ss-live-sight-label", pos);
+  }, []);
   const push = useCallback(() => {
     const map = mapRef.current;
     if (!map || !styleReady.current) return;
@@ -856,7 +888,8 @@ export default function FlatMap({
     if (refreshNight(map.getZoom())) data["ss-night"] = night.current?.data;
     else delete data["ss-night"];
     setOverlayData(map, data);
-  }, [sourceData, refreshNight]);
+    syncSightLabels(map);
+  }, [sourceData, refreshNight, syncSightLabels]);
 
   const syncGestures = useCallback(() => {
     const map = mapRef.current;
@@ -1233,6 +1266,10 @@ export default function FlatMap({
         if (!selfJump.current) syncGestures();
       });
       map.on("move", () => layoutGridLabels(map));
+      let sightRaf = 0;
+      map.on("move", () => {
+        if (!sightRaf) sightRaf = requestAnimationFrame(() => { sightRaf = 0; syncSightLabels(map); });
+      });
       // Past zoom 11 the globe flattens toward Mercator and the GeoJSON fill takes over.
       map.on("zoom", syncFill);
       // Zooming changes which tracks are too short for direction marks.

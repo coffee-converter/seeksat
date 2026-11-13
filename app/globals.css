@@ -181,7 +181,10 @@
    overscroll colour. An element in native full screen (the map) renders
    in the top layer, outside the root's filter, so it gets the same one. */
 html[data-night='1'] {
-  --night-filter: grayscale(1) brightness(0.3) sepia(1) saturate(12) hue-rotate(-25deg) brightness(0.71);
+  /* Contrast is stretched before the dimming: dark greys go darker and mid
+     tones lighter, so lines and labels stand apart, while the brightest
+     thing on screen stays as dim as before (dark adaptation is kept). */
+  --night-filter: grayscale(1) contrast(1.15) brightness(0.32) sepia(1) saturate(12) hue-rotate(-25deg) brightness(0.71);
   background: #0a0303;
   filter: var(--night-filter);
 }
