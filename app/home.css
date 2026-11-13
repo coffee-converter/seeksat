@@ -660,6 +660,15 @@
 .best-line__live { flex: none; }
 /* The Best line scrolls a row to the top of the list's scroller. */
 .pass-list .pass-row { scroll-margin-top: var(--sp-8); }
+/* An opened row is brought into view with room around it: a peek of the
+   row beyond (or the list's edge), so there is somewhere to tap away. */
+.pass-row--open,
+.pass-list .pass-row--open {
+  --row-peek: calc(var(--sp-32) + var(--sp-16));
+  scroll-margin-top: calc(var(--sp-8) + var(--row-peek));
+  scroll-margin-bottom: var(--row-peek);
+}
+.map-shell.sat .pass-row--open { scroll-margin-top: calc(var(--header-pinned, 56px) + var(--row-peek)); }
 .pass-row + .pass-row { border-top: var(--line-subtle); }
 /* The opened row lifts off the list as its own card: a lighter panel, an
    edge in the satellite's colour and a soft shadow, with a gap below. No
@@ -784,7 +793,16 @@
 }
 .pass-row__time { color: var(--text-strong); font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
 .pass-row__sub { color: var(--map-muted); font-size: var(--fs-xs); }
-.pass-row__sub--now { color: var(--map-accent); font-weight: var(--fw-semibold); }
+/* Under way: "Now" with a small live dot (the header clock's green and
+   pulse, slower), quieter than an open row's highlight. */
+.pass-row__now-dot {
+  display: inline-block; width: 8px; height: 8px; margin-right: var(--sp-6);
+  border-radius: 50%; background: var(--ok); vertical-align: 0.1em;
+  animation: live-pulse 3s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pass-row__now-dot { animation: none; }
+}
 .pass-row__what { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; line-height: var(--lh-tight); }
 .pass-row__name,
 .pass-row__detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -915,6 +933,10 @@
    the satellite can be seen by eye and dashed elsewhere, with the opacity
    raised so both read on a thumbnail. Dashes keep the painter's butt caps. */
 .pass-open__plot .polar-plot .arc { color: var(--sat-color, var(--map-muted)); }
+/* Rise dot and set arrowhead (polar-icon.js), in the arc's colour. */
+.pass-open__plot .polar-plot .events { color: var(--sat-color, var(--map-muted)); }
+.pass-open__plot .polar-plot .events .rise { fill: var(--row-open-bg, var(--panel)); stroke: currentColor; stroke-width: 1.6; }
+.pass-open__plot .polar-plot .events .set { fill: currentColor; }
 .pass-open__plot .polar-plot .arc line,
 .pass-open__plot .polar-plot .arc polyline {
   fill: none;
@@ -1454,6 +1476,7 @@
   .map-shell:not(.sat) .home-about { scroll-margin-top: calc(var(--header-h) + 72px + var(--sp-16)); }
   /* Below the map's strip, which stays over the rows. */
   .map-shell:not(.sat) .pass-list .pass-row { scroll-margin-top: calc(var(--header-h) + 72px + var(--sp-8)); }
+  .map-shell:not(.sat) .pass-list .pass-row--open { scroll-margin-top: calc(var(--header-h) + 72px + var(--sp-8) + var(--row-peek)); }
 }
 
 /* Docked: the map fills the window under the top bar, beside the panel. */
@@ -1610,8 +1633,8 @@
 .live-dial__sat { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
 /* The one thing that moves on its own: a soft ring swelling from the dot.
    Still under reduced motion. */
-.live-dial__pulse { fill: var(--accent); opacity: 0; animation: live-pulse var(--dur-pulse) var(--ease) infinite; }
-@keyframes live-pulse { from { transform: scale(1); opacity: 0.5; } to { transform: scale(2.6); opacity: 0; } }
+.live-dial__pulse { fill: var(--accent); opacity: 0; animation: live-dial-pulse var(--dur-pulse) var(--ease) infinite; }
+@keyframes live-dial-pulse { from { transform: scale(1); opacity: 0.5; } to { transform: scale(2.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .live-dial__pulse { animation: none; }
 }
