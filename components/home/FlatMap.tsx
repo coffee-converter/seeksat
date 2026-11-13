@@ -272,10 +272,11 @@ const LOCK_ZOOM_MS = 250;
 const LOCK_SETTLE_MS = 150;
 /** How long turning Lock on eases to the satellite before following it. */
 const LOCK_EASE_MS = 600;
-/** A far camera move flies (MapLibre flyTo): its arc, its speed (screens a
- *  second along the arc) and a cap, so a trip across the world stays brief. */
+/** A far camera move flies (MapLibre flyTo): its arc, and how long it takes,
+ *  from FLY_MIN_MS for a short hop to FLY_MAX_MS for a third of the world or
+ *  more, so tiles have time to load on the way. */
 const FLY_CURVE = 1.42;
-const FLY_SPEED = 0.9;
+const FLY_MIN_MS = 1200;
 const FLY_MAX_MS = 2600;
 /** The angle (degrees) between two places on the Earth. */
 const arcDeg = (lon1: number, lat1: number, lon2: number, lat2: number) => {
@@ -539,7 +540,10 @@ export default function FlatMap({
     const zoom = Math.min(map.getZoom(), cam.zoom ?? map.getZoom());
     const screenDeg = (360 * Math.max(el.clientWidth || 1, el.clientHeight || 1)) / (512 * 2 ** zoom);
     const far = arcDeg(c.lng, c.lat, cam.center[0], cam.center[1]) > screenDeg || Math.abs((cam.zoom ?? map.getZoom()) - map.getZoom()) > 3;
-    if (far) map.flyTo({ ...cam, curve: FLY_CURVE, speed: FLY_SPEED, maxDuration: FLY_MAX_MS, essential: false });
+    // Its length set from the distance (MapLibre's maxDuration would not cap
+    // a long trip: past it, the move jumps instead).
+    const arc = arcDeg(c.lng, c.lat, cam.center[0], cam.center[1]);
+    if (far) map.flyTo({ ...cam, curve: FLY_CURVE, duration: FLY_MIN_MS + (FLY_MAX_MS - FLY_MIN_MS) * Math.min(1, arc / 120), essential: false });
     else map.easeTo(cam);
   }, []);
   /** Refit an untouched home view: eased once the map is on screen, a jump before. */
