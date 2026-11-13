@@ -858,8 +858,10 @@
   overflow: visible;
   cursor: inherit;
 }
+/* The sky at the pass's peak, toned toward the card so a daytime sky still
+   reads lighter than night but never drowns the arc. */
 .pass-open__plot .polar-plot .horizon {
-  fill: var(--sky-shade, rgba(8, 12, 24, 0.9));
+  fill: color-mix(in srgb, var(--sky-shade, rgba(8, 12, 24, 0.9)) 40%, var(--row-open-bg, var(--panel)));
   stroke: rgba(126, 184, 255, 0.55);
   stroke-width: 1.6;
 }

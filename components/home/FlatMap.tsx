@@ -1573,9 +1573,12 @@ export default function FlatMap({
   // Stacked, the map grows while paused (MapLayoutShell): frame again once
   // it has settled at its new size.
   const [reframe, setReframe] = useState(0);
+  // The satellite whose pass is open (paused on it, or live while it is up).
+  const openSat = sats.find((x) => x.passPath && (x.passPath.coordinates as unknown[]).length) ?? null;
+  const passOpen = openSat != null;
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !paused) return;
+    if (!map || !mapReady || !passOpen) return;
     let t: number | undefined;
     const onResize = () => {
       window.clearTimeout(t);
@@ -1589,12 +1592,15 @@ export default function FlatMap({
       window.clearTimeout(t);
       map.off("resize", onResize);
     };
-  }, [mapReady, paused]);
+  }, [mapReady, passOpen]);
   const beforePause = useRef<{ cam: Camera; atHome: boolean; view: View } | null>(null);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    if (!paused) {
+    // An opened pass is framed whether the map is paused on it or it is up
+    // now (live); closing it puts the camera back.
+    const sat = openSat;
+    if (!sat?.passPath) {
       framedKey.current = null;
       const b = beforePause.current;
       beforePause.current = null;
@@ -1606,13 +1612,12 @@ export default function FlatMap({
       }
       return;
     }
-    const frameKey = `${paused.key}|${view}`;
+    const passKey = paused ? paused.key : `${sat.noradId}:${shapeId(sat.passPath)}`;
+    const frameKey = `${passKey}|${view}`;
     if (framedKey.current === frameKey) return;
     // A projection switch jumps to the new view's home first: frame from
     // there at once rather than easing across it.
-    const switched = framedKey.current != null && framedKey.current.startsWith(`${paused.key}|`);
-    const sat = sats.find((x) => x.passPath && (x.passPath.coordinates as unknown[]).length);
-    if (!sat?.passPath) return;
+    const switched = framedKey.current != null && framedKey.current.startsWith(`${passKey}|`);
     framedKey.current = frameKey;
     if (!beforePause.current) {
       const c = map.getCenter();
@@ -1632,6 +1637,8 @@ export default function FlatMap({
     } else {
       const pts = (sat.passPath.coordinates as number[][][]).flat();
       if (observer) pts.push([observer.lonDeg, observer.latDeg]);
+      // Live, where the satellite is now too.
+      if (!paused) pts.push([sat.position.lonDeg, sat.position.latDeg]);
       // Longitudes unwrapped around the first point, so a path over the date
       // line frames as one piece.
       const ref = pts[0][0];
@@ -1660,12 +1667,13 @@ export default function FlatMap({
       // corrected, then put back before the eased move. Those trial jumps are
       // ours (selfJump), so nothing else reacts to them.
       center = [observer.lonDeg, observer.latDeg];
-      if (ring && ring.length > 2) zoom = fitRingZoom(map, center, ring, pad, zoom);
+      // Live, take in the satellite too (before it rises it is outside).
+      if (ring && ring.length > 2) zoom = fitRingZoom(map, center, paused ? ring : [...ring, [sat.position.lonDeg, sat.position.latDeg]], pad, zoom);
     }
     atHome.current = false;
     if (switched) map.jumpTo({ center, zoom });
     else moveTo(map, { center, zoom });
-  }, [paused, sats, observer, view, mapReady, moveTo, refitHome, setFollowing, reframe]);
+  }, [paused, openSat, observer, view, mapReady, moveTo, refitHome, setFollowing, reframe, fitRingZoom]);
 
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
