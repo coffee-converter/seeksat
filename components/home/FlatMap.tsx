@@ -957,6 +957,13 @@ export default function FlatMap({
           // Labels and dots switch at once instead of fading: the fade also
           // delays hiding dots that turn to the far side of the globe.
           fadeDuration: 0,
+          // Keep tiles from many zoom levels in memory (MapLibre's default is
+          // about 5 levels' worth), so zooming far in and back out again
+          // redraws from what is loaded instead of fetching it all again; and
+          // let half-loaded tiles finish while zooming, so detail fills in as
+          // it goes rather than all at the end.
+          maxTileCacheZoomLevels: 12,
+          cancelPendingTileRequestsWhileZooming: false,
           cooperativeGestures: !(docked.current || fullRef.current),
         });
       } catch {
