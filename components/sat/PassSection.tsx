@@ -29,6 +29,7 @@ import { placesLine } from "@/lib/sat/places-line.mjs";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 import Button from "@/components/ui/Button";
+import { refocus } from "@/lib/ui/refocus";
 import { usePlaceZone } from "@/components/usePlaceZone";
 import { rowDetail, rowWhen } from "@/lib/home/pass-list.mjs";
 import { startIsRise, underWay as underWayAt } from "@/lib/passes/under-way.mjs";
@@ -332,7 +333,7 @@ export default function PassSection({
   };
   const onClose = useCallback(() => {
     setChart(null);
-    trigger.current?.focus();
+    refocus(trigger.current);
   }, []);
 
   const onFreqChange = useCallback((hz: number | null) => {

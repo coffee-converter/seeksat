@@ -16,6 +16,7 @@ import { passCloud } from "@/components/passes/CloudBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import Button from "@/components/ui/Button";
+import { refocus } from "@/lib/ui/refocus";
 import type { makeTrack } from "@/lib/sat/track.mjs";
 import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 
@@ -227,7 +228,7 @@ export function usePassCharts(observer: HomeObserver | null, minElevDeg: number,
   }, [observer, minElevDeg]);
   const onClose = useCallback(() => {
     setChart(null);
-    trigger.current?.focus();
+    refocus(trigger.current);
   }, []);
 
   const modals = chartsLoaded
