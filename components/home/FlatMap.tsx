@@ -61,6 +61,8 @@ export interface MapSat {
   passPeak?: { lonDeg: number; latDeg: number; altKm?: number };
   /** Live with its pass open: a sight line to where it is now, while it is up. */
   passLive?: boolean;
+  /** That pass has set: below the horizon now reads "already set". */
+  passAfter?: boolean;
   /** The visibility circle's radius around the observer, in degrees. */
   passReachDeg?: number;
   /** That circle traced on the ellipsoid (a closed [lon, lat] line), when known. */
@@ -862,6 +864,8 @@ export default function FlatMap({
   const syncSightLabels = useCallback((map: MlMap) => {
     if (!styleReady.current) return;
     const o = latest.current.observer;
+    let livePos: { lonDeg: number; latDeg: number; altKm?: number } | null = null;
+    let liveAfter = false;
     const show = (layer: string, target: { lonDeg: number; latDeg: number; altKm?: number } | null) => {
       if (!map.getLayer(layer)) return;
       let fits = false;
@@ -869,7 +873,8 @@ export default function FlatMap({
         const a = map.project([o.lonDeg, o.latDeg]);
         const b = map.project([target.lonDeg, target.latDeg]);
         const sight = sightOf(o, target.lonDeg, target.latDeg, target.altKm ?? 0);
-        const text = sight.elDeg < 0 ? `${awayLabel(sight.rangeKm)}, not up yet` : awayLabel(sight.rangeKm);
+        const below = target === livePos && liveAfter ? "already set" : "not up yet";
+        const text = sight.elDeg < 0 ? `${awayLabel(sight.rangeKm)}, ${below}` : awayLabel(sight.rangeKm);
         fits = Math.hypot(b.x - a.x, b.y - a.y) >= text.length * SIGHT_CHAR_PX + SIGHT_ICON_ROOM_PX;
       }
       const want = fits ? 1 : 0;
@@ -878,8 +883,9 @@ export default function FlatMap({
     const sats = latest.current.sats;
     show("ss-pass-sight-label", sats.find((x) => x.passPeak)?.passPeak ?? null);
     const live = sats.find((x) => x.passLive);
-    const pos = live ? live.positionAt(mapNow()) : null;
-    show("ss-live-sight-label", pos);
+    livePos = live ? live.positionAt(mapNow()) : null;
+    liveAfter = live?.passAfter === true;
+    show("ss-live-sight-label", livePos);
   }, []);
   const push = useCallback(() => {
     const map = mapRef.current;

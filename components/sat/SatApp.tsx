@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePublishMapScene } from "@/lib/map/scene-store";
-import { useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
+import { useLiveHeldRow, useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { HEADER_PINNED_EVENT } from "@/components/HeaderPinned";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
@@ -241,7 +241,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   }), [prefs.following, prefs.hidden, data.noradId]);
   // An opened pass pauses the map at its peak.
   const [openRow, setOpenRow] = useState<OpenPassRow | null>(null);
-  const { mapNowMs, mapPass } = useMapPause(openRow, {
+  const mapRow = useLiveHeldRow(openRow);
+  const { mapNowMs, mapPass } = useMapPause(mapRow, {
     nowMs, track: usable ? mapTracks.get(data.noradId) : null, observer: settings.observer, minElevDeg: settings.minElevDeg,
   });
   const { sats } = useMapSats({

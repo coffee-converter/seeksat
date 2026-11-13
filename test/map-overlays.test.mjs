@@ -427,3 +427,10 @@ test('a live open pass draws a sight line with the distance, only while the sate
   assert.equal(downMarks.filter((f) => f.properties.kind === 'sight-below').length, 1);
   assert.match(downMarks.find((f) => f.properties.kind === 'sight-label').properties.label, /not up yet$/);
 });
+
+test('after its pass has set, the live line toward the satellite says already set', () => {
+  const observer = { latDeg: 40, lonDeg: -90 };
+  const gone = { ...SATS[0], position: { lonDeg: 90, latDeg: -40 }, altKm: 420, passLive: true, passAfter: true };
+  const label = overlayData({ sats: [gone], observer })['ss-marks'].features.find((f) => f.properties.kind === 'sight-label');
+  assert.match(label.properties.label, /, already set$/);
+});

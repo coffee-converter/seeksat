@@ -3,7 +3,7 @@
 // this keeps the map clock (lib/map/map-clock.ts) in step with it.
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { passArc, visibilityRing } from "./pass-arc.mjs";
 import { subpoint } from "./geometry.mjs";
 import { useMapClock } from "./map-clock";
@@ -27,6 +27,18 @@ export interface OpenPassRow {
  */
 /** Rise or set times this close are the same moment, rounded apart. */
 const SAME_MS = 90_000;
+
+/** The open row, held while a live view is open: the list drops a pass once
+ *  it has set, but the live view (and the map with it) stays on that pass. */
+export function useLiveHeldRow(open: OpenPassRow | null, liveId: number | null = null): OpenPassRow | null {
+  const liveView = useMapClock((s) => s.liveView);
+  const last = useRef<OpenPassRow | null>(open);
+  if (open) last.current = open;
+  if (!liveView) last.current = open;
+  if (open) return open;
+  const held = last.current;
+  return held && (liveId == null || held.noradId === liveId) ? held : null;
+}
 
 type Arc = { riseMs: number; setMs: number; closestMs: number };
 const arcOf = passArc as (

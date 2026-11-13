@@ -180,7 +180,7 @@ export function useMapSats({
           // Paused, the sight line runs to the closest approach; live, to
           // where it is now (drawn with the marks, while it is up).
           ...(pausedId === noradId && passShape.peak && { passPeak: passShape.peak }),
-          ...(pausedId !== noradId && { passLive: true }),
+          ...(pausedId !== noradId && { passLive: true, ...(pass && nowMs >= pass.endMs && { passAfter: true }) }),
           ...(passShape.reachDeg != null && { passReachDeg: passShape.reachDeg }),
         }),
       });

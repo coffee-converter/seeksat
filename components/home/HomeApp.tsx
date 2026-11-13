@@ -39,7 +39,7 @@ import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
 import SatChips, { type Chip } from "@/components/home/SatChips";
 import { useMediaQuery } from "@/lib/ui/use-media-query";
 import { DOCKED_QUERY } from "./useKeepRowInPlace";
-import { useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
+import { useLiveHeldRow, useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { usePlaceZone, viewerZone } from "@/components/usePlaceZone";
 import { zoneNote } from "@/lib/time/zone.mjs";
 
@@ -266,9 +266,10 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   );
 
   // An opened pass pauses the map at its peak (not while a live view is docked).
-  const { mapNowMs, mapPass } = useMapPause(openRow, {
+  const mapRow = useLiveHeldRow(openRow, liveId);
+  const { mapNowMs, mapPass } = useMapPause(mapRow, {
     nowMs, timeZone: tz, live: liveId != null,
-    track: openRow ? allTracks.get(openRow.noradId) : null, observer: location, minElevDeg: prefs.minElevDeg,
+    track: mapRow ? allTracks.get(mapRow.noradId) : null, observer: location, minElevDeg: prefs.minElevDeg,
   });
   const { sats } = useMapSats({
     layers, tracks: allTracks, colors, nowMs: mapNowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio", pass: mapPass,
