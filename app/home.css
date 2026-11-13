@@ -255,10 +255,8 @@
   transition: background var(--dur-fast) var(--ease);
 }
 .search-bar__name { min-width: 0; overflow-wrap: anywhere; }
-/* The follow star: its own tap target, so a row tap still means view. */
-.search-bar__star { flex: none; }
-.search-bar__star-glyph { font-size: var(--fs-xl); line-height: 1; }
-.search-bar__star-glyph--on { color: var(--warn); }
+/* The Follow button: its own tap target, so a row tap still means view. */
+.search-bar__follow { flex: none; }
 .search-bar__option:hover,
 .search-bar__option[aria-selected="true"] { background: var(--option-on); }
 .search-bar__id { color: var(--map-muted); font-size: 0.85em; }

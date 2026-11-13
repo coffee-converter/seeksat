@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { searchQuery, searchUrl } from "@/lib/home/search.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
-import { followLabel } from "@/lib/home/focus.mjs";
 import { useHomeStore } from "@/lib/home/store";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
@@ -105,7 +104,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
     }, DEBOUNCE_MS);
   }
 
-  // The star: follow or unfollow, keeping the list open.
+  // The Follow button: follow or unfollow, keeping the list open.
   function toggleFollow(r: Result) {
     if (following.includes(r.noradId)) {
       setLimitError(null);
@@ -243,19 +242,18 @@ export function SearchBar({ onView, onClearFocus }: Props) {
               </span>
               {/* Out of the tab order: the focus bar has the same toggle for keyboards. */}
               <Button
-                variant="quiet"
-                iconOnly
+                size="sm"
+                on={followed}
+                pressedLook="accent"
                 tabIndex={-1}
-                className="search-bar__star"
-                aria-label={followLabel(r.name, followed)}
+                className="search-bar__follow"
+                aria-label={`${followed ? "Following" : "Follow"} ${r.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFollow(r);
                 }}
               >
-                <span className={`search-bar__star-glyph${followed ? " search-bar__star-glyph--on" : ""}`} aria-hidden="true">
-                  {followed ? "\u2605" : "\u2606"}
-                </span>
+                {followed ? "Following" : "Follow"}
               </Button>
             </li>
           );
