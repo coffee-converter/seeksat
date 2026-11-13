@@ -167,7 +167,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
         <LiveDial
           track={samples}
           now={live && live.azDeg != null && live.elDeg != null ? { azDeg: live.azDeg, elDeg: live.elDeg } : null}
+          nowMs={now}
           headingDeg={compassOn ? heading : null}
+          timeZone={obs.tz}
         />
         {turn && <p className="live-view__turn">{turn}</p>}
         {compassNote && <p className="note">{compassNote}</p>}

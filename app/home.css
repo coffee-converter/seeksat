@@ -1360,9 +1360,26 @@
 .live-dial__ring { fill: none; stroke: var(--map-border); stroke-width: 1; stroke-dasharray: 3 4; }
 .live-dial__ahead { stroke: var(--map-muted); stroke-width: 1; stroke-dasharray: 2 3; }
 .live-dial__card { fill: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
-.live-dial__track { fill: none; stroke: var(--map-muted); stroke-width: 2; stroke-linejoin: round; opacity: 0.6; }
+/* The track ahead is bright, the part flown dim, with a tick each minute. */
+.live-dial__track { fill: none; stroke: var(--map-accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.live-dial__track--flown { stroke: var(--live-flown); stroke-width: 2; }
+.live-dial__tick { stroke: var(--map-accent); stroke-width: 1.5; stroke-linecap: round; }
+.live-dial__tick--flown { stroke: var(--live-flown); }
+/* Time and ring labels, knocked out of the lines under them. */
+.live-dial__label {
+  fill: var(--map-text); font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+  paint-order: stroke; stroke: var(--panel); stroke-width: 3; stroke-linejoin: round;
+}
+.live-dial__label--ring { fill: var(--map-muted); font-weight: var(--fw-regular); }
 .live-dial__arrow { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
 .live-dial__sat { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+/* The one thing that moves on its own: a soft ring swelling from the dot.
+   Still under reduced motion. */
+.live-dial__pulse { fill: var(--accent); opacity: 0; animation: live-pulse var(--dur-pulse) var(--ease) infinite; }
+@keyframes live-pulse { from { transform: scale(1); opacity: 0.5; } to { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .live-dial__pulse { animation: none; }
+}
 .live-dial__caption { margin-top: var(--sp-4); text-align: center; font-size: var(--fs-sm); color: var(--map-muted); }
 .live-view__nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin: 0; }
 .live-view__nums dd { margin: var(--sp-2) 0 0; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--text-strong); white-space: nowrap; }
