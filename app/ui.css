@@ -537,12 +537,26 @@ select.field__control {
 .chip__eye { padding: 0 var(--sp-8) 0 var(--sp-6); color: var(--map-muted); border-radius: 0 var(--radius-full) var(--radius-full) 0; transition: color var(--dur-fast) var(--ease); }
 .chip__eye:hover { color: var(--map-text); }
 .chip button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-full); }
-/* A selected satellite you do not follow: dashed, with Follow for the eye. */
+/* Hover (pointers that hover): the chip lifts a little. */
+@media (hover: hover) {
+  .chip { transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease); }
+  .chip:hover { background: color-mix(in srgb, var(--chip-bg), var(--map-text) 10%); }
+}
+/* A selected satellite you do not follow: dashed, and the whole chip follows
+   it. Hover fills it with its colour and turns the border solid. */
 .chip--unfollowed,
 .chip--unfollowed.chip--focus { border-style: dashed; border-color: var(--chip-color, var(--map-accent)); box-shadow: none; }
-.chip__follow { gap: var(--sp-4); padding: 0 var(--sp-12) 0 var(--sp-6); font-weight: var(--fw-semibold); border-radius: 0 var(--radius-full) var(--radius-full) 0; }
+.chip__whole { padding-right: var(--sp-12); }
+.chip__follow { display: inline-flex; align-items: center; gap: var(--sp-4); margin-left: var(--sp-4); font-weight: var(--fw-semibold); color: var(--map-muted); transition: color var(--dur-fast) var(--ease); }
 .chip__follow svg { color: var(--chip-color, var(--map-accent)); }
-.chip__follow:disabled { opacity: 0.5; cursor: not-allowed; }
+.chip__whole:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (hover: hover) {
+  .chip--unfollowed:has(.chip__whole:not(:disabled):hover) {
+    border-style: solid;
+    background: color-mix(in srgb, var(--chip-bg), var(--chip-color, var(--map-accent)) 22%);
+  }
+  .chip__whole:not(:disabled):hover .chip__follow { color: var(--map-text); }
+}
 .chip--hidden { opacity: 0.5; }
 .chip--hidden .chip__name { text-decoration: line-through; }
 

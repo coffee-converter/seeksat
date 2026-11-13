@@ -17,8 +17,8 @@ interface Props {
   onToggleHidden?: () => void;
   /** Known radio downlinks (shown in radio mode): the dot becomes the radio mark. */
   radio?: boolean;
-  /** A selected satellite you do not follow: a dashed chip whose button
-   *  follows it (in place of the eye). */
+  /** A selected satellite you do not follow: a dashed chip that follows it
+   *  when tapped anywhere (onSelect and the eye are unused). */
   onFollow?: () => void;
   /** Why following is blocked (the cap): the follow button is off, this its tip. */
   followBlocked?: string | null;
@@ -28,33 +28,42 @@ interface Props {
 export default function Chip({ color, label, focused = false, hidden = false, onSelect, onToggleHidden, radio = false, onFollow, followBlocked = null }: Props) {
   return (
     <li className={cx("chip", hidden && "chip--hidden", focused && "chip--focus", onFollow && "chip--unfollowed")} style={{ "--chip-color": color } as CSSProperties}>
-      <button type="button" className="chip__name" aria-pressed={focused} onClick={onSelect}>
-        {radio ? <RadioMark className="chip__radio" label="known downlinks" /> : <span className="sat-dot sat-dot--sm" aria-hidden="true" />}
-        {label}
-      </button>
       {onFollow ? (
+        // Not followed: the whole chip follows it.
         <button
           type="button"
-          className="chip__follow"
+          className="chip__name chip__whole"
           aria-label={`Follow ${label}`}
           title={followBlocked ?? `Follow ${label}`}
           disabled={Boolean(followBlocked)}
           onClick={onFollow}
         >
-          <Icon name="star" size={14} />
-          Follow
+          {radio ? <RadioMark className="chip__radio" label="known downlinks" /> : <span className="sat-dot sat-dot--sm" aria-hidden="true" />}
+          {label}
+          <span className="chip__follow" aria-hidden="true">
+            <Icon name="star" size={14} />
+            Follow
+          </span>
         </button>
-      ) : onToggleHidden ? (
-        <button
-          type="button"
-          className="chip__eye"
-          aria-label={hidden ? `Show ${label} on the map` : `Hide ${label} on the map`}
-          title={hidden ? "Show on the map" : "Hide on the map"}
-          onClick={onToggleHidden}
-        >
-          <Icon name={hidden ? "eye-off" : "eye"} size={14} />
-        </button>
-      ) : null}
+      ) : (
+        <>
+          <button type="button" className="chip__name" aria-pressed={focused} onClick={onSelect}>
+            {radio ? <RadioMark className="chip__radio" label="known downlinks" /> : <span className="sat-dot sat-dot--sm" aria-hidden="true" />}
+            {label}
+          </button>
+          {onToggleHidden ? (
+            <button
+              type="button"
+              className="chip__eye"
+              aria-label={hidden ? `Show ${label} on the map` : `Hide ${label} on the map`}
+              title={hidden ? "Show on the map" : "Hide on the map"}
+              onClick={onToggleHidden}
+            >
+              <Icon name={hidden ? "eye-off" : "eye"} size={14} />
+            </button>
+          ) : null}
+        </>
+      )}
     </li>
   );
 }
