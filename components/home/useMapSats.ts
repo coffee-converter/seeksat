@@ -34,6 +34,10 @@ const NO_LINE: Shape = { type: "MultiLineString", coordinates: [] };
 const NO_TRACK: Split = { trackPast: NO_LINE, trackFuture: NO_LINE, trackTicks: [] };
 
 const TRACK_REFRESH_MS = 60_000;
+/** Past this radius (a satellite above about 5,000 km) the visibility circle
+ *  covers so much of the Earth that it wraps round the globe and says
+ *  nothing; it is left out and the map frames the pass path instead. */
+const MAX_RING_DEG = 40;
 
 /** An opened pass row: its whole arc is drawn on the map (lib/map/pass-arc.mjs). */
 export interface MapPass {
@@ -118,9 +122,10 @@ export function useMapSats({
         .filter((e): e is number[] => e != null)
         .map((e) => subOf(e).altKm);
       const reachAlt = endAlts.length ? endAlts.reduce((a, b) => a + b, 0) / endAlts.length : peak?.altKm;
-      const reachDeg = reachAlt != null
+      const radius = reachAlt != null
         ? (footprintRadiusDeg as (altKm: number, minElevDeg: number) => number)(reachAlt, (geometricElevFor as (d: number) => number)(minElevDeg))
         : null;
+      const reachDeg = radius != null && radius <= MAX_RING_DEG ? radius : null;
       return { noradId: pass.noradId, path: path as Shape, sunlit, shadow, ends, peak: peak && { lonDeg: peak.lonDeg, latDeg: peak.latDeg }, reachDeg };
     } catch {
       return null;
@@ -168,7 +173,7 @@ export function useMapSats({
           passSunlit: passShape.sunlit,
           passShadow: passShape.shadow,
           passEnds: passShape.ends,
-          ...(pass?.ring && { passRing: pass.ring }),
+          ...(pass?.ring && passShape.reachDeg != null && { passRing: pass.ring }),
           ...(passShape.peak && { passPeak: passShape.peak }),
           ...(passShape.reachDeg != null && { passReachDeg: passShape.reachDeg }),
         }),
