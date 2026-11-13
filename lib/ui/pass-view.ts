@@ -4,7 +4,7 @@
 // the shell (MapLayoutShell) lays the screen out; Back closes it.
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { create } from "zustand";
 import { useBackCloses } from "./use-back-closes";
 import { useMediaQuery } from "./use-media-query";
@@ -34,6 +34,39 @@ export function usePassView(open: boolean, close: () => void) {
   useBackCloses(active, close);
   useEffect(() => {
     usePassViewStore.getState().set(active);
+  }, [active]);
+  // It behaves as a dialog: Esc closes it, and the page behind the card (the
+  // rest of the list, the footer) is inert, so Tab stays in the card and the
+  // map and screen readers skip what it covers.
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      // A chart or sheet over the card closes first (it handles its own Esc).
+      if (document.querySelector("dialog[open], [role='dialog'][aria-modal='true']")) return;
+      closeRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    const made: Element[] = [];
+    const id = requestAnimationFrame(() => {
+      const card = document.querySelector(".map-shell .pass-row--open");
+      const panel = card?.closest(".map-shell__panel");
+      for (let el: Element | null | undefined = card; el && panel && el !== panel; el = el.parentElement) {
+        for (const sib of Array.from(el.parentElement?.children ?? [])) {
+          if (sib !== el && !sib.hasAttribute("inert")) {
+            sib.setAttribute("inert", "");
+            made.push(sib);
+          }
+        }
+      }
+    });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      cancelAnimationFrame(id);
+      for (const el of made) el.removeAttribute("inert");
+    };
   }, [active]);
   useEffect(() => () => usePassViewStore.getState().set(false), []);
 }

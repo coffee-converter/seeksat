@@ -2,10 +2,15 @@
 
 import { useEffect, useRef } from "react";
 
-/** Marks the history entry an open overlay pushed. */
+/** Marks the history entry an open overlay pushed, with how many overlays
+ *  are open there (a chart opened over the phone pass view is the second). */
 const KEY = "seeksatOverlay";
 
-const ours = () => Boolean((window.history.state as Record<string, unknown> | null)?.[KEY]);
+/** Overlays open at the current history entry. */
+const depthNow = () => {
+  const v = (window.history.state as Record<string, unknown> | null)?.[KEY];
+  return typeof v === "number" ? v : v ? 1 : 0;
+};
 
 /**
  * Makes the browser's Back button close an overlay (a chart that fills a
@@ -20,6 +25,9 @@ export function useBackCloses(open: boolean, close: () => void) {
   const closeRef = useRef(close);
   closeRef.current = close;
   const pushed = useRef(false);
+  // This overlay's depth: its entry, and any over it, are at least this deep.
+  const depth = useRef(0);
+  const ours = () => depthNow() >= depth.current;
 
   useEffect(() => {
     if (!open) {
@@ -31,7 +39,8 @@ export function useBackCloses(open: boolean, close: () => void) {
     }
     if (!pushed.current) {
       const state = (window.history.state as Record<string, unknown> | null) ?? {};
-      window.history.pushState({ ...state, [KEY]: true }, "", window.location.href);
+      depth.current = depthNow() + 1;
+      window.history.pushState({ ...state, [KEY]: depth.current }, "", window.location.href);
       pushed.current = true;
     }
     const onPop = () => {
