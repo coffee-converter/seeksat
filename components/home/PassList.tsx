@@ -4,7 +4,8 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type R
 import QualityBadge, { type Quality } from "@/components/passes/QualityBadge";
 import Button from "@/components/ui/Button";
 import Segmented from "@/components/ui/Segmented";
-import { passList, passUnderWay, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
+import { passList, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
+import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 import { cardHeadline } from "@/lib/home/next-up.mjs";
 import { cx, surfaceClass } from "@/lib/ui/classes.mjs";
 import type { Forecast } from "@/lib/sky/use-clouds";
@@ -25,7 +26,7 @@ const listOf = passList as (o: { cards: Card[]; nowMs: number; timeZone?: string
 const whenOf = rowWhen as (pass: Pass, nowMs: number, timeZone?: string) => { time: string; sub: string };
 const detailOf = rowDetail as (pass: Pass) => string;
 const quietOf = quietLines as (quiet: Quiet) => string[];
-const underWay = passUnderWay as (pass: Pass, nowMs: number) => boolean;
+const underWay = underWayAt as (pass: Pass, nowMs: number) => boolean;
 const headline = cardHeadline as (card: Card, nowMs: number) => string;
 
 /** Every pass start and end across the cards, sorted. */

@@ -469,8 +469,7 @@ export default function PassSection({
                           const rating = visual ? visualRating(rated, { skyType, cloud: passCloud(clouds, rated, bucketMs) }) : undefined;
                           const mag = visual ? peakMagText(rated) : null;
                           // Under Lasts: brightness when watching, time above 10° for radio.
-                          // The pass as of now, so a pass already up reads Ends and Left.
-                          const statPass = { ...(row.pass as NextPass & { peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number; msAbove10?: number }), inProgress: row.inProgress };
+                          const statPass = row.pass as NextPass & { peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number; msAbove10?: number };
                           const lastSub = visual ? mag : aboveTenText(statPass);
                           return (
                             <li
@@ -481,7 +480,7 @@ export default function PassSection({
                               <div className="sat-pass__head">
                                 {/* The path strip says where it peaks, so Max keeps only the height. */}
                                 <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={lastSub} maxSub={null} weekday={false} className="sat-pass__stats">
-                                  <PassPath pass={statPass} mode={mode} minElevDeg={minElevDeg} timeZone={observer?.tz} />
+                                  <PassPath pass={statPass} mode={mode} minElevDeg={minElevDeg} nowMs={nowMs} timeZone={observer?.tz} />
                                 </PassStats>
                                 <span className="rating-pair sat-pass__rating">
                                   <QualityBadge pass={rated} rating={rating} maxShown pill />

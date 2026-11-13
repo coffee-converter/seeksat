@@ -7,11 +7,14 @@ import { useMemo } from "react";
 import type React from "react";
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import { dopplerHzAt, passPath } from "@/lib/passes/pass-words.mjs";
+import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 import { needsTone } from "@/lib/radio/uplink.mjs";
 import { formatPassDuration } from "@/lib/passes/format.mjs";
 import Surface from "@/components/ui/Surface";
 import Button from "@/components/ui/Button";
 import { passTime as cardTime } from "@/components/passes/PassStats";
+
+const underWay = underWayAt as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 
 type Pass = {
   startMs: number; endMs: number; peakMs: number; inProgress?: boolean; msAbove10?: number | null;
@@ -31,7 +34,7 @@ export function aboveTenText(pass: Pass): string | null {
 }
 
 type PathStep = { key: string; label: string; dir: string; ms: number };
-const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number }) => PathStep[];
+const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number; nowMs?: number }) => PathStep[];
 
 // Each step sits under its stat column: rise under Starts, peak under Max,
 // set under Lasts, so the strip lines up on every card even when a step is left out.
@@ -39,10 +42,10 @@ const COLUMN: Record<string, number> = { start: 1, peak: 2, end: 3 };
 
 /** Where the pass goes, as cells for PassStats' grid, under its columns:
  *  "Rises N / 4:51 AM". One grid sizes both rows' columns, so they line up. */
-export function PassPath({ pass, mode, minElevDeg, timeZone }: {
-  pass: Pass; mode: string; minElevDeg: number; timeZone?: string;
+export function PassPath({ pass, mode, minElevDeg, nowMs, timeZone }: {
+  pass: Pass; mode: string; minElevDeg: number; nowMs: number; timeZone?: string;
 }) {
-  const steps = pathOf(pass, { mode, minElevDeg });
+  const steps = pathOf(pass, { mode, minElevDeg, nowMs });
   return (
     <>
       {steps.map((st) => (
@@ -75,12 +78,12 @@ export function RadioPanel({ track, observer, pass, nowMs, banded, onMore }: {
   const link = linkOf(track);
   const swing = useMemo(() => {
     if (!link) return null;
-    const from = dopplerHzAt(track, observer, pass.inProgress ? Math.max(nowMs, pass.startMs) : pass.startMs, link.hz);
+    const from = dopplerHzAt(track, observer, underWay(pass, nowMs) ? nowMs : pass.startMs, link.hz);
     const to = dopplerHzAt(track, observer, pass.endMs - 1000, link.hz);
     return from == null || to == null ? null : `${khz(from)} \u2192 ${khz(to)} kHz`;
   // nowMs only matters for a pass already up; minute steps are plenty.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [link, track, observer, pass, pass.inProgress ? Math.floor(nowMs / 60_000) : 0]);
+  }, [link, track, observer, pass, underWay(pass, nowMs) ? Math.floor(nowMs / 60_000) : 0]);
   if (!link) {
     return (
       <Surface padded="sm" className="pass-card__radio">

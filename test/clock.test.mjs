@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { clockFormat } from '../lib/clock.mjs';
-import { timeFormat } from '../lib/home/view.mjs';
 import { nextPassText } from '../lib/sat/pass-rows.mjs';
 
 // One clock for every pass time on the site: "4:12 AM" where the locale uses
@@ -20,8 +19,7 @@ test('a 24-hour locale gets a two-digit hour', () => {
   assert.equal(clockFormat('de-DE', TZ).format(AT), '04:12');
 });
 
-test('the home cards and the satellite page share the clock', () => {
-  assert.equal(timeFormat('en-US', TZ).format(AT), '4:12 AM');
+test('the satellite page uses the clock', () => {
   const now = Date.parse('2026-11-02T03:00:00Z');
   const p = { startMs: AT, endMs: AT + 360_000, startAzDeg: 225, endAzDeg: 135 };
   assert.equal(nextPassText(p, now, TZ, 'en-US'), 'in 7 h 12 min, Tomorrow 4:12 AM, SW to SE');

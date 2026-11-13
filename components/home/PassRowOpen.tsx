@@ -23,7 +23,7 @@ import {
 
 const compass = compassOf as (azDeg: number) => string;
 type PathStep = { key: "start" | "peak" | "end"; label: string; ms: number };
-const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number }) => PathStep[];
+const pathOf = passPath as (pass: Pass, o: { mode: string; minElevDeg: number; nowMs?: number }) => PathStep[];
 
 /** "6:29 PM, SW", or "6:32 PM, 54° S" with a height: a time and, when known, the compass point. */
 function at(ms: number, azDeg: number | null | undefined, timeZone?: string, elevDeg?: number): string {
@@ -72,7 +72,7 @@ export default function PassRowOpen({
   // The start and end words as the path strip says them: "Appears" and
   // "Fades" at the shadow's edge, "Above 10°" with a minimum set, and no
   // start for a pass already up. The peak always reads "Highest".
-  const steps = pathOf(pass, { mode, minElevDeg });
+  const steps = pathOf(pass, { mode, minElevDeg, nowMs });
   const start = steps.find((st) => st.key === "start");
   const end = steps.find((st) => st.key === "end");
   const aboveTen = visual ? null : aboveTenText(pass);

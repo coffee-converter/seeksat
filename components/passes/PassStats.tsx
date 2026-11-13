@@ -2,18 +2,19 @@
 
 import type React from "react";
 
-import { passStats, timeFormat } from "@/lib/home/view.mjs";
+import { passStats } from "@/lib/home/view.mjs";
+import { clockFormat } from "@/lib/clock.mjs";
 import { useFlash } from "@/lib/ui/use-flash";
 
 type Stat = { label: string; value: string; sub?: string | null };
-type StatPass = { startMs: number; endMs: number; peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number | null; inProgress?: boolean };
+type StatPass = { startMs: number; endMs: number; peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number | null };
 const statsOf = passStats as (pass: StatPass, nowMs: number, o: {
   timeZone?: string; clock: (ms: number, tz?: string) => string; weekday?: boolean;
 }) => { first: Stat; max: Stat; last: Stat };
 
 /** The site's pass clock, with no-break spaces so "6:27 PM" never wraps apart. */
 export const passTime = (ms: number, timeZone?: string) =>
-  (timeFormat as (l: undefined, tz?: string) => Intl.DateTimeFormat)(undefined, timeZone).format(ms).replace(/\s/g, " ");
+  (clockFormat as (l: undefined, tz?: string) => Intl.DateTimeFormat)(undefined, timeZone).format(ms).replace(/\s/g, " ");
 
 /** Text that flashes when it changes, such as a countdown ticking down. */
 export function FlashText({ value }: { value: string }) {

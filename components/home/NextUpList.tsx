@@ -17,6 +17,9 @@ import type { Forecast } from "@/lib/sky/use-clouds";
 import { liveAvailable } from "@/lib/live/live-state.mjs";
 import Button from "@/components/ui/Button";
 import type { makeTrack } from "@/lib/sat/track.mjs";
+import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
+
+const underWay = underWayAt as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
 
 export type Track = ReturnType<typeof makeTrack>;
 
@@ -137,7 +140,7 @@ export function downloadPassIcs(o: {
     nowMs: trueNow(),
     url: passShareUrl(o),
     observerCount: 1,
-    inProgress: pass.inProgress,
+    inProgress: underWay(pass, trueNow()),
   });
   downloadText(ics, icsFileName(track.shortName, observer.name, pass.startMs), "text/calendar");
 }
