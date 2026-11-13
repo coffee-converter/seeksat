@@ -26,6 +26,7 @@ const deps = {
 test('get_radio_pass: the next ISS pass with frequencies, Doppler, tune times and a pointing table', async () => {
   const out = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg, frequencyMHz: 145.8 }, deps);
   assert.equal(out.noradId, 25544);
+  assert.equal(out.url, 'https://seeksat.com/sat/25544');
   assert.equal(out.frequencyMHz, 145.8);
   assert.equal(out.window.kind, 'pass');
   assert.ok(out.summary.dopplerSwingHz > 3000 && out.summary.dopplerSwingHz < 8000, `${out.summary.dopplerSwingHz}`);
@@ -55,7 +56,7 @@ test('get_radio_pass without a frequency gives range rate only, and says so', ()
 
 test('search_satellites returns the catalog search, and names resolve on whole-name matches only', async () => {
   const out = await searchSatellitesTool({ query: 'sdo' }, deps);
-  assert.deepEqual(out.results[0], { noradId: 36395, name: 'SDO', hasKnownDownlinks: false, bands: [] });
+  assert.deepEqual(out.results[0], { noradId: 36395, name: 'SDO', url: 'https://seeksat.com/sat/36395', hasKnownDownlinks: false, bands: [] });
   // "sdo" is a whole-name match: other tools accept it.
   const fp = await findPassesTool({ satellite: 'sdo', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, deps);
   assert.match(fp.satellite, /SDO/);

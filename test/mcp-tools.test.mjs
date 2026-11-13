@@ -197,3 +197,21 @@ test('unavailable elements: tools throw or skip with a clear reason', async () =
   const out = await bestPassTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps);
   assert.deepEqual(out.skipped, [{ satellite: 'ISS (ZARYA)', reason: "elements can't be propagated" }]);
 });
+
+import { satUrl } from '../lib/mcp/tools.mjs';
+
+test('satellite-level results link to the satellite page', async () => {
+  const url = 'https://seeksat.com/sat/25544';
+  assert.equal(satUrl(25544), url);
+  assert.equal((await getPositionTool({ satellite: 'iss' }, deps)).url, url);
+  assert.equal((await findPassesTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, deps)).url, url);
+  assert.equal((await nextVisiblePassTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, deps)).url, url);
+  const bp = await bestPassTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, deps);
+  assert.equal(bp.best.url, url);
+  assert.equal(bp.best.noradId, 25544);
+  for (const p of bp.passes) assert.equal(p.url, url);
+  const list = await listSatellites(deps);
+  assert.equal(list.satellites.find((s) => s.noradId === 25544).url, url);
+  // A synthesized satellite links by its NORAD number too.
+  assert.equal((await getPositionTool({ satellite: '25485' }, synDeps)).url, 'https://seeksat.com/sat/25485');
+});
