@@ -48,7 +48,7 @@ const MIN_BAR = 0.03;
 
 // "Next 24 hours", the desktop pass panel's strip (hidden under 1100 px by
 // app/home.css): every followed satellite's passes on one 16 px track, with
-// night shaded, tick labels under it, and a bar per pass that opens its chart.
+// night shaded, tick labels under it, and a bar per pass that opens its card.
 // Passes that overlap in time go to lanes stacked down the strip, so no bar
 // covers another.
 export default function Timeline({ cards, tracks, colors, observer, mode, nowMs, onOpenPass, cloudFor, skyType }: Props) {

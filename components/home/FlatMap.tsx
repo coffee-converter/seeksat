@@ -55,8 +55,10 @@ export interface MapSat {
   passShadow?: GeoShape;
   /** The rise and set points, with their times. */
   passEnds?: { lonDeg: number; latDeg: number; label: string }[];
-  /** Where that pass comes closest (its highest point): the sight line's end. */
-  passPeak?: { lonDeg: number; latDeg: number };
+  /** Paused: where that pass comes closest (its highest point), the sight line's end. */
+  passPeak?: { lonDeg: number; latDeg: number; altKm?: number };
+  /** Live with its pass open: a sight line to where it is now, while it is up. */
+  passLive?: boolean;
   /** The visibility circle's radius around the observer, in degrees. */
   passReachDeg?: number;
   /** That circle traced on the ellipsoid (a closed [lon, lat] line), when known. */
@@ -1420,6 +1422,67 @@ export default function FlatMap({
     endMarks.current = [];
   }, []);
 
+  /** The zoom at which a ring (a closed [lon, lat] line) around `center`
+   *  fills the view inside `pad`: the camera is tried at a zoom, the ring
+   *  measured on screen and the zoom corrected, then put back. Those trial
+   *  jumps are ours (selfJump), so nothing else reacts to them. */
+  const fitRingZoom = useCallback((
+    map: MlMap, center: LngLat, ring: number[][],
+    pad: { top: number; bottom: number; left: number; right: number }, start: number,
+  ): number => {
+    const el = map.getContainer();
+    const availW = (el.clientWidth || 1) - pad.left - pad.right;
+    const availH = (el.clientHeight || 1) - pad.top - pad.bottom;
+    const was = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+    let zoom = start;
+    selfJump.current = true;
+    try {
+      for (let i = 0; i < 4; i++) {
+        map.jumpTo({ center, zoom });
+        const o = map.project(center);
+        let mx = 0;
+        let my = 0;
+        for (const [lon, lat] of ring) {
+          const q = map.project([lon, lat]);
+          mx = Math.max(mx, Math.abs(q.x - o.x));
+          my = Math.max(my, Math.abs(q.y - o.y));
+        }
+        const scale = Math.min(availW / (2 * mx), availH / (2 * my));
+        if (!Number.isFinite(scale) || scale <= 0) break;
+        const next = Math.min(7, Math.max(map.getMinZoom(), zoom + Math.log2(scale)));
+        const done = Math.abs(next - zoom) < 0.01;
+        zoom = next;
+        if (done) break;
+      }
+    } finally {
+      map.jumpTo(was);
+      selfJump.current = false;
+    }
+    return zoom;
+  }, []);
+
+  // The docked live view locks on and asks for the footprint to fill the
+  // map: centred on the satellite, zoomed to its circle.
+  const fitTick = useFollow((s) => s.fitTick);
+  const fitDone = useRef(0);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || fitTick === fitDone.current) return;
+    const f = liveFocus(latest.current.sats);
+    const sat = latest.current.sats.find((x) => x.selected);
+    const ring = (sat?.footprint?.coordinates as number[][][] | undefined)?.[0];
+    if (!f || !ring || ring.length < 3) return;
+    fitDone.current = fitTick;
+    const el = map.getContainer();
+    const h = el.clientHeight || 1;
+    const w = el.clientWidth || 1;
+    const pad = { top: Math.min(60, h / 4), bottom: Math.min(48, h / 4), left: Math.min(24, w / 6), right: Math.min(24, w / 6) };
+    const center: LngLat = [f.lonDeg, f.latDeg];
+    const zoom = fitRingZoom(map, center, ring, pad, map.getZoom());
+    atHome.current = false;
+    moveTo(map, { center, zoom });
+  }, [fitTick, sats, mapReady, liveFocus, fitRingZoom, moveTo]);
+
   // A paused pass frames its path and the observer, again after a switch
   // between the globe and Mercator; Back to live (or closing the row) returns
   // the camera to where it was (or the new view's home, after a switch).
@@ -1514,34 +1577,7 @@ export default function FlatMap({
       // corrected, then put back before the eased move. Those trial jumps are
       // ours (selfJump), so nothing else reacts to them.
       center = [observer.lonDeg, observer.latDeg];
-      if (ring && ring.length > 2) {
-        const was = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
-        const availW = w - pad.left - pad.right;
-        const availH = h - pad.top - pad.bottom;
-        selfJump.current = true;
-        try {
-          for (let i = 0; i < 4; i++) {
-            map.jumpTo({ center, zoom });
-            const o = map.project(center);
-            let mx = 0;
-            let my = 0;
-            for (const [lon, lat] of ring) {
-              const q = map.project([lon, lat]);
-              mx = Math.max(mx, Math.abs(q.x - o.x));
-              my = Math.max(my, Math.abs(q.y - o.y));
-            }
-            const scale = Math.min(availW / (2 * mx), availH / (2 * my));
-            if (!Number.isFinite(scale) || scale <= 0) break;
-            const next = Math.min(7, Math.max(map.getMinZoom(), zoom + Math.log2(scale)));
-            const done = Math.abs(next - zoom) < 0.01;
-            zoom = next;
-            if (done) break;
-          }
-        } finally {
-          map.jumpTo(was);
-          selfJump.current = false;
-        }
-      }
+      if (ring && ring.length > 2) zoom = fitRingZoom(map, center, ring, pad, zoom);
     }
     atHome.current = false;
     if (switched) map.jumpTo({ center, zoom });

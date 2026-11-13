@@ -325,7 +325,7 @@ export default function RadioChartModalView({
                     className="chart-modal__mhz"
                     type="number"
                     step="0.001"
-                    placeholder="e.g. 145.800"
+                    placeholder="Custom MHz"
                     enterKeyHint="go"
                     onBlur={(ev) => applyCustom(ev.currentTarget.value)}
                     onKeyDown={(ev) => {

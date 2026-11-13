@@ -9,6 +9,7 @@ import LivePassBar from "@/components/live/LivePassBar";
 import LiveLight from "@/components/live/LiveLight";
 import LiveDopplerCurve from "@/components/live/LiveDopplerCurve";
 import LiveDock from "@/components/live/LiveDock";
+import NightToggle from "@/components/NightToggle";
 import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
 import { useMediaQuery } from "@/lib/ui/use-media-query";
 import { LIVE_DOCK_HOST_ID } from "@/lib/live/dock-store";
@@ -148,6 +149,16 @@ export default function LiveView({
       : live.phase === "during" ? `Sets in ${clock(live.msToSet!)}`
         : "This pass is over.";
   const peak = live && live.msToPeak != null ? `Peak ${Math.round(live.peakElDeg)}° in ${clock(live.msToPeak)}` : null;
+  // Climbing or sinking: the height a few seconds on.
+  const soon = samples.length ? stateAt(samples, now + 4000) : null;
+  const climbing = live?.elDeg != null && soon?.elDeg != null ? soon.elDeg >= live.elDeg : null;
+  const away = live?.rangeKm != null ? `${Math.round(live.rangeKm).toLocaleString()} km away` : null;
+  // Under the big reading: before rise the peak (the hero has the countdown
+  // and direction); during, the set countdown, peak and range; else the status.
+  const statusParts = (!live ? [status]
+    : live.phase === "before" ? [peak]
+      : live.phase === "during" ? [status, peak, away]
+        : [status]).filter((x): x is string => Boolean(x));
   const turn = live && live.azDeg != null && heading != null ? hint(live.azDeg, heading).text : null;
   const tune = tuneOf(live, freqHz);
   // Screen readers hear the phase change, not every tick of the countdown.
@@ -161,8 +172,34 @@ export default function LiveView({
       <div className="live-view">
         <p className="live-view__sub">{`From ${obs.name}`}</p>
         <p className="sr-only" aria-live="polite">{phaseText}</p>
+        {/* Where to look, big: the reading that matters most at the eyepiece
+            or the antenna. The countdowns and range sit under it. */}
+        {live && live.azDeg != null && live.phase !== "after" && (
+          <div className="live-view__hero num">
+            <p className="live-view__hero-item">
+              <span className="live-view__hero-label">Look</span>
+              <span className="live-view__hero-value">{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</span>
+            </p>
+            {live.phase === "during" && live.elDeg != null ? (
+              <p className="live-view__hero-item">
+                <span className="live-view__hero-label">Up</span>
+                <span className="live-view__hero-value">
+                  {`${Math.round(live.elDeg)}°`}
+                  {climbing != null && (
+                    <span className="live-view__trend" aria-label={climbing ? "climbing" : "sinking"}>{climbing ? "↑" : "↓"}</span>
+                  )}
+                </span>
+              </p>
+            ) : (
+              <p className="live-view__hero-item">
+                <span className="live-view__hero-label">Rises in</span>
+                <span className="live-view__hero-value">{live.msToRise != null ? clock(live.msToRise) : ""}</span>
+              </p>
+            )}
+          </div>
+        )}
         <p className="live-view__status">
-          <strong>{status}</strong>{peak && <span>{` · ${peak}`}</span>}
+          {statusParts.map((x, i) => (i === 0 ? <strong key={i}>{x}</strong> : <span key={i}>{` · ${x}`}</span>))}
         </p>
         {span && live && live.phase !== "after" && (() => {
           const start = startOf(pass, span.firstMs);
@@ -187,13 +224,7 @@ export default function LiveView({
         />
         {turn && <p className="live-view__turn">{turn}</p>}
         {compassNote && <p className="note">{compassNote}</p>}
-        {live && live.azDeg != null && live.elDeg != null && (
-          <dl className="kv live-view__nums num">
-            <Surface><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></Surface>
-            <Surface><dt>Elevation</dt><dd>{`${Math.round(live.elDeg)}°`}</dd></Surface>
-            <Surface><dt>Range</dt><dd>{`${Math.round(live.rangeKm!).toLocaleString()} km`}</dd></Surface>
-          </dl>
-        )}
+
         {mode === "visual" ? (
           span && live && (
             <LiveLight track={track} obs={obs} startMs={span.firstMs} endMs={span.lastMs} nowMs={now} phase={live.phase} />
@@ -253,6 +284,8 @@ export default function LiveView({
           )}
           <Button size="sm" onClick={() => onChart("sky")}>Sky chart</Button>
           <Button size="sm" onClick={() => onChart("radio")}>Radio chart</Button>
+          {/* Outside in the dark: dim red, without leaving the view. */}
+          <NightToggle />
         </div>
       </div>
   );

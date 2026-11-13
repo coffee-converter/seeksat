@@ -981,8 +981,16 @@
   /* A long downlink name would push the menu past the dialog's edge. */
   .chart-modal__freq { max-width: 100%; min-width: 0; flex: 1 1 auto; }
   /* Phones: the tools and Close first, then what to tune, then the uplink. */
-  .chart-modal__tune { order: 1; flex: 1 1 100%; }
+  .chart-modal__tune { order: 1; flex: 1 1 100%; flex-wrap: nowrap; }
   .chart-modal__uplink { order: 2; }
+  /* Kept short, so more of the chart shows: the menu and a narrow custom
+     field share one row (the field's placeholder says MHz), and the tools
+     stay on one line, scrolling sideways if they must. */
+  .chart-modal__custom > span[aria-hidden="true"] { display: none; }
+  .chart-modal__custom { flex: 0 0 auto; }
+  .chart-modal__mhz { width: 88px; }
+  .chart-modal__tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .chart-modal__tools::-webkit-scrollbar { display: none; }
 }
 /* Radio chart on phones: a phone-width chart with a heading, tiles and a tune
    table, in place of the shrunken desktop image. --phone is only set at
@@ -1500,7 +1508,13 @@
 .live-view { display: flex; flex-direction: column; gap: var(--sp-12); }
 /* Sits under the Modal's title, as its subtitle. */
 .live-view__sub { margin: calc(-1 * var(--sp-8)) 0 0; color: var(--map-muted); font-size: var(--fs-md); }
-.live-view__status { margin: 0; font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
+/* Where to look, big: two readings side by side. */
+.live-view__hero { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); margin: 0; container-type: inline-size; }
+.live-view__hero-item { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0; }
+.live-view__hero-label { color: var(--map-muted); font-size: var(--fs-sm); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.08em; }
+.live-view__hero-value { color: var(--text-strong); font-size: var(--fs-hero); font-weight: var(--fw-semibold); line-height: var(--lh-tight); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.live-view__trend { margin-left: var(--sp-4); color: var(--map-accent); font-size: 0.7em; }
+.live-view__status { margin: 0; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
 .live-view__status strong { color: var(--text-strong); }
 .live-view__status span { color: var(--map-muted); }
 .live-view__turn { margin: calc(-1 * var(--sp-4)) 0 0; text-align: center; font-size: var(--fs-xl); font-weight: var(--fw-semibold); color: var(--accent); }
@@ -1543,7 +1557,11 @@
   paint-order: stroke; stroke: var(--panel); stroke-width: 3; stroke-linejoin: round;
 }
 .live-dial__label--ring { fill: var(--map-muted); font-weight: var(--fw-regular); }
-.live-dial__arrow { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+/* The rise, peak and set times: small, beside a dot on the point they name. */
+.live-dial__label--time { fill: var(--map-muted); }
+.live-dial__mark-dot { fill: var(--map-text); stroke: var(--panel); stroke-width: 1.2; }
+/* Centre to satellite: a light dashed pointer, never mistaken for the track. */
+.live-dial__arrow { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 3; stroke-linecap: round; opacity: 0.8; }
 .live-dial__sat { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
 /* The one thing that moves on its own: a soft ring swelling from the dot.
    Still under reduced motion. */

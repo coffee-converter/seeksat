@@ -14,6 +14,7 @@ import { useMapScene } from "@/lib/map/scene-store";
 import { useHomeStore, watchPrefs } from "@/lib/home/store";
 import { useFollow } from "@/lib/map/follow-store";
 import { useMapClock } from "@/lib/map/map-clock";
+import { reverseGeocodeName } from "@/lib/pass-finder/geocode.js";
 import { usePassViewStore } from "@/lib/ui/pass-view";
 import { setPendingCamera } from "@/lib/map/share-camera";
 import { LIVE_DOCK_HOST_ID, useLiveDock } from "@/lib/live/dock-store";
@@ -107,6 +108,8 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     const step = followStep(dockFollow.current, { dockId, shownId, publishedId, following });
     dockFollow.current = step.state;
     if (step.follow != null) setFollowing(step.follow);
+    // Locking on for the live view also zooms so its footprint fills the map.
+    if (step.follow === true && dockId != null) useFollow.getState().fitFootprint();
   }, [dockId, shownId]);
 
   // A new page starts at the top of the panel, but the first render does not.
@@ -118,6 +121,25 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     }
     document.querySelector(".map-shell__panel")?.scrollTo(0, 0);
   }, [pathname]);
+
+  // A location typed as coordinates or a grid square is named after the
+  // numbers; it is looked up once and given a place name ("Mendoza,
+  // Argentina"; a grid square keeps its locator in front). No name found
+  // (offline, open ocean): it keeps the numbers.
+  const loc = useHomeStore((s) => s.prefs.location);
+  useEffect(() => {
+    if (!loc || (loc.source !== "coords" && loc.source !== "grid")) return;
+    const numbersOnly = loc.source === "coords" ? /^-?\d+(\.\d+)?, -?\d+(\.\d+)?$/.test(loc.name) : !loc.name.includes(" ");
+    if (!numbersOnly) return;
+    let gone = false;
+    void (reverseGeocodeName as (lat: number, lon: number) => Promise<string | null>)(loc.latDeg, loc.lonDeg).then((place) => {
+      if (gone || !place) return;
+      const now = useHomeStore.getState().prefs.location;
+      if (!now || now.latDeg !== loc.latDeg || now.lonDeg !== loc.lonDeg || now.name !== loc.name) return;
+      useHomeStore.getState().setPrefs({ location: { ...now, name: loc.source === "grid" ? `${loc.name} · ${place}` : place } });
+    });
+    return () => { gone = true; };
+  }, [loc]);
 
   // Paused on a pass: stacked layouts give the map more of the screen.
   const mapPaused = useMapClock((s) => s.paused != null);

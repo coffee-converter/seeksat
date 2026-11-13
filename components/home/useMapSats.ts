@@ -126,7 +126,7 @@ export function useMapSats({
         ? (footprintRadiusDeg as (altKm: number, minElevDeg: number) => number)(reachAlt, (geometricElevFor as (d: number) => number)(minElevDeg))
         : null;
       const reachDeg = radius != null && radius <= MAX_RING_DEG ? radius : null;
-      return { noradId: pass.noradId, path: path as Shape, sunlit, shadow, ends, peak: peak && { lonDeg: peak.lonDeg, latDeg: peak.latDeg }, reachDeg };
+      return { noradId: pass.noradId, path: path as Shape, sunlit, shadow, ends, peak: peak && { lonDeg: peak.lonDeg, latDeg: peak.latDeg, altKm: peak.altKm }, reachDeg };
     } catch {
       return null;
     }
@@ -174,7 +174,10 @@ export function useMapSats({
           passShadow: passShape.shadow,
           passEnds: passShape.ends,
           ...(pass?.ring && passShape.reachDeg != null && { passRing: pass.ring }),
-          ...(passShape.peak && { passPeak: passShape.peak }),
+          // Paused, the sight line runs to the closest approach; live, to
+          // where it is now (drawn with the marks, while it is up).
+          ...(pausedId === noradId && passShape.peak && { passPeak: passShape.peak }),
+          ...(pausedId !== noradId && { passLive: true }),
           ...(passShape.reachDeg != null && { passReachDeg: passShape.reachDeg }),
         }),
       });

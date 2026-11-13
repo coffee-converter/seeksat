@@ -437,10 +437,12 @@ export default function HomeApp({ initialRecords = [] }: Props) {
 
   // One set of chart modals for the pass list and the 24 hour strip.
   const { open: openChart, modals: chartModals } = usePassCharts(observer, prefs.minElevDeg, prefs.mode);
-  const openTimelinePass = useCallback((noradId: number, pass: Pass, e: React.MouseEvent<HTMLButtonElement>) => {
-    const track = allTracks.get(noradId);
-    if (track) openChart("sky", track, pass, e);
-  }, [allTracks, openChart]);
+  // A timeline bar opens that pass's card (the map pauses on it), as the
+  // Best line does; the card has the charts.
+  const [openRequest, setOpenRequest] = useState<{ noradId: number; pass: Pass; n: number } | null>(null);
+  const openTimelinePass = useCallback((noradId: number, pass: Pass) => {
+    setOpenRequest((r) => ({ noradId, pass, n: (r?.n ?? 0) + 1 }));
+  }, []);
 
   // Cloud forecasts for visual passes; radio mode never fetches them.
   const clouds = useClouds(location, prefs.mode === "visual");
@@ -539,6 +541,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
               clouds={clouds}
               skyType={prefs.skyType}
               onOpenRow={setOpenRow}
+              openRequest={openRequest}
             />
           )}
           <InstallNote show={showList && nowMs != null} />

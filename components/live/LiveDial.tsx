@@ -56,6 +56,8 @@ export default function LiveDial({ track, now, nowMs, headingDeg, timeZone }: Pr
       ...track[i], before: track[Math.max(0, i - SIDE)], after: track[Math.min(iLast, i + SIDE)],
     });
     const out: Mark[] = [];
+    // The rise too, when the track starts at the horizon.
+    if (track[0].elDeg < 1 && iPeak !== 0) out.push(mark(0));
     if (iPeak !== 0 && iPeak !== iLast) out.push(mark(iPeak));
     if (track[iLast].elDeg < 1) out.push(mark(iLast));
     return { marks: out, ringAz: (track[iPeak].azDeg + 180) % 360 };
@@ -103,10 +105,15 @@ export default function LiveDial({ track, now, nowMs, headingDeg, timeZone }: Pr
           const [ax, ay] = point(m.before.azDeg, m.before.elDeg, rot);
           const [bx, by] = point(m.after.azDeg, m.after.elDeg, rot);
           const at = spotOf(x, y, R, bx - ax, by - ay);
+          // A dot on the point the time names, so it is plain which it is.
           return (
-            <text key={m.tMs} x={at.x} y={at.y + 4} textAnchor={at.anchor} className="live-dial__label num">
-              {clock.format(m.tMs)}
-            </text>
+            <g key={m.tMs}>
+              <circle cx={x} cy={y} r={2.6} className="live-dial__mark-dot" />
+              {/* In the dial's own units (it scales with the dial), smaller than the ring labels. */}
+              <text x={at.x} y={at.y + 3} textAnchor={at.anchor} style={{ fontSize: 8.5 }} className="live-dial__label live-dial__label--time num">
+                {clock.format(m.tMs)}
+              </text>
+            </g>
           );
         })}
         {p && <line x1={0} y1={0} x2={p[0]} y2={p[1]} className="live-dial__arrow" />}

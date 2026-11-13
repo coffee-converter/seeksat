@@ -163,7 +163,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-sight-label', 'ss-marks', 'ss-live-sight', 'ss-live-sight-label', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -399,4 +399,18 @@ test('an opened pass draws its path and a sight line from the observer to its pe
   assert.deepEqual(f.map((x) => x.properties.part).sort(), ['shadow', 'sunlit']);
   // No peak, no observer: path only.
   assert.equal(overlayData({ sats: [{ ...sat, passPeak: undefined }] })['ss-pass'].features.length, 1);
+});
+
+test('a live open pass draws a sight line with the distance, only while the satellite is up', async () => {
+  const { awayText, altText } = await import('../lib/map/overlays.mjs');
+  assert.equal(altText(421.4), '421 km up');
+  assert.equal(awayText(1578.2), '1,578 km away');
+  const observer = { latDeg: 40, lonDeg: -90 };
+  const up = { ...SATS[0], position: { lonDeg: -88, latDeg: 41 }, altKm: 420, passLive: true };
+  const sight = overlayData({ sats: [up], observer })['ss-marks'].features.filter((f) => f.properties.kind === 'sight');
+  assert.equal(sight.length, 1);
+  assert.match(sight[0].properties.label, /^\d[\d,]* km away$/);
+  // Below the horizon (half a world away): no line.
+  const down = { ...up, position: { lonDeg: 90, latDeg: -40 } };
+  assert.equal(overlayData({ sats: [down], observer })['ss-marks'].features.filter((f) => f.properties.kind === 'sight').length, 0);
 });

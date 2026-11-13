@@ -105,6 +105,8 @@ interface Props {
   skyType: string;
   /** The row the viewer opened (its satellite and pass), or null when all are closed. */
   onOpenRow: (open: OpenPassRow | null) => void;
+  /** A pass to open from outside the list (a timeline bar); `n` counts requests. */
+  openRequest?: { noradId: number; pass: Pass; n: number } | null;
 }
 
 
@@ -124,7 +126,7 @@ function fullyInView(row: HTMLElement): boolean {
 
 export default function PassList({
   cards: followedCards, viewingCard = null, tracks, colors, observer, mode, minElevDeg, nowMs, onModeChange,
-  zoneNote = null, strip, headAction = null, onUnfollow, onFollow, followBlocked, openChart, clouds = null, skyType, onOpenRow,
+  zoneNote = null, strip, headAction = null, onUnfollow, onFollow, followBlocked, openChart, clouds = null, skyType, onOpenRow, openRequest = null,
 }: Props) {
   const baseId = useId();
   const headingId = `${baseId}-title`;
@@ -257,6 +259,22 @@ export default function PassList({
     setOpenKey(bestKey);
     scrollTo.current = bestKey;
   };
+  // A timeline bar opens its pass's row, as the Best line does.
+  const handled = useRef(0);
+  useEffect(() => {
+    if (!openRequest || openRequest.n === handled.current) return;
+    handled.current = openRequest.n;
+    const { noradId, pass } = openRequest;
+    const key = viewingCard?.noradId === noradId && viewingCard.kind === "pass" && viewingCard.pass.startMs === pass.startMs
+      ? pinnedKey
+      : keyOf(noradId, pass);
+    if (!key) return;
+    if (!keys.includes(key)) setShowAll(true);
+    setOpenKey(key);
+    scrollTo.current = key;
+    // keys and the viewing card are read when a request arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest]);
   useEffect(() => {
     const key = scrollTo.current;
     if (!key) return;

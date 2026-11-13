@@ -8,14 +8,12 @@ export function utcClock(ms: number): string {
   return new Date(ms).toISOString().slice(11, 19);
 }
 
-/** "14:12:07 CST", in `timeZone` or the browser's zone. */
+/** "2:12:07 PM CST" (or "14:12:07 CST", as the viewer's clock is set), in
+ *  `timeZone` or the browser's zone. */
 export function localClock(ms: number, timeZone?: string): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-    timeZoneName: "short", timeZone,
-  }).formatToParts(new Date(ms));
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("hour")}:${get("minute")}:${get("second")} ${get("timeZoneName")}`.trim();
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short", timeZone,
+  }).format(new Date(ms));
 }
 
 /**
