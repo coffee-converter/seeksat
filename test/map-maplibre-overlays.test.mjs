@@ -66,7 +66,7 @@ test('addOverlays passes the sdf flag and adds layers in order', () => {
   assert.deepEqual(dot.options, { sdf: true });
   assert.deepEqual({ width: dot.image.width, height: dot.image.height }, { width: 2, height: 2 });
   assert.deepEqual([...map.layers.keys()], ['a', 'b']);
-  assert.deepEqual(map.sources.get('src-a').spec, { type: 'geojson', data: empty });
+  assert.deepEqual(map.sources.get('src-a').spec, { type: 'geojson', data: empty, maxzoom: 12 });
 });
 
 test('setOverlayData updates only sources that exist and are given', () => {
@@ -91,4 +91,16 @@ test('addOverlays adds a custom layer once, below the past track', () => {
   assert.equal(map.calls.addLayer, 3);
   assert.deepEqual([...map.layers.keys()], ['a', 'ss-footprint-globe', 'ss-track-past']);
   assert.equal(map.layers.get('ss-footprint-globe'), custom);
+});
+
+test('setOverlayData skips data a source already holds', () => {
+  const calls = [];
+  const source = { setData: (d) => calls.push(d) };
+  const map = { getSource: (id) => (id === 'a' ? source : undefined) };
+  const fc = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [1, 2] }, properties: {} }] };
+  setOverlayData(map, { a: fc, b: fc });
+  setOverlayData(map, { a: JSON.parse(JSON.stringify(fc)) });
+  assert.equal(calls.length, 1);
+  setOverlayData(map, { a: { type: 'FeatureCollection', features: [] } });
+  assert.equal(calls.length, 2);
 });

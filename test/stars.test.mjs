@@ -189,3 +189,17 @@ test('the Sun and Moon change size with distance through the year and month', ()
   const d = Array.from({ length: 30 }, (_, i) => moonDistanceKm(new Date(Date.UTC(2026, 10, 1 + i))));
   assert.ok(Math.min(...d) < 365_000 && Math.max(...d) > 400_000, `${Math.min(...d)} ${Math.max(...d)}`);
 });
+
+test('a pre-styled Milky Way draws exactly as styling each frame does', async () => {
+  const { styleMilkyWay } = await import('../lib/map/stars.mjs');
+  const w = 64, h = 32;
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < data.length; i += 4) { data[i] = (i * 7) % 256; data[i + 1] = (i * 13) % 256; data[i + 2] = (i * 3) % 256; data[i + 3] = 255; }
+  const sky = { data, width: w, height: h };
+  const floor = skyFloor(data);
+  const cam = { lonDeg: 20, latDeg: 30, bearingDeg: 0, fovDeg: 37, width: 200, height: 120 };
+  const a = new Uint8ClampedArray(40 * 24 * 4), b = new Uint8ClampedArray(40 * 24 * 4);
+  renderMilkyWay(sky, floor, a, 40, 24, 5, cam, 0.3);
+  renderMilkyWay(styleMilkyWay(sky, floor), floor, b, 40, 24, 5, cam, 0.3);
+  assert.deepEqual(b, a);
+});
