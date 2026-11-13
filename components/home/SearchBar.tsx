@@ -26,9 +26,12 @@ interface Props {
   onView: (noradId: number) => void;
   /** Esc in an empty search with the list closed: leave focus. */
   onClearFocus: () => void;
+  /** After following from the results: the search is done (the phone's
+   *  search row closes). */
+  onDone?: () => void;
 }
 
-export function SearchBar({ onView, onClearFocus }: Props) {
+export function SearchBar({ onView, onClearFocus, onDone }: Props) {
   const uid = useId();
   const listId = `${uid}-list`;
   const [text, setText] = useState("");
@@ -104,7 +107,21 @@ export function SearchBar({ onView, onClearFocus }: Props) {
     }, DEBOUNCE_MS);
   }
 
-  // The Follow button: follow or unfollow, keeping the list open.
+  /** Empty the search and close its list. */
+  function reset() {
+    if (timer.current) clearTimeout(timer.current);
+    abort.current?.abort();
+    setLimitError(null);
+    setOpen(false);
+    setText("");
+    setResults([]);
+    setStatus("idle");
+    setActive(-1);
+  }
+
+  // The Follow button: following is what the search was for, so it empties
+  // the search and closes it (the new chip or Following count shows it);
+  // Unfollow keeps the list open. Following does not select the satellite.
   function toggleFollow(r: Result) {
     if (following.includes(r.noradId)) {
       setLimitError(null);
@@ -118,18 +135,13 @@ export function SearchBar({ onView, onClearFocus }: Props) {
       return;
     }
     follow(r.noradId);
+    reset();
+    onDone?.();
   }
 
   function choose(r: Result) {
-    if (timer.current) clearTimeout(timer.current);
-    abort.current?.abort();
+    reset();
     onView(r.noradId);
-    setLimitError(null);
-    setOpen(false);
-    setText("");
-    setResults([]);
-    setStatus("idle");
-    setActive(-1);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

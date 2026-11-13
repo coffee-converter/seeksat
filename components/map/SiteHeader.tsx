@@ -83,6 +83,11 @@ export default function SiteHeader() {
         <SearchBar
           onView={onView}
           onClearFocus={onClearFocus}
+          onDone={() => {
+            if (!findOpen) return;
+            setFindOpen(false);
+            findButtonRef.current?.focus();
+          }}
         />
       </div>
       <div className="map-shell__end">
