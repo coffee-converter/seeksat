@@ -31,7 +31,7 @@ test('in-progress first', () => {
   const first = groups[0].rows[0];
   assert.equal(first.name, 'B');
   assert.equal(first.now, true);
-  assert.equal(rowWhen(first.pass, NOW, 'UTC').sub, 'Now');
+  assert.equal(rowWhen(first.pass, NOW, 'UTC').time, 'Now');
 });
 
 test("groups by the place's day", () => {
@@ -95,7 +95,7 @@ test('a pass that started after the cards were made reads Now and sorts first', 
   const { groups } = passList({ cards: [b, a], nowMs: NOW, timeZone: 'UTC' });
   assert.equal(groups[0].rows[0].name, 'A');
   assert.equal(groups[0].rows[0].now, true);
-  assert.equal(rowWhen(a.pass, NOW, 'UTC').sub, 'Now');
+  assert.equal(rowWhen(a.pass, NOW, 'UTC').time, 'Now');
 });
 
 test('a pass that has ended drops out before the next refresh', () => {
@@ -104,11 +104,11 @@ test('a pass that has ended drops out before the next refresh', () => {
   assert.equal(groups.flatMap((g) => g.rows).length, 1);
 });
 
-test('a pass under way is keyed and timed by its rise, the same before and after it starts', () => {
+test('a pass under way is keyed by its rise, the same before and after it starts, and reads Now', () => {
   const before = p('2026-11-12T19:58:00Z', 5, 40, 0, 90);
   const under = { ...p('2026-11-12T20:00:00Z', 3, 40, 0, 90, { inProgress: true }), riseMs: before.startMs + 5_000 };
   assert.equal(passKey(1, before), passKey(1, under));
-  assert.deepEqual(rowWhen(under, NOW, 'UTC'), { time: '7:58 PM', sub: 'Now' });
+  assert.deepEqual(rowWhen(under, NOW, 'UTC'), { time: 'Now', sub: 'until 8:03 PM' });
 });
 
 test('a pass up since before its rise could be found is "now", to its set time or staying up', () => {
@@ -116,7 +116,7 @@ test('a pass up since before its rise could be found is "now", to its set time o
   const later = { ...cut, startMs: cut.startMs + 10 * 60_000 };
   assert.equal(passKey(1, cut), '1:now');
   assert.equal(passKey(1, cut), passKey(1, later));
-  assert.deepEqual(rowWhen(cut, NOW, 'UTC'), { time: 'Now', sub: 'to 8:30 PM' });
+  assert.deepEqual(rowWhen(cut, NOW, 'UTC'), { time: 'Now', sub: 'until 8:30 PM' });
   assert.deepEqual(rowWhen({ ...cut, runsPastEnd: true }, NOW, 'UTC'), { time: 'Now', sub: 'stays up' });
 });
 

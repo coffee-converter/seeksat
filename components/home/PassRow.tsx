@@ -70,7 +70,11 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
     <li ref={ref} className={cx("pass-row", open && "pass-row--open", className)} style={{ "--sat-color": color } as CSSProperties}>
       <button ref={headRef} type="button" className="pass-row__btn" aria-expanded={open && !closing} aria-controls={id} onClick={(e) => click(e.currentTarget)}>
         <span className="pass-row__when">
-          <span className="pass-row__time">{time}</span>
+          <span className="pass-row__time">
+            {/* Under way: a small live dot, as the header clock's. */}
+            {now && <span className="pass-row__now-dot" aria-hidden="true" />}
+            {time}
+          </span>
           {sub && <span className={cx("pass-row__sub", now && "pass-row__sub--now")}>{sub}</span>}
         </span>
         <span className="pass-row__what">
