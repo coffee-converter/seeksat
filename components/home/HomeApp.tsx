@@ -32,6 +32,7 @@ import AboutSection from "./AboutSection";
 import InstallNote from "./InstallNote";
 import SiteFooter from "./SiteFooter";
 import { usePublishMapScene } from "@/lib/map/scene-store";
+import { useLiveDock } from "@/lib/live/dock-store";
 import ClockSkewBanner from "@/components/passes/ClockSkewBanner";
 import Button from "@/components/ui/Button";
 import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
@@ -215,13 +216,17 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // The satellite of the open pass row stands out on the map, without the
   // camera moving to it (so it is not the scene's selectedId).
   const [highlightId, setHighlightId] = useState<number | null>(null);
+  // A live view docked in the panel selects its satellite on the map while
+  // it is open; closing it goes back to the focus (or none).
+  const liveId = useLiveDock((s) => s.noradId);
+  const mapFocusId = liveId ?? focusId;
   const layers = useMemo(() => layersOf({
     followed: prefs.following,
     hidden: prefs.hidden,
-    focusId,
+    focusId: mapFocusId,
     viewing: (viewing?.noradId as number | undefined) ?? null,
     highlightId,
-  }), [prefs.following, prefs.hidden, focusId, viewing, highlightId]);
+  }), [prefs.following, prefs.hidden, mapFocusId, viewing, highlightId]);
   const showAll = useMemo(
     () => countOf(layersOf({ followed: prefs.following, hidden: prefs.hidden, focusId: null, viewing: null })),
     [prefs.following, prefs.hidden],
@@ -434,7 +439,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     observer: location,
     projectionId: prefs.projection,
     onProjectionChange: (id) => setPrefs({ projection: id }),
-    selectedId: focusId,
+    selectedId: mapFocusId,
     minElevDeg: prefs.minElevDeg,
     onSelect: focusOn,
     top: focusId != null && (

@@ -1399,6 +1399,23 @@
 .live-view__tune-mode { font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--map-muted); }
 .live-view__doppler { margin: var(--sp-2) 0 0; font-variant-numeric: tabular-nums; }
 .live-view__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+/* Docked in the desktop panel (components/live/LiveDock.tsx): the panel's
+   own content hides while the dock host holds it, and stays mounted. The
+   empty host makes no box, so it adds no gap. */
+.live-dock-host { display: contents; }
+@media (min-width: 1100px) {
+  .map-shell__panel:has(> .live-dock-host > .live-dock) > :not(.live-dock-host) { display: none; }
+}
+.live-dock { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; container: live-dock / inline-size; }
+.live-dock__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-8); }
+.live-dock__title { min-width: 0; overflow-wrap: anywhere; }
+.live-dock__title:focus { outline: none; }
+.live-dock__title:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
+/* The 380 px panel: smaller readouts so three tiles and the frequency fit. */
+@container live-dock (max-width: 400px) {
+  .live-view__nums { gap: var(--sp-6); }
+  .live-view__nums dd { font-size: var(--fs-lg); }
+}
 @media (max-width: 380px) {
   .live-view__tune-mhz { font-size: var(--fs-2xl); }
 }

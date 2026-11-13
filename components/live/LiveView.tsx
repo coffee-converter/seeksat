@@ -8,6 +8,10 @@ import LiveDial from "@/components/live/LiveDial";
 import LivePassBar from "@/components/live/LivePassBar";
 import LiveLight from "@/components/live/LiveLight";
 import LiveDopplerCurve from "@/components/live/LiveDopplerCurve";
+import LiveDock from "@/components/live/LiveDock";
+import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
+import { useMediaQuery } from "@/lib/ui/use-media-query";
+import { LIVE_DOCK_HOST_ID } from "@/lib/live/dock-store";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
@@ -148,10 +152,12 @@ export default function LiveView({
   const tune = tuneOf(live, freqHz);
   // Screen readers hear the phase change, not every tick of the countdown.
   const phaseText = !live ? "" : live.phase === "before" ? "Not up yet." : live.phase === "during" ? "The satellite is up." : "This pass is over.";
-  // The Modal traps focus, closes on Esc (before the page's own Esc) and
-  // starts focus on Close.
-  return (
-    <Modal open onClose={onClose} title={`${track.shortName} live`} size="full">
+  // From 1100 px it docks in the panel beside the map (on a map page);
+  // narrower, it takes over the screen. A resize across switches between them.
+  const wide = useMediaQuery(DOCKED_QUERY);
+  const docked = wide && document.getElementById(LIVE_DOCK_HOST_ID) != null;
+  const title = `${track.shortName} live`;
+  const body = (
       <div className="live-view">
         <p className="live-view__sub">{`From ${obs.name}`}</p>
         <p className="sr-only" aria-live="polite">{phaseText}</p>
@@ -249,6 +255,12 @@ export default function LiveView({
           <Button size="sm" onClick={() => onChart("radio")}>Radio chart</Button>
         </div>
       </div>
-    </Modal>
+  );
+  // The Modal traps focus, closes on Esc (before the page's own Esc) and
+  // starts focus on Close; the dock starts it on the heading.
+  return docked ? (
+    <LiveDock title={title} noradId={track.noradId} onClose={onClose}>{body}</LiveDock>
+  ) : (
+    <Modal open onClose={onClose} title={title} size="full">{body}</Modal>
   );
 }

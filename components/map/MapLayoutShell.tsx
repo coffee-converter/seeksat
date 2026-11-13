@@ -14,6 +14,8 @@ import { useMapScene } from "@/lib/map/scene-store";
 import { useHomeStore, watchPrefs } from "@/lib/home/store";
 import { useFollow } from "@/lib/map/follow-store";
 import { setPendingCamera } from "@/lib/map/share-camera";
+import { LIVE_DOCK_HOST_ID, useLiveDock } from "@/lib/live/dock-store";
+import { dockFollowStep } from "@/lib/live/dock-follow.mjs";
 import { parseView, stripView } from "@/lib/share/view-link.mjs";
 import { currentViewUrl } from "@/lib/share/current-view";
 import ShareButton from "@/components/sat/ShareButton";
@@ -49,6 +51,11 @@ function SharedViewBanner({ at }: { at: "map" | "panel" }) {
 
 const noop = () => {};
 
+type DockFollow = { id: number; prev: boolean; on: boolean } | null;
+const followStep = dockFollowStep as (state: DockFollow, now: {
+  dockId: number | null; shownId: number | null; publishedId: number | null; following: boolean;
+}) => { state: DockFollow; follow: boolean | null };
+
 export default function MapLayoutShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const scene = useMapScene((s) => s.scene);
@@ -83,6 +90,22 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     // Once, on the page the link opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The live view docked in the panel locks the camera on its satellite
+  // once the map shows it selected, and closing puts Lock on back as it was
+  // once the map is back on the page's own selection (lib/live/dock-follow).
+  // An effect here runs after FlatMap's, which turns Lock on off on a new
+  // selection.
+  const dockId = useLiveDock((s) => s.noradId);
+  const shownId = scene?.selectedId ?? null;
+  const dockFollow = useRef<DockFollow>(null);
+  useEffect(() => {
+    const { following, setFollowing } = useFollow.getState();
+    const publishedId = useMapScene.getState().scene?.selectedId ?? null;
+    const step = followStep(dockFollow.current, { dockId, shownId, publishedId, following });
+    dockFollow.current = step.state;
+    if (step.follow != null) setFollowing(step.follow);
+  }, [dockId, shownId]);
 
   // A new page starts at the top of the panel, but the first render does not.
   const first = useRef(true);
@@ -123,6 +146,8 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
         <>
           <SharedViewBanner at="panel" />
           {children}
+          {/* The docked live view (components/live/LiveDock) renders here. */}
+          <div id={LIVE_DOCK_HOST_ID} className="live-dock-host" />
         </>
       )}
     />
