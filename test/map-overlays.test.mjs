@@ -407,9 +407,14 @@ test('a live open pass draws a sight line with the distance, only while the sate
   assert.equal(awayText(1578.2), '1,578 km away');
   const observer = { latDeg: 40, lonDeg: -90 };
   const up = { ...SATS[0], position: { lonDeg: -88, latDeg: 41 }, altKm: 420, passLive: true };
-  const sight = overlayData({ sats: [up], observer })['ss-marks'].features.filter((f) => f.properties.kind === 'sight');
-  assert.equal(sight.length, 1);
-  assert.match(sight[0].properties.label, /^\d[\d,]* km away$/);
+  const marks = overlayData({ sats: [up], observer })['ss-marks'].features;
+  assert.equal(marks.filter((f) => f.properties.kind === 'sight').length, 1);
+  // The label rides the middle of the line, clear of the icons at its ends.
+  const label = marks.find((f) => f.properties.kind === 'sight-label');
+  assert.match(label.properties.label, /^\d[\d,]* km away$/);
+  const line = marks.find((f) => f.properties.kind === 'sight').geometry.coordinates;
+  assert.ok(label.geometry.coordinates.length < line.length);
+  assert.notDeepEqual(label.geometry.coordinates[0], line[0]);
   // Below the horizon (half a world away): no line.
   const down = { ...up, position: { lonDeg: 90, latDeg: -40 } };
   assert.equal(overlayData({ sats: [down], observer })['ss-marks'].features.filter((f) => f.properties.kind === 'sight').length, 0);

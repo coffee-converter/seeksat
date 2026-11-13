@@ -1083,6 +1083,10 @@
   scrollbar-width: none;
 }
 .sat-chips::-webkit-scrollbar { display: none; }
+/* The strip's own gaps and padding let the map have the pointer (its grab
+   hand), so moving off a chip never flashes the plain arrow in between. */
+.flat-map__top > .sat-chips { pointer-events: none; }
+.sat-chips > * { pointer-events: auto; }
 /* More chips past the edge (SatChips sets data-more): fade them out. */
 /* A mask uses only alpha, so currentColor stands for "opaque". */
 .sat-chips[data-more~="end"] { -webkit-mask-image: linear-gradient(to right, currentColor calc(100% - 32px), transparent); mask-image: linear-gradient(to right, currentColor calc(100% - 32px), transparent); }
