@@ -275,8 +275,14 @@ const LOCK_EASE_MS = 600;
 /** A far camera move flies (MapLibre flyTo): its arc, its speed (screens a
  *  second along the arc) and a cap, so a trip across the world stays brief. */
 const FLY_CURVE = 1.42;
-const FLY_SPEED = 1.4;
-const FLY_MAX_MS = 1800;
+const FLY_SPEED = 0.9;
+const FLY_MAX_MS = 2600;
+/** The angle (degrees) between two places on the Earth. */
+const arcDeg = (lon1: number, lat1: number, lon2: number, lat2: number) => {
+  const r = Math.PI / 180;
+  const h = Math.sin(((lat2 - lat1) * r) / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lon2 - lon1) * r) / 2) ** 2;
+  return (2 * Math.asin(Math.min(1, Math.sqrt(h)))) / r;
+};
 /** Lock on starts with an ease only when the satellite is this far (px) off centre. */
 const LOCK_EASE_PX = 4;
 /** Not following, the focus moves every frame only when it moves more than
@@ -525,11 +531,14 @@ export default function FlatMap({
     // A short move eases straight there. A far one (more than about a screen
     // away at this zoom, or a big change of zoom) flies: out, across, and back
     // in, so it never whips across tiles that are not loaded yet.
+    // Measured as an angle over the Earth against how much of it the screen
+    // spans (on the globe, the far side projects near the middle, so screen
+    // distance would call any jump short).
     const el = map.getContainer();
-    const span = Math.hypot(el.clientWidth || 1, el.clientHeight || 1);
-    const from = map.project(map.getCenter());
-    const to = map.project([nearLon(cam.center[0], map.getCenter().lng), cam.center[1]]);
-    const far = Math.hypot(to.x - from.x, to.y - from.y) > span || Math.abs((cam.zoom ?? map.getZoom()) - map.getZoom()) > 3;
+    const c = map.getCenter();
+    const zoom = Math.min(map.getZoom(), cam.zoom ?? map.getZoom());
+    const screenDeg = (360 * Math.max(el.clientWidth || 1, el.clientHeight || 1)) / (512 * 2 ** zoom);
+    const far = arcDeg(c.lng, c.lat, cam.center[0], cam.center[1]) > screenDeg || Math.abs((cam.zoom ?? map.getZoom()) - map.getZoom()) > 3;
     if (far) map.flyTo({ ...cam, curve: FLY_CURVE, speed: FLY_SPEED, maxDuration: FLY_MAX_MS, essential: false });
     else map.easeTo(cam);
   }, []);
