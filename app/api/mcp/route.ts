@@ -6,7 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool, getPassChartTool, bestPassTool,
-  searchSatellitesTool, radioPassTool,
+  searchSatellitesTool, radioPassTool, whatsUpNowTool,
 } from '@/lib/mcp/tools.mjs';
 import { getCatalogReader } from '@/lib/mirror/server.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
@@ -38,6 +38,7 @@ const deps = {
   // Stage 1 of the all-satellite radio scan, per 0.25 degree cell and hour
   // (lib/mcp/radio-scan.mjs). Lives as long as the server instance.
   radioScanCache: createLru(32),
+  skyCatalog: () => getCatalogReader().skyCatalog(),
 };
 
 const asText = (obj: unknown) => ({
@@ -269,6 +270,28 @@ const mcpHandler = createMcpHandler(
         const { tier, keyId } = getRequestContext();
         logUsage({ tool: 'best_pass', tier, keyId, satellite: args.satellite });
         try { return asResult(await bestPassTool(args, deps, tier)); } catch (e) { return asError(e); }
+      },
+    );
+
+    server.registerTool(
+      'whats_up_now',
+      {
+        title: 'Satellites up now',
+        description: 'What is in the sky over a location right now, from every satellite in the catalog (about 15,000). mode "visual" (default) lists sunlit satellites above minElevation while the sky is dark there (Sun below about -6 degrees), brightest first; most have no published brightness, so their magnitude is an estimate (magnitudeEstimated). mode "radio" lists satellites with known downlinks above minElevation, highest first, with their downlinks. Each has azimuth, elevation, range, sunlit, magnitude and a url to its page. For upcoming passes rather than this moment, use best_pass or find_passes.',
+        inputSchema: {
+          lat: z.number().min(-90).max(90).optional(),
+          lon: z.number().min(-180).max(180).optional(),
+          location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
+          mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = sunlit satellites in a dark sky, brightest first; "radio" = satellites with known downlinks, highest first.'),
+          minElevation: z.number().min(0).max(90).optional().describe('lowest elevation to list, in degrees. Default 10.'),
+          limit: z.number().int().positive().max(50).optional().describe('how many satellites to list. Default 10.'),
+        },
+        annotations: ONLINE,
+      },
+      async (args) => {
+        const { tier, keyId } = getRequestContext();
+        logUsage({ tool: 'whats_up_now', tier, keyId });
+        try { return asText(await whatsUpNowTool(args, deps)); } catch (e) { return asError(e); }
       },
     );
   },
