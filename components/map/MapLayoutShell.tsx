@@ -25,6 +25,9 @@ import ShareButton from "@/components/sat/ShareButton";
 import Button from "@/components/ui/Button";
 import SiteHeader from "./SiteHeader";
 
+/** Two decimals, about 1 km: where a lookup asks about, not the exact spot. */
+const roundKm = (deg: number) => Math.round(deg * 100) / 100;
+
 type ParsedView = {
   projection: string; lock: boolean; zoom: number | null; center: [number, number] | null;
   following: number[] | null; hidden: number[]; mode: "radio" | "visual" | null; freqHz: number | null;
@@ -127,37 +130,46 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
   // Argentina"; a grid square keeps its locator in front). No name found
   // (offline, open ocean): it keeps the numbers.
   const loc = useHomeStore((s) => s.prefs.location);
+  // Keyed on the values, not the object: every settings save makes a new one.
+  const locLat = loc?.latDeg;
+  const locLon = loc?.lonDeg;
+  const locName = loc?.name;
+  const locSource = loc?.source;
+  const locElev = loc?.elevM;
   useEffect(() => {
-    if (!loc || (loc.source !== "coords" && loc.source !== "grid")) return;
-    const numbersOnly = loc.source === "coords" ? /^-?\d+(\.\d+)?, -?\d+(\.\d+)?$/.test(loc.name) : !loc.name.includes(" ");
+    if (locLat == null || locLon == null || locName == null || (locSource !== "coords" && locSource !== "grid")) return;
+    const numbersOnly = locSource === "coords" ? /^-?\d+(\.\d+)?, -?\d+(\.\d+)?$/.test(locName) : !locName.includes(" ");
     if (!numbersOnly) return;
     let gone = false;
-    void (reverseGeocodeName as (lat: number, lon: number) => Promise<string | null>)(loc.latDeg, loc.lonDeg).then((place) => {
+    // Asked about the area (about 1 km), not the exact point.
+    void (reverseGeocodeName as (lat: number, lon: number) => Promise<string | null>)(roundKm(locLat), roundKm(locLon)).then((place) => {
       if (gone || !place) return;
       const now = useHomeStore.getState().prefs.location;
-      if (!now || now.latDeg !== loc.latDeg || now.lonDeg !== loc.lonDeg || now.name !== loc.name) return;
-      useHomeStore.getState().setPrefs({ location: { ...now, name: loc.source === "grid" ? `${loc.name} · ${place}` : place } });
+      if (!now || now.latDeg !== locLat || now.lonDeg !== locLon || now.name !== locName) return;
+      useHomeStore.getState().setPrefs({ location: { ...now, name: locSource === "grid" ? `${locName} · ${place}` : place } });
     });
     return () => { gone = true; };
-  }, [loc]);
+  }, [locLat, locLon, locName, locSource]);
 
   // The location's ground height, looked up once through this site's own
   // /api/elevation and kept with it: the pass math and the brightness use it.
-  // A failed lookup leaves it at sea level, to try again next visit.
+  // Asked about the area (about 1 km), which also lets nearby visitors share
+  // the cached answer. A failed lookup leaves it at sea level, to try again
+  // next visit.
   useEffect(() => {
-    if (!loc || loc.elevM != null) return;
+    if (locLat == null || locLon == null || locElev != null) return;
     let gone = false;
-    fetch(`/api/elevation?lat=${loc.latDeg}&lon=${loc.lonDeg}`)
+    fetch(`/api/elevation?lat=${roundKm(locLat)}&lon=${roundKm(locLon)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j: { elevM: number | null } | null) => {
         if (gone || j?.elevM == null) return;
         const now = useHomeStore.getState().prefs.location;
-        if (!now || now.latDeg !== loc.latDeg || now.lonDeg !== loc.lonDeg) return;
+        if (!now || now.latDeg !== locLat || now.lonDeg !== locLon) return;
         useHomeStore.getState().setPrefs({ location: { ...now, elevM: j.elevM } });
       })
       .catch(() => {});
     return () => { gone = true; };
-  }, [loc]);
+  }, [locLat, locLon, locElev]);
 
   // Paused on a pass: stacked layouts give the map more of the screen.
   const mapPaused = useMapClock((s) => s.paused != null);
@@ -165,14 +177,19 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
   // below it (app/home.css .pass-view). The page cannot scroll meanwhile, so
   // the header's bottom, measured as it opens, is where the map starts.
   const passView = usePassViewStore((s) => s.open);
+  const pendingRelease = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
     if (!passView) return;
+    // A close's pending let-go (below) happens now, before this open
+    // measures the page.
+    pendingRelease.current?.();
     const root = document.documentElement;
     // The list stays where it was, and goes back there when the pass view
     // closes: the pinned map leaves the page's flow meanwhile, and the
     // browser's scroll anchoring would follow the rows; it is held off.
     const scrollY = usePassViewStore.getState().scrollY ?? window.scrollY;
     usePassViewStore.setState({ scrollY: null });
+    const openedOn = window.location.pathname;
     const anchor = root.style.overflowAnchor;
     root.style.overflowAnchor = "none";
     // Held at its height too, so a shorter page never clamps the scroll.
@@ -189,13 +206,21 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     return () => {
       window.removeEventListener("resize", place);
       root.style.removeProperty("--pass-view-top");
-      window.scrollTo(0, scrollY);
-      // Let go once the map has eased back to its resting height.
-      window.setTimeout(() => {
-        window.scrollTo(0, scrollY);
+      // Left for another page: that page keeps its own scroll.
+      const samePage = window.location.pathname === openedOn;
+      if (samePage) window.scrollTo(0, scrollY);
+      const release = () => {
+        window.clearTimeout(timer);
+        pendingRelease.current = null;
         root.style.overflowAnchor = anchor;
         if (shell) shell.style.minHeight = minHeight;
-      }, 400);
+      };
+      // Let go once the map has eased back to its resting height.
+      const timer = window.setTimeout(() => {
+        if (samePage && window.location.pathname === openedOn) window.scrollTo(0, scrollY);
+        release();
+      }, samePage ? 400 : 0);
+      pendingRelease.current = release;
     };
   }, [passView]);
 

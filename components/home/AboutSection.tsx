@@ -11,7 +11,7 @@ export default function AboutSection() {
       <p>
         Positions come from SGP4, the standard model for these element sets, using elements from CelesTrak that we refresh every few hours. The map shows ground positions, the point straight below each satellite, so two dots close together can be thousands of km apart in height. Positions are predictions, usually good to a kilometre or two when the elements are fresh and drifting by a few km a day as they age: plenty for passes and tracks, not for judging how close two objects come. Each satellite&apos;s page shows how old its elements are and how every number is worked out.
       </p>
-      <p>Everything runs in your browser. Your location and the satellites you follow stay on this device. Map tiles load from OpenFreeMap, which sees which part of the map you are viewing. No accounts, no ads. If the page hits an error, it sends the error message and the page&apos;s address (never your location) to our server log so we can fix it.</p>
+      <p>Everything runs in your browser. Your location and the satellites you follow stay on this device: the lookups below ask only about your area. Map tiles load from OpenFreeMap, which sees which part of the map you are viewing. No accounts, no ads. If the page hits an error, it sends the error message and the page&apos;s address (never your location) to our server log so we can fix it.</p>
       <p>
         Radio downlink frequencies come from{" "}
         <a className={linkClass()} href={SATNOGS_URL} target="_blank" rel="noreferrer">SatNOGS DB</a>
@@ -19,7 +19,7 @@ export default function AboutSection() {
       </p>
       <p>Visual ratings: {RATING_WORDS.visual}</p>
       <p>Radio ratings: {RATING_WORDS.radio}</p>
-      <p>Cloud forecasts from Open-Meteo and MET Norway. For cloud forecasts, SeekSat&apos;s server asks them about your area, rounded to about 11 km.</p>
+      <p>Cloud forecasts from Open-Meteo and MET Norway: SeekSat&apos;s server asks them about your area, rounded to about 11 km. Your ground height comes from Open-Meteo&apos;s elevation data, asked through SeekSat&apos;s server about your area rounded to about 1 km. Places are found and named by OpenStreetMap&apos;s Nominatim; a location entered as coordinates or a grid square is named by asking it about the area, rounded to about 1 km.</p>
       <p>Reminders work only while SeekSat is open, in a tab or as an installed app.</p>
       <p>
         The sky behind the globe: stars from the Yale Bright Star Catalogue (Hoffleit &amp; Warren), and the Milky Way from NASA&apos;s Deep Star Maps 2020 (NASA/Goddard Space Flight Center Scientific Visualization Studio).
