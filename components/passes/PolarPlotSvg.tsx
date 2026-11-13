@@ -16,6 +16,8 @@ const INNER_R = 45;       // horizon circle radius (in viewBox units)
 const ALT_RING_DEGS = [60, 30];
 /** What the plot shows, as its accessible name and hover title. */
 export const POLAR_CAPTION = "Looking up (east on the left)";
+/** The pass card's plot: a compass, as the map and the live view are. */
+export const COMPASS_CAPTION = "Compass view (north up)";
 
 const PolarPlotSvg = forwardRef<SVGSVGElement, { obsId?: string }>(
   function PolarPlotSvg({ obsId }, ref) {
@@ -26,9 +28,9 @@ const PolarPlotSvg = forwardRef<SVGSVGElement, { obsId?: string }>(
         data-obs-id={obsId}
         viewBox="0 0 100 100"
         role="img"
-        aria-label={POLAR_CAPTION}
+        aria-label={COMPASS_CAPTION}
       >
-        <title>{POLAR_CAPTION}</title>
+        <title>{COMPASS_CAPTION}</title>
         <circle className="horizon" cx={50} cy={50} r={INNER_R} />
         {ALT_RING_DEGS.map((altDeg) => (
           <circle
@@ -39,19 +41,22 @@ const PolarPlotSvg = forwardRef<SVGSVGElement, { obsId?: string }>(
             r={((90 - altDeg) / 90) * INNER_R}
           />
         ))}
-        {/* Cardinal labels - sky-chart convention (looking up):
-            N top, E LEFT, W RIGHT, matching altAzToSvg's negated-sin
-            projection. Positioned just outside the horizon ring;
-            CSS sets overflow: visible so they render past the viewBox. */}
+        {/* Cardinal labels: N top, E RIGHT, W LEFT, as a compass (the map
+            and the live view). Painters draw in the sky-chart projection
+            (altAzToSvg, E left), so their groups are mirrored left to right
+            below. Positioned just outside the horizon ring; CSS sets
+            overflow: visible so they render past the viewBox. */}
         <text className="cardinal" x={50}  y={-2}  textAnchor="middle" dominantBaseline="central">N</text>
-        <text className="cardinal" x={-2}  y={50}  textAnchor="middle" dominantBaseline="central">E</text>
+        <text className="cardinal" x={102} y={50}  textAnchor="middle" dominantBaseline="central">E</text>
         <text className="cardinal" x={50}  y={102} textAnchor="middle" dominantBaseline="central">S</text>
-        <text className="cardinal" x={102} y={50}  textAnchor="middle" dominantBaseline="central">W</text>
+        <text className="cardinal" x={-2}  y={50}  textAnchor="middle" dominantBaseline="central">W</text>
         {/* Empty groups + placeholder dot - painters fill these. */}
-        <g className="bodies" />
-        <g className="arc" />
-        <g className="events" />
-        <circle className="iss-dot" r={2.5} />
+        <g transform="matrix(-1 0 0 1 100 0)">
+          <g className="bodies" />
+          <g className="arc" />
+          <g className="events" />
+          <circle className="iss-dot" r={2.5} />
+        </g>
       </svg>
     );
   },

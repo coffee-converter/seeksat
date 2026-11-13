@@ -88,15 +88,15 @@ test('paintPassCard fills the arc, markers and horizon, and hides the dot outsid
   const dashed = segs.filter((seg) => seg.tagName.toLowerCase() === 'polyline');
   assert.ok(dashed.length > 0);
   for (const seg of dashed) assert.equal(seg.getAttribute('stroke-dasharray'), '4 6');
-  // Markers are diamonds: the first vertex sits markerR above the centre,
-  // the second markerR to its right.
+  // Markers: a dot where it rises and an arrowhead where it sets, pointing
+  // along the path (its tip at the set, the base markerR * 1.5 behind).
   const markers = [...svg.querySelector('.events').children];
-  assert.equal(markers.length, 3);
-  for (const m of markers) {
-    const [[x0, y0], [x1, y1]] = m.getAttribute('d').match(/-?[\d.]+,-?[\d.]+/g)
-      .map((pt) => pt.split(',').map(Number));
-    assert.ok(Math.abs(x1 - x0 - 4.2) < 0.02 && Math.abs(y1 - y0 - 4.2) < 0.02);
-  }
+  assert.deepEqual(markers.map((m) => m.getAttribute('class')), ['rise', 'set']);
+  assert.equal(markers[0].tagName.toLowerCase(), 'circle');
+  const [[tx, ty], [ax, ay], [bx, by]] = markers[1].getAttribute('d').match(/-?[\d.]+,-?[\d.]+/g)
+    .map((pt) => pt.split(',').map(Number));
+  const base = Math.hypot((ax + bx) / 2 - tx, (ay + by) / 2 - ty);
+  assert.ok(Math.abs(base - 4.2 * 1.5) < 0.05, `arrow length ${base}`);
   // The sky shade for the sun at the pass peak (the engine's peak) goes out
   // as a custom property; the stylesheet decides whether the theme uses it.
   const shade = skyShadeForSunAlt(apparentAltDeg(sunAltitudeDeg(EN52VE, new Date(firstIssPeakMs))));
