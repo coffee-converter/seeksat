@@ -272,6 +272,11 @@ const LOCK_ZOOM_MS = 250;
 const LOCK_SETTLE_MS = 150;
 /** How long turning Lock on eases to the satellite before following it. */
 const LOCK_EASE_MS = 600;
+/** A far camera move flies (MapLibre flyTo): its arc, its speed (screens a
+ *  second along the arc) and a cap, so a trip across the world stays brief. */
+const FLY_CURVE = 1.42;
+const FLY_SPEED = 1.4;
+const FLY_MAX_MS = 1800;
 /** Lock on starts with an ease only when the satellite is this far (px) off centre. */
 const LOCK_EASE_PX = 4;
 /** Not following, the focus moves every frame only when it moves more than
@@ -513,7 +518,19 @@ export default function FlatMap({
     map.setMinZoom(zoomFloor(v, { width: el.clientWidth || 1, height: el.clientHeight || 1 }));
   }, []);
   const moveTo = useCallback((map: MlMap, cam: Move) => {
-    if (reducedMotion()) map.jumpTo(cam);
+    if (reducedMotion()) {
+      map.jumpTo(cam);
+      return;
+    }
+    // A short move eases straight there. A far one (more than about a screen
+    // away at this zoom, or a big change of zoom) flies: out, across, and back
+    // in, so it never whips across tiles that are not loaded yet.
+    const el = map.getContainer();
+    const span = Math.hypot(el.clientWidth || 1, el.clientHeight || 1);
+    const from = map.project(map.getCenter());
+    const to = map.project([nearLon(cam.center[0], map.getCenter().lng), cam.center[1]]);
+    const far = Math.hypot(to.x - from.x, to.y - from.y) > span || Math.abs((cam.zoom ?? map.getZoom()) - map.getZoom()) > 3;
+    if (far) map.flyTo({ ...cam, curve: FLY_CURVE, speed: FLY_SPEED, maxDuration: FLY_MAX_MS, essential: false });
     else map.easeTo(cam);
   }, []);
   /** Refit an untouched home view: eased once the map is on screen, a jump before. */
@@ -675,8 +692,10 @@ export default function FlatMap({
       if (!alive) return;
       const field = stars.starField(data.STARS);
       // The Milky Way image, read once into pixels; drawn when it arrives.
-      let milky: { data: Uint8ClampedArray; width: number; height: number; floor: number } | null = null;
+      let milky: { data: Uint8ClampedArray; width: number; height: number; floor: number; styled: boolean } | null = null;
       const low = document.createElement("canvas");
+      // The frame's pixel buffer, kept while its size holds.
+      let buf: ImageData | null = null;
       const img = new Image();
       img.decoding = "async";
       img.onload = () => {
@@ -688,7 +707,8 @@ export default function FlatMap({
         if (!x2) return;
         x2.drawImage(img, 0, 0);
         const px = x2.getImageData(0, 0, c2.width, c2.height);
-        milky = { data: px.data, width: px.width, height: px.height, floor: stars.skyFloor(px.data) };
+        const floor = stars.skyFloor(px.data);
+        milky = { ...stars.styleMilkyWay(px, floor), floor };
         schedule();
       };
       img.src = "/sky/milkyway.jpg";
@@ -717,13 +737,15 @@ export default function FlatMap({
         if (milky && !atlas) {
           // Sampled as finely as the image has detail, smoothed up; nothing
           // computed behind the globe (a little inside its edge).
-          const step = stars.milkyWayStep(camToCenterPx, milky.width);
+          // While the map moves, half as fine (a quarter of the work); the
+          // full detail is drawn again as it stops (moveend).
+          const step = stars.milkyWayStep(camToCenterPx, milky.width) * (map.isMoving() ? 2 : 1);
           const hide = Math.max(0, stars.globeRadiusPx(camDistKm, camToCenterPx) - step * 1.5);
           const ow = Math.ceil(w / step), oh = Math.ceil(h / step);
           if (low.width !== ow || low.height !== oh) { low.width = ow; low.height = oh; }
           const lctx = low.getContext("2d");
           if (lctx) {
-            const buf = lctx.createImageData(ow, oh);
+            if (!buf || buf.width !== ow || buf.height !== oh) buf = lctx.createImageData(ow, oh);
             stars.renderMilkyWay(milky, milky.floor, buf.data, ow, oh, step, cam, gmstRad, hide);
             lctx.putImageData(buf, 0, 0);
             ctx.imageSmoothingEnabled = true;
@@ -753,12 +775,14 @@ export default function FlatMap({
       draw();
     });
     map.on("move", schedule);
+    map.on("moveend", schedule);
     map.on("resize", schedule);
     window.addEventListener("seeksat:theme", schedule);
     const tick = window.setInterval(schedule, STAR_TICK_MS);
     return () => {
       alive = false;
       map.off("move", schedule);
+      map.off("moveend", schedule);
       map.off("resize", schedule);
       window.removeEventListener("seeksat:theme", schedule);
       window.clearInterval(tick);
@@ -1338,7 +1362,11 @@ export default function FlatMap({
       map.on("zoomend", () => {
         if (!selfJump.current) syncGestures();
       });
-      map.on("move", () => layoutGridLabels(map));
+      // Once a frame, however many move events it brings (each reads layout).
+      let gridRaf = 0;
+      map.on("move", () => {
+        if (!gridRaf) gridRaf = requestAnimationFrame(() => { gridRaf = 0; layoutGridLabels(map); });
+      });
       // The camera moved or the map drew: the line follows in the same frame.
       map.on("render", () => drawSight(map));
       let sightRaf = 0;
