@@ -1408,9 +1408,47 @@ export default function FlatMap({
     );
     if (!cam?.center) return;
     const c = cam.center as { lng: number; lat: number } | [number, number];
-    const center: LngLat = observer && reach && reach > 0 ? [observer.lonDeg, observer.latDeg] : Array.isArray(c) ? c : [c.lng, c.lat];
+    const ring = sat.passRing;
+    let zoom: number = cam.zoom ?? map.getZoom();
+    let center: LngLat = Array.isArray(c) ? c : [c.lng, c.lat];
+    if (observer && reach && reach > 0) {
+      // Centred on you, zoomed so the circle's own outline fills the view: a
+      // box around it leaves room at the corners, more so on the globe. The
+      // camera is tried at a zoom, the circle measured on screen and the zoom
+      // corrected, then put back before the eased move. Those trial jumps are
+      // ours (selfJump), so nothing else reacts to them.
+      center = [observer.lonDeg, observer.latDeg];
+      if (ring && ring.length > 2) {
+        const was = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+        const availW = w - pad.left - pad.right;
+        const availH = h - pad.top - pad.bottom;
+        selfJump.current = true;
+        try {
+          for (let i = 0; i < 4; i++) {
+            map.jumpTo({ center, zoom });
+            const o = map.project(center);
+            let mx = 0;
+            let my = 0;
+            for (const [lon, lat] of ring) {
+              const q = map.project([lon, lat]);
+              mx = Math.max(mx, Math.abs(q.x - o.x));
+              my = Math.max(my, Math.abs(q.y - o.y));
+            }
+            const scale = Math.min(availW / (2 * mx), availH / (2 * my));
+            if (!Number.isFinite(scale) || scale <= 0) break;
+            const next = Math.min(7, Math.max(map.getMinZoom(), zoom + Math.log2(scale)));
+            const done = Math.abs(next - zoom) < 0.01;
+            zoom = next;
+            if (done) break;
+          }
+        } finally {
+          map.jumpTo(was);
+          selfJump.current = false;
+        }
+      }
+    }
     atHome.current = false;
-    moveTo(map, { center, zoom: cam.zoom });
+    moveTo(map, { center, zoom });
   }, [paused, sats, observer, mapReady, moveTo, refitHome, setFollowing]);
 
   // Entering a focus moves once to centre it, keeping the zoom. It waits for

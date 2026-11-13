@@ -609,6 +609,18 @@
 }
 .pass-row--open + .pass-row { border-top: 0; }
 .pass-row--open .pass-row__btn { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+/* The opened content grows in, and shrinks out when the row closes itself.
+   Height only where the browser can animate to auto; elsewhere a fade and a
+   small slide. The durations are 0 with reduced motion. */
+.pass-row__body { overflow: clip; animation: pass-row-in var(--dur-base) var(--ease); }
+.pass-row__body--closing { animation: pass-row-out var(--dur-base) var(--ease) forwards; }
+@keyframes pass-row-in { from { opacity: 0; transform: translateY(calc(-1 * var(--sp-4))); } }
+@keyframes pass-row-out { to { opacity: 0; transform: translateY(calc(-1 * var(--sp-4))); } }
+@supports (interpolate-size: allow-keywords) {
+  .pass-row__body { interpolate-size: allow-keywords; }
+  @keyframes pass-row-in { from { height: 0; opacity: 0; } }
+  @keyframes pass-row-out { to { height: 0; opacity: 0; } }
+}
 /* When, what, how good: the time column is wide enough for "10:45 PM", the
    middle gives way with an ellipsis, the rating keeps its width. */
 .pass-row__btn {
