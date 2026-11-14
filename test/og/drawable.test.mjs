@@ -26,3 +26,24 @@ test('a shared map image is described by how many satellites it shows', () => {
   assert.match(viewImageAlt('?map=globe&sats=25544,48274,20580'), /3 satellites/);
   assert.match(viewImageAlt('?map=globe&sats=25544'), /one satellite/);
 });
+
+test('a shared pass from "My location" says where: its place, else coordinates', async () => {
+  const { fromText } = await import('../../lib/og/drawable.mjs');
+  const { shareNameOf, cleanLocation } = await import('../../lib/home/places.mjs');
+  const at = { latDeg: 41.88, lonDeg: -87.63 };
+  assert.equal(fromText({ ...at, name: 'My location' }), ' from 41.9°N, 87.6°W');
+  assert.equal(fromText({ ...at, name: '' }), ' from 41.9°N, 87.6°W');
+  assert.equal(fromText({ ...at, name: 'Chicago' }), ' from Chicago');
+  const gps = cleanLocation({ name: 'My location', ...at, source: 'gps', place: 'Chicago, Illinois' });
+  assert.equal(gps.place, 'Chicago, Illinois');
+  assert.equal(shareNameOf(gps), 'Chicago, Illinois');
+  assert.equal(shareNameOf({ ...gps, place: undefined }), '');
+  assert.equal(shareNameOf({ name: 'Paris', ...at, source: 'place' }), 'Paris');
+});
+
+test('a shared map is described by the satellites it shows', async () => {
+  const { viewDescription } = await import('../../lib/og/view-alt.mjs');
+  assert.match(viewDescription('?map=globe&sats=25544,48274'), /^ISS and Tiangong on a live SeekSat map: where they are now/);
+  assert.match(viewDescription('?map=globe&sats=25544'), /^ISS on a live SeekSat map: where it is now and its orbit track\.$/);
+  assert.equal(viewDescription('?nothing=1'), null);
+});

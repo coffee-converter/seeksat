@@ -4,7 +4,7 @@
 // The address bar keeps the shared link; the view itself is read on the client.
 import type { Metadata } from "next";
 import HomePage from "../page";
-import { viewImageAlt } from "@/lib/og/view-alt.mjs";
+import { viewDescription, viewImageAlt } from "@/lib/og/view-alt.mjs";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -15,10 +15,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   }
   const image = `/api/og/view?${params.toString()}`;
   const alt = viewImageAlt(params.toString());
+  const description = viewDescription(params.toString()) ?? undefined;
   return {
     title: "A shared satellite map",
-    openGraph: { images: [{ url: image, width: 1200, height: 630, alt }] },
-    twitter: { card: "summary_large_image", images: [{ url: image, alt }] },
+    ...(description && { description }),
+    openGraph: { ...(description && { description }), images: [{ url: image, width: 1200, height: 630, alt }] },
+    twitter: { card: "summary_large_image", ...(description && { description }), images: [{ url: image, alt }] },
     robots: { index: false, follow: true },
     alternates: { canonical: "/" },
   };

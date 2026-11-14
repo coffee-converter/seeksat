@@ -80,7 +80,7 @@ export const metadata: Metadata = {
       url: "/og.png",
       width: 1200,
       height: 630,
-      alt: `${SITE_NAME} - satellite pass forecasts`,
+      alt: `${SITE_NAME}: satellite passes over you, by eye or by radio, on a globe with a real ISS pass`,
     }],
   },
   twitter: {
@@ -136,6 +136,7 @@ const JSON_LD = {
       operatingSystem: "Web",
       description: SITE_DESCRIPTION,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      image: `${SITE_URL}/og.png`,
       creator: { "@id": `${SITE_URL}/#org` },
     },
     {
@@ -143,6 +144,7 @@ const JSON_LD = {
       "@id": `${SITE_URL}/#org`,
       name: SITE_NAME,
       url: `${SITE_URL}/`,
+      logo: `${SITE_URL}/icon-512.png`,
     },
   ],
 };

@@ -689,6 +689,7 @@
 .pass-row--open + .pass-row { border-top: 0; }
 .pass-row--open .pass-row__btn { border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .pass-row__close { display: none; }
+.pass-row__grab { display: none; }
 
 /* The phone pass view: a pass open on a phone (MapLayoutShell .pass-view)
    turns the screen into the map, pinned under the header, and that pass's
@@ -696,8 +697,12 @@
    it, scrolled where it was, and the page itself cannot scroll. */
 @media (max-width: 699.98px) {
   html:has(.map-shell.pass-view) { overflow: hidden; }
-  .map-shell.pass-view { --map-h: max(260px, 45vh); }
-  @supports (height: 1svh) { .map-shell.pass-view { --map-h: max(260px, 45svh); } }
+  /* The card is as tall as its content (PassRow measures it into
+     --pass-card-h) and the map takes the rest, at least 260px; a taller
+     card scrolls inside itself. */
+  /* Doubled class: outranks the paused map's height (later in this file). */
+  .map-shell.pass-view.pass-view { --map-h: max(260px, calc(100vh - var(--pass-view-top, var(--header-h)) - var(--pass-card-h, 55vh))); }
+  @supports (height: 1svh) { .map-shell.pass-view.pass-view { --map-h: max(260px, calc(100svh - var(--pass-view-top, var(--header-h)) - var(--pass-card-h, 55svh))); } }
   /* Doubled class: outranks the stacked map's sticky lift (later in this file). */
   /* Sticky, not fixed: it keeps its place in the page, so the page keeps its
      length and the list its scroll position. */
@@ -708,7 +713,8 @@
   }
   .map-shell.pass-view .pass-row--open {
     position: fixed;
-    top: calc(var(--pass-view-top, var(--header-h)) + var(--map-h));
+    top: auto;
+    max-height: calc(100svh - var(--pass-view-top, var(--header-h)) - 260px);
     left: 0;
     right: 0;
     bottom: 0;
@@ -719,7 +725,24 @@
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: var(--shadow-modal);
   }
-  .map-shell.pass-view .pass-row--open::after { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  /* No bottom edge: the screen's own rounded corners would cut it. */
+  .map-shell.pass-view .pass-row--open::after { border-radius: var(--radius-lg) var(--radius-lg) 0 0; border-bottom-width: 0; }
+  .map-shell.pass-view .pass-row--open .pass-row__name { font-size: var(--fs-lg); }
+  /* Drag the card down to close it (PassRow, useSheetDrag): its grab handle
+     and header do not scroll the card. */
+  .map-shell.pass-view .pass-row--open .pass-row__btn { touch-action: none; }
+  .map-shell.pass-view .pass-row__grab {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    z-index: 1;
+    width: 72px;
+    height: 16px;
+    transform: translateX(-50%);
+    touch-action: none;
+    background: linear-gradient(var(--border), var(--border)) center 6px / 40px 4px no-repeat;
+  }
   .map-shell.pass-view .pass-row--open .pass-row__btn { padding-right: calc(var(--sp-24) + var(--sp-32)); }
   .map-shell.pass-view .pass-row__close {
     display: inline-flex;

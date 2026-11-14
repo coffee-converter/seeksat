@@ -42,6 +42,7 @@ import { DOCKED_QUERY } from "./useKeepRowInPlace";
 import { useLiveHeldRow, useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { usePlaceZone, viewerZone } from "@/components/usePlaceZone";
 import { zoneNote } from "@/lib/time/zone.mjs";
+import { shareNameOf } from "@/lib/home/places.mjs";
 
 const CARD_REFRESH_MS = 10 * 60_000;
 
@@ -255,6 +256,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     () => location && {
       id: "home",
       name: location.name || "Your location",
+      shareName: (shareNameOf as (l: unknown) => string)(location),
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
       tz,
