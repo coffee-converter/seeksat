@@ -53,9 +53,32 @@ test('parseTimeInput: Z and offsets are exact; no offset reads on the given cloc
 });
 
 test('parseTimeInput refuses what it cannot read, with an example', () => {
-  for (const bad of ['tomorrow 9pm', '2026-02-31T10:00', '2026-11-14T25:00', '', '1731542400']) {
+  for (const bad of ['tomorrow 9pm', '2026-02-31T10:00', '2026-11-14T25:00', '', '1731542400',
+    // The calendar is checked with an offset too, not rolled into March.
+    '2026-02-29T10:00Z', '2026-02-31T10:00:00Z', '2026-02-30T10:00:00-06:00', '2026-04-31T00:00Z', '2026-11-14T24:30Z']) {
     assert.throws(() => parseTimeInput(bad, { name: 'time' }), /is not a time I can read\. Use ISO 8601, e\.g\. "2026-11-14T21:00:00-06:00"/, bad);
   }
+  // 29 February in a leap year is fine.
+  assert.equal(parseTimeInput('2028-02-29T10:00Z').ms, Date.parse('2028-02-29T10:00:00Z'));
+});
+
+test('parseTimeInput: a local time the clocks skip moves forward, one they pass twice reads as the first, with a note', () => {
+  // Chicago jumps from 02:00 CST to 03:00 CDT on 2026-03-08: 02:30 is 03:30 CDT.
+  const chi = parseTimeInput('2026-03-08T02:30', { timeZone: 'America/Chicago' });
+  assert.equal(chi.interpretedAs.local, '2026-03-08T03:30:00-05:00');
+  assert.match(chi.interpretedAs.note, /does not exist there \(the clocks jump forward\), so it was moved forward to 2026-03-08T03:30:00-05:00/);
+  // Sydney jumps from 02:00 AEST to 03:00 AEDT on 2026-10-04: the same way.
+  const syd = parseTimeInput('2026-10-04T02:30', { timeZone: 'Australia/Sydney' });
+  assert.equal(syd.interpretedAs.local, '2026-10-04T03:30:00+11:00');
+  // Chicago falls back on 2026-11-01: 01:30 happens twice; the first is CDT.
+  const back = parseTimeInput('2026-11-01T01:30', { timeZone: 'America/Chicago' });
+  assert.equal(back.interpretedAs.local, '2026-11-01T01:30:00-05:00');
+  assert.match(back.interpretedAs.note, /happens twice there \(the clocks go back\), so it was read as the first/);
+  // An ordinary time near a change has no extra words.
+  const plain = parseTimeInput('2026-03-08T04:00', { timeZone: 'America/Chicago' });
+  assert.equal(plain.interpretedAs.local, '2026-03-08T04:00:00-05:00');
+  assert.equal(plain.interpretedAs.note, 'No offset was given, so it was read as America/Chicago time.');
+  assert.equal(parseTimeInput('2026-03-08T01:59', { timeZone: 'America/Chicago' }).interpretedAs.local, '2026-03-08T01:59:00-06:00');
 });
 
 // Tool results: the ISS fixture from mcp-tools.test.mjs.
