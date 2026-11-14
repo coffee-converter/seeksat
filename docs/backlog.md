@@ -45,6 +45,7 @@ Take one, fix it with a test, and delete its entry.
 
 ## Reception collector: back to every 4 hours after the backfill
 
-`vercel.json` runs `/api/refresh-reception` at :41 in every hour the catalog refresh does not use
-(18 runs a day) so the first 7 days fill in fast. Once the logs show runs with nothing left to sweep
-("0 windows", around 2026-11-16), set it back to `41 2-22/4 * * *` and drop the note in CLAUDE.md.
+`vercel.json` runs `/api/refresh-reception` at :11, :31 and :51 in every hour the catalog refresh does
+not use, so the first 7 days fill in within hours (about 65 pages a run, 3 runs an hour, under the
+token's 240 an hour). Once the logs show runs with nothing left to sweep ("0 windows", expected
+2026-11-14 evening UTC), set it back to `41 2-22/4 * * *` and drop the note in CLAUDE.md.
