@@ -56,7 +56,7 @@ test('swept units are skipped', () => {
 test('a run sweeps each window and stores what it found', async () => {
   const store = createMemoryReceptionStore();
   const { calls, sweep } = fakeSweep({ '2026-11-13T18:good': { observations: [obs('2026-11-13')], pages: 1, complete: true, truncated: false } });
-  const r = await collectReception({ store, sweep, now: () => NOW });
+  const r = await collectReception({ store, sweep, now: () => NOW, pageBudget: Infinity });
   assert.equal(r.units, 56);
   assert.equal(r.observations, 1);
   assert.equal(r.failed, null);
@@ -100,7 +100,7 @@ test('budget stops between units', async () => {
 test('truncated unit is kept and marked', async () => {
   const store = createMemoryReceptionStore();
   const { sweep } = fakeSweep({ '2026-11-13T18:good': { observations: [obs('2026-11-13')], pages: 300, complete: false, truncated: true } });
-  await collectReception({ store, sweep, now: () => NOW });
+  await collectReception({ store, sweep, now: () => NOW, pageBudget: Infinity });
   const t = await store.read();
   assert.deepEqual(t.swept['2026-11-13T18:good'], { pages: 300, count: 1, truncated: true });
   assert.equal(r_count(t), 1);
@@ -139,7 +139,7 @@ test('a one-off error skips that window and goes on; it is tried again next run'
   const { calls, sweep } = fakeSweep({
     '2026-11-13T18:good': { observations: [], pages: 0, complete: false, truncated: false, error: 'HTTP 404', stopRun: false },
   });
-  const r = await collectReception({ store, sweep, now: () => NOW });
+  const r = await collectReception({ store, sweep, now: () => NOW, pageBudget: Infinity });
   assert.equal(calls.length, 56);
   assert.equal(r.units, 55);
   assert.match(r.failed, /2026-11-13T18:good: HTTP 404/);
@@ -152,4 +152,31 @@ test('runSummary says what a run did in one line', async () => {
   assert.equal(runSummary({ units: 4, observations: 812, truncated: 0, failed: null, written: true }), 'refresh-reception: 4 windows, 812 observations, saved');
   assert.equal(runSummary({ units: 0, observations: 0, truncated: 0, failed: '2026-11-13T00:good: HTTP 429', written: false }), 'refresh-reception: 0 windows, 0 observations, not saved; stopped at 2026-11-13T00:good: HTTP 429');
   assert.equal(runSummary({ units: 2, observations: 10, truncated: 1, failed: null, written: true }), 'refresh-reception: 2 windows (1 cut short), 10 observations, saved');
+});
+
+test('a run spends at most its page budget, and a window cut short by it is redone later', async () => {
+  const { RUN_PAGES_ANON, RUN_PAGES_TOKEN, UNIT_PAGE_RESERVE } = await import('../lib/reception/collect.mjs');
+  assert.equal(RUN_PAGES_ANON, 50);
+  assert.equal(RUN_PAGES_TOKEN, 200);
+  assert.equal(UNIT_PAGE_RESERVE, 20);
+  const store = createMemoryReceptionStore();
+  const seen = [];
+  // Each window takes 18 pages; a third is not started with 14 left.
+  const sweep = async ({ status, startIso, maxPages }) => {
+    seen.push(maxPages);
+    const pages = Math.min(18, maxPages);
+    return { observations: [obs(startIso.slice(0, 10))], pages, complete: pages === 18, truncated: pages < 18 };
+  };
+  const r = await collectReception({ store, sweep, now: () => NOW, pageBudget: 50 });
+  assert.deepEqual(seen, [50, 32]);
+  assert.equal(r.units, 2);
+  const t = await store.read();
+  assert.equal(Object.keys(t.swept).length, 2);
+  // A sweep stopped by the run's budget, not the window cap, is not kept.
+  const store2 = createMemoryReceptionStore();
+  const short = async ({ maxPages }) => ({ observations: [obs('2026-11-13', 'X')], pages: maxPages, complete: false, truncated: true });
+  const r2 = await collectReception({ store: store2, sweep: short, now: () => NOW, pageBudget: 30 });
+  assert.equal(r2.units, 0);
+  assert.match(r2.failed, /page budget/);
+  assert.equal(await store2.read(), null);
 });
