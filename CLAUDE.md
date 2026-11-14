@@ -19,6 +19,10 @@ Once the production deploy is live (check the commit status on GitHub, or the si
 
    It reads the *live* sitemap, so run it only after the deploy has landed; earlier submits the previous
    build.
+
+   **New satellites need no run.** The catalog refresh (`app/api/refresh-tle`, every 4 hours) submits
+   the pages of satellites new to the snapshot, and of ones gone from it, through `lib/seo/indexnow.mjs`;
+   the sitemap picks them up within the hour (it revalidates hourly).
    - IndexNow reaches Bing, Yandex, Seznam and others, not Google. Google reads
      `https://seeksat.com/sitemap.xml` through Search Console.
    - The key lives in `public/<key>.txt` (it is also hard-coded in `scripts/indexnow.mjs`). If the key ever
@@ -34,3 +38,41 @@ Once the production deploy is live (check the commit status on GitHub, or the si
 - Never call `/api/cron/*` or `/api/refresh-tle` by hand.
 - `npm test` (node:test) and `npx tsc --noEmit` before a merge; the tests also guard the CSS tokens,
   allowed origins and accessibility rules.
+- Pin new or bumped dependencies to versions at least two weeks old.
+
+## Checking the app in a browser
+
+`npx next build && npx next start -p 3100`, then Playwright at phone size (390×844 portrait, 844×390
+landscape) and desktop. Seed `localStorage['seeksat.home.v1']` with a location and a few satellites, and
+abort requests to CelesTrak and Nominatim. Tests and a type check do not show layout; for anything visual,
+look at a screenshot before calling it done.
+
+## Rules the tests enforce (and why they bite)
+
+- **CSS:** spacing, font sizes and weights use tokens (`--sp-*`, `--fs-*`, `--fw-*`), not literals;
+  `env()` in padding fails too. No `filter` outside the night-vision rules. Colours are theme tokens.
+- **Origins:** every `https://` origin in code the browser can load must be in the CSP or marked
+  link-only. Server-only strings (JSON-LD's schema.org, IndexNow's endpoint) go in server-only modules
+  (`lib/sat/json-ld.mjs`, `lib/seo/`), not in files the client bundles (`lib/sat/page-data.mjs` is one).
+- **Controls:** no raw `<button>`; use `components/ui` (a bespoke control goes on the allowlist).
+
+## Where things live
+
+- **Layouts:** `lib/ui/layout.ts` holds the media queries (side, stacked, phone pass view, desktop);
+  `app/home.css` and `app/sat.css` use the same strings, and a test keeps them equal. Two rules at equal
+  specificity that set `--map-h` resolve by file order; the pass view doubles its class to win.
+- **Satellite colours:** `lib/map/palette.mjs` – one 10-colour palette for both themes (colour-blind
+  checked, prefix-ordered), `SAT_CASING` under tracks and dots, `SAT_LABEL_INK` for light-map labels.
+  `lib/map/palette.mjs` tests guard contrast and separation; change colours there and nowhere else.
+- **Share images:** `lib/og/` (resvg). The fonts are bundled subsets (Atkinson: Latin and Latin
+  Extended-A; Exo 2 for names and the wordmark); text the fonts cannot draw becomes coordinates
+  (`lib/og/drawable.mjs`). The static home and MCP cards are built by `scripts/build-og-image.mjs` with
+  `OG_RECORD_FILE` and `OG_NOW` pinned, so a rebuild changes only what was meant to change.
+- **MCP server:** `app/api/mcp/route.ts`, tools in `lib/mcp/`. Tool descriptions (`lib/mcp/tool-specs.mjs`)
+  are what agents read: changing one changes behaviour for every client. Heavy calls (scans, chart
+  renders) go through `lib/mcp/heavy-gate.mjs`.
+- **Catalog:** the snapshot in Blob, refreshed by the cron; `lib/mirror/`.
+
+## Writing
+
+User-facing copy: plain words, short sentences, no em dashes. Say "Mercator" for the flat map.

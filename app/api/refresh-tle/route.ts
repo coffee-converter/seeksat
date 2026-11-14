@@ -7,6 +7,7 @@ import { CATALOG } from '@/lib/catalog.mjs';
 import { refreshMirror, refreshResponse } from '@/lib/mirror/refresh.mjs';
 import { createBlobSnapshotStore } from '@/lib/mirror/snapshot-store.mjs';
 import { downlinksFromTransmitters, fetchTransmitters } from '@/lib/mirror/satnogs.mjs';
+import { siteUrl, submitToIndexNow } from '@/lib/seo/indexnow.mjs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,21 @@ export async function GET(req: Request): Promise<Response> {
     fetchDownlinks: async () => downlinksFromTransmitters(await fetchTransmitters()),
     now: Date.now,
   });
+  // Satellites new to the catalog have new pages, and ones gone from it have
+  // pages that now 404: tell search engines about just those. A refusal is
+  // logged and reported, and never fails the refresh.
+  let indexNow: { submitted: number } | { error: string } | undefined;
+  const diff = result as { addedIds?: number[]; removedIds?: number[] };
+  const changed = result.written ? [...(diff.addedIds ?? []), ...(diff.removedIds ?? [])] : [];
+  if (changed.length) {
+    try {
+      await submitToIndexNow(changed.map((id: number) => siteUrl(`/sat/${id}`)));
+      indexNow = { submitted: changed.length };
+    } catch (err) {
+      indexNow = { error: (err as Error).message };
+      console.warn(`refresh-tle: ${indexNow.error}`);
+    }
+  }
   const { status, body } = refreshResponse(result);
-  return Response.json(body, { status });
+  return Response.json(indexNow ? { ...body, indexNow } : body, { status });
 }
