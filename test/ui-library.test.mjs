@@ -19,6 +19,7 @@ const BESPOKE = {
   'components/home/Timeline.tsx': ['timeline__bar'], // one pass as a bar on the 24 h strip
   'components/home/PassRowOpen.tsx': ['pass-open__plot'], // the small sky plot, which opens the sky chart
   'components/home/BestLine.tsx': ['best-line'], // the Best line, which opens that pass's row
+  'components/LiveClock.tsx': ['live-clock__resume'], // the paused clock, which goes back to live
   'app/design-27b284ec240e9ac9/DesignBible.tsx': ['bible__tap'], // the interactive Surface specimen
 };
 
