@@ -64,3 +64,16 @@ test('search_satellites returns the catalog search, and names resolve on whole-n
   await assert.rejects(findPassesTool({ satellite: 'wis', lat: 0, lon: 0 }, deps), /search_satellites/);
   await assert.rejects(searchSatellitesTool({ query: ' ' }, deps), /query is required/);
 });
+
+test('search_satellites: a downlink kind passed as mode is refused with how to ask instead', async () => {
+  const { z } = await import('zod');
+  const { TOOL_SPECS } = await import('../lib/mcp/tool-specs.mjs');
+  const spec = (TOOL_SPECS ?? []).find((t) => t.name === 'search_satellites');
+  assert.ok(spec, 'spec exported');
+  const schema = z.object(spec.inputSchema);
+  const bad = schema.safeParse({ query: 'iss', mode: 'sstv' });
+  assert.equal(bad.success, false);
+  assert.match(bad.error.issues[0].message, /mode "radio" with the kind as the query, e\.g\. query "sstv"/);
+  assert.equal(schema.safeParse({ query: 'sstv', mode: 'radio' }).success, true);
+  assert.match(spec.inputSchema.query.description, /downlink kind as the whole query/);
+});

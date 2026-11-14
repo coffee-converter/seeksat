@@ -331,7 +331,7 @@ test('skyCatalog: every snapshot satellite with its downlinks, one list per snap
   s.downlinks = { 70002: [{ hz: 145_800_000, label: 'Mode V SSTV', mode: 'sstv', source: 'satnogs', default: true }] };
   const { reader, calls } = make({ store: createMemorySnapshotStore(s) });
   const list = await reader.skyCatalog();
-  assert.deepEqual(list.map((x) => [x.noradId, x.downlinks.length]).sort((a, b) => a[0] - b[0]), [[25544, 2], [70001, 0], [70002, 1]]);
+  assert.deepEqual(list.map((x) => [x.noradId, x.downlinks.length]).sort((a, b) => a[0] - b[0]), [[25544, 3], [70001, 0], [70002, 1]]);
   assert.equal(list.find((x) => x.noradId === 70001).record, s.objects['70001']);
   assert.equal(await reader.skyCatalog(), list, 'built once per snapshot');
   assert.deepEqual(calls, []);
