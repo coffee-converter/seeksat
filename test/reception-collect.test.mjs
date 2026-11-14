@@ -62,7 +62,9 @@ test('a run sweeps each window and stores what it found', async () => {
   assert.equal(r.failed, null);
   assert.equal(r.written, true);
   assert.equal(calls[0].startIso, '2026-11-13T18:00:00Z');
-  assert.equal(calls[0].endIso, '2026-11-14T00:00:00Z');
+  // Up to an hour past the window: an observation that starts inside it and
+  // ends after still counts, in the window where it starts.
+  assert.equal(calls[0].endIso, '2026-11-14T01:00:00Z');
   assert.equal(calls[0].deadlineMs, NOW + RUN_BUDGET_MS);
   const t = await store.read();
   assert.equal(t.tx.A.good.length, 1);

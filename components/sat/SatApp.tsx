@@ -248,7 +248,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const [openRow, setOpenRow] = useState<OpenPassRow | null>(null);
   // A live view docked on the page: its satellite gets the live sight line.
   const liveId = useLiveDock((st) => st.noradId);
-  const mapRow = useLiveHeldRow(openRow);
+  const mapRow = useLiveHeldRow(openRow, liveId);
   const { mapNowMs, mapPass } = useMapPause(mapRow, {
     nowMs, track: usable ? mapTracks.get(data.noradId) : null, observer: settings.observer, minElevDeg: settings.minElevDeg,
   });

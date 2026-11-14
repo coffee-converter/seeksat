@@ -97,3 +97,16 @@ test('prune drops old times, empty transmitters and old swept days', () => {
 test('a reading of no tally is unknown', () => {
   assert.equal(receptionFor(null, ISS, { hz: 437_550_000 }, NOW).state, 'unknown');
 });
+
+test('never silent while a good sweep in the last 30 days was cut short', () => {
+  const t = tallyWith([], [obs(NOW - H), obs(NOW - 2 * H), obs(NOW - 3 * H)]);
+  t.swept['2026-11-13T18:good'] = { pages: 120, count: 3000, truncated: true };
+  const r = receptionFor(indexTally(t), ISS, { hz: 437_550_000 }, NOW);
+  assert.equal(r.state, 'unknown');
+  assert.equal(r.failedLast30d, 3);
+  // A cut-short bad sweep, or an old one, does not matter.
+  const t2 = tallyWith([], [obs(NOW - H), obs(NOW - 2 * H), obs(NOW - 3 * H)]);
+  t2.swept['2026-11-13T18:bad'] = { pages: 120, count: 3000, truncated: true };
+  t2.swept['2026-10-01T00:good'] = { pages: 120, count: 3000, truncated: true };
+  assert.equal(receptionFor(indexTally(t2), ISS, { hz: 437_550_000 }, NOW).state, 'silent');
+});

@@ -43,7 +43,7 @@ test('follows next links to the end', async () => {
 });
 
 test('stops at the page cap', async () => {
-  assert.equal(MAX_PAGES, 300);
+  assert.equal(MAX_PAGES, 120);
   const { fetchImpl } = scripted([json(page(1), { headers: { link: `<${NEXT}>; rel="next"` } })]);
   const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {}, maxPages: 1 });
   assert.equal(r.truncated, true);
@@ -140,4 +140,15 @@ test('bad data is a one-off; throttling, server errors and timeouts stop the run
   const busy = await sweepObservations({ ...ARGS, fetchImpl: scripted([json({}, { status: 503 }), json({}, { status: 503 }), json({}, { status: 503 }), json({}, { status: 503 })]).fetchImpl, sleep: async () => {} });
   assert.equal(busy.stopRun, true);
   assert.equal((await one(() => { throw new Error('ECONNRESET'); })).stopRun, true);
+});
+
+test('a throttled answer is discarded before the retry', async () => {
+  const busy = json({}, { status: 429, headers: { 'retry-after': '1' } });
+  let cancelled = false;
+  const cancel = busy.body.cancel.bind(busy.body);
+  busy.body.cancel = (...a) => { cancelled = true; return cancel(...a); };
+  const { fetchImpl } = scripted([busy, json(page(2))]);
+  const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {} });
+  assert.equal(r.complete, true);
+  assert.ok(cancelled);
 });

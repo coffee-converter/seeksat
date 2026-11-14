@@ -37,3 +37,15 @@ test('a failed read keeps the last index, and none at all is null, never a throw
   const broken = createReceptionReader({ store: { read: async () => { throw new Error('x'); } }, now: () => 0 });
   assert.equal(await broken.index(), null);
 });
+
+test('a store that throws at once still reloads later', async () => {
+  let reads = 0, t = 0, fail = true;
+  const store = { read() { reads++; if (fail) throw new Error('bad config'); return Promise.resolve(tally()); } };
+  const reader = createReceptionReader({ store, now: () => t });
+  assert.equal(await reader.index(), null);
+  fail = false;
+  t += RELOAD_MS + 1;
+  const ix = await reader.index();
+  assert.equal(reads, 2);
+  assert.deepEqual(ix.byNorad.get(1), ['A']);
+});

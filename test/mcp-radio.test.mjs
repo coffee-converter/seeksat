@@ -116,3 +116,26 @@ test('reception unavailable leaves get_radio_pass as before', async () => {
   assert.equal('reception' in plain.downlinks[0], false);
   assert.equal(plain.frequencyMHz, 437.8);
 });
+
+test('find_passes and next_visible_pass (radio) cap a silent satellite and carry its reception', async () => {
+  const { nextVisiblePassTool } = await import('../lib/mcp/tools.mjs');
+  const t = emptyTally();
+  addObservations(t, [1, 2, 3, 4].map((i) => ({ uuid: 'DEAD', noradId: 25544, endMs: NOW - i * 3_600_000, lowHz: 437_800_000, highHz: 437_800_000 })), 'bad');
+  // Every ISS downlink: tried and never heard.
+  for (const hz of [437_550_000, 145_800_000]) addObservations(t, [1, 2, 3].map((i) => ({ uuid: `D${hz}`, noradId: 25544, endMs: NOW - i * 3_600_000, lowHz: hz, highHz: hz })), 'bad');
+  const ix = indexTally(t);
+  const ask = { satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg, mode: 'radio', minElevation: 0 };
+  const plain = await findPassesTool(ask, deps);
+  const high = plain.passes.find((p) => p.rating.bars > 2);
+  assert.ok(high, 'a pass above Fair to cap');
+  const out = await findPassesTool(ask, { ...deps, reception: async () => ix });
+  assert.equal(out.passes.find((p) => p.rise === high.rise).rating.bars, 2);
+  assert.equal(out.reception.state, 'silent');
+  assert.match(out.receptionSource, /SatNOGS/);
+  const next = await nextVisiblePassTool(ask, { ...deps, reception: async () => ix });
+  assert.ok(next.pass.rating.bars <= 2);
+  assert.equal(next.reception.state, 'silent');
+  // Visual mode is untouched.
+  const vis = await findPassesTool({ ...ask, mode: 'visual' }, { ...deps, reception: async () => ix });
+  assert.equal('reception' in vis, false);
+});
