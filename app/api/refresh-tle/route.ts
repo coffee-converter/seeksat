@@ -12,6 +12,8 @@ import { siteUrl, submitToIndexNow } from '@/lib/seo/indexnow.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
+/** More changed satellites than this in one run: IndexNow is skipped (see below). */
+const MAX_INDEXNOW_PER_RUN = 1000;
 
 export async function GET(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -37,10 +39,16 @@ export async function GET(req: Request): Promise<Response> {
   // Satellites new to the catalog have new pages, and ones gone from it have
   // pages that now 404: tell search engines about just those. A refusal is
   // logged and reported, and never fails the refresh.
-  let indexNow: { submitted: number } | { error: string } | undefined;
+  let indexNow: { submitted: number } | { error: string } | { skipped: number } | undefined;
   const diff = result as { addedIds?: number[]; removedIds?: number[] };
   const changed = result.written ? [...(diff.addedIds ?? []), ...(diff.removedIds ?? [])] : [];
-  if (changed.length) {
+  // A few dozen new or gone a run is normal; thousands mean the catalog
+  // itself changed (a group added or dropped), which is a deploy's business
+  // (npm run indexnow), not a mass resubmit from the cron.
+  if (changed.length > MAX_INDEXNOW_PER_RUN) {
+    indexNow = { skipped: changed.length };
+    console.warn(`refresh-tle: ${changed.length} satellites changed at once; IndexNow skipped`);
+  } else if (changed.length) {
     try {
       await submitToIndexNow(changed.map((id: number) => siteUrl(`/sat/${id}`)));
       indexNow = { submitted: changed.length };

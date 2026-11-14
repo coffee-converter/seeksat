@@ -168,7 +168,11 @@ async function handler(req: Request): Promise<Response> {
     const text = await readCappedText(req, MAX_BODY_CHARS * 4);
     if (text == null || text.length > MAX_BODY_CHARS) return jsonRpcRefusal(413, 'request too large');
     if (text.trimStart().startsWith('[')) return jsonRpcRefusal(400, 'batches are not supported: send one message per request');
-    req = new Request(req.url, { method: 'POST', headers: req.headers, body: text });
+    // The original Content-Length goes: the body is now the decoded text,
+    // whose length can differ (invalid UTF-8 decodes to longer characters).
+    const headers = new Headers(req.headers);
+    headers.delete('content-length');
+    req = new Request(req.url, { method: 'POST', headers, body: text });
   }
   const key = presentedKey(req);
   const { tier, keyId } = resolveTier(key, PRO_KEYS);

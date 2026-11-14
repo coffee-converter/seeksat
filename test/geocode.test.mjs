@@ -15,3 +15,13 @@ test('reverseGeocodeName: a failed or empty lookup gives null', async () => {
   assert.equal(await reverseGeocodeName(1, 2, { fetchImpl: async () => { throw new Error('offline'); } }), null);
   assert.equal(await reverseGeocodeName(41.9, -87.6, { fetchImpl: async () => ({ ok: true, json: async () => ({ address: { city: 'Chicago', state: 'Illinois' } }) }) }), 'Chicago, Illinois');
 });
+
+test('reverseGeocodeName asks once per place, a "no place" answer included', async () => {
+  const { reverseGeocodeName } = await import('../lib/pass-finder/geocode.js');
+  let asked = 0;
+  const sea = async () => { asked++; return { ok: true, json: async () => ({ error: 'Unable to geocode' }) }; };
+  const lat = 10 + Math.random(), lon = -140 + Math.random();
+  assert.equal(await reverseGeocodeName(lat, lon, { fetchImpl: sea }), null);
+  assert.equal(await reverseGeocodeName(lat, lon, { fetchImpl: sea }), null);
+  assert.equal(asked, 1);
+});
