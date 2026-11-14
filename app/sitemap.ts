@@ -33,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date(generatedAtMs ?? Date.now());
   return [
     { url: `${SITE_URL}/`, lastModified, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE_URL}/mcp`, lastModified, changeFrequency: "monthly", priority: 0.6 },
     ...ids.map((id) => ({
       url: `${SITE_URL}/sat/${id}`,
       lastModified,

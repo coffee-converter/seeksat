@@ -148,6 +148,21 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     return () => { gone = true; };
   }, [locLat, locLon, locName, locSource]);
 
+  // A GPS location keeps the name "My location" but learns its place (about
+  // 1 km), so a shared pass can say where it is (places.mjs shareNameOf).
+  const locPlace = loc?.place;
+  useEffect(() => {
+    if (locLat == null || locLon == null || locSource !== "gps" || locPlace) return;
+    let gone = false;
+    void (reverseGeocodeName as (lat: number, lon: number) => Promise<string | null>)(roundKm(locLat), roundKm(locLon)).then((place) => {
+      if (gone || !place) return;
+      const now = useHomeStore.getState().prefs.location;
+      if (!now || now.latDeg !== locLat || now.lonDeg !== locLon || now.source !== "gps") return;
+      useHomeStore.getState().setPrefs({ location: { ...now, place } });
+    });
+    return () => { gone = true; };
+  }, [locLat, locLon, locSource, locPlace]);
+
   // The location's ground height, looked up once through this site's own
   // /api/elevation and kept with it: the pass math and the brightness use it.
   // Asked about the area (about 1 km), which also lets nearby visitors share

@@ -27,10 +27,18 @@ test('dialogs escape the phone panel: Modal portals into <body>, the panel makes
   assert.doesNotMatch(panel, /z-index/);
 });
 
-test('stacked maps (under 1100px) take a third of the screen, home and satellite page alike', () => {
+test('stacked maps (under 1100px, not a phone held sideways) take a third of the screen, home and satellite page alike', () => {
   const css = read('app/home.css');
-  const m = css.match(/@media \(max-width: 1099\.98px\) \{\s*\.map-shell, \.map-shell\.sat \{ --map-h: max\(220px, 33vh\); \}\s*@supports \(height: 1svh\) \{ \.map-shell, \.map-shell\.sat \{ --map-h: max\(220px, 33svh\); \} \}/);
+  const m = css.match(/@media \(max-width: 1099\.98px\) and \(orientation: portrait\)[^{]*\{\s*\.map-shell, \.map-shell\.sat \{ --map-h: max\(220px, 33vh\); \}\s*@supports \(height: 1svh\) \{ \.map-shell, \.map-shell\.sat \{ --map-h: max\(220px, 33svh\); \} \}/);
   assert.ok(m, 'one rule sets both');
   // It comes after the satellite page's own phone height, so it wins.
   assert.ok(css.indexOf(m[0]) > css.indexOf('--map-h: max(220px, 55vh)'));
+});
+
+test('the CSS layouts match lib/ui/layout.ts: a phone held sideways gets the map beside the panel', () => {
+  const src = read('lib/ui/layout.ts');
+  const q = (name) => new RegExp(`export const ${name} = "([^"]+)"`).exec(src)[1];
+  const css = read('app/home.css') + read('app/sat.css');
+  for (const name of ['SIDE_QUERY', 'STACKED_QUERY', 'PASS_VIEW_QUERY']) assert.ok(css.includes(`@media ${q(name)} {`), `${name} is used in the CSS`);
+  assert.match(q('SIDE_QUERY'), /\(orientation: landscape\) and \(max-height: 520px\)/);
 });

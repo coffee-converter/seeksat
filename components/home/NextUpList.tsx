@@ -27,6 +27,8 @@ export type Track = ReturnType<typeof makeTrack>;
 export interface HomeObserver {
   id: string;
   name: string;
+  /** The name shares use, when not `name` ("My location" shares its place). */
+  shareName?: string;
   latDeg: number;
   lonDeg: number;
   tz?: string;
@@ -121,7 +123,7 @@ export function passShareUrl({ track, observer, pass, mode, minElevDeg }: {
   if (isPasted(track)) return null;
   return shareUrl(window.location.origin, {
     noradId: track.noradId,
-    observers: [{ name: observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg }],
+    observers: [{ name: observer.shareName ?? observer.name, latDeg: observer.latDeg, lonDeg: observer.lonDeg }],
     passMs: pass.peakMs,
     mode,
     freqHz: null,

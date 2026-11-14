@@ -23,6 +23,8 @@ export interface HomeLocation {
   source: "gps" | "place" | "grid" | "coords";
   /** The ground's height in metres, looked up once (absent until then). */
   elevM?: number;
+  /** A GPS location's place name, looked up once (shares say where it is). */
+  place?: string;
 }
 export interface CustomElements {
   noradId: number;

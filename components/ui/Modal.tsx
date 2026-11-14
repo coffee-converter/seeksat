@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Button from "./Button";
 import { useFocusTrap } from "./useFocusTrap";
+import { useSheetDrag } from "./useSheetDrag";
 import { cx, modalClass } from "@/lib/ui/classes.mjs";
 import Icon from "./Icon";
 
 /** Where the sheet is a panel under the header, not a bottom sheet (app/ui.css). */
 const DOCKED = "(min-width: 1100px)";
-/** How long a released sheet takes to spring back or slide away. */
-const SHEET_SETTLE_MS = 180;
 
 interface Props {
   open: boolean;
@@ -73,40 +72,16 @@ export default function Modal({ open, onClose, title, size = "dialog", tone = "p
   }, [shown]);
 
   // A phone's bottom sheet closes by dragging it down from its handle or
-  // header: past a quarter of its height, or flicked, it slides away; short
-  // of that it springs back. Controls in the header still act as controls.
+  // header (useSheetDrag); controls in the header still act as controls.
   const panelRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ id: number; y0: number; t0: number; dy: number } | null>(null);
   const sheetDrag = size === "sheet";
-  const onDragStart = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!sheetDrag || e.button !== 0 || window.matchMedia(DOCKED).matches) return;
-    if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [role='slider']")) return;
-    drag.current = { id: e.pointerId, y0: e.clientY, t0: performance.now(), dy: 0 };
-    e.currentTarget.setPointerCapture(e.pointerId);
-    if (panelRef.current) panelRef.current.style.transition = "none";
-  };
-  const onDragMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    if (!d || d.id !== e.pointerId || !panelRef.current) return;
-    d.dy = Math.max(0, e.clientY - d.y0);
-    panelRef.current.style.transform = d.dy ? `translateY(${d.dy}px)` : "";
-  };
-  const onDragEnd = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    const panel = panelRef.current;
-    if (!d || d.id !== e.pointerId || !panel) return;
-    drag.current = null;
-    const speed = d.dy / Math.max(1, performance.now() - d.t0);
-    const away = e.type === "pointerup" && (d.dy > panel.offsetHeight * 0.25 || (speed > 0.5 && d.dy > 30));
-    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (away && still) { onCloseRef.current(); return; }
-    panel.style.transition = `transform ${SHEET_SETTLE_MS}ms ease-out`;
-    panel.style.transform = away ? "translateY(100%)" : "";
-    if (away) window.setTimeout(() => onCloseRef.current(), SHEET_SETTLE_MS);
-  };
-  const dragProps = sheetDrag
-    ? { onPointerDown: onDragStart, onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragEnd }
-    : {};
+  const drag = useSheetDrag({
+    panelRef,
+    enabled: () => sheetDrag && !window.matchMedia(DOCKED).matches,
+    onClose: () => onCloseRef.current(),
+    ignore: "button, a, input, select, textarea, [role='slider']",
+  });
+  const dragProps = sheetDrag ? drag : {};
 
   if (!shown) return null;
   return createPortal(

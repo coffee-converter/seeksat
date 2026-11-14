@@ -216,7 +216,7 @@ type Frames = {
 /** How often the other dots and the GeoJSON footprint move; the focus moves every frame. */
 const DOT_MS = 200;
 /** Where MapShell docks the map beside the panel (keep in step with home.css). */
-const DOCKED_QUERY = "(min-width: 1100px)";
+import { SIDE_QUERY as DOCKED_QUERY } from "@/lib/ui/layout";
 /** A tap this close to a dot (in px, either axis) selects it. */
 const HIT_PX = 22;
 // How long a tap on the focused dot waits to see if it is a double-click:

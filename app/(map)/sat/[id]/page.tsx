@@ -7,6 +7,8 @@ import { BUSY_METADATA, asBusy } from "@/lib/sat/busy";
 import { getCatalogReader } from "@/lib/mirror/server.mjs";
 import { resolveSatellite } from "@/lib/catalog.mjs";
 import { lookupSat, satMetadata, satPageData } from "@/lib/sat/page-data.mjs";
+import { satJsonLd } from "@/lib/sat/json-ld.mjs";
+import { SITE_URL } from "@/lib/site.mjs";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -45,5 +47,12 @@ export default async function Page({ params }: Props) {
     await asBusy(err, id);
     return <SatBusy />;
   }
-  return <SatApp key={data.noradId} data={data} />;
+  // "<" escaped so a name can never close the script.
+  const ld = JSON.stringify(satJsonLd(data, SITE_URL)).replace(/</g, "\\u003c");
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld }} />
+      <SatApp key={data.noradId} data={data} />
+    </>
+  );
 }

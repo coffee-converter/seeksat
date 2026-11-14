@@ -13,7 +13,7 @@ const MCP_ALT = "SeekSat MCP server: satellite passes and radio for AI agents, a
 export const metadata: Metadata = {
   title: "MCP Server",
   description:
-    "Query SeekSat's satellite pass & position engine from AI agents over the Model Context Protocol.",
+    "Connect Claude and other AI agents to SeekSat over the Model Context Protocol: satellite passes, live positions, what's overhead, visibility ratings and radio Doppler. Endpoint: seeksat.com/api/mcp.",
   alternates: { canonical: "/mcp" },
   openGraph: { images: [{ url: "/og-mcp.png", width: 1200, height: 630, alt: MCP_ALT }] },
   twitter: { card: "summary_large_image", images: [{ url: "/og-mcp.png", alt: MCP_ALT }] },

@@ -38,6 +38,7 @@ import { refocus } from "@/lib/ui/refocus";
 import { usePlaceZone } from "@/components/usePlaceZone";
 import { rowDetail, rowWhen } from "@/lib/home/pass-list.mjs";
 import { startIsRise, underWay as underWayAt } from "@/lib/passes/under-way.mjs";
+import { shareNameOf } from "@/lib/home/places.mjs";
 
 // The chart painters load on the first chart open, not with the page.
 const DAY_MS = 86_400_000;
@@ -150,6 +151,7 @@ export default function PassSection({
     () => location && {
       id: "home",
       name: location.name || "Your location",
+      shareName: (shareNameOf as (l: unknown) => string)(location),
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
       tz,
@@ -402,7 +404,7 @@ export default function PassSection({
   // Called from event handlers only (reads window.location.origin).
   const linkFor = (passMs: number | null, freqHz: number | null) => shareUrl(window.location.origin, {
     noradId: track?.noradId,
-    observers: observers.map((o) => ({ name: o.name, latDeg: o.latDeg, lonDeg: o.lonDeg })),
+    observers: observers.map((o) => ({ name: o.shareName ?? o.name, latDeg: o.latDeg, lonDeg: o.lonDeg })),
     passMs,
     mode,
     freqHz,

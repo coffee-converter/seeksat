@@ -38,10 +38,11 @@ import Button from "@/components/ui/Button";
 import { FIRST_VISIT_ATTR } from "@/lib/home/first-visit.mjs";
 import SatChips, { type Chip, type PendingChip } from "@/components/home/SatChips";
 import { useMediaQuery } from "@/lib/ui/use-media-query";
-import { DOCKED_QUERY } from "./useKeepRowInPlace";
+import { STACKED_QUERY, WIDE_QUERY } from "@/lib/ui/layout";
 import { useLiveHeldRow, useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { usePlaceZone, viewerZone } from "@/components/usePlaceZone";
 import { zoneNote } from "@/lib/time/zone.mjs";
+import { shareNameOf } from "@/lib/home/places.mjs";
 
 const CARD_REFRESH_MS = 10 * 60_000;
 
@@ -255,6 +256,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     () => location && {
       id: "home",
       name: location.name || "Your location",
+      shareName: (shareNameOf as (l: unknown) => string)(location),
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
       tz,
@@ -459,7 +461,8 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   // Desktop (the map docked beside the list): a chip per followed satellite
   // over the map, as on the satellite page: tap to open it, the eye to hide.
   // Phones and tablets keep the short map clear (Following · N lists them).
-  const docked = useMediaQuery(DOCKED_QUERY);
+  // Chips: desktop only (WIDE), not a phone held sideways.
+  const docked = useMediaQuery(WIDE_QUERY);
   const toggleHidden = useHomeStore((s) => s.toggleHidden);
   const chips = useMemo<Chip[]>(() => prefs.following.map((id) => ({
     noradId: id,
@@ -595,7 +598,6 @@ export default function HomeApp({ initialRecords = [] }: Props) {
   );
 }
 
-const STACKED_QUERY = "(max-width: 1099.98px)";
 
 /** True while the shell is one column (app/home.css), read after mount. */
 function useStacked(): boolean {

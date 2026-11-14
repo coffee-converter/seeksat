@@ -99,7 +99,7 @@ test('sourceLabel', () => {
 
 test('satMetadata', () => {
   const m = satMetadata(satPageData(ISS_SERVED_RECORD, resolveSatellite(25544), ISS_T0));
-  assert.equal(m.title, 'ISS (ZARYA) (NORAD 25544): live position and passes');
+  assert.equal(m.title, 'ISS (ZARYA), NORAD 25544: live position and passes');
   assert.equal(m.alternates.canonical, '/sat/25544');
   assert.match(m.description, /^Live position, speed and passes for ISS \(ZARYA\), NORAD 25544\. Orbit \d+ by \d+ km, period \d+\.\d min, inclination 51\.6°\.$/);
   assert.ok(!m.description.includes('—'));
@@ -138,4 +138,12 @@ test('lookupSat throws, never a cacheable not-found, when the on-demand result i
     onDemand: { get: async () => undefined }, now: () => ISS_T0, log: quiet,
   });
   await assert.rejects(lookupSat(reader, '99999'), /not available/);
+});
+
+test('a satellite page carries a breadcrumb trail for search results', async () => {
+  const { satJsonLd } = await import('../lib/sat/json-ld.mjs');
+  const ld = satJsonLd({ noradId: 25544, name: 'ISS (ZARYA)' }, 'https://seeksat.com');
+  assert.equal(ld['@type'], 'BreadcrumbList');
+  assert.deepEqual(ld.itemListElement.map((i) => i.item), ['https://seeksat.com/', 'https://seeksat.com/sat/25544']);
+  assert.equal(ld.itemListElement[1].name, 'ISS (ZARYA)');
 });

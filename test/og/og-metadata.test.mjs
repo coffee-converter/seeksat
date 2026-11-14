@@ -24,3 +24,19 @@ test("shareMetadata swaps both images, sets robots, keeps the rest", () => {
   assert.equal(md.title, "T");
   assert.equal(md.description, "D");
 });
+
+test('a shared pass is titled and described as that pass, from that place, at its time there', async () => {
+  const { sharedPassText, shareMetadata } = await import('../../lib/og/og-metadata.mjs');
+  const shared = { observers: [{ name: 'Chicago', latDeg: 41.88, lonDeg: -87.63 }], passTimeMs: Date.parse('2026-11-14T14:28:00Z'), mode: 'visual' };
+  const t = sharedPassText({ satName: 'SAUDISAT 1C (SO-50)', shortName: 'SO-50', shared });
+  assert.equal(t.title, 'SO-50 pass from Chicago, Sat 8:28 AM');
+  assert.match(t.description, /^SO-50 from Chicago, Sat 8:28 AM: when and where to look/);
+  // "My location" from an older link reads as coordinates; radio says what radio gets.
+  const mine = sharedPassText({ satName: 'SAUDISAT 1C (SO-50)', shared: { ...shared, observers: [{ name: 'My location', latDeg: 41.99, lonDeg: -88.19 }], mode: 'radio' } });
+  assert.equal(mine.title, 'SO-50 pass from 42.0°N, 88.2°W, Sat 8:28 AM');
+  assert.match(mine.description, /Doppler/);
+  const md = shareMetadata({ title: 'T', openGraph: {}, twitter: {}, alternates: {} }, { noradId: 27607, blob: 'b', name: 'SAUDISAT 1C (SO-50)', shortName: 'SO-50', shared });
+  assert.equal(md.title, t.title);
+  assert.equal(md.openGraph.title, t.title);
+  assert.equal(md.twitter.description, t.description);
+});

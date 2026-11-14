@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import "@/app/home.css";
 import { linkClass } from "@/lib/ui/classes.mjs";
+
+export const metadata: Metadata = {
+  title: "Page not found",
+  description: "There's nothing at this address on SeekSat.",
+  robots: { index: false, follow: true },
+};
 
 export default function NotFound() {
   return (

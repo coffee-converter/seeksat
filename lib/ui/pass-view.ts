@@ -9,8 +9,10 @@ import { create } from "zustand";
 import { useBackCloses } from "./use-back-closes";
 import { useMediaQuery } from "./use-media-query";
 
-/** Phones: the pass view applies under this width (tablets keep the list). */
-export const PASS_VIEW_QUERY = "(max-width: 699.98px)";
+/** Phones held upright: the pass view applies (tablets keep the list, and a
+ *  phone held sideways has the map beside the list; lib/ui/layout.ts). */
+import { PASS_VIEW_QUERY } from "./layout";
+export { PASS_VIEW_QUERY };
 
 export const usePassViewStore = create<{
   open: boolean;

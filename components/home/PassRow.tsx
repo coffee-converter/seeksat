@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { cx, surfaceClass } from "@/lib/ui/classes.mjs";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { PASS_VIEW_QUERY, usePassViewStore } from "@/lib/ui/pass-view";
+import { useSheetDrag } from "@/components/ui/useSheetDrag";
 
 /** The list a day's rows sit in: a Surface holding them flush. */
 export const passRowsClass = cx("pass-list__rows", surfaceClass({ padded: false }));
@@ -52,6 +53,33 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
     }, dur + 20);
     return () => window.clearTimeout(t);
   }, [open]);
+  // The li, for the phone pass view: dragged down to close, and its height
+  // handed to the map shell so the map takes the rest of the screen.
+  const liRef = useRef<HTMLLIElement | null>(null);
+  const setLi = useCallback((el: HTMLLIElement | null) => {
+    liRef.current = el;
+    if (typeof ref === "function") ref(el);
+    else if (ref) (ref as { current: HTMLLIElement | null }).current = el;
+  }, [ref]);
+  const inPassView = () => open && window.matchMedia(PASS_VIEW_QUERY).matches;
+  const drag = useSheetDrag({
+    panelRef: liRef,
+    enabled: inPassView,
+    onClose: () => { const head = headRef.current; if (head) onToggle(head); },
+  });
+  useEffect(() => {
+    const li = liRef.current;
+    const shell = li?.closest<HTMLElement>(".map-shell");
+    if (!open || !li || !shell || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (window.matchMedia(PASS_VIEW_QUERY).matches) shell.style.setProperty("--pass-card-h", `${Math.ceil(li.scrollHeight)}px`);
+    });
+    ro.observe(li);
+    if (li.firstElementChild) ro.observe(li.firstElementChild);
+    const body = li.querySelector(".pass-row__body");
+    if (body) ro.observe(body);
+    return () => { ro.disconnect(); shell.style.removeProperty("--pass-card-h"); };
+  }, [open]);
   const click = (button: HTMLButtonElement) => {
     if (closing) return;
     const ms = open ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dur-base")) || 0 : 0;
@@ -67,8 +95,10 @@ export default function PassRow({ id, color, time, sub, now = false, name, tag, 
     timer.current = window.setTimeout(() => onToggle(button), ms);
   };
   return (
-    <li ref={ref} className={cx("pass-row", open && "pass-row--open", className)} style={{ "--sat-color": color } as CSSProperties}>
-      <button ref={headRef} type="button" className="pass-row__btn" aria-expanded={open && !closing} aria-controls={id} onClick={(e) => click(e.currentTarget)}>
+    <li ref={setLi} className={cx("pass-row", open && "pass-row--open", className)} style={{ "--sat-color": color } as CSSProperties}>
+      {/* The phone pass view's grab handle (shown there only). */}
+      {open && <span className="pass-row__grab" aria-hidden="true" {...drag} />}
+      <button ref={headRef} type="button" className="pass-row__btn" aria-expanded={open && !closing} aria-controls={id} onClick={(e) => click(e.currentTarget)} {...(open ? drag : {})}>
         <span className="pass-row__when">
           <span className="pass-row__time">
             {/* Under way: a small live dot, as the header clock's. */}
