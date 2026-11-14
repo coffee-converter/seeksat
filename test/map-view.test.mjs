@@ -243,3 +243,19 @@ test('nightRefreshMs: about a pixel per step, between 2 s and a minute', () => {
   assert.equal(nightRefreshMs(5), (360 / (512 * 32)) * 240_000);
   for (let z = 0; z < 15; z++) assert.ok(nightRefreshMs(z + 1) <= nightRefreshMs(z), String(z));
 });
+
+test('a satellite page frames its satellite: between you and it when close, else on it', async () => {
+  const { framedCentre, homeCamera, FRAME_BOTH_DEG } = await import('../lib/map/view.mjs');
+  const chicago = { latDeg: 41.88, lonDeg: -87.63 };
+  const near = { latDeg: 45, lonDeg: -60 };
+  const c = framedCentre(chicago, near);
+  assert.ok(c[0] > -87.63 && c[0] < -60 && c[1] > 41 && c[1] < 46, `midpoint ${c}`);
+  const far = { latDeg: -30, lonDeg: 120 };
+  assert.deepEqual(framedCentre(chicago, far), [120, -30]);
+  assert.deepEqual(framedCentre(null, far), [120, -30]);
+  assert.equal(FRAME_BOTH_DEG, 60);
+  // Only when asked: the home page keeps centring on you.
+  const size = { width: 400, height: 400 };
+  assert.deepEqual(homeCamera('globe', { observer: chicago, focus: far, ...size }).center, [-87.63, 41.88]);
+  assert.deepEqual(homeCamera('globe', { observer: chicago, focus: far, frameFocus: true, ...size }).center, [120, -30]);
+});

@@ -284,6 +284,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     projectionId: prefs.projection,
     onProjectionChange: (id) => setPrefs({ projection: id }),
     selectedId: focusId,
+    // The page is about this satellite: the globe opens framing it.
+    frameFocus: true,
     minElevDeg: settings.minElevDeg,
     onSelect: selectOrClose,
     // Desktop only, as on the home page: phones keep the map clear (the page

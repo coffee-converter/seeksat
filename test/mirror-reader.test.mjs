@@ -331,10 +331,18 @@ test('skyCatalog: every snapshot satellite with its downlinks, one list per snap
   s.downlinks = { 70002: [{ hz: 145_800_000, label: 'Mode V SSTV', mode: 'sstv', source: 'satnogs', default: true }] };
   const { reader, calls } = make({ store: createMemorySnapshotStore(s) });
   const list = await reader.skyCatalog();
-  assert.deepEqual(list.map((x) => [x.noradId, x.downlinks.length]).sort((a, b) => a[0] - b[0]), [[25544, 2], [70001, 0], [70002, 1]]);
+  assert.deepEqual(list.map((x) => [x.noradId, x.downlinks.length]).sort((a, b) => a[0] - b[0]), [[25544, 3], [70001, 0], [70002, 1]]);
   assert.equal(list.find((x) => x.noradId === 70001).record, s.objects['70001']);
   assert.equal(await reader.skyCatalog(), list, 'built once per snapshot');
   assert.deepEqual(calls, []);
   const { reader: empty } = make({ store: createMemorySnapshotStore(null) });
   assert.deepEqual(await empty.skyCatalog(), []);
+});
+
+test('search: a curated satellite shows by its site name, and its catalog name still finds it', async () => {
+  const reader = make({ store: createMemorySnapshotStore(snap([rec(48274, 'CSS (TIANHE)'), rec(60009, 'OTHER')])) }).reader;
+  const byName = await reader.search('tiangong');
+  assert.equal(byName[0].noradId, 48274);
+  assert.equal(byName[0].name, 'Tiangong (CSS)');
+  assert.equal((await reader.search('tianhe'))[0].noradId, 48274);
 });

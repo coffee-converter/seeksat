@@ -67,7 +67,7 @@ test('ISS defaults to visual and carries verified downlinks', () => {
   const iss = resolveSatellite(25544);
   assert.equal(iss.defaultMode, 'visual');
   const hz = iss.downlinks.map((d) => d.hz);
-  assert.deepEqual(hz, [437_800_000, 145_800_000]);
+  assert.deepEqual(hz, [437_800_000, 437_550_000, 145_800_000]);
 });
 
 test('every catalog entry has a well-formed downlinks array', () => {

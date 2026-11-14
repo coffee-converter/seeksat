@@ -104,28 +104,16 @@ test('marks skip short tracks', () => {
   assert.ok(ids(marks).includes(2));
 });
 
-test('marks have a chevron and a tick per time tick, with bearings', () => {
+test('marks are a tick per time tick, with bearings, and no chevron (the dashed line meets the solid one at the dot)', () => {
   const marks = build()['ss-marks'].features.filter((f) => f.properties.noradId === 1);
-  const chevrons = marks.filter((f) => f.properties.kind === 'chevron');
+  assert.equal(marks.filter((f) => f.properties.kind === 'chevron').length, 0);
   const ticks = marks.filter((f) => f.properties.kind === 'tick');
-  assert.equal(chevrons.length, 1);
   assert.equal(ticks.length, 3);
   // The track heads east and a little north.
-  const [lon, lat] = chevrons[0].geometry.coordinates;
-  assert.ok(Math.abs(lon - 120.3) < 1e-9 && Math.abs(lat - 4.05) < 1e-9);
-  for (const f of marks) {
+  for (const f of ticks) {
     const b = f.properties.bearing;
-    assert.ok(b > 45 && b < 90, `${f.properties.kind} bearing ${b}`);
+    assert.ok(b > 45 && b < 90, `tick bearing ${b}`);
   }
-});
-
-test('the chevron sits in the same place at every track detail', () => {
-  const chevron = (detail) => build({ trackDetail: detail })['ss-marks'].features
-    .find((f) => f.properties.noradId === 1 && f.properties.kind === 'chevron');
-  const plain = chevron(1);
-  const fine = chevron(8);
-  assert.deepEqual(fine.geometry.coordinates, plain.geometry.coordinates);
-  assert.equal(fine.properties.bearing, plain.properties.bearing);
 });
 
 test('only the focus gets tick labels, and only two', () => {
