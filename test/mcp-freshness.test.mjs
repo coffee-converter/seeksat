@@ -128,14 +128,15 @@ test('scans leave out stale elements and count them', async () => {
   assert.equal(visual.skippedStaleElements, 4);
   assert.equal(visual.satellitesScanned, 8);
   for (const p of [...radio.passes, ...visual.passes]) assert.equal(p.elementAge.level, 'fresh');
-  // Ten days old now, so past the 14-day line before a week-long sweep ends.
+  // Ten days old now: past the 14-day line before a week-long sweep ends, but
+  // judged at its start, so the long sweep leaves out only the stale ones.
   const later = depsAt(EPOCH + 10 * DAY, {
     getRecord: async (id) => recs.get(id) ?? null,
     visualIds: async () => [...recs.keys()],
     visualScanCache: createLru(4),
   });
   const week = await bestPassTool({ ...AT, windowHours: 168 }, later);
-  assert.equal(week.skippedStaleElements, 12);
+  assert.equal(week.skippedStaleElements, 4);
   const day = await bestPassTool({ ...AT, windowHours: 24 }, later);
   assert.equal(day.skippedStaleElements, 4);
 });

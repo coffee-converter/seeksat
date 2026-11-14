@@ -45,7 +45,7 @@ test('findPasses (radio mode) returns ordered windows with the expected shape', 
     assert.equal(typeof p.sunlit, 'boolean');
     assert.ok('peakMagnitude' in p);
     assert.ok(p.captureProbability >= 0 && p.captureProbability <= 1);
-    assert.equal(p.quality, p.captureProbability, 'quality is the old name');
+    assert.equal(p.quality, p.peakMagnitudeEstimated ? Math.min(p.captureProbability, 0.4) : p.captureProbability, 'quality is the old name, with its old cap for an estimated brightness');
     assert.ok(p.azimuthDeg.rise >= 0 && p.azimuthDeg.rise < 360);
   }
   const rises = passes.map(p => Date.parse(p.rise));
@@ -185,7 +185,7 @@ test('findPasses (radio) estimates an unknown magnitude without changing the rat
   const guessed = findPasses(args).passes;
   const known = findPasses({ ...args, standardMag: -1.8 }).passes;
   assert.ok(guessed.length > 0);
-  assert.deepEqual(guessed.map((p) => [p.quality, p.rating]), known.map((p) => [p.quality, p.rating]));
+  assert.deepEqual(guessed.map((p) => [p.captureProbability, p.rating]), known.map((p) => [p.captureProbability, p.rating]));
   for (const p of guessed) {
     assert.equal(p.peakMagnitudeEstimated, true);
     assert.equal(p.brightnessNote, ESTIMATED_MAG_NOTE);
