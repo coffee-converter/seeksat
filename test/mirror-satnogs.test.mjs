@@ -72,3 +72,10 @@ test('a repeater keeps its uplink, mode, inversion and tone', () => {
   assert.deepEqual(out['44909'][0].uplink, { hz: 145_935_000, highHz: 145_995_000, mode: 'lsb', invert: true });
   assert.equal(downlinksFromTransmitters([tx({})])['25544'][0].uplink, undefined);
 });
+
+test('downlinks keep their SatNOGS transmitter uuid', () => {
+  const out = downlinksFromTransmitters([tx({ uuid: 'ism4mBBuTeSBYsF67yno8j' }), tx({ downlink_low: 145_800_000, uuid: '' })]);
+  const byHz = Object.fromEntries(out['25544'].map((d) => [d.hz, d]));
+  assert.equal(byHz[437_800_000].uuid, 'ism4mBBuTeSBYsF67yno8j');
+  assert.equal('uuid' in byHz[145_800_000], false);
+});
