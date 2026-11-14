@@ -128,6 +128,17 @@ const awayLabel = awayText as (rangeKm: number) => string;
 const greatCircle = greatCircleOf as (a: [number, number], b: [number, number], n?: number) => [number, number][];
 /** The live sight line starts this far (px) from your location's centre: at its icon's edge. */
 const SIGHT_TRIM_PX = 7;
+/** A track's lead starts this far (px) from the dot's centre: at its edge. */
+const LEAD_TRIM_PX = 6;
+/** The lead's samples, from the dot to where the map's solid line begins. */
+const LEAD_STEP_MS = 10_000;
+/** A line's first [lon, lat], or null for an empty one. */
+function firstPoint(shape: GeoShape | null | undefined): [number, number] | null {
+  const c = (shape as { type?: string; coordinates?: unknown } | null)?.coordinates as unknown[] | undefined;
+  if (!c || !c.length) return null;
+  const first = (shape as { type: string }).type === "MultiLineString" ? (c[0] as number[][])?.[0] : (c[0] as number[]);
+  return Array.isArray(first) && first.length >= 2 ? [first[0], first[1]] : null;
+}
 const sightFeatures = sightFeaturesOf as (s: MapSat, observer: MapObserver | null, o?: { lines?: boolean }) => unknown[];
 const sightOf = sightFrom as (o: { latDeg: number; lonDeg: number; elevM?: number }, lon: number, lat: number, altKm: number) => { rangeKm: number; elDeg: number };
 /** The distance label's width per character (9.5 px text) and the room the
@@ -453,6 +464,66 @@ export default function FlatMap({
   /** Draw the live sight line to where the satellite's dot is now: the focus
    *  marker's own placed sample when it is the focus, so the two match in
    *  the same frame. Cleared when no live pass is open. */
+  // Each tracked satellite's lead: the solid track from its dot to where the
+  // map's own line turns solid (the end of the minute; useMapSats), drawn in
+  // the same frame as the dot, so dashed (flown) meets solid (ahead) on it.
+  const leadsSvg = useRef<{ g: SVGGElement; paths: Map<number, { casing: SVGPathElement; line: SVGPathElement }> } | null>(null);
+  const drawLeads = useCallback((map: MlMap) => {
+    const el = leadsSvg.current;
+    if (!el) return;
+    const { sats: s, view: v } = latest.current;
+    const now = mapNow();
+    const end = (Math.floor(now / 60_000) + 1) * 60_000;
+    type Occl = { isLocationOccluded?: (ll: { lng: number; lat: number }) => boolean };
+    const tr = (map as unknown as { _camera?: { transform?: Occl } })._camera?.transform;
+    const occluded = v === "globe" && typeof tr?.isLocationOccluded === "function" ? tr.isLocationOccluded.bind(tr) : null;
+    const seen = new Set<number>();
+    for (const sat of s) {
+      if (sat.emphasis !== "focus" && sat.emphasis !== "normal") continue;
+      const join = firstPoint(sat.trackFuture);
+      if (!join) continue;
+      // The focus starts where its marker is this frame (as the sight line does).
+      const last = lastFocus.current;
+      const start = sat.emphasis === "focus" && last && last.noradId === sat.noradId ? last.focus : sat.positionAt(now);
+      if (!start) continue;
+      const pts: [number, number][] = [[start.lonDeg, start.latDeg]];
+      for (let t = now + LEAD_STEP_MS; t < end; t += LEAD_STEP_MS) {
+        const p = sat.positionAt(t);
+        if (p) pts.push([p.lonDeg, p.latDeg]);
+      }
+      pts.push(join);
+      // Longitudes kept continuous from the copy nearest the camera.
+      let ref = map.getCenter().lng;
+      const points = pts.map(([lon, lat]) => {
+        const l = nearLon(lon, ref);
+        ref = l;
+        const q = map.project([l, lat]);
+        return { x: q.x, y: q.y, hidden: occluded ? occluded({ lng: l, lat }) : false };
+      });
+      let pair = el.paths.get(sat.noradId);
+      if (!pair) {
+        const ns = "http://www.w3.org/2000/svg";
+        const casing = document.createElementNS(ns, "path");
+        casing.setAttribute("class", "flat-map__lead-casing");
+        const line = document.createElementNS(ns, "path");
+        line.setAttribute("class", "flat-map__lead");
+        el.g.append(casing, line);
+        pair = { casing, line };
+        el.paths.set(sat.noradId, pair);
+      }
+      const d = sightPathD(points, LEAD_TRIM_PX);
+      pair.casing.setAttribute("d", d);
+      pair.line.setAttribute("d", d);
+      if (pair.line.getAttribute("stroke") !== sat.color) pair.line.setAttribute("stroke", sat.color);
+      seen.add(sat.noradId);
+    }
+    for (const [id, pair] of el.paths) {
+      if (seen.has(id)) continue;
+      pair.casing.remove();
+      pair.line.remove();
+      el.paths.delete(id);
+    }
+  }, []);
   const drawSight = useCallback((map: MlMap) => {
     const el = sightSvg.current;
     if (!el) return;
@@ -1210,9 +1281,13 @@ export default function FlatMap({
       const sightCasing = document.createElementNS(svgNs, "path");
       sightCasing.setAttribute("class", "flat-map__sight-casing");
       const sightPath = document.createElementNS(svgNs, "path");
-      sightEl.append(sightCasing, sightPath);
+      // The tracks' leads go under the sight line.
+      const leadsG = document.createElementNS(svgNs, "g");
+      leadsG.setAttribute("class", "flat-map__leads");
+      sightEl.append(leadsG, sightCasing, sightPath);
       map.getCanvasContainer().append(sightEl);
       sightSvg.current = { svg: sightEl, path: sightPath, casing: sightCasing, key: "" };
+      leadsSvg.current = { g: leadsG, paths: new Map() };
       setMapReady(true);
       capLayer.current = makeFootprintLayer({
         // It fails inside a frame: change the style after it.
@@ -1455,7 +1530,7 @@ export default function FlatMap({
         if (!gridRaf) gridRaf = requestAnimationFrame(() => { gridRaf = 0; if (alive) layoutGridLabels(map); });
       });
       // The camera moved or the map drew: the line follows in the same frame.
-      map.on("render", () => drawSight(map));
+      map.on("render", () => { drawLeads(map); drawSight(map); });
       let sightRaf = 0;
       map.on("move", () => {
         if (!sightRaf) sightRaf = requestAnimationFrame(() => { sightRaf = 0; if (alive) syncSightLabels(map); });
@@ -1494,12 +1569,13 @@ export default function FlatMap({
       focusMark.current = null;
       sightSvg.current?.svg.remove();
       sightSvg.current = null;
+      leadsSvg.current = null;
       setMapReady(false);
       made?.remove();
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setLocked, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy, drawSight, layoutGridLabels, syncGrid, syncSightLabels]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setLocked, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy, drawSight, drawLeads, layoutGridLabels, syncGrid, syncSightLabels]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {

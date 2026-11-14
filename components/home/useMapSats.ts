@@ -86,11 +86,16 @@ export function useMapSats({
       if (!t) continue;
       try {
         const from = trackMinute * TRACK_REFRESH_MS;
-        const s = splitOf(t, from);
+        // The line turns from dashed (flown) to solid (ahead) at the END of
+        // this minute, past the dot; the map draws the solid piece from the
+        // dot to there every frame (FlatMap drawLeads), so the change of
+        // style always sits on the dot however far it has moved this minute.
+        const at = from + TRACK_REFRESH_MS;
+        const s = splitOf(t, at);
         out.set(id, {
-          trackPast: s.past, trackFuture: s.future, trackTicks: s.ticks,
+          trackPast: s.past, trackFuture: s.future, trackTicks: ticksOf(t, from, at),
           // Ticks glide with the clock but stop where this line ends.
-          ticksAt: (ms: number) => ticksOf(t, ms, from),
+          ticksAt: (ms: number) => ticksOf(t, ms, at),
         });
       } catch {
         // a track that cannot be sampled is drawn as a dot only

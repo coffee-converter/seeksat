@@ -55,6 +55,16 @@
   stroke-dasharray: 3 3;
 }
 .flat-map__sight path.flat-map__sight-casing { stroke: var(--sat-casing); stroke-width: 3.5; }
+/* Each track's lead (FlatMap drawLeads): the solid line from the dot to where
+   the map's own solid line begins, as the track draws it (2 px on a 4 px
+   casing), so the two read as one line. Hidden with the tracks while a new
+   pass loads. */
+.flat-map__sight .flat-map__leads path { fill: none; stroke-dasharray: none; stroke-opacity: 1; stroke-linecap: round; stroke-linejoin: round; }
+/* Square ends on the casing: a round one would poke over the start of the
+   map's own line, which is under this layer. */
+.flat-map__sight .flat-map__leads .flat-map__lead-casing { stroke: var(--sat-casing); stroke-width: 4; stroke-linecap: butt; }
+.flat-map__sight .flat-map__leads .flat-map__lead { stroke-width: 2; }
+.flat-map--pass-pending .flat-map__leads { visibility: hidden; }
 .flat-map__sight path.flat-map__sight-casing.flat-map__sight--below { stroke-width: 4; }
 .flat-map__sight path.flat-map__sight--below {
   stroke-width: 2;
