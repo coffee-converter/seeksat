@@ -366,6 +366,8 @@ test('reception unavailable leaves rows as before', async () => {
   const plain = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs).deps);
   const broken = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs, { reception: async () => { throw new Error('x'); } }).deps);
   assert.deepEqual(broken, plain);
+  const empty = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs, { reception: async () => indexTally(emptyTally()) }).deps);
+  assert.deepEqual(empty, plain);
   assert.equal('receptionSource' in plain, false);
   for (const p of plain.passes) assert.equal('reception' in p, false);
 });

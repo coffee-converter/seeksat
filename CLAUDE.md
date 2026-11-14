@@ -74,8 +74,8 @@ look at a screenshot before calling it done.
   are what agents read: changing one changes behaviour for every client. Heavy calls (scans, chart
   renders) go through `lib/mcp/heavy-gate.mjs`.
 - **Catalog:** the snapshot in Blob, refreshed by the cron; `lib/mirror/`.
-- **Radio reception:** `lib/reception/` sweeps SatNOGS Network observations (good and bad, a settled UTC
-  day at a time, the last 7 days) into a 30-day per-transmitter tally in its own Blob file
+- **Radio reception:** `lib/reception/` sweeps SatNOGS Network observations (good and bad, a settled 6-hour
+  window at a time, the last 7 days) into a 30-day per-transmitter tally in its own Blob file
   (`catalog/reception.json.gz`, never inside the snapshot). Data CC BY-SA 4.0; name the source wherever
   it shows.
 

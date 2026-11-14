@@ -114,3 +114,20 @@ test('a next link off SatNOGS Network observations stops the sweep', async () =>
     assert.match(r.error, /next link/);
   }
 });
+
+test('a Retry-After past the deadline gives up at once instead of sleeping', async () => {
+  const { fetchImpl } = scripted([json({}, { status: 429, headers: { 'retry-after': '120' } }), json(page(2))]);
+  const { waits, sleep } = sleeper();
+  const r = await sweepObservations({ ...ARGS, fetchImpl, sleep, now: () => 0, deadlineMs: 10_000 });
+  assert.equal(r.complete, false);
+  assert.match(r.error, /deadline/);
+  assert.deepEqual(waits, []);
+});
+
+test('a body that never arrives times out', async () => {
+  const stalled = { ok: true, status: 200, headers: new Headers(), json: () => new Promise(() => {}) };
+  const { fetchImpl } = scripted([stalled]);
+  const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {}, requestTimeoutMs: 20 });
+  assert.equal(r.complete, false);
+  assert.match(r.error, /timed out/);
+});

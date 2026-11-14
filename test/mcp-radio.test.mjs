@@ -110,6 +110,8 @@ test('reception unavailable leaves get_radio_pass as before', async () => {
   const plain = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, deps);
   const broken = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, { ...deps, reception: async () => { throw new Error('blob down'); } });
   assert.deepEqual(broken, plain);
+  const empty = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, { ...deps, reception: async () => indexTally(emptyTally()) });
+  assert.deepEqual(empty, plain);
   assert.equal('receptionSource' in plain, false);
   assert.equal('reception' in plain.downlinks[0], false);
   assert.equal(plain.frequencyMHz, 437.8);
