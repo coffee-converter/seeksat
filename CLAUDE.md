@@ -9,9 +9,16 @@
 
 Once the production deploy is live (check the commit status on GitHub, or the site itself):
 
-1. **Run `npm run indexnow`** when the deploy adds or changes pages. It reads the *live* sitemap, so
-   running it before the deploy lands submits the previous build. It sends every URL in batches of
-   10,000. For a few pages only: `npm run indexnow -- / /mcp /sat/25544`.
+1. **Run IndexNow only when the deploy changed what a search engine sees** – and only for what changed:
+   - **Every page** (`npm run indexnow`, the whole live sitemap in batches of 10,000): site-wide changes
+     to titles, descriptions, structured data or the sitemap itself, or a new kind of page.
+   - **Just the pages that changed** (`npm run indexnow -- / /mcp /sat/25544`): a new or reworded page,
+     or new page content on a few routes.
+   - **Not at all**: styling, map or layout fixes, client-side behaviour, MCP tools, tests, docs. The
+     pages' indexed content is the same, and resubmitting 17,000 unchanged URLs gains nothing.
+
+   It reads the *live* sitemap, so run it only after the deploy has landed; earlier submits the previous
+   build.
    - IndexNow reaches Bing, Yandex, Seznam and others, not Google. Google reads
      `https://seeksat.com/sitemap.xml` through Search Console.
    - The key lives in `public/<key>.txt` (it is also hard-coded in `scripts/indexnow.mjs`). If the key ever
