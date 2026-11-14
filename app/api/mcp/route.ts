@@ -16,6 +16,7 @@ import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
 import { parseProKeys, resolveTier } from '@/lib/mcp/auth.mjs';
 import { runWithRequestContext, getRequestContext } from '@/lib/mcp/request-context.mjs';
 import { callerOf, createHeavyGate } from '@/lib/mcp/heavy-gate.mjs';
+import { createHash } from 'node:crypto';
 import { logUsage } from '@/lib/mcp/usage.mjs';
 import { createLru } from '@/lib/mcp/radio-scan.mjs';
 
@@ -152,7 +153,9 @@ async function handler(req: Request): Promise<Response> {
     req = new Request(req.url, { method: 'POST', headers: req.headers, body: text });
   }
   const { tier, keyId } = resolveTier(presentedKey(req), PRO_KEYS);
-  return runWithRequestContext({ tier, keyId, caller: callerOf(keyId, req.headers) }, () => mcpHandler(req));
+  const key = presentedKey(req);
+  const keyHash = tier === 'pro' && key ? createHash('sha256').update(key).digest('hex') : null;
+  return runWithRequestContext({ tier, keyId, caller: callerOf(keyHash, tier, req.headers) }, () => mcpHandler(req));
 }
 
 const MAX_BODY_CHARS = 64 * 1024;

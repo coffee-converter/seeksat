@@ -56,8 +56,9 @@ test('heavy calls: one at a time per caller, and a pool per tier', async () => {
   assert.equal(typeof p, 'function');
   a(); a();
   assert.equal(typeof gate.enter('free', 'ip:3'), 'function');
-  assert.equal(callerOf('k1', new Headers()), 'key:k1');
-  assert.equal(callerOf(null, new Headers({ 'x-forwarded-for': '1.2.3.4, 5.6.7.8' })), 'ip:1.2.3.4');
-  assert.equal(callerOf(null, new Headers({ 'x-real-ip': '9.9.9.9' })), 'ip:9.9.9.9');
-  assert.equal(callerOf(null, new Headers()), 'anon');
+  assert.equal(callerOf('abc123', 'pro', new Headers({ 'x-real-ip': '9.9.9.9' })), 'key:abc123');
+  // A key that is not a pro key is no identity: the caller is its IP.
+  assert.equal(callerOf('made-up', 'free', new Headers({ 'x-real-ip': '9.9.9.9' })), 'ip:9.9.9.9');
+  assert.equal(callerOf(null, 'free', new Headers({ 'x-forwarded-for': '1.2.3.4, 5.6.7.8' })), 'ip:1.2.3.4');
+  assert.equal(callerOf(null, 'free', new Headers()), 'anon');
 });
