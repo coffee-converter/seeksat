@@ -257,6 +257,7 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
             onSelect={scene?.onSelect ?? noop}
             top={scene?.top ?? null}
             chips={scene?.chips ?? null}
+            frameFocus={scene?.frameFocus ?? false}
             share={<ShareButton url={() => currentViewUrl()} title="SeekSat map" label="Share this view" size="link" />}
           />
         </>

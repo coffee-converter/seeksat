@@ -338,3 +338,11 @@ test('skyCatalog: every snapshot satellite with its downlinks, one list per snap
   const { reader: empty } = make({ store: createMemorySnapshotStore(null) });
   assert.deepEqual(await empty.skyCatalog(), []);
 });
+
+test('search: a curated satellite shows by its site name, and its catalog name still finds it', async () => {
+  const reader = make({ store: createMemorySnapshotStore(snap([rec(48274, 'CSS (TIANHE)'), rec(60009, 'OTHER')])) }).reader;
+  const byName = await reader.search('tiangong');
+  assert.equal(byName[0].noradId, 48274);
+  assert.equal(byName[0].name, 'Tiangong (CSS)');
+  assert.equal((await reader.search('tianhe'))[0].noradId, 48274);
+});

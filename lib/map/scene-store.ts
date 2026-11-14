@@ -11,7 +11,7 @@ import type { FlatMapProps } from "../../components/home/FlatMap";
 export interface MapScene extends Pick<
   FlatMapProps,
   "sats" | "observer" | "projectionId" | "onProjectionChange"
-  | "selectedId" | "minElevDeg" | "onSelect" | "top" | "chips"
+  | "selectedId" | "minElevDeg" | "onSelect" | "top" | "chips" | "frameFocus"
 > {
   /** Content above the map, inside .map-shell__map. */
   above?: ReactNode;

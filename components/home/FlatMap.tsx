@@ -108,6 +108,8 @@ interface Props {
   fill?: boolean;
   /** The Share button for the whole view, in the layers menu. */
   share?: React.ReactNode;
+  /** A page about one satellite: the globe's home view frames it (lib/map/view.mjs framedCentre). */
+  frameFocus?: boolean;
 }
 
 export type FlatMapProps = Props;
@@ -168,6 +170,7 @@ const home = homeCamera as (
     width: number;
     height: number;
     points?: { lonDeg: number; latDeg: number }[];
+    frameFocus?: boolean;
   },
 ) => Camera;
 const preset = presetCamera as (
@@ -367,6 +370,7 @@ function shortTracks(map: MlMap, sats: MapSat[]): Set<number> {
 }
 
 export default function FlatMap({
+  frameFocus = false,
   sats,
   observer,
   projectionId,
@@ -417,8 +421,8 @@ export default function FlatMap({
   const backToLive = useMapClock((s) => s.backToLive);
 
   // Latest props, read by map event handlers without re-binding them.
-  const latest = useRef({ sats, observer, view, onSelect, minElevDeg });
-  latest.current = { sats, observer, view, onSelect, minElevDeg };
+  const latest = useRef({ sats, observer, view, onSelect, minElevDeg, frameFocus });
+  latest.current = { sats, observer, view, onSelect, minElevDeg, frameFocus };
 
   /** The satellites as of now: props arrive about once a second, so each dot
    *  and the focus footprint move to mapNow(). A satellite the track cannot
@@ -533,9 +537,9 @@ export default function FlatMap({
   }, []);
 
   const homeView = useCallback((map: MlMap): Camera => {
-    const { sats: s, observer: o, view: v } = latest.current;
+    const { sats: s, observer: o, view: v, frameFocus: ff } = latest.current;
     const el = map.getContainer();
-    return home(v, { observer: o, focus: focusOf(s), points: dotsOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1 });
+    return home(v, { observer: o, focus: focusOf(s), points: dotsOf(s), width: el.clientWidth || 1, height: el.clientHeight || 1, frameFocus: ff });
   }, []);
   /** Zoom out no further than the whole Earth: the floor follows the
    *  container. On the globe MapLibre adds its own latitude term, so the floor holds through moves. */
@@ -1138,6 +1142,7 @@ export default function FlatMap({
         points: dotsOf(latest.current.sats),
         width: el.clientWidth || 1,
         height: el.clientHeight || 1,
+        frameFocus: latest.current.frameFocus,
       });
       let map: MlMap;
       try {
@@ -1233,9 +1238,11 @@ export default function FlatMap({
         foldAttribution(map);
       });
       // A flat home camera already centres on a focus that exists now; the
-      // globe's centres on the observer, so it still eases to the focus.
-      const { observer: o, view: v, sats: s0 } = latest.current;
-      if (homeCentresFocus(v, { observer: o, focus: focusOf(s0) })) centreOn.current = null;
+      // globe's centres on the observer, so it still eases to the focus. A
+      // satellite page's home frames its satellite itself (frameFocus), and
+      // refits when it appears, so there is nothing to ease to.
+      const { observer: o, view: v, sats: s0, frameFocus: ff } = latest.current;
+      if (ff || homeCentresFocus(v, { observer: o, focus: focusOf(s0) })) centreOn.current = null;
 
       map.on("style.load", () => {
         styleReady.current = true;
@@ -1638,6 +1645,13 @@ export default function FlatMap({
     const map = mapRef.current;
     if (map && atHome.current && view === "flat") refitHome(map);
   }, [dotsKey, view, refitHome]);
+  // A satellite page's globe frames its satellite (frameFocus): refit when the
+  // satellite first appears, while the view is untouched.
+  const subjectId = frameFocus ? (sats.find((x) => x.emphasis === "focus")?.noradId ?? null) : null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && subjectId != null && atHome.current && view === "globe") refitHome(map);
+  }, [subjectId, view, refitHome]);
 
   // The opened pass's rise and set: a dot and its time each, as HTML markers
   // (like the focus name), which MapLibre hides on the far side of the globe;
