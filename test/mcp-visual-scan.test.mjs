@@ -70,7 +70,8 @@ test('visual best_pass scan matches the full engine run over every satellite', a
   // The popular satellites are candidates too; this fixture has no orbits for them.
   assert.ok(out.skippedCounts['no orbit data yet'] >= 1);
   assert.deepEqual(out.passes.map((p) => [p.noradId, p.rise, p.quality]), brute.map((p) => [p.noradId, p.rise, p.quality]));
-  const { noradId, satellite, shortName, url, elementAge, ...row } = out.best;
+  const { noradId, satellite, shortName, url, elementAge, passUrl, ...row } = out.best;
+  assert.match(passUrl, /^https:\/\/seeksat.com\/sat\/\d+\/share\//);
   assert.equal(elementAge.level, 'fresh');
   assert.equal(out.skippedStaleElements, 0);
   const { noradId: _id, ...bruteRow } = brute[0];

@@ -1,6 +1,7 @@
 // test/mcp-passes.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { compass } from '../lib/sat/pass-rows.mjs';
 import { findPasses, getPosition, nextPassWindow, ESTIMATED_MAG_NOTE, ESTIMATED_QUALITY_CAP } from '../lib/mcp/passes.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 import { ISS_OMM, ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
@@ -164,9 +165,22 @@ test('Molniya passes come back from the MCP search, several hours long', () => {
 
 test('MCP pass rows keep their shape', () => {
   const [p] = findPasses({ record: { line1: LINE1, line2: LINE2 }, observer: { latDeg: 0, lonDeg: 100 }, startMs: START, mode: 'radio' }).passes;
-  assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'brightnessNote', 'durationSec', 'entersShadow', 'inProgress', 'leavesShadow',
-    'peak', 'peakElevationDeg', 'peakMagnitude', 'peakMagnitudeEstimated', 'quality', 'rise', 'set', 'sunlit', 'visibleFrom',
+  assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'brightnessNote', 'direction', 'durationSec', 'entersShadow', 'inProgress', 'leavesShadow',
+    'peak', 'peakElevationDeg', 'peakMagnitude', 'peakMagnitudeEstimated', 'peakRangeKm', 'quality', 'rise', 'set', 'sunlit', 'visibleFrom',
     'visibleUntil']);
+});
+
+test('pass rows give compass words for each azimuth and the range at the peak', () => {
+  const { passes } = findPasses({ record: { line1: LINE1, line2: LINE2 }, observer: { latDeg: 0, lonDeg: 100 }, startMs: START, mode: 'radio' });
+  assert.ok(passes.length > 0);
+  for (const p of passes) {
+    for (const k of ['rise', 'peak', 'set']) assert.equal(p.direction[k], compass(p.azimuthDeg[k]));
+    // A low orbit: a few hundred km overhead, up to about 2,000 km at a low peak.
+    assert.ok(p.peakRangeKm > 300 && p.peakRangeKm < 2500, String(p.peakRangeKm));
+  }
+  const high = passes.reduce((a, b) => (b.peakElevationDeg > a.peakElevationDeg ? b : a));
+  const low = passes.reduce((a, b) => (b.peakElevationDeg < a.peakElevationDeg ? b : a));
+  assert.ok(high.peakRangeKm < low.peakRangeKm);
 });
 
 test('findPasses flags elements that cannot be propagated', () => {

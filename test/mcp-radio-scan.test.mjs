@@ -145,7 +145,8 @@ for (const where of [{ latDeg: 42.19, lonDeg: -88.21 }, { latDeg: -33.9, lonDeg:
     assert.equal(out.windowHours, 24);
     assert.deepEqual(out.passes.map((p) => [p.noradId, p.rise, p.quality]), brute.map((p) => [p.noradId, p.rise, p.quality]));
     // The rows are the same rows find_passes gives, plus who and what to tune.
-    const { noradId, satellite, shortName, downlinks, url, elementAge, ...row } = out.best;
+    const { noradId, satellite, shortName, downlinks, url, elementAge, passUrl, ...row } = out.best;
+    assert.match(passUrl, /^https:\/\/seeksat.com\/sat\/\d+\/share\//);
     assert.deepEqual(elementAge, { level: 'fresh', ageDays: 0.1 });
     const { noradId: _id, ...bruteRow } = brute[0];
     assert.deepEqual(row, withLocalTimes(bruteRow, out.resolvedLocation.timeZone));
