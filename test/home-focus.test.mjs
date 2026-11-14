@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  mapLayers, focusBarText, followLabel, parseFocus, focusHref, focusNavMethod, satPageLayers, showAllCount, focusDestination,
+  mapLayers, focusBarText, parseFocus, focusHref, focusNavMethod, satPageLayers, showAllCount, focusDestination,
 } from '../lib/home/focus.mjs';
 
 const layer = (noradId, emphasis) => ({ noradId, emphasis });
@@ -66,6 +66,24 @@ test('viewing a followed satellite is not listed twice', () => {
   ]);
 });
 
+test('unfocused with a highlight (an open pass row): it is focus, the others ghost', () => {
+  assert.deepEqual(mapLayers({ followed: [1, 2], highlightId: 2 }), [
+    layer(1, 'ghost'), layer(2, 'focus'),
+  ]);
+});
+
+test('a focus wins over a highlight', () => {
+  assert.deepEqual(mapLayers({ followed: [1, 2], focusId: 1, highlightId: 2 }), [
+    layer(1, 'focus'), layer(2, 'ghost'),
+  ]);
+});
+
+test('a highlight that is not followed changes nothing', () => {
+  assert.deepEqual(mapLayers({ followed: [1, 2], highlightId: 9 }), [
+    layer(1, 'normal'), layer(2, 'normal'),
+  ]);
+});
+
 test('nothing followed: only the focused viewing satellite', () => {
   assert.deepEqual(mapLayers({ followed: [], hidden: [], focusId: 9, viewing: 9 }), [layer(9, 'focus')]);
   assert.deepEqual(mapLayers({ followed: [], hidden: [], focusId: null, viewing: 9 }), []);
@@ -79,25 +97,13 @@ test('missing arguments default to empty', () => {
 test('focusBarText gives the title and the show all count', () => {
   assert.equal(focusBarText('GOES 16', false, 4).title, 'Viewing GOES 16');
   assert.equal(focusBarText('GOES 16', false, 4).showAll, 'Show all (4)');
-  assert.equal(focusBarText('GOES 16', false, 4).follow, '☆ Follow');
-  assert.equal(focusBarText('ISS', true, 1).follow, '★ Following');
   assert.equal(focusBarText('X', true, 0).showAll, 'Show all (0)');
-});
-
-test('focusBarText gives the lock on copy', () => {
-  assert.deepEqual(focusBarText('ISS', true, 1).lock, { off: 'Lock on', on: 'Locked on' });
-});
-
-test('followLabel names the satellite for the star', () => {
-  assert.equal(followLabel('GOES 16', false), 'Follow GOES 16');
-  assert.equal(followLabel('GOES 16', true), 'Unfollow GOES 16');
 });
 
 test('no copy has an em dash', () => {
   const all = [
     ...Object.values(focusBarText('A', true, 2)).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))),
     ...Object.values(focusBarText('A', false, 2)).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))),
-    followLabel('A', true), followLabel('A', false),
   ];
   for (const s of all) assert.ok(!s.includes('—'), s);
 });

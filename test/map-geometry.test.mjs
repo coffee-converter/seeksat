@@ -68,7 +68,7 @@ test('a track split at the antimeridian meets it on both sides, with no gap', ()
   }
 });
 
-import { splitTrack } from '../lib/map/geometry.mjs';
+import { splitTrack, trackTicks } from '../lib/map/geometry.mjs';
 test('splitTrack: past ends and future starts at the now point; ticks 10 min for ISS, hourly for GOES', () => {
   const NOW = Date.parse('2026-03-01T12:00:00Z');
   const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
@@ -329,4 +329,28 @@ test('trackDetailFor curves more where the map is stretched near the poles', () 
   assert.equal(trackDetailFor(4, -75), trackDetailFor(4, 75));
   // Never infinite at the pole itself.
   assert.ok(Number.isFinite(trackDetailFor(4, 90)) && trackDetailFor(4, 90) <= 64);
+});
+
+test('trackTicks: moves with the clock, minutes stay on the step', () => {
+  const NOW = Date.parse('2026-03-01T12:00:00Z');
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  const a = trackTicks(iss, NOW);
+  const b = trackTicks(iss, NOW + 30_000);
+  assert.deepEqual(a.map((t) => t.minutes), b.map((t) => t.minutes));
+  assert.deepEqual(a.slice(0, 3).map((t) => t.minutes), [10, 20, 30]);
+  assert.notDeepEqual([a[0].lonDeg, a[0].latDeg], [b[0].lonDeg, b[0].latDeg]);
+  assert.deepEqual(a, splitTrack(iss, NOW).ticks);
+});
+
+test('trackTicks: the last tick stays on the drawn line, which starts at the minute', () => {
+  const FROM = Date.parse('2026-03-01T12:00:00Z');
+  const iss = makeTrack(recordFrom(ISS_LINE1, ISS_LINE2, 'ISS'));
+  // A period just over a multiple of the 10 min step: the line ends at 90.5 min.
+  const t = { ...iss, periodMs: 90.5 * 60_000 };
+  const now = FROM + 50_000;
+  const ticks = trackTicks(t, now, FROM);
+  assert.equal(ticks.at(-1).minutes, 80);
+  for (const k of ticks) assert.ok(now + k.minutes * 60_000 <= FROM + t.periodMs);
+  // Drawn from the clock itself, the 90 min tick still fits.
+  assert.equal(trackTicks(t, now).at(-1).minutes, 90);
 });

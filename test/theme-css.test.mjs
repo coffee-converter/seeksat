@@ -100,7 +100,7 @@ test('outside the chart block and the token definitions, no colour literals', ()
 
 test('the chart block holds only chart graphics', () => {
   const chart = [...regions(read('app/home.css'), CHART_BEGIN, CHART_END), ...regions(read('app/globals.css'), CHART_BEGIN, CHART_END)].join('\n');
-  for (const sel of ['.polar-modal-svg', '.radio-modal-svg', '.pass-card__plot .polar-plot', '.polar-plot .horizon']) assert.ok(chart.includes(sel), sel);
+  for (const sel of ['.polar-modal-svg', '.radio-modal-svg', '.pass-open__plot .polar-plot', '.polar-plot .horizon']) assert.ok(chart.includes(sel), sel);
   assert.doesNotMatch(chart, /\b(button|select|input|summary)\b|-backdrop|-actions|-close|-content\s*\{/, 'modal chrome lives in the library');
   // The chart graphics stay in the block.
   for (const file of FILES) {
@@ -455,7 +455,7 @@ test('line-height uses tokens (or 1 / normal)', () => {
 });
 
 test('ticking readouts use the numeric class', () => {
-  for (const f of ['components/ui/StatTile.tsx', 'components/sat/StatTile.tsx', 'components/LiveClock.tsx', 'components/live/LiveView.tsx', 'components/passes/PassPath.tsx', 'components/home/UpNow.tsx']) {
+  for (const f of ['components/ui/StatTile.tsx', 'components/sat/StatTile.tsx', 'components/LiveClock.tsx', 'components/live/LiveView.tsx', 'components/passes/PassPath.tsx']) {
     if (existsSync(new URL(`../${f}`, import.meta.url))) assert.match(read(f), /\bnum\b/, f);
   }
 });

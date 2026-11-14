@@ -62,6 +62,7 @@ test('custom entries are validated and capped', () => {
 test('valid object round-trips', () => {
   const p = {
     location: { name: 'Home', latDeg: 42.1, lonDeg: -88.2, source: 'coords' },
+    recent: [],
     following: [25544, 41866],
     custom: [{ noradId: 25485, name: 'MOLNIYA', line1: MOLNIYA_LINE1, line2: MOLNIYA_LINE2 }],
     mode: 'visual',
@@ -71,6 +72,7 @@ test('valid object round-trips', () => {
     observers: [{ id: 'obs-2', name: 'FN31', latDeg: 41.5, lonDeg: -72.7 }],
     hidden: [41866],
     bands: ['2m', '70cm'],
+    units: 'imperial',
   };
   assert.deepEqual(parsePrefs(JSON.parse(JSON.stringify(p))), p);
 });
@@ -181,4 +183,10 @@ test('new visitors follow the ISS, Tiangong, Hubble and SO-50, all curated', asy
   assert.deepEqual(POPULAR_IDS, [25544, 48274, 20580, 27607]);
   assert.deepEqual(defaultPrefs().following, POPULAR_IDS);
   for (const id of POPULAR_IDS) assert.ok(CATALOG.some((c) => c.noradId === id), String(id));
+});
+
+test('units: auto by default, a bad value falls back to auto', () => {
+  assert.equal(defaultPrefs().units, 'auto');
+  assert.equal(parsePrefs({ units: 'metric' }).units, 'metric');
+  assert.equal(parsePrefs({ units: 'furlongs' }).units, 'auto');
 });

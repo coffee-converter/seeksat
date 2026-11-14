@@ -243,3 +243,23 @@ test('the saved full chart carries the SeekSat watermark in its bottom-right cor
     assert.ok(right < left, `${t.textContent} runs into the watermark`);
   }
 });
+
+test('the transmit panel labels both sides and carries its caption, full and phone', () => {
+  const meta = { ...BASE, freqHz: 437_800_000, uplinkHz: 145_990_000 };
+  const caption = 'Transmit low while it approaches and high as it leaves; it hears you on 145.990.';
+  const full = newSvgRoot('0 0 100 100');
+  paintRadioChart(full, series(437_800_000), meta);
+  const phone = newSvgRoot('0 0 100 100');
+  paintRadioChartCompact(phone, series(437_800_000), meta);
+  for (const [name, svg] of [['full', full], ['phone', phone]]) {
+    const layer = [...svg.querySelectorAll('g')].find((g) => g.getAttribute('data-layer') === 'uplinkDopplerHz');
+    assert.ok(layer, `${name}: transmit panel drawn`);
+    const t = [...layer.querySelectorAll('text')].map((x) => x.textContent);
+    assert.ok(t.includes('approaching'), `${name}: approaching label`);
+    assert.ok(t.includes('receding'), `${name}: receding label`);
+    // The caption may wrap; its lines joined are the copy.
+    const lines = t.filter((s) => caption.includes(s) && s.split(' ').length > 2);
+    assert.equal(lines.join(' '), caption, `${name}: caption`);
+  }
+  assert.deepEqual(compactOverflows(meta, 437_800_000).bad, []);
+});

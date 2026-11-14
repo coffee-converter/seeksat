@@ -1,7 +1,7 @@
 // test/mcp-tools.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool } from '../lib/mcp/tools.mjs';
+import { listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassChartTool } from '../lib/mcp/tools.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
@@ -30,6 +30,18 @@ test('getPositionTool resolves a satellite and returns a sub-point', async () =>
   const out = await getPositionTool({ satellite: 'iss' }, deps);
   assert.ok(out.altitudeKm > 300 && out.altitudeKm < 500);
   assert.equal(out.tleAgeHours, 1);
+});
+
+test('old parameter names work on every tool that takes the parameter', async () => {
+  const at = { satellite: 'iss', lat: 0, lon: 100, mode: 'radio' };
+  const plain = await findPassesTool({ ...at, minElevation: 60 }, deps);
+  for (const name of ['minElevationDeg', 'minElev']) {
+    const out = await findPassesTool({ ...at, [name]: 60 }, deps);
+    assert.deepEqual(out.passes.map((p) => p.rise), plain.passes.map((p) => p.rise), name);
+    for (const p of out.passes) assert.ok(p.peakElevationDeg >= 60);
+  }
+  const pos = await getPositionTool({ satellite: 'iss', passTime: '2024-01-01T14:00:00Z' }, deps);
+  assert.equal(pos.time, '2024-01-01T14:00:00.000Z');
 });
 
 test('findPassesTool geocodes a location string', async () => {
@@ -101,23 +113,101 @@ test('tools say "no orbit data" when getRecord resolves undefined (unknown)', as
   await assert.rejects(() => getPositionTool({ satellite: 'iss' }, d), /no orbit data for ISS \(ZARYA\) \(25544\) yet/);
 });
 
-import { bestPassTool } from '../lib/mcp/tools.mjs';
+import { bestPassTool, byVisualRating, byRadioRating } from '../lib/mcp/tools.mjs';
+import { passRating } from '../lib/mcp/passes.mjs';
 
 // A synthesized (non-curated) satellite has no standardMag: visual passes
-// must report peakMagnitude null rather than a made-up number.
+// report the engine's cautious estimate, flagged, rated no higher than Fair.
 const SYN = { ...REC, noradId: 25485, name: 'SYNTH SAT' };
 const synDeps = { ...deps, getRecord: async (id) => (id === 25485 ? SYN : null) };
 const VIS = { lat: -30, lon: 150, mode: 'visual' };
 
-test('find_passes / next_visible_pass / best_pass leave magnitude null for a synthesized satellite', async () => {
+test('find_passes / next_visible_pass / best_pass flag an estimated magnitude for a synthesized satellite', async () => {
   const fp = await findPassesTool({ satellite: '25485', ...VIS }, synDeps);
   assert.ok(fp.passes.length > 0, 'fixture yields visual passes');
-  for (const p of fp.passes) assert.equal(p.peakMagnitude, null);
+  for (const p of fp.passes) {
+    assert.equal(typeof p.peakMagnitude, 'number');
+    assert.equal(p.peakMagnitudeEstimated, true);
+    assert.match(p.brightnessNote, /estimated/i);
+    assert.ok(p.rating.bars <= 2);
+  }
   const nv = await nextVisiblePassTool({ satellite: 25485, ...VIS }, synDeps);
-  assert.equal(nv.pass.peakMagnitude, null);
+  assert.equal(nv.pass.peakMagnitudeEstimated, true);
   const bp = await bestPassTool({ satellite: '25485', ...VIS }, synDeps);
   assert.ok(bp.best);
-  assert.equal(bp.best.peakMagnitude, null);
+  assert.equal(bp.best.peakMagnitudeEstimated, true);
+});
+
+test('best_pass ranks a known bright satellite over one with a guessed magnitude on the same orbit', async () => {
+  // ISS (standardMag -1.8) and METEOR-M2 3 (unknown) flying the same orbit:
+  // identical geometry, so only the brightness can separate them.
+  const twin = { ...deps, getRecord: async (id) => (id === 25544 ? REC : id === 57166 ? { ...REC, noradId: 57166, name: 'METEOR-M2 3' } : null) };
+  const out = await bestPassTool({ ...VIS, limit: 20 }, twin);
+  assert.equal(out.best.satellite, 'ISS (ZARYA)');
+  const guessed = out.passes.filter((p) => p.peakMagnitudeEstimated);
+  const known = out.passes.filter((p) => !p.peakMagnitudeEstimated);
+  assert.ok(guessed.length > 0 && known.length === guessed.length, 'both are listed, pass for pass');
+  for (const p of guessed) assert.ok(p.rating.bars <= 2);
+  // In this fixture every guessed pass is faint enough to rate Poor, so all of
+  // the ISS passes come first.
+  assert.ok(out.passes.findLastIndex((p) => !p.peakMagnitudeEstimated) < out.passes.findIndex((p) => p.peakMagnitudeEstimated));
+});
+
+test('byVisualRating: more bars first, then a known brightness, then headroom, then capture odds', () => {
+  const row = (id, bars, headroomMag, est, cap) => ({ id, rating: { bars, headroomMag }, peakMagnitudeEstimated: est, captureProbability: cap });
+  const rows = [
+    row('guess', 2, 6, true, 0.9),
+    row('faint', 2, 1, false, 0.2),
+    row('dim', 2, 0.9, false, 0.8),
+    row('top', 5, 7, false, 0.1),
+    row('unknown', 2, null, false, 0.99),
+  ];
+  assert.deepEqual(rows.sort(byVisualRating).map((r) => r.id), ['top', 'faint', 'dim', 'unknown', 'guess']);
+  const radio = [
+    { id: 'low', rating: { bars: 2 }, peakElevationDeg: 15, captureProbability: 0.9, durationSec: 600, rise: '2026-01-01T00:00:00Z' },
+    { id: 'high', rating: { bars: 5 }, peakElevationDeg: 70, captureProbability: 0.5, durationSec: 300, rise: '2026-01-01T02:00:00Z' },
+    { id: 'higher', rating: { bars: 5 }, peakElevationDeg: 80, captureProbability: 0.4, durationSec: 300, rise: '2026-01-01T03:00:00Z' },
+  ];
+  assert.deepEqual(radio.sort(byRadioRating).map((r) => r.id), ['higher', 'high', 'low']);
+});
+
+// The live cases from the MCP review (2026-11-14), rebuilt as engine passes
+// with the magnitudes, Sun altitudes and capture odds the scan reported. The
+// old ranking went by capture odds alone; the app's rating puts the bright
+// passes first.
+test('review cases: Sydney, Tokyo and Chicago rank as the app rates them', () => {
+  const pass = (id, peakMag, peakMagSunAltDeg, maxElevDeg, captureProbability, estimated = false) => {
+    const p = { peakMs: 0, maxElevDeg, peakMag, peakMagSunAltDeg, peakSunAltDeg: peakMagSunAltDeg, ...(estimated && { peakMagEstimated: true }) };
+    return { id, rating: passRating(p, 'visual', { skyType: 'suburban' }), peakMagnitudeEstimated: estimated, captureProbability };
+  };
+  const order = (rows) => rows.sort(byVisualRating).map((r) => r.id);
+
+  // Sydney: NOAA 19 (mag 4.7, fainter than a suburban sky shows) was ranked
+  // above an ISS pass at mag -2.8.
+  const sydney = [pass('noaa19', 4.7, -14, 60, 0.571), pass('iss', -2.8, -14, 40, 0.516)];
+  assert.deepEqual(order(sydney), ['iss', 'noaa19']);
+  assert.equal(sydney.find((r) => r.id === 'noaa19').rating.word, 'Poor');
+  assert.equal(sydney.find((r) => r.id === 'iss').rating.word, 'Excellent');
+
+  // Tokyo: a rocket body with an estimated mag 3.9 was "best" over the ISS.
+  const tokyo = [pass('sl3', 3.9, -12, 50, 0.347, true), pass('iss', -1.7, -12, 30, 0.324)];
+  assert.deepEqual(order(tokyo), ['iss', 'sl3']);
+  assert.ok(tokyo.find((r) => r.id === 'sl3').rating.bars <= 2);
+
+  // Chicago: the brighter, higher ISS pass at dusk was put below a lower one,
+  // and BlueWalker 3 above an ISS pass at mag -3.0.
+  const chicago = [
+    pass('iss-28', -1.7, -14, 28, 0.596),
+    pass('iss-63', -3.6, -14, 63, 0.312),
+    pass('bw3-a', 0.9, -14, 50, 0.28),
+    pass('bw3-b', 0.8, -9, 40, 0.237),
+    pass('iss-30', -3.0, -14, 30, 0.225),
+  ];
+  const ranked = order(chicago);
+  assert.equal(ranked[0], 'iss-63');
+  assert.ok(ranked.indexOf('iss-30') < ranked.indexOf('bw3-a'));
+  assert.ok(ranked.indexOf('iss-28') < ranked.indexOf('bw3-b'));
+  assert.deepEqual(ranked.slice(0, 3).sort(), ['iss-28', 'iss-30', 'iss-63']);
 });
 
 test('synthesized satellites are named from the record; curated ones keep the curated name', async () => {
@@ -141,6 +231,18 @@ test('best_pass skips a synthesized satellite with no record under its NORAD nam
 });
 
 
+test('get_pass_chart returns the charted pass as a full row, the one find_passes gives first', async () => {
+  const at = { satellite: 'iss', lat: 0, lon: 100, mode: 'radio' };
+  const chart = await getPassChartTool(at, deps);
+  const [first] = (await findPassesTool({ ...at, windowHours: 72 }, deps)).passes;
+  assert.ok(chart.pngBase64.length > 1000);
+  assert.equal(chart.pass.rise, first.rise);
+  assert.deepEqual(chart.pass.rating, first.rating);
+  assert.equal(chart.pass.passUrl, first.passUrl);
+  assert.equal(chart.pass.peakAzimuthDeg, first.azimuthDeg.peak);
+  assert.equal(chart.stationary, null);
+});
+
 test('best_pass skips a geostationary satellite with a reason', async () => {
   const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), epochMs: Date.parse('2026-10-31T14:00:00Z') };
   const d = { ...deps, now: () => Date.parse('2026-10-31T15:00:00Z'), getRecord: async (id) => (id === 41866 ? goes : null) };
@@ -152,6 +254,16 @@ test('best_pass skips a geostationary satellite with a reason', async () => {
   const nv = await nextVisiblePassTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
   assert.equal(nv.pass, null);
   assert.ok(nv.stationary);
+  // best_pass's note points at stationary, so it gives it.
+  assert.deepEqual(out.stationary, fp.stationary);
+  assert.match(out.note, /see stationary/);
+  // The chart tool says it is geostationary and where to point, with no image.
+  const chart = await getPassChartTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
+  assert.equal(chart.pass, null);
+  assert.deepEqual(chart.stationary, fp.stationary);
+  assert.match(chart.note, /^Geostationary: it stays at one spot in your sky/);
+  assert.match(chart.summary, /azimuth [\d.]+° \([A-Z]+\), elevation [\d.]+°/);
+  assert.equal('pngBase64' in chart, false);
 });
 
 // Decayed-orbit elements: years old and high drag, so SGP4 gives up.
@@ -161,9 +273,50 @@ const DEAD_LOC = { lat: 42, lon: -88, mode: 'radio' };
 
 test('unavailable elements: tools throw or skip with a clear reason', async () => {
   assert.equal(makeTrack(DEAD).ecefAt(new Date(deadDeps.now())), null, 'fixture really does not propagate');
+  // Elements this old are refused before any propagation.
+  for (const tool of [findPassesTool, nextVisiblePassTool, bestPassTool]) {
+    await assert.rejects(() => tool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), /the time now .* is \d+ days from the orbital elements' epoch \(2018-01-01\)/);
+  }
+  // Recent by their stated epoch but still not propagating: said plainly.
+  const recent = { ...deadDeps, getRecord: async (id) => (id === 25544 ? { ...DEAD, epochMs: deadDeps.now() - 86_400_000 } : null) };
   const msg = "elements for ISS (ZARYA) can't be propagated";
-  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), { message: msg });
-  await assert.rejects(() => nextVisiblePassTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), { message: msg });
-  const out = await bestPassTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps);
+  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...DEAD_LOC }, recent), { message: msg });
+  await assert.rejects(() => nextVisiblePassTool({ satellite: 'iss', ...DEAD_LOC }, recent), { message: msg });
+  const out = await bestPassTool({ satellite: 'iss', ...DEAD_LOC }, recent);
   assert.deepEqual(out.skipped, [{ satellite: 'ISS (ZARYA)', reason: "elements can't be propagated" }]);
+});
+
+import { satUrl } from '../lib/mcp/tools.mjs';
+
+test('satellite-level results link to the satellite page', async () => {
+  const url = 'https://seeksat.com/sat/25544';
+  assert.equal(satUrl(25544), url);
+  assert.equal((await getPositionTool({ satellite: 'iss' }, deps)).url, url);
+  assert.equal((await findPassesTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, deps)).url, url);
+  assert.equal((await nextVisiblePassTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, deps)).url, url);
+  const bp = await bestPassTool({ satellite: 'iss', lat: 0, lon: 100, mode: 'radio' }, deps);
+  assert.equal(bp.best.url, url);
+  assert.equal(bp.best.noradId, 25544);
+  for (const p of bp.passes) assert.equal(p.url, url);
+  const list = await listSatellites(deps);
+  assert.equal(list.satellites.find((s) => s.noradId === 25544).url, url);
+  // A synthesized satellite links by its NORAD number too.
+  assert.equal((await getPositionTool({ satellite: '25485' }, synDeps)).url, 'https://seeksat.com/sat/25485');
+});
+
+import { radioPassTool, whatsUpNowTool, searchSatellitesTool } from '../lib/mcp/tools.mjs';
+
+test('inputs: old names are aliases, NORAD numbers work, and out-of-range numbers fail clearly', async () => {
+  const at = { lat: 0, lon: 100 };
+  const a = await radioPassTool({ satellite: 25544, ...at, minElevation: 20, time: '2024-01-02T00:00:00Z' }, deps);
+  const b = await radioPassTool({ satellite: '25544', ...at, minElevationDeg: 20, passTime: '2024-01-02T00:00:00Z' }, deps);
+  assert.deepEqual(a, b);
+  assert.equal(a.interpretedAs.utc, '2024-01-02T00:00:00.000Z');
+  const fp = await findPassesTool({ satellite: 25544, ...at, mode: 'radio', minElevation: 30 }, deps);
+  for (const p of fp.passes) assert.ok(p.peakElevationDeg >= 30);
+  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...at, windowHours: 500 }, deps), /windowHours must be more than 0 and at most 240 hours \(got 500\)/);
+  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...at, minElevation: 95 }, deps), /minElevation must be 0 to 90 degrees/);
+  await assert.rejects(() => bestPassTool({ satellite: 'iss', ...at, limit: 0 }, deps), /limit must be a whole number 1 to 20/);
+  await assert.rejects(() => whatsUpNowTool({ ...at, limit: 51 }, deps), /limit must be a whole number 1 to 50/);
+  await assert.rejects(() => searchSatellitesTool({ query: 'iss', limit: 21 }, { ...deps, search: async () => [] }), /limit must be a whole number 1 to 20/);
 });

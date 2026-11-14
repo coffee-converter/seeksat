@@ -8,7 +8,6 @@ import { sunPositionEcef } from "../lib/pass-finder/sun.js";
 import { findVisibilityWindows } from "../lib/pass-finder/search.js";
 import { tleOrbitTrackEcef } from "../lib/truth.js";
 import { fetchCloudForecast, cloudAt } from "../lib/pass-finder/weather.js";
-import { fetchTimezone } from "../lib/pass-finder/timezone.js";
 import { moonPositionEcef, moonPhaseAngle, moonIlluminatedFraction } from "../lib/pass-finder/moon.js";
 import { planetPositionEcef, planetApparentMagnitude, PLANET_STYLE, PLANET_NAMES } from "../lib/pass-finder/planets.js";
 import { apparentAltDeg } from "../lib/refraction.js";
@@ -227,12 +226,8 @@ function addObserver(name, latDeg, lonDeg) {
     if (state.windows && state.windows.length) renderWindowsList();
   });
 
-  // Resolve the observer's IANA timezone so polar-plot times can be
-  // rendered in the clock someone standing at that lat/lon would
-  // actually read. Browser local is used as a fallback if this fails.
-  fetchTimezone(latDeg, lonDeg).then(tz => {
-    if (tz) obs.tz = tz;
-  });
+  // Polar-plot times use the browser's clock: the time zone lookup this page
+  // once fetched (lib/pass-finder/timezone.js) is gone.
 
   // If a search has been run, re-run with the new observer set.
   rerunSearchIfActive();

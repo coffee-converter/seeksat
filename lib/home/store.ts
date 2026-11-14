@@ -9,6 +9,9 @@ import {
   addCustomTo, addObserverTo, createLoadGuard, followIn, isStale, removeObserverFrom, toggleHiddenIn, unfollowIn,
 } from "./actions.mjs";
 import { MAX_FOLLOWING, PREFS_KEY, defaultPrefs, loadPrefs, parsePrefs, savePrefs } from "./prefs.mjs";
+import { samePlace, withPlace } from "./places.mjs";
+
+const sameAs = samePlace as (a: HomeLocation, b: HomeLocation) => boolean;
 import { localStore } from "../safe-storage.mjs";
 import { DEFAULT_PROJECTION, defaultProjectionFor } from "../map/view.mjs";
 import { fetchRecords } from "./records.mjs";
@@ -18,6 +21,8 @@ export interface HomeLocation {
   latDeg: number;
   lonDeg: number;
   source: "gps" | "place" | "grid" | "coords";
+  /** The ground's height in metres, looked up once (absent until then). */
+  elevM?: number;
 }
 export interface CustomElements {
   noradId: number;
@@ -33,6 +38,8 @@ export interface ExtraObserver {
 }
 export interface Prefs {
   location: HomeLocation | null;
+  /** Earlier places, newest first, never including the current one. */
+  recent: HomeLocation[];
   following: number[];
   custom: CustomElements[];
   mode: "radio" | "visual";
@@ -47,6 +54,8 @@ export interface Prefs {
   hidden: number[];
   /** The bands the radio covers (lib/radio/bands.mjs BAND_IDS), or null for all. */
   bands: string[] | null;
+  /** Distances and speeds: from the device's region, or set. */
+  units: "auto" | "metric" | "imperial";
 }
 /** The parts of a shared view laid over the prefs (lib/share/view-link.mjs). */
 export type SharedView = Partial<Pick<Prefs, "following" | "hidden" | "mode" | "projection">>;
@@ -86,6 +95,10 @@ interface HomeState {
   leaveShared: () => void;
   hydrate: () => void;
   setPrefs: (patch: Partial<Prefs>) => void;
+  /** Make this the home place; the old one moves into recent. */
+  choosePlace: (location: HomeLocation) => void;
+  /** Drop a place from the recent list. */
+  removeRecent: (place: HomeLocation) => void;
   loadRecords: () => Promise<void>;
   reloadIfStale: (nowMs: number) => Promise<void>;
   setFocusId: (id: number | null) => void;
@@ -97,6 +110,7 @@ interface HomeState {
   addCustom: (text: string) => { ok: true } | { ok: false; message: string };
   addObserver: (loc: { name: string; latDeg: number; lonDeg: number }) => { ok: true } | { ok: false; message: string };
   removeObserver: (id: string) => void;
+  clearObservers: () => void;
 }
 
 export const useHomeStore = create<HomeState>((set, get) => ({
@@ -155,6 +169,21 @@ export const useHomeStore = create<HomeState>((set, get) => ({
     set({ prefs: { ...loaded, projection }, projectionChosen: loaded.projection != null, hydrated: true });
   },
 
+  choosePlace: (loc) => {
+    get().hydrate();
+    // Build the recent list from what is saved now: another tab may have
+    // picked a place since this one loaded.
+    const saved = storedPrefs();
+    const { prefs } = get();
+    get().setPrefs(withPlace(saved
+      ? { location: saved.location, recent: saved.recent }
+      : { location: prefs.location, recent: prefs.recent }, loc));
+  },
+  removeRecent: (place) => {
+    get().hydrate();
+    const recent = (storedPrefs()?.recent ?? get().prefs.recent).filter((p) => !sameAs(p, place));
+    get().setPrefs({ recent });
+  },
   setPrefs: (patch) => {
     get().hydrate();
     // Apply the patch to what is saved now, not to this tab's copy: another
@@ -271,6 +300,11 @@ export const useHomeStore = create<HomeState>((set, get) => ({
   removeObserver: (id) => {
     get().hydrate();
     get().setPrefs({ observers: removeObserverFrom(get().prefs, id).observers });
+  },
+
+  clearObservers: () => {
+    get().hydrate();
+    get().setPrefs({ observers: [] });
   },
 }));
 

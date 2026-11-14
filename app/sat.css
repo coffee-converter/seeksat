@@ -1,68 +1,33 @@
 .sat { overflow-wrap: anywhere; }
-.sat-title { margin: 0; font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); color: var(--text-strong); }
 .sat-follow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); max-width: 100%; margin-top: var(--sp-6); }
 .sat-age { line-height: var(--lh-body); }
 .sat-age__how { margin-left: var(--sp-8); }
 .sat-age .badge { margin-left: var(--sp-8); }
-.sat-how { display: block; margin-top: var(--sp-2); color: var(--map-muted); font-size: var(--fs-sm); line-height: var(--lh-snug); }
-p.sat-how { margin: 0 0 var(--sp-8); }
 .sat-diagram { margin: 0; }
 .sat-diagram svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto var(--sp-6); }
-.sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); }
+.sat-diagram-label { fill: var(--map-muted); font-size: var(--fs-xs); paint-order: stroke; stroke: var(--bg); stroke-width: 3; stroke-linejoin: round; }
 .sat-list { margin: 0; padding-left: var(--sp-16); }
 .sat-list__sub { color: var(--muted); font-size: var(--fs-sm); }
 .sat-raw { margin-bottom: var(--sp-12); }
 .sat-raw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
-.sat-raw-head h3 { margin: 0; font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
+.sat-raw-head h3 { margin: 0; }
 .sat-raw pre {
   margin: var(--sp-6) 0 0; padding: var(--sp-8); max-width: 100%; overflow-x: auto;
   background: var(--code-bg); border: 0; border-radius: var(--radius-lg);
   font-size: var(--fs-sm); user-select: text;
 }
 .sat-passes { margin-bottom: 0; }
-.sat-passlist { list-style: none; margin: 0; padding: 0; }
+/* The passes under day headings, as the home list's compact rows
+   (components/home/PassRow.tsx; styles in app/home.css). Printing uses
+   the table below instead. */
+.sat-passlist { display: flex; flex-direction: column; gap: var(--sp-8); }
+/* The pass a shared link points at. */
+.pass-row--shared:not(.pass-row--open) { background: var(--map-footprint); }
 .sat-show-all { margin-top: var(--sp-12); }
 /* A satellite that never sets: its 24-hour charts, under the pointing text. */
 .sat-day-charts { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-8); }
 .sat-zone { margin: var(--sp-4) 0 var(--sp-8); }
-.sat-pass { padding: var(--sp-8) 0; border-bottom: var(--line-subtle); container-type: inline-size; }
-/* Passes under day headings: the same Starts, Max and Lasts columns and
-   rating pill as the home cards, then where to look below. */
-.sat-day-group + .sat-day-group { margin-top: var(--sp-16); }
-.sat-day {
-  margin: 0;
-  padding: var(--sp-6) 0 var(--sp-4);
-  font-size: var(--fs-md);
-  font-weight: var(--fw-semibold);
-  color: var(--map-muted);
-  border-bottom: var(--line-subtle);
-}
-.sat-day__list { list-style: none; margin: 0; padding: 0; }
-.sat-pass__head {
-  display: grid;
-  grid-template-columns: minmax(0, 26em) auto;
-  grid-template-areas: "stats rating";
-  justify-content: space-between;
-  align-items: start;
-  gap: var(--sp-6) var(--sp-12);
-}
-.sat-pass__stats { grid-area: stats; }
-.sat-pass__rating { grid-area: rating; justify-self: end; }
-.sat-pass__rating .quality,
-.sat-pass__rating .cloud { margin-left: 0; }
-/* A narrow row (a phone, or the side panel beside the map) puts the rating
-   above the stats, so the three columns keep the whole width. */
-@container (max-width: 34em) {
-  .sat-pass__head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rating" "stats"; }
-  .sat-pass__rating { justify-self: start; }
-}
-/* The radio panel, tags and buttons under the head, evenly spaced. */
-.sat-pass > .pass-card__radio,
-.sat-pass > .pass-card__actions { margin-top: var(--sp-8); }
-.sat-pass__line2 { margin: var(--sp-8) 0 0; color: var(--map-muted); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: var(--lh-body); }
-.sat-pass__line2 .pass-card__tag:first-child { margin-left: 0; }
 .sat-observers { margin: var(--sp-12) 0; }
-.sat-observers__title { margin: 0 0 var(--sp-4); font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--text-heading); }
 .sat-observers__list { list-style: none; margin: var(--sp-8) 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .sat-observers__item { display: inline-flex; align-items: center; gap: var(--sp-6); padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-12); border: var(--line-subtle); border-radius: var(--radius-full); }
 .sat-shared {
@@ -77,11 +42,15 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 @media (max-width: 1099.98px) { .shared-view--panel { display: none; } }
 @media (min-width: 1100px) { .shared-view--map { display: none; } }
 .shared-view__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
-.sat-shared-past { margin: 0 0 var(--sp-8); }
-.sat-pass.pass-row--shared {
-  padding: var(--sp-8); border-radius: var(--radius-md);
-  background: var(--map-footprint); box-shadow: inset 3px 0 0 var(--map-accent);
+.sat-places-line {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+  margin: 0 0 var(--sp-8); padding: var(--sp-8) var(--sp-12);
+  border-left: 3px solid var(--warn); border-radius: var(--radius-md);
+  background: rgba(var(--warn-rgb), 0.12);
+  color: var(--warn-text); font-weight: var(--fw-semibold);
 }
+.sat-places-line p { margin: 0; }
+.sat-shared-past { margin: 0 0 var(--sp-8); }
 
 /* Header: who it is, then Follow and Share. The clock lives in the shell's top bar. */
 .sat-top { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
@@ -175,8 +144,7 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-12);
   padding: var(--sp-6) 0; border-bottom: var(--line-subtle);
 }
-.sat-etable dt { color: var(--map-muted); }
-.sat-etable dd { margin: 0; color: var(--map-text); font-variant-numeric: tabular-nums; text-align: right; }
+.sat-etable dd { text-align: right; }
 @media (min-width: 480px) {
   .sat-etable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sat-etable__row--wide { grid-column: 1 / -1; }
@@ -198,7 +166,6 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 /* Docked (1100 px and up) the panel is 380 px wide, whatever the viewport:
    two tile columns, one column of elements, and stacked How-we-compute rows. */
 @media (min-width: 1100px) {
-  .map-shell__panel .sat-title { font-size: var(--fs-2xl); }
   .map-shell__panel .sat-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .map-shell__panel .sat-dash .stat-tile--wide,
   .map-shell__panel .sat-dash__sun { grid-column: 1 / -1; }
@@ -207,8 +174,13 @@ p.sat-how { margin: 0 0 var(--sp-8); }
   .map-shell__panel .sat-diagram svg { max-width: 300px; }
 }
 
-.sat-passes__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
-.sat-passes__head .home-heading { margin: 0; }
+.sat-passes__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-8); }
+.sat-passes__head .heading-section { margin: 0; }
+/* Under the list: the time zone, and Print. */
+.sat-passes__foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-4) var(--sp-12); margin-top: var(--sp-12); }
+.sat-passes__foot .sat-zone { margin: 0; }
+.sat-observers-fold { margin: var(--sp-16) 0; }
+.sat-observers-fold .sat-observers { margin: var(--sp-8) 0 0; }
 .print-only { display: none; }
 .sat-print-table { border-collapse: collapse; }
 
@@ -244,19 +216,14 @@ p.sat-how { margin: 0 0 var(--sp-8); }
 
   #passes > *:not(.sat-passes__head):not(.print-only) { display: none !important; }
   .sat-passlist { display: none !important; }
-  .sat-print-chip { display: none !important; }
+  .sat-print-chip, .sat-passes__head .segmented { display: none !important; }
   .print-only { display: block; }
   table.print-only { display: table; width: 100%; font-size: 9.5pt; font-variant-numeric: tabular-nums; }
   .sat-print-table thead { display: table-header-group; }
   .sat-print-table th { text-align: left; font-weight: 700; padding: 2pt 4pt; border-bottom: 1pt solid black; }
   .sat-print-table td { padding: 2pt 4pt; border-bottom: 0.5pt solid black; }
   .sat-print-table tr { break-inside: avoid; page-break-inside: avoid; }
-  .sat-passes__head .home-heading { font-size: 12pt; margin: 6pt 0 2pt; }
+  .sat-passes__head .heading-section { font-size: 12pt; margin: 6pt 0 2pt; }
   .sat-print-meta { margin: 0 0 6pt; font-size: 10pt; }
   .sat-print-foot { margin: 10pt 0 0; font-size: 9pt; }
-  .sat-pass { padding: 3pt 0; border-bottom: 0.5pt solid black; break-inside: avoid; page-break-inside: avoid; }
-  .sat-pass .pass-card__tag { margin-left: 6pt; padding: 0 4pt; border: 0.5pt solid black; font-size: 8.5pt; }
-  .sat-pass .pass-card__tag.pass-card__tag { background: none; }
-  .sat-pass .sat-how { margin: 1pt 0 0; font-size: 8.5pt; }
-  .sat-pass .pass-card__actions { display: none !important; }
 }

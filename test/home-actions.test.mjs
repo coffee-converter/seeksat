@@ -92,7 +92,7 @@ test('load guard discards an older load that finishes after a newer one', async 
 
 test('followBlockedMessage explains the cap only for a new id at the cap', () => {
   const full = Array.from({ length: MAX_FOLLOWING }, (_, i) => i + 1);
-  assert.equal(followBlockedMessage(full, 999), 'You can follow up to 20 satellites. Unfollow one first.');
+  assert.equal(followBlockedMessage(full, 999), 'You can save up to 20 satellites. Remove one first.');
   assert.equal(followBlockedMessage(full, 1), null, 'already following');
   assert.equal(followBlockedMessage(full.slice(1), 999), null, 'room left');
 });

@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Button from "./Button";
 import { useFocusTrap } from "./useFocusTrap";
 import { cx, modalClass } from "@/lib/ui/classes.mjs";
+import Icon from "./Icon";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   title: string;
-  /** "dialog" is a centred frame over a backdrop; "full" takes over the screen. */
-  size?: "dialog" | "full";
+  /** "dialog" is a centred frame over a backdrop; "full" takes over the screen;
+   *  "sheet" is a bottom sheet on phones, a 360px panel under the header on desktop. */
+  size?: "dialog" | "full" | "sheet";
   /** "dark" keeps the dialog dark whatever the page theme (the chart dialogs). */
   tone?: "page" | "dark";
   /** Buttons in the header, left of Close. */
@@ -30,36 +33,42 @@ interface Props {
  * down at window and stopped there, so the page's own Esc handlers never see
  * it), the page behind does not scroll,
  * focus starts on Close and returns to the opener on close.
+ * It renders into <body>, so no stacking context of the opener's (the phone
+ * panel under the sticky map) can paint the map or the top bar over it; the
+ * portal waits for mount, as there is no <body> on the server.
  */
 export default function Modal({ open, onClose, title, size = "dialog", tone = "page", actions, labelledBy, hideTitle = false, wide = false, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const shown = open && mounted;
   // Declared before the focus effect: the trap notes the opener first.
-  useFocusTrap(ref, open);
+  useFocusTrap(ref, shown);
   // Latest onClose, so an inline callback never re-runs the effects below.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    if (!open) return;
+    if (!shown) return;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCloseRef.current(); }
     };
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [open]);
+  }, [shown]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!shown) return;
     const was = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = was; };
-  }, [open]);
+  }, [shown]);
 
-  if (!open) return null;
-  return (
+  if (!shown) return null;
+  return createPortal(
     <div ref={ref} className={cx(modalClass({ size, tone }))} role="dialog" aria-modal="true" aria-labelledby={labelledBy ?? titleId}>
       <div className="modal__backdrop" onClick={() => onCloseRef.current()} />
       <div className={cx("modal__panel", wide && "modal__panel--wide")}>
@@ -68,12 +77,13 @@ export default function Modal({ open, onClose, title, size = "dialog", tone = "p
           <div className="modal__actions">
             {actions}
             <Button ref={closeRef} variant="quiet" tone="danger" iconOnly aria-label="Close" onClick={() => onCloseRef.current()}>
-              <span aria-hidden="true">✕</span>
+              <Icon name="close" />
             </Button>
           </div>
         </header>
         <div className="modal__body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

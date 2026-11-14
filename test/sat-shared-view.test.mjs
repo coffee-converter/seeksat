@@ -116,7 +116,7 @@ test('findSharedRow: a past pass that is no longer listed gives the past text', 
   const t = Date.parse('2026-11-01T07:05:00Z');
   assert.deepEqual(findSharedRow(rows, t, Date.parse('2026-11-01T12:00:00Z'), UTC), {
     kind: 'past',
-    text: 'The shared pass on Sun 1 Nov at 07:05 has already happened.',
+    text: 'The shared pass on Sun 1 Nov at 7:05 has already happened.',
   });
   // Also with no rows at all.
   assert.equal(findSharedRow([], t, Date.parse('2026-11-01T12:00:00Z'), UTC).kind, 'past');
@@ -125,7 +125,7 @@ test('findSharedRow: a past pass that is no longer listed gives the past text', 
 test('findSharedRow: the past text uses the given time zone', () => {
   const t = Date.parse('2026-11-01T23:30:00Z');
   const r = findSharedRow([], t, Date.parse('2026-11-03T00:00:00Z'), { timeZone: 'Asia/Tokyo', locale: 'en-GB' });
-  assert.equal(r.text, 'The shared pass on Mon 2 Nov at 08:30 has already happened.');
+  assert.equal(r.text, 'The shared pass on Mon 2 Nov at 8:30 has already happened.');
 });
 
 test('findSharedRow: a future pass that is not listed, or no shared time, gives null', () => {

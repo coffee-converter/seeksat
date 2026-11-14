@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useMapClock } from "@/lib/map/map-clock";
+import { useCallback, useEffect, useState } from "react";
 import SkyChartModalView from "@/components/passes/SkyChartModalView";
 import RadioChartModalView from "@/components/passes/RadioChartModalView";
 import LiveView from "@/components/live/LiveView";
@@ -13,6 +14,9 @@ import { getClockSkewMs, hasClockSyncSample, trueNow } from "@/lib/pass-finder/c
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import type { Track, HomeObserver, Pass } from "@/components/home/NextUpList";
 import { useBackCloses } from "@/lib/ui/use-back-closes";
+import { useMediaQuery } from "@/lib/ui/use-media-query";
+import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
+import { LIVE_DOCK_HOST_ID } from "@/lib/live/dock-store";
 
 export interface ChartSubject {
   track: Track;
@@ -31,13 +35,27 @@ interface Props {
   preferredFreqHz?: number | null;
   /** Fired when the user picks a frequency in the radio chart. */
   onFreqChange?: (hz: number | null) => void;
+  /** The page's mode, for the live view's panels. */
+  mode?: "radio" | "visual";
 }
 
 // The sky chart, radio chart and live view for one pass. Loaded on first use, so
 // the painters stay out of the page's first bundle.
-export default function PassChartModals({ subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange }: Props) {
-  // Back closes an open chart instead of leaving the page.
-  useBackCloses(chart != null, onClose);
+export default function PassChartModals({
+  subject, chart, onChartChange, onClose, preferredFreqHz = null, onFreqChange, mode = "radio",
+}: Props) {
+  // Back closes an open chart instead of leaving the page. Not the live view
+  // docked beside the map (as LiveView decides): the page stays usable then,
+  // and an extra history entry would swallow the map's own Close and Back.
+  const wide = useMediaQuery(DOCKED_QUERY);
+  const docked = chart === "live" && wide && typeof document !== "undefined" && document.getElementById(LIVE_DOCK_HOST_ID) != null;
+  useBackCloses(chart != null && !docked, onClose);
+  // While the live view is open the map shows now, not a paused pass.
+  const liveOpen = chart === "live";
+  useEffect(() => {
+    useMapClock.getState().setLiveView(liveOpen);
+    return () => useMapClock.getState().setLiveView(false);
+  }, [liveOpen]);
   const noradId = subject?.track.noradId ?? null;
   const initialFreq = (s: ChartSubject | null) =>
     s ? preferredFreqHz ?? defaultDownlink(s.track)?.hz ?? null : null;
@@ -143,6 +161,7 @@ export default function PassChartModals({ subject, chart, onChartChange, onClose
           downlinkLabel={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.label ?? null}
           uplink={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.uplink ?? null}
           downlinkMode={subject.track.downlinks.find((d: { hz: number }) => d.hz === freqHz)?.mode ?? null}
+          mode={mode}
           onChart={onChartChange}
           onClose={onClose}
         />

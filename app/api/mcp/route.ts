@@ -1,29 +1,38 @@
 // app/api/mcp/route.ts - Streamable-HTTP MCP server. Thin adapter:
-// validates input with zod, delegates to the pure handlers in
-// lib/mcp/tools.mjs, returns the result as JSON text content.
+// registers every tool in lib/mcp/tool-specs.mjs (strict zod input schemas
+// the SDK validates), delegates to the pure handlers in lib/mcp/tools.mjs, and
+// returns the result as JSON text content (plus an image for a chart).
 import { createMcpHandler } from 'mcp-handler';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
 import {
   listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool, getPassChartTool, bestPassTool,
-  searchSatellitesTool, radioPassTool,
+  searchSatellitesTool, radioPassTool, whatsUpNowTool, identifySatelliteTool,
 } from '@/lib/mcp/tools.mjs';
+import { TOOL_SPECS, inputObject } from '@/lib/mcp/tool-specs.mjs';
+import { SERVER_INSTRUCTIONS } from '@/lib/mcp/discovery.mjs';
 import { getCatalogReader } from '@/lib/mirror/server.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
 import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
 import { parseProKeys, resolveTier } from '@/lib/mcp/auth.mjs';
 import { runWithRequestContext, getRequestContext } from '@/lib/mcp/request-context.mjs';
+import { callerOf, createHeavyGate } from '@/lib/mcp/heavy-gate.mjs';
+import { createHash } from 'node:crypto';
 import { logUsage } from '@/lib/mcp/usage.mjs';
+import { createLru } from '@/lib/mcp/radio-scan.mjs';
 
 const PRO_KEYS = parseProKeys(process.env.MCP_PRO_KEYS);
 
+// Trimmed here, once: the tier check and the caller's identity both use it.
 function presentedKey(req: Request): string | null {
   const auth = req.headers.get('authorization');
-  if (auth && auth.startsWith('Bearer ')) return auth.slice(7).trim();
-  return req.headers.get('x-api-key');
+  const raw = auth && auth.startsWith('Bearer ') ? auth.slice(7) : req.headers.get('x-api-key');
+  const key = raw?.trim();
+  return key ? key : null;
 }
 
 export const runtime = 'nodejs';
+// A ceiling on any one call (the scans take a few seconds at most).
+export const maxDuration = 60;
 
 const deps = {
   getRecord: (id: number) => getCatalogReader().getRecord(id),
@@ -31,6 +40,15 @@ const deps = {
   fetchWeather: (lat: number, lon: number) => fetchCloudForecast(lat, lon),
   now: () => Date.now(),
   search: (q: string, limit: number, opts?: { radio?: boolean }) => getCatalogReader().search(q, limit, opts),
+  radioIds: () => getCatalogReader().radioIds(),
+  // Stage 1 of the all-satellite radio scan, per 0.25 degree cell and hour
+  // (lib/mcp/radio-scan.mjs). Lives as long as the server instance.
+  radioScanCache: createLru(32),
+  // The visual best_pass scan: the popular satellites plus CelesTrak's
+  // visual group, with its own stage 1 cache (lib/mcp/visual-scan.mjs).
+  visualIds: () => getCatalogReader().visualIds(),
+  visualScanCache: createLru(32),
+  skyCatalog: () => getCatalogReader().skyCatalog(),
 };
 
 const asText = (obj: unknown) => ({
@@ -56,173 +74,67 @@ const asResult = (res: unknown) => {
   return asText(res);
 };
 
+// Tool hints (MCP ToolAnnotations): every tool only reads, and asking twice
+// changes nothing. Tools that can geocode a place name or fetch weather reach
+// services outside SeekSat, so they are open-world (spec.online).
+const LOCAL = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const ONLINE = { ...LOCAL, openWorldHint: true };
+
+type Args = Record<string, unknown>;
+
+/** Tools that scan many satellites or draw an image. */
+const HEAVY_TOOLS = new Set(['best_pass', 'whats_up_now', 'identify_satellite', 'get_pass_chart']);
+const heavyGate = createHeavyGate();
+type Tier = 'free' | 'pro';
+
+// The handler behind each tool in TOOL_SPECS.
+const HANDLERS: Record<string, (args: Args, tier: Tier) => Promise<unknown>> = {
+  list_satellites: () => listSatellites(deps),
+  find_passes: (a, t) => findPassesTool(a, deps, t),
+  get_position: (a, t) => getPositionTool(a, deps, t),
+  next_visible_pass: (a, t) => nextVisiblePassTool(a, deps, t),
+  get_pass_weather: (a) => getPassWeatherTool(a, deps),
+  get_pass_chart: (a, t) => getPassChartTool(a, deps, t),
+  search_satellites: (a) => searchSatellitesTool(a, deps),
+  get_radio_pass: (a, t) => radioPassTool(a, deps, t),
+  best_pass: (a, t) => bestPassTool(a, deps, t),
+  whats_up_now: (a, t) => whatsUpNowTool(a, deps, t),
+  identify_satellite: (a, t) => identifySatelliteTool(a, deps, t),
+};
+
 const mcpHandler = createMcpHandler(
   (server: McpServer) => {
-    server.tool(
-      'list_satellites',
-      'List the popular satellites (ISS, Tiangong, Hubble and a few others) with each one\'s current orbit data freshness. This is not the full list: every other tool also accepts any NORAD catalog number, e.g. "25544".',
-      {},
-      async () => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'list_satellites', tier, keyId });
-        try { return asText(await listSatellites(deps)); } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'find_passes',
-      'List ALL upcoming passes of one satellite over a location, ranked by a quality score. Returns an array of passes, each with rise/peak/set times, peak elevation (deg), brightness (magnitude - lower/more-negative is brighter), duration, and a quality score 0-1. Scans windowHours ahead (default 48, up to 240 = 10 days), so this is the tool for comparing passes or finding the best/brightest one over a span of days - not just the next one. mode "visual" returns only sunlit, after-dark (naked-eye) passes; "radio" returns all line-of-sight passes. Provide lat+lon or a location string. Feed any pass\'s peak time to get_pass_chart (to draw it) or get_pass_weather (to check clouds). To rank across ALL tracked satellites at once, use best_pass.',
-      {
-        satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 48; max 240 (10 days). Widen this to find the best pass over the coming days.'),
-        minElevation: z.number().min(0).max(90).optional().describe('only return passes whose peak rises at least this many degrees above the horizon. Default 10.'),
-        mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye, sunlit, after-dark passes; "radio" = all line-of-sight passes regardless of light.'),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'find_passes', tier, keyId, satellite: args.satellite });
-        try { return asText(await findPassesTool(args, deps, tier)); } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'get_position',
-      'Get the current (or at a given time) sub-point latitude/longitude, altitude, and sunlit state of a satellite.',
-      {
-        satellite: z.string(),
-        time: z.string().optional().describe('ISO 8601; defaults to now'),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'get_position', tier, keyId, satellite: args.satellite });
-        try { return asText(await getPositionTool(args, deps, tier)); } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'next_visible_pass',
-      'Convenience shortcut: the single next good visible pass of one satellite from a location. Use this only when the user wants "the next pass." Set chart:true to also render that pass\'s sky chart and return it in this same call (so the user sees the chart without a separate get_pass_chart step). To compare multiple upcoming passes, or to find the best/brightest pass over the next several days, use find_passes (one satellite) or best_pass (ranked across all tracked satellites) instead.',
-      {
-        satellite: z.string(),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional(),
-        mode: z.enum(['visual', 'radio']).optional(),
-        chart: z.boolean().optional().describe('When true, also render the pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the pass.'),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'next_visible_pass', tier, keyId, satellite: args.satellite });
-        try { return asResult(await nextVisiblePassTool(args, deps, tier)); } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'get_pass_weather',
-      'Cloud-cover forecast and viewing probability for a location at a given time. Network-dependent.',
-      {
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional(),
-        time: z.string().describe('ISO 8601 time of the pass'),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'get_pass_weather', tier, keyId });
-        try { return asText(await getPassWeatherTool(args, deps)); } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'get_pass_chart',
-      'Render a polar sky chart (PNG) of a satellite\'s pass over a location - where to look, with the moon, planets, and stars in their real positions. By default it charts the NEXT pass; pass `time` (the rise or peak of a specific pass from find_passes / best_pass) to chart THAT pass instead - this is how you visualise the best pass rather than just the next one. mode "visual" (default) or "radio".',
-      {
-        satellite: z.string().describe('NORAD id or name, e.g. "iss" or 25544'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        time: z.string().optional().describe('ISO 8601. Charts the pass occurring around this time (use a pass\'s rise or peak from find_passes/best_pass). Omit to chart the next pass from now.'),
-        mode: z.enum(['visual', 'radio']).optional(),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'get_pass_chart', tier, keyId, satellite: args.satellite });
-        try {
-          const res = await getPassChartTool(args, deps, tier);
-          // Image LAST so it's the trailing content block: clients that render
-          // the final block inline (rather than only inside the tool-call
-          // accordion) are more likely to surface the chart in the response.
-          return res.pngBase64
-            ? { content: [
-                { type: 'text' as const, text: res.summary },
-                { type: 'image' as const, data: res.pngBase64, mimeType: 'image/png' },
-              ] }
-            : { content: [{ type: 'text' as const, text: res.summary }] };
-        } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'search_satellites',
-      'Search the full satellite catalog (about 15,000 objects) by name, alias or NORAD number, best match first. Use it to turn a name like "SDO" or "NOAA 19" into a NORAD number for the other tools; names outside the popular list only resolve directly on an exact whole-name match. mode "radio" lists satellites with known radio downlinks first among equally good matches.',
-      {
-        query: z.string().min(1).describe('a name, part of one, or a NORAD number, e.g. "sdo", "noaa 19", "25544"'),
-        limit: z.number().int().positive().max(20).optional().describe('how many results. Default 10.'),
-        mode: z.enum(['visual', 'radio']).optional(),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'search_satellites', tier, keyId });
-        try { return asText(await searchSatellitesTool(args, deps)); } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'get_radio_pass',
-      'Radio details for one pass of a satellite over a location: its known downlink (and uplink) frequencies, the Doppler swing, when to tune to what frequency (at 10 and 30 degrees up and closest approach), and a table of time, azimuth, elevation, range and receive frequency for pointing an antenna and tuning a radio. Uses the next pass above minElevationDeg, or the one peaking nearest passTime. A satellite that never sets here (geosynchronous) gets the next 24 hours instead. Give frequencyMHz to use a frequency other than the default downlink. Predictions from published elements: the transmitter\'s own frequency offset is unknown, so the curve\'s shape is what to compare.',
-      {
-        satellite: z.string().describe('NORAD id or name, e.g. "iss", "so-50" or 36395'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        frequencyMHz: z.number().positive().max(300000).optional().describe('downlink to compute Doppler for, in MHz. Default: the satellite\'s default known downlink.'),
-        passTime: z.string().optional().describe('ISO time near the wanted pass\'s peak (e.g. from find_passes). Default: the next pass.'),
-        minElevationDeg: z.number().min(0).max(90).optional().describe('lowest peak elevation that counts as a pass. Default 10.'),
-        windowHours: z.number().positive().max(240).optional().describe('how far ahead to look for a pass, in hours. Default 48.'),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'get_radio_pass', tier, keyId, satellite: args.satellite });
-        try { return asText(await radioPassTool(args, deps, tier)); } catch (e) { return asError(e); }
-      },
-    );
-
-    server.tool(
-      'best_pass',
-      'Find the best upcoming pass(es) over a location, ranked by quality. Omit `satellite` to scan ALL tracked satellites and return the single best thing flying over ("what\'s the best pass tonight?"); give `satellite` to rank that one satellite\'s passes. Returns `best` (the top pass) plus a `passes` array of the top-ranked options, each tagged with its satellite, times, peak elevation, brightness, and quality score. Set chart:true to also render the winning pass\'s sky chart and return it in this same call - prefer this over a separate get_pass_chart step when the user wants to see the best pass. mode "visual" (default) or "radio".',
-      {
-        satellite: z.string().optional().describe('NORAD id or name (e.g. "iss") to rank one satellite. Omit to scan and rank across every tracked satellite.'),
-        lat: z.number().min(-90).max(90).optional(),
-        lon: z.number().min(-180).max(180).optional(),
-        location: z.string().optional().describe('place name, geocoded if lat/lon omitted'),
-        windowHours: z.number().positive().max(240).optional().describe('how far ahead to search, in hours. Default 72; max 240 (10 days).'),
-        minElevation: z.number().min(0).max(90).optional().describe('ignore passes peaking below this many degrees. Default 10.'),
-        limit: z.number().int().positive().max(20).optional().describe('how many ranked passes to return. Default 3.'),
-        mode: z.enum(['visual', 'radio']).optional().describe('"visual" (default) = naked-eye sunlit passes after dark; "radio" = all line-of-sight passes.'),
-        chart: z.boolean().optional().describe('When true, also render the winning pass\'s polar sky chart (PNG) and include it in this result - use whenever the user wants to see or visualise the best pass.'),
-      },
-      async (args) => {
-        const { tier, keyId } = getRequestContext();
-        logUsage({ tool: 'best_pass', tier, keyId, satellite: args.satellite });
-        try { return asResult(await bestPassTool(args, deps, tier)); } catch (e) { return asError(e); }
-      },
-    );
+    for (const spec of TOOL_SPECS) {
+      const run = HANDLERS[spec.name];
+      server.registerTool(
+        spec.name,
+        {
+          title: spec.title,
+          description: spec.description,
+          // Strict: an unknown parameter is an error naming the ones it takes.
+          inputSchema: inputObject(spec),
+          annotations: spec.online ? ONLINE : LOCAL,
+        },
+        async (args: Args) => {
+          const { tier, keyId, caller } = getRequestContext() as { tier: string; keyId: string | null; caller?: string };
+          logUsage({ tool: spec.name, tier, keyId, satellite: args.satellite == null ? null : String(args.satellite) });
+          // JSON first and a chart image (when there is one) LAST, so it is
+          // the trailing content block clients are likeliest to show inline.
+          // The scans and the chart render are heavy: one at a time per caller,
+          // in a pool per tier (lib/mcp/heavy-gate.mjs).
+          let release: (() => void) | null = null;
+          if (HEAVY_TOOLS.has(spec.name)) {
+            const slot = heavyGate.enter(tier, caller ?? 'anon');
+            if (typeof slot !== 'function') return asError(new Error(slot.busy));
+            release = slot;
+          }
+          try { return asResult(await run(args, tier as Tier)); } catch (e) { return asError(e); } finally { release?.(); }
+        },
+      );
+    }
   },
-  // serverOptions
-  { serverInfo: { name: 'seeksat', version: '1.0.0' } },
+  // serverOptions: the instructions reach every client at initialize.
+  { serverInfo: { name: 'seeksat', version: '1.0.0' }, instructions: SERVER_INSTRUCTIONS },
   // config - route lives at /api/mcp, so basePath '/api' derives the
   // streamable-HTTP endpoint to '/api/mcp'. No redisUrl needed: redis is
   // only used for SSE session resumability, not streamable HTTP.
@@ -233,8 +145,24 @@ const mcpHandler = createMcpHandler(
 // run the whole dispatch inside the ALS scope so the tool callbacks above
 // can read it. Fail-open - an unknown/absent key is simply 'free'.
 async function handler(req: Request): Promise<Response> {
-  const { tier, keyId } = resolveTier(presentedKey(req), PRO_KEYS);
-  return runWithRequestContext({ tier, keyId }, () => mcpHandler(req));
+  // One message per request, of a modest size: a JSON-RPC batch would let one
+  // HTTP request (all the firewall's rate limit counts) carry a hundred tool
+  // calls, and a huge body costs memory before any check runs.
+  if (req.method === 'POST') {
+    const text = await req.text();
+    if (text.length > MAX_BODY_CHARS) return jsonRpcRefusal(413, 'request too large');
+    if (text.trimStart().startsWith('[')) return jsonRpcRefusal(400, 'batches are not supported: send one message per request');
+    req = new Request(req.url, { method: 'POST', headers: req.headers, body: text });
+  }
+  const key = presentedKey(req);
+  const { tier, keyId } = resolveTier(key, PRO_KEYS);
+  const keyHash = tier === 'pro' && key ? createHash('sha256').update(key).digest('hex') : null;
+  return runWithRequestContext({ tier, keyId, caller: callerOf(keyHash, tier, req.headers) }, () => mcpHandler(req));
+}
+
+const MAX_BODY_CHARS = 64 * 1024;
+function jsonRpcRefusal(status: number, message: string): Response {
+  return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32600, message } }, { status });
 }
 
 export { handler as GET, handler as POST };

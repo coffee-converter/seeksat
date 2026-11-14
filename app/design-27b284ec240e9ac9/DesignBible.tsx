@@ -8,9 +8,11 @@ import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
 import { Details, Disclosure } from "@/components/ui/Disclosure";
 import Field from "@/components/ui/Field";
+import Icon, { type IconName } from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
 import RatingBars from "@/components/ui/RatingBars";
 import Segmented from "@/components/ui/Segmented";
+import SettingRow from "@/components/ui/SettingRow";
 import StatTile from "@/components/ui/StatTile";
 import Surface from "@/components/ui/Surface";
 import { surfaceClass } from "@/lib/ui/classes.mjs";
@@ -27,9 +29,21 @@ export type BibleData = { colors: ColorGroup[]; scale: Token[]; reducedMotion: T
 
 
 const SECTIONS = [
-  ["font", "Font"], ["type", "Type scale"], ["colour", "Colour"], ["spacing", "Spacing"], ["radius", "Radius"],
+  ["font", "Font"], ["type", "Type scale"], ["roles", "Type roles"], ["colour", "Colour"], ["spacing", "Spacing"], ["radius", "Radius"],
   ["borders", "Borders"], ["shadows", "Shadows"], ["motion", "Motion"], ["components", "Components"],
 ] as const;
+
+/** The type roles (app/ui.css): every heading and note takes one. */
+const ROLES: Array<[string, string, string]> = [
+  ["heading-page", "Satellite page", "The one h1: a satellite's name, a not-found page."],
+  ["heading-section", "Passes", "A section's h2, and every dialog and sheet title."],
+  ["heading-sub", "Also seen from", "A heading inside a panel or section."],
+  ["heading-group", "Tomorrow", "A muted label over a group: a day of passes, a setting, a map menu group."],
+  ["note", "No passes in the next 48 hours.", "Muted body text: empty states, explanations."],
+  ["note note--sm", "Times are Tokyo time (UTC+9).", "A line under a heading or control: zone notes, hints."],
+];
+
+const ICONS: IconName[] = ["search", "settings", "close", "more", "chevron-right", "chevron-down", "fullscreen", "exit-fullscreen", "layers", "eye", "eye-off", "moon", "pin", "calendar", "bell", "star"];
 
 const SAMPLE = "The ISS rises in the north-west at 21:04, climbs to 72° and fades into shadow two minutes later. Bring binoculars.";
 const IS_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i;
@@ -206,6 +220,23 @@ export default function DesignBible({ data }: { data: BibleData }) {
         </Section>
 
         <Section
+          id="roles"
+          title="Type roles"
+          lede={<>Which step each kind of text gets. A heading or note takes one of these classes from <Code>app/ui.css</Code>; its own class adds only layout (margin, padding, flex), never size, weight or colour.</>}
+        >
+          <Surface>
+            <ul className="bible__stack">
+              {ROLES.map(([cls, sample, use]) => (
+                <li key={cls} className="bible__spec-row">
+                  <span className={cls}>{sample}</span>
+                  <span className="bible__spec-meta"><Code>{`.${cls.replace(" ", " .")}`}</Code> {use}</span>
+                </li>
+              ))}
+            </ul>
+          </Surface>
+        </Section>
+
+        <Section
           id="colour"
           title="Colour"
           lede={<>Every colour token in both themes, whatever theme this page is in. Values are as declared, with what they resolve to beneath. Night vision is not a palette: it forces dark and runs one filter over the page (<Code>--night-filter</Code>: {data.nightFilter}).</>}
@@ -325,7 +356,7 @@ export default function DesignBible({ data }: { data: BibleData }) {
                   <Button variant={variant} size={size} on>On</Button>
                   <Button variant={variant} size={size} tone="danger">Danger</Button>
                   <Button variant={variant} size={size} done>Done</Button>
-                  <Button variant={variant} size={size} iconOnly aria-label="Close"><span aria-hidden="true">✕</span></Button>
+                  <Button variant={variant} size={size} iconOnly aria-label="Close"><Icon name="close" /></Button>
                 </div>
               ))}
             </Specimen>
@@ -447,7 +478,7 @@ export default function DesignBible({ data }: { data: BibleData }) {
             </div>
           </Specimen>
 
-          <Specimen title="Disclosure" note="The ⋯ button reveals less-used actions into the same row.">
+          <Specimen title="Disclosure" note="The more button reveals less-used actions into the same row.">
             <div className="bible__row">
               <Button size="sm">Sky chart</Button>
               <Button size="sm">Remind me</Button>
@@ -462,6 +493,37 @@ export default function DesignBible({ data }: { data: BibleData }) {
             <div className="bible__grid">
               <Details summary="How passes are rated"><p className="bible__note">Closed by default.</p></Details>
               <Details summary="What the numbers mean" defaultOpen><p className="bible__note">Open by default.</p></Details>
+            </div>
+          </Specimen>
+
+          <Specimen title="Icon" note={<>Line icons in <Code>currentColor</Code>: 16 px in buttons and beside text, 20 px in the header, 14 px in a chip. Decorative: the button around one carries the name.</>}>
+            <div className="bible__row">
+              {ICONS.map((name) => (
+                <span key={name} className="bible__icon" title={name}><Icon name={name} size={20} /><Code>{name}</Code></span>
+              ))}
+            </div>
+          </Specimen>
+
+          <Specimen title="Label and value list" note={<>A <Code>dl</Code> with <Code>kv</Code>: muted 12 px labels, values in the text colour with tabular figures. Its own class lays the pairs out.</>}>
+            <dl className="kv bible__kv">
+              <div><dt>Rises</dt><dd>9:04 PM, NW</dd></div>
+              <div><dt>Highest</dt><dd>9:07 PM, 72° S</dd></div>
+              <div><dt>Sets</dt><dd>9:11 PM, SE</dd></div>
+            </dl>
+          </Specimen>
+
+          <Specimen title="SettingRow and satellite dot" note={<>A setting: group label over control, a hairline under. The dot is a satellite&apos;s map colour (<Code>.sat-dot</Code>, from <Code>--sat-color</Code>).</>}>
+            <div className="bible__grid">
+              <div>
+                <SettingRow label="Lowest pass to show" hint="Hides lower passes and sizes the footprint circle.">
+                  <Button size="sm">10°</Button>
+                </SettingRow>
+              </div>
+              <div className="bible__row">
+                {["#f59e0b", "#5eead4", "#c084fc"].map((c) => (
+                  <span key={c} className="bible__row"><span className="sat-dot" style={{ "--sat-color": c } as CSSProperties} aria-hidden="true" />ISS</span>
+                ))}
+              </div>
             </div>
           </Specimen>
 

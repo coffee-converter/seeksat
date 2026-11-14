@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { timelineRows, barSpan, hourTicks, nightSpans, clockLabel } from '../lib/home/timeline.mjs';
+import { timelineRows, stripLanes, barSpan, hourTicks, nightSpans, clockLabel } from '../lib/home/timeline.mjs';
 
 const H = 3_600_000;
 const NOW = Date.parse('2026-11-02T03:30:00Z');
 const pass = (startMs, endMs) => ({ startMs, endMs });
 
-test('timelineRows drops satellites with nothing in 24 h and counts them', () => {
+test('timelineRows drops satellites with nothing in 24 h', () => {
   const near = pass(NOW + H, NOW + 2 * H);
   const far = pass(NOW + 30 * H, NOW + 31 * H);
   const cards = [
@@ -17,9 +17,25 @@ test('timelineRows drops satellites with nothing in 24 h and counts them', () =>
     { kind: 'unavailable', noradId: 5, name: 'E' },
     { kind: 'missing', noradId: 6, name: 'F' },
   ];
-  const { rows, leftOut } = timelineRows(cards, NOW);
-  assert.deepEqual(rows, [{ noradId: 1, name: 'A', passes: [near] }]);
-  assert.equal(leftOut, 2);
+  assert.deepEqual(timelineRows(cards, NOW), [{ noradId: 1, name: 'A', passes: [near] }]);
+});
+
+test('stripLanes stacks overlapping bars and reuses a lane once it is free', () => {
+  const spans = [{ x0: 0.1, x1: 0.2 }, { x0: 0.15, x1: 0.25 }, { x0: 0.3, x1: 0.4 }, { x0: 0.18, x1: 0.19 }];
+  assert.deepEqual(stripLanes(spans), { lanes: [0, 1, 0, 2], count: 3 });
+});
+
+test('stripLanes judges overlap at the minimum bar width', () => {
+  const spans = [{ x0: 0.1, x1: 0.101 }, { x0: 0.11, x1: 0.111 }];
+  assert.deepEqual(stripLanes(spans).count, 1);
+  assert.deepEqual(stripLanes(spans, 0.03), { lanes: [0, 1], count: 2 });
+  assert.deepEqual(stripLanes([]), { lanes: [], count: 1 });
+});
+
+test('stripLanes keeps bars inside the strip, as drawn, when judging overlap', () => {
+  // The first is drawn at [0, 0.03], not about its middle at -0.0125.
+  assert.deepEqual(stripLanes([{ x0: 0, x1: 0.005 }, { x0: 0.02, x1: 0.05 }], 0.03).lanes, [0, 1]);
+  assert.deepEqual(stripLanes([{ x0: 0.995, x1: 1 }, { x0: 0.95, x1: 0.98 }], 0.03).lanes, [1, 0]);
 });
 
 test('barSpan clips a pass in progress at the left edge', () => {

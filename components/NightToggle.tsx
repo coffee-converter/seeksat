@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { applyMode, readMode, readNight, writeNight } from "@/lib/ui/theme.mjs";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
@@ -15,7 +16,7 @@ const DARK_QUERY = "(prefers-color-scheme: dark)";
  * (app/home.css).
  * Read after mount, like ThemeToggle, so server and client renders match.
  */
-export default function NightToggle() {
+export default function NightToggle({ stateLabel = false }: { stateLabel?: boolean } = {}) {
   const [on, setOn] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -40,10 +41,9 @@ export default function NightToggle() {
       aria-label="Night vision"
       onClick={toggle}
     >
-      <svg className="night-toggle__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-      </svg>
-      <span className="night-toggle__label">Night vision</span>
+      <Icon name="moon" className="night-toggle__icon" />
+      {/* In Settings the row already says "Night vision": the state alone. */}
+      <span className="night-toggle__label">{stateLabel ? (on ? "On" : "Off") : "Night vision"}</span>
     </Button>
   );
 }

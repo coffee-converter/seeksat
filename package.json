@@ -21,18 +21,23 @@
     "linkedom": "^0.18.12",
     "maplibre-gl": "6.15.0",
     "mcp-handler": "^1.1.0",
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "next": "15.5.28",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "satellite.js": "^6.0.2",
-    "zod": "^4.4.3",
+    "zod": "4.6.7",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "1.26.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.6.0"
+  },
+  "overrides": {
+    "mcp-handler": {
+      "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk"
+    }
   }
 }

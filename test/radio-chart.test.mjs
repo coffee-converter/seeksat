@@ -149,6 +149,13 @@ test('the degrade swap matches on key, not position', () => {
   assert.equal(off[0].unit, 'm/s');
 });
 
+test('range rate is in feet a second with imperial units', () => {
+  const [ft] = panelsFor(false, false, 'imperial');
+  assert.equal(ft.unit, 'ft/s');
+  assert.ok(Math.abs(1000 * ft.scale - 3280.84) < 0.01);
+  assert.equal(panelsFor(false, false, 'metric')[0].unit, 'm/s');
+});
+
 test('compassPoint names 16 directions and wraps', () => {
   assert.equal(compassPoint(0), 'N');
   assert.equal(compassPoint(359), 'N');

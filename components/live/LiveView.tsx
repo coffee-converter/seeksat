@@ -5,11 +5,22 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Surface from "@/components/ui/Surface";
 import LiveDial from "@/components/live/LiveDial";
+import LivePassBar from "@/components/live/LivePassBar";
+import LiveLight from "@/components/live/LiveLight";
+import LiveDopplerCurve from "@/components/live/LiveDopplerCurve";
+import LiveDock from "@/components/live/LiveDock";
+import NightToggle from "@/components/NightToggle";
+import { useUnits } from "@/lib/ui/use-units";
+import { distanceText } from "@/lib/units.mjs";
+import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
+import { useMediaQuery } from "@/lib/ui/use-media-query";
+import { LIVE_DOCK_HOST_ID } from "@/lib/live/dock-store";
 import { radioSeries } from "@/lib/passes/charts.js";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
 import { liveState, clockText, tuneMode } from "@/lib/live/live-state.mjs";
 import { needsTone, uplinkDopplerHz } from "@/lib/radio/uplink.mjs";
-import { turnHint, headingFromOrientation } from "@/lib/live/heading.mjs";
+import { turnHint, headingFromOrientation, compassOffered } from "@/lib/live/heading.mjs";
+import { barStart } from "@/lib/live/progress.mjs";
 import { compass } from "@/lib/sat/pass-rows.mjs";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 
@@ -26,8 +37,10 @@ const clock = clockText as (ms: number) => string;
 const tuneOf = tuneMode as (live: Live | null, freqHz: number | null) => "none" | "pick" | "tune" | "waiting" | "over";
 const hint = turnHint as (target: number, heading: number) => { deltaDeg: number; text: string };
 const headingOf = headingFromOrientation as (e: unknown, screenAngleDeg?: number) => number | null;
+const offerCompass = compassOffered as (win: unknown) => boolean;
 const NO_READING_MS = 3000;
 const point = compass as (az: number) => string;
+const startOf = barStart as (pass: unknown, firstMs: number) => { label: string; ms: number | null };
 const build = radioSeries as (a: Record<string, unknown>) => { series: { samples: Sample[] } } | null;
 
 /** An uplink as lib/catalog.mjs and lib/mirror/satnogs.mjs store it. */
@@ -45,17 +58,30 @@ interface Props {
   uplink: Uplink | null;
   /** The chosen downlink's mode ("fm", "lrpt"), shown beside its frequency. */
   downlinkMode?: string | null;
+  /** The home or sat page mode: visual shows brightness and shadow in place
+   *  of the frequencies. */
+  mode?: "radio" | "visual";
   onChart: (kind: "sky" | "radio") => void;
   onClose: () => void;
 }
 
 // The pass right now: where to point, how long until it rises, peaks or
-// sets, and where to tune. Sampled once (1 s steps), read four times a second.
-export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downlinkMode = null, onChart, onClose }: Props) {
+// sets, and where to tune (or, watching, how bright it is). Sampled once
+// (1 s steps), read four times a second.
+export default function LiveView({
+  subject, freqHz, downlinkLabel, uplink, downlinkMode = null, mode = "radio", onChart, onClose,
+}: Props) {
   const { track, obs, pass, minElevDeg } = subject;
   const samples = useMemo(() => build({
     track, obs, anchorMs: (pass as { peakMs: number }).peakMs, minElevDeg, freqHz, purpose: "csv",
   })?.series.samples ?? [], [track, obs, pass, minElevDeg, freqHz]);
+  // The pass's ends and peak, from the samples the countdowns read.
+  const span = useMemo(() => {
+    if (!samples.length) return null;
+    let peak = samples[0];
+    for (const s of samples) if (s.elDeg > peak.elDeg) peak = s;
+    return { firstMs: samples[0].tMs, lastMs: samples[samples.length - 1].tMs, peakMs: peak.tMs };
+  }, [samples]);
   const [now, setNow] = useState(() => trueNow());
   useEffect(() => {
     const id = window.setInterval(() => setNow(trueNow()), 250);
@@ -87,7 +113,9 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
   const [compassOn, setCompassOn] = useState(false);
   // Why the compass isn't steering the dial, when it isn't.
   const [compassNote, setCompassNote] = useState<string | null>(null);
-  const hasOrientation = typeof window !== "undefined" && "DeviceOrientationEvent" in window;
+  // Only phones and tablets: a laptop has the event but no compass behind it.
+  // The view renders on the client only (the chart modals load with ssr off).
+  const [hasCompass] = useState(() => typeof window !== "undefined" && offerCompass(window));
   useEffect(() => {
     if (!compassOn) return;
     let got = false;
@@ -123,39 +151,93 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
       : live.phase === "during" ? `Sets in ${clock(live.msToSet!)}`
         : "This pass is over.";
   const peak = live && live.msToPeak != null ? `Peak ${Math.round(live.peakElDeg)}° in ${clock(live.msToPeak)}` : null;
+  // Climbing or sinking: the height a few seconds on.
+  const soon = samples.length ? stateAt(samples, now + 4000) : null;
+  const climbing = live?.elDeg != null && soon?.elDeg != null ? soon.elDeg >= live.elDeg : null;
+  const units = useUnits();
+  const away = live?.rangeKm != null ? `${(distanceText as (km: number, u: string) => string)(live.rangeKm, units)} away` : null;
+  // Under the big reading: before rise the peak (the hero has the countdown
+  // and direction); during, the set countdown, peak and range; else the status.
+  const statusParts = (!live ? [status]
+    : live.phase === "before" ? [peak]
+      : live.phase === "during" ? [status, peak, away]
+        : [status]).filter((x): x is string => Boolean(x));
   const turn = live && live.azDeg != null && heading != null ? hint(live.azDeg, heading).text : null;
   const tune = tuneOf(live, freqHz);
   // Screen readers hear the phase change, not every tick of the countdown.
   const phaseText = !live ? "" : live.phase === "before" ? "Not up yet." : live.phase === "during" ? "The satellite is up." : "This pass is over.";
-  // The Modal traps focus, closes on Esc (before the page's own Esc) and
-  // starts focus on Close.
-  return (
-    <Modal open onClose={onClose} title={`${track.shortName} live`} size="full">
+  // From 1100 px it docks in the panel beside the map (on a map page);
+  // narrower, it takes over the screen. A resize across switches between them.
+  const wide = useMediaQuery(DOCKED_QUERY);
+  const docked = wide && document.getElementById(LIVE_DOCK_HOST_ID) != null;
+  const title = `${track.shortName} live`;
+  const body = (
       <div className="live-view">
         <p className="live-view__sub">{`From ${obs.name}`}</p>
         <p className="sr-only" aria-live="polite">{phaseText}</p>
+        {/* Where to look, big: the reading that matters most at the eyepiece
+            or the antenna. The countdowns and range sit under it. */}
+        {live && live.azDeg != null && live.phase !== "after" && (
+          <div className="live-view__hero num">
+            <p className="live-view__hero-item">
+              <span className="live-view__hero-label">Look</span>
+              <span className="live-view__hero-value">{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</span>
+            </p>
+            {live.phase === "during" && live.elDeg != null ? (
+              <p className="live-view__hero-item">
+                <span className="live-view__hero-label">Up</span>
+                <span className="live-view__hero-value">
+                  {`${Math.round(live.elDeg)}°`}
+                  {climbing != null && (
+                    <span className="live-view__trend" aria-label={climbing ? "climbing" : "sinking"}>{climbing ? "↑" : "↓"}</span>
+                  )}
+                </span>
+              </p>
+            ) : (
+              <p className="live-view__hero-item">
+                <span className="live-view__hero-label">Rises in</span>
+                <span className="live-view__hero-value">{live.msToRise != null ? clock(live.msToRise) : ""}</span>
+              </p>
+            )}
+          </div>
+        )}
         <p className="live-view__status">
-          <strong>{status}</strong>{peak && <span>{` · ${peak}`}</span>}
+          {statusParts.map((x, i) => (i === 0 ? <strong key={i}>{x}</strong> : <span key={i}>{` · ${x}`}</span>))}
         </p>
+        {span && live && live.phase !== "after" && (() => {
+          const start = startOf(pass, span.firstMs);
+          return (
+            <LivePassBar
+              startMs={start.ms ?? span.firstMs}
+              startLabel={start.label}
+              startShownMs={start.ms}
+              peakMs={span.peakMs}
+              endMs={span.lastMs}
+              nowMs={now}
+              timeZone={obs.tz}
+            />
+          );
+        })()}
         <LiveDial
           track={samples}
           now={live && live.azDeg != null && live.elDeg != null ? { azDeg: live.azDeg, elDeg: live.elDeg } : null}
+          nowMs={now}
           headingDeg={compassOn ? heading : null}
+          timeZone={obs.tz}
         />
         {turn && <p className="live-view__turn">{turn}</p>}
-        {compassNote && <p className="home-note">{compassNote}</p>}
-        {live && live.azDeg != null && live.elDeg != null && (
-          <dl className="live-view__nums num">
-            <Surface><dt>Azimuth</dt><dd>{`${Math.round(live.azDeg)}° ${point(live.azDeg)}`}</dd></Surface>
-            <Surface><dt>Elevation</dt><dd>{`${Math.round(live.elDeg)}°`}</dd></Surface>
-            <Surface><dt>Range</dt><dd>{`${Math.round(live.rangeKm!).toLocaleString()} km`}</dd></Surface>
-          </dl>
-        )}
-        <Surface as="section" className="live-view__radio" aria-label="Tuning">
+        {compassNote && <p className="note">{compassNote}</p>}
+
+        {mode === "visual" ? (
+          span && live && (
+            <LiveLight track={track} obs={obs} startMs={span.firstMs} endMs={span.lastMs} nowMs={now} phase={live.phase} />
+          )
+        ) : (
+        <Surface as="section" className="live-view__panel" aria-label="Tuning">
           {tune === "none" ? null : tune === "pick" ? (
-            <p className="home-note">Pick a frequency in the radio chart to see where to tune.</p>
+            <p className="note">Pick a frequency in the radio chart to see where to tune.</p>
           ) : tune === "over" ? (
-            <p className="home-note">{"The pass has set. Its radio chart still has the full Doppler curve."}</p>
+            <p className="note">{"The pass has set. Its radio chart still has the full Doppler curve."}</p>
           ) : tune === "tune" && live && live.dopplerHz != null && freqHz != null ? (
             <>
               <p className="live-view__tune">
@@ -191,20 +273,30 @@ export default function LiveView({ subject, freqHz, downlinkLabel, uplink, downl
                   </>
                 );
               })()}
-              <p className="home-note">{"Predicted. The satellite's own offset is unknown."}</p>
+              <LiveDopplerCurve samples={samples} nowMs={now} />
+              <p className="note">{"Predicted. The satellite's own offset is unknown."}</p>
             </>
           ) : (
-            <p className="home-note">{`${((freqHz ?? 0) / 1e6).toFixed(3)} MHz once it rises.`}</p>
+            <p className="note">{`${((freqHz ?? 0) / 1e6).toFixed(3)} MHz once it rises.`}</p>
           )}
         </Surface>
+        )}
         <div className="live-view__actions">
-          {hasOrientation && !compassOn && (
+          {hasCompass && !compassOn && (
             <Button size="sm" onClick={startCompass}>Use phone compass</Button>
           )}
           <Button size="sm" onClick={() => onChart("sky")}>Sky chart</Button>
           <Button size="sm" onClick={() => onChart("radio")}>Radio chart</Button>
+          {/* Outside in the dark: dim red, without leaving the view. */}
+          <NightToggle />
         </div>
       </div>
-    </Modal>
+  );
+  // The Modal traps focus, closes on Esc (before the page's own Esc) and
+  // starts focus on Close; the dock starts it on the heading.
+  return docked ? (
+    <LiveDock title={title} noradId={track.noradId} onClose={onClose}>{body}</LiveDock>
+  ) : (
+    <Modal open onClose={onClose} title={title} size="full">{body}</Modal>
   );
 }

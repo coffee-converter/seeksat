@@ -49,6 +49,33 @@ test('an in-progress pass sorts first, then stationary, then missing', () => {
   assert.match(cardHeadline(cards[0], nowMs), /^ISS now, max \d+°$/);
 });
 
+test('a pass under way keeps its real rise time, whenever the cards are made', () => {
+  const tracks = new Map([[iss.noradId, iss]]);
+  const at = (iso) => nextUp({ ...base, tracks, nowMs: Date.parse(iso) })[0].pass;
+  const a = at('2026-03-01T13:18:00Z');
+  const b = at('2026-03-01T13:20:00Z');
+  assert.equal(a.inProgress, true);
+  assert.equal(a.startMs, Date.parse('2026-03-01T13:18:00Z'), 'its numbers cover what is left');
+  assert.ok(a.riseMs < a.startMs, 'rose before the cards were made');
+  assert.ok(Math.abs(a.riseMs - b.riseMs) < 60_000, 'same rise both times');
+  assert.ok(!a.riseUnknown);
+});
+
+test('an upcoming pass has no riseMs; its start is its rise', () => {
+  const card = nextUp({ ...base, tracks: new Map([[iss.noradId, iss]]), nowMs: T0 })[0];
+  assert.equal(card.pass.inProgress, false);
+  assert.equal(card.pass.riseMs, undefined);
+});
+
+test('a pass that ended before now is not on the card', () => {
+  const tracks = new Map([[iss.noradId, iss]]);
+  const nowMs = Date.parse('2026-03-01T13:18:00Z');
+  const first = nextUp({ ...base, tracks, nowMs })[0].pass;
+  const after = nextUp({ ...base, tracks, nowMs: first.endMs + 60_000 })[0];
+  assert.ok(after.upcoming.every((p) => p.endMs > first.endMs + 60_000));
+  assert.ok(after.pass.startMs > first.endMs);
+});
+
 test('an upcoming pass sorts ahead of stationary cards', () => {
   const tracks = new Map([[goes.noradId, goes], [iss.noradId, iss]]);
   const cards = nextUp({ ...base, tracks, nowMs: T0 });
@@ -103,4 +130,10 @@ test('nextUp keeps the passes within 24 h on each card', () => {
   assert.ok(card.passes.length >= 1);
   assert.ok(card.passes.every((p) => p.startMs < T0 + 24 * 3_600_000));
   assert.equal(card.pass, card.passes[0]);
+});
+
+test('next-up pass cards carry upcoming', () => {
+  const [card] = nextUp({ ...base, tracks: new Map([[iss.noradId, iss]]), nowMs: T0 });
+  assert.ok(card.upcoming.length >= card.passes.length);
+  assert.ok(card.upcoming.every((p) => p.startMs < T0 + NEXT_UP_HOURS * 3_600_000));
 });

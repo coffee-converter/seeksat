@@ -26,7 +26,7 @@ function Block({ title, text }: { title: string; text: string }) {
   return (
     <div className="sat-raw">
       <div className="sat-raw-head">
-        <h3>{title}</h3>
+        <h3 className="heading-sub">{title}</h3>
         <Button done={copied} onClick={() => void copy()}>
           {copied ? "Copied" : "Copy"}
         </Button>
@@ -40,9 +40,9 @@ function Block({ title, text }: { title: string; text: string }) {
 export default function RawElements({ raw }: { raw: SatPageData["raw"] }) {
   return (
     <section id="raw-elements">
-      <h2 className="home-heading">Raw elements</h2>
+      <h2 className="heading-section">Raw elements</h2>
       {raw.tooBigForTle ? (
-        <p className="home-note">
+        <p className="note">
           This catalog number is too big for the TLE format, so only the OMM form exists.
         </p>
       ) : (

@@ -6,17 +6,20 @@ import { geocodeOne } from "@/lib/pass-finder/geocode.js";
 import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
+import Icon from "@/components/ui/Icon";
 
 interface Props {
   /** A shared view: show these places, with no way to add or remove one. */
   readOnly?: boolean;
   /** The places to show; defaults to the saved ones. */
   observers?: ExtraObserver[];
+  /** Inside a fold whose summary already names it: no heading. */
+  untitled?: boolean;
 }
 
 // Up to 3 other places, saved on this device. The pass list then shows only
 // the times when every place can see the satellite.
-export default function ExtraObservers({ readOnly = false, observers: given }: Props = {}) {
+export default function ExtraObservers({ readOnly = false, observers: given, untitled = false }: Props = {}) {
   const uid = useId();
   const saved = useHomeStore((s) => s.prefs.observers);
   const observers = given ?? saved;
@@ -61,6 +64,10 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
     setBusy(true);
     const found = await geocodeOne(parsed.query);
     setBusy(false);
+    if (found && "busy" in found) {
+      setMessage("The place search is busy. Try again in a moment, or enter coordinates or a grid square.");
+      return;
+    }
     if (!found || !Number.isFinite(found.latDeg) || !Number.isFinite(found.lonDeg)) {
       setMessage(`No place found for "${typed}".`);
       return;
@@ -72,9 +79,9 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
   if (readOnly && observers.length === 0) return null;
 
   return (
-    <div className="sat-observers" role="group" aria-labelledby={`${uid}-title`}>
-      <h3 id={`${uid}-title`} className="sat-observers__title">Also seen from</h3>
-      {!readOnly && <p className="home-note">Add other places to see only the times when every place can see it.</p>}
+    <div className="sat-observers" role="group" aria-labelledby={untitled ? undefined : `${uid}-title`} aria-label={untitled ? "Also seen from" : undefined}>
+      {!untitled && <h3 id={`${uid}-title`} className="heading-sub">Also seen from</h3>}
+      {!readOnly && <p className="note">Add other places to see only the times when every place can see it.</p>}
       {observers.length > 0 && (
         <ul className="sat-observers__list">
           {observers.map((o) => (
@@ -86,7 +93,7 @@ export default function ExtraObservers({ readOnly = false, observers: given }: P
                 aria-label={`Remove ${o.name}`}
                 onClick={() => removeObserver(o.id)}
               >
-                {"×"}
+                <Icon name="close" />
               </Button>}
             </li>
           ))}

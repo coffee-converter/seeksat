@@ -2,33 +2,42 @@
 
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import HomeControls from "@/components/home/HomeControls";
+import Segmented from "@/components/ui/Segmented";
+import { Details } from "@/components/ui/Disclosure";
 import ExtraObservers from "@/components/sat/ExtraObservers";
 import LocationPrompt from "@/components/home/LocationPrompt";
-import type { HomeObserver } from "@/components/home/NextUpList";
+import { passRating, type HomeObserver, type Pass as HomePass, type Track as HomeTrack } from "@/components/home/NextUpList";
+import PassRow, { passRowsClass } from "@/components/home/PassRow";
+import PassSkeleton from "@/components/home/PassSkeleton";
+import LowFold from "@/components/home/LowFold";
+import PassRowOpen from "@/components/home/PassRowOpen";
+import { useKeepRowInPlace } from "@/components/home/useKeepRowInPlace";
+import { toggleOpen } from "@/lib/ui/open-row.mjs";
+import { splitLowRows } from "@/lib/ui/low-fold.mjs";
+import { useMapClock } from "@/lib/map/map-clock";
+import { PASS_VIEW_QUERY, usePassView } from "@/lib/ui/pass-view";
+import type { OpenPassRow } from "@/lib/map/use-map-pause";
 import type { ChartSubject } from "@/components/passes/PassChartModals";
 import { useHomeStore, type ExtraObserver } from "@/lib/home/store";
 import { getPassRunner } from "@/lib/passes/pass-client.mjs";
 import { DEFAULT_SEARCH_DAYS } from "@/lib/passes/engine.mjs";
 import { passToIcs, icsFileName } from "@/lib/passes/ics.mjs";
 import { downloadText } from "@/lib/passes/download.js";
-import { passRows, printAccuracyNote, rowAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, isRowOpen, directionText } from "@/lib/sat/pass-rows.mjs";
-import QualityBadge, { peakMagText, visualRating, type RatedPass } from "@/components/passes/QualityBadge";
-import CloudBadge, { passCloud } from "@/components/passes/CloudBadge";
+import { passRows, printAccuracyNote, rowAccuracyNote, zoneLabel, initialRowCount, groupRowsByDay, directionText } from "@/lib/sat/pass-rows.mjs";
+import QualityBadge from "@/components/passes/QualityBadge";
 import type { Forecast } from "@/lib/sky/use-clouds";
-import { liveAvailable } from "@/lib/live/live-state.mjs";
 import { passJobKey } from "@/lib/passes/job-key.mjs";
 import { trueNow } from "@/lib/pass-finder/clock-sync.js";
-import AlertBell from "@/components/AlertBell";
-import Disclosure from "@/components/ui/Disclosure";
-import PassStats from "@/components/passes/PassStats";
 import { defaultDownlink } from "@/lib/catalog.mjs";
 import { uplinkText } from "@/lib/radio/uplink.mjs";
-import { PassPath, RadioPanel, aboveTenText } from "@/components/passes/PassPath";
+import { placesLine } from "@/lib/sat/places-line.mjs";
 import { shareUrl } from "@/lib/share/share-link.mjs";
 import { findSharedRow } from "@/lib/sat/shared-view.mjs";
 import Button from "@/components/ui/Button";
+import { refocus } from "@/lib/ui/refocus";
 import { usePlaceZone } from "@/components/usePlaceZone";
+import { rowDetail, rowWhen } from "@/lib/home/pass-list.mjs";
+import { startIsRise, underWay as underWayAt } from "@/lib/passes/under-way.mjs";
 
 // The chart painters load on the first chart open, not with the page.
 const DAY_MS = 86_400_000;
@@ -54,13 +63,12 @@ type View =
   | { kind: "rows"; rows: Row[] }
   | { kind: "message" | "stationary"; text: string };
 type Track = { name: string; shortName: string; noradId: number };
-/** The page's track as the radio panel reads it (lib/sat/track.mjs). */
-type RadioTrack = Parameters<typeof RadioPanel>[0]["track"];
 
 const rowsOf = passRows as unknown as (r: unknown, o: Record<string, unknown>) => View;
 const bearings = directionText as (pass: { startAzDeg: number; endAzDeg: number }) => string;
-const rowOpen = isRowOpen as (key: string, sharedKey: string | null, toggled: ReadonlySet<string>) => boolean;
-const liveOk = liveAvailable as (pass: { startMs: number; endMs: number }, nowMs: number) => boolean;
+const whenOf = rowWhen as (pass: HomePass, nowMs: number, timeZone?: string) => { time: string; sub: string };
+const detailOf = rowDetail as (pass: HomePass) => string;
+const underWay = underWayAt as (pass: HomePass, nowMs: number) => boolean;
 const groupRows = (rows: Row[], nowMs: number, timeZone?: string) =>
   (groupRowsByDay as (r: Row[], n: number, tz?: string, l?: string) => Array<{ heading: string; rows: Row[] }>)(rows, nowMs, timeZone);
 const toIcs = passToIcs as unknown as (o: Record<string, unknown>) => string;
@@ -79,7 +87,7 @@ export interface PassSectionHandle {
 
 /** effectiveSettings(): the saved prefs, or a shared view laid over them. */
 export interface PassSettings {
-  observer: { name: string; latDeg: number; lonDeg: number } | null;
+  observer: { name: string; latDeg: number; lonDeg: number; elevM?: number } | null;
   observers: ExtraObserver[];
   mode: "radio" | "visual";
   minElevDeg: number;
@@ -92,6 +100,8 @@ function printDate(ms: number, timeZone: string): string {
 }
 
 const UNAVAILABLE = "These elements can't be used to compute passes.";
+const MODES = [{ value: "visual" as const, label: "Visual" }, { value: "radio" as const, label: "Radio" }];
+const splitLow = splitLowRows as unknown as <R extends { pass: { maxElevDeg?: number; startMs: number; endMs: number } }>(rows: R[], nowMs: number) => { shown: R[]; folded: R[] };
 const SEARCH_FAILED = "Pass search failed. Reload the page to try again.";
 
 interface Props {
@@ -101,10 +111,8 @@ interface Props {
   nowMs: number;
   settings: PassSettings;
   onModeChange: (mode: "radio" | "visual") => void;
-  onMinElevChange: (deg: number) => void;
   /** The sky type for the visual rating (always the user's own pref, even in a shared view). */
   skyType: string;
-  onSkyTypeChange: (skyType: string) => void;
   /** A shared view's pass start, highlighted in the list. */
   sharedPassMs?: number | null;
   /** A shared view's radio frequency, used by the radio chart. */
@@ -118,18 +126,20 @@ interface Props {
   onNextPass?: (report: NextPassReport) => void;
   /** The cloud forecast for the location (from `useClouds`), badged on visual passes. */
   clouds?: Forecast | null;
+  /** The satellite's map colour, for the rows' leading bar. */
+  color?: string;
+  /** The open row and its pass (the map pauses at its peak), or null. */
+  onOpenRow?: (open: OpenPassRow | null) => void;
   ref?: React.Ref<PassSectionHandle>;
 }
 
 export default function PassSection({
-  track: trackIn, record, epochMs, nowMs, settings, onModeChange, onMinElevChange, skyType, onSkyTypeChange,
-  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null, ref,
+  track: trackIn, record, epochMs, nowMs, settings, onModeChange, skyType,
+  sharedPassMs = null, preferredFreqHz = null, onFreqPicked, onNextPass, clouds = null, color = "var(--map-muted)", onOpenRow, ref,
 }: Props) {
   const track = trackIn as Track | null;
   const hydrated = useHomeStore((s) => s.hydrated);
-  // Bands narrowed in radio mode change the radio panel's "none" wording.
-  const banded = useHomeStore((s) => s.prefs.bands) != null;
-  const [changingLocation, setChangingLocation] = useState(false);
+  const clearObservers = useHomeStore((s) => s.clearObservers);
   const shared = settings.isShared;
   const { mode, minElevDeg } = settings;
 
@@ -143,8 +153,9 @@ export default function PassSection({
       latDeg: location.latDeg,
       lonDeg: location.lonDeg,
       tz,
-      elevM: 0,
-      elevSource: "default",
+      // The ground's height there, once looked up (MapLayoutShell).
+      elevM: location.elevM ?? 0,
+      elevSource: location.elevM != null ? "lookup" : "default",
     },
     [location, tz],
   );
@@ -157,6 +168,7 @@ export default function PassSection({
     [observer, extra],
   );
   const joint = extra.length > 0;
+  const placesText = (placesLine as (n: string[]) => string | null)(observers.map((o) => o.name));
   const names = useMemo(
     () => Object.fromEntries(observers.map((o) => [o.id, o.name])) as Record<string, string>,
     [observers],
@@ -233,20 +245,30 @@ export default function PassSection({
 
   // Report the first row, or why there is none, to the next pass line.
   // Read from the raw result so a stationary or failed search says so.
-  const firstPass = view && view.kind === "rows" ? (view.rows[0].pass as NextPass) : null;
+  // The first pass the list shows: not one folded away as a low pass (all of
+  // them low, the first anyway).
+  const firstPass = view && view.kind === "rows"
+    ? ((splitLow(view.rows, bucketMs).shown[0] ?? view.rows[0]).pass as NextPass)
+    : null;
   // One "elements are old" note, on the first pass it applies to.
   const oldNote = view && view.kind === "rows" ? (rowAccuracyNote as (rows: Row[]) => { key: string; text: string } | null)(view.rows) : null;
+  // While a new search runs (a mode or setting change), the last report
+  // stays, so the Next pass card under the title does not blink out and back.
+  const heldReport = useRef<NextPassReport>(undefined);
   const nextReport = useMemo<NextPassReport>(() => {
     if (!track) return { kind: "unavailable" };
     if (!observer) return undefined;
     if (failed) return { kind: "failed" };
-    if (!result) return undefined;
+    if (!result) return heldReport.current;
     const r = result as { kind?: string; visible?: boolean; pointing?: unknown[] };
     if (r.kind === "unavailable") return { kind: "unavailable" };
     if (r.kind === "stationary") return r.pointing?.[0] ? { kind: "stationary", visible: Boolean(r.visible) } : { kind: "unavailable" };
     return firstPass ? { kind: "pass", pass: firstPass, timeZone: observer.tz } : { kind: "none" };
   }, [track, observer, failed, result, firstPass]);
-  useEffect(() => { onNextPass?.(nextReport); }, [nextReport, onNextPass]);
+  useEffect(() => {
+    heldReport.current = observer ? nextReport : undefined;
+    onNextPass?.(nextReport);
+  }, [nextReport, observer, onNextPass]);
 
   // The shared pass: highlighted in the list, or a note that it is over.
   const sharedHit = useMemo<SharedHit>(() => {
@@ -259,13 +281,52 @@ export default function PassSection({
   const sharedKey = sharedHit?.kind === "row" ? sharedHit.key : null;
   // Ten days of passes is a long page on a phone: show two days, then a button.
   const [showAll, setShowAll] = useState(false);
-  // Rows whose More was toggled; the shared row starts open (isRowOpen).
-  const [openRows, setOpenRows] = useState<ReadonlySet<string>>(() => new Set());
-  const toggleRow = (key: string) => setOpenRows((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
+  // The one open row: the shared row until the viewer taps one (undefined),
+  // then the row they opened, or none.
+  const [chosenKey, setChosenKey] = useState<string | null | undefined>(undefined);
+  const openKey = chosenKey === undefined ? sharedKey : chosenKey;
+  // Report the open row, so the map can pause at its pass.
+  const openRowPass = openKey && view?.kind === "rows" ? view.rows.find((r) => r.key === openKey)?.pass ?? null : null;
+  const openStart = openRowPass?.startMs ?? null;
+  const reportedOpen = useRef<string | null>(null);
+  useEffect(() => {
+    const sig = openKey && track ? `${openKey}@${openStart}` : null;
+    if (sig === reportedOpen.current) return;
+    reportedOpen.current = sig;
+    onOpenRow?.(sig && track ? { key: openKey as string, noradId: track.noradId, pass: openRowPass && { startMs: openRowPass.startMs, endMs: openRowPass.endMs, peakMs: openRowPass.peakMs as number }, timeZone: observer?.tz } : null);
+    // The pass is read when the row or its times change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openKey, openStart, track, onOpenRow]);
+  // A new location closes the open row and any chart: they were for the old place.
+  const placeKey = observer ? `${observer.latDeg},${observer.lonDeg}` : null;
+  const shownPlace = useRef(placeKey);
+  useEffect(() => {
+    if (shownPlace.current === placeKey) return;
+    shownPlace.current = placeKey;
+    setChosenKey(null);
+    setChart(null);
+  }, [placeKey]);
+  // The open row left the list (its pass ended, or a new search dropped it):
+  // nothing is open, so the pass view and the paused map let go.
+  const rowsShown = view?.kind === "rows";
+  useEffect(() => {
+    if (chosenKey && rowsShown && !openRowPass) setChosenKey(null);
+  }, [chosenKey, rowsShown, openRowPass]);
+  // On a phone an open row is the pass view (map and card only); Back closes it.
+  usePassView(openRowPass != null, () => setChosenKey(null));
+  // Back to live on the map closes the open row.
+  const resumeTick = useMapClock((s) => s.resumeTick);
+  const seenTick = useRef(resumeTick);
+  useEffect(() => {
+    if (resumeTick === seenTick.current) return;
+    seenTick.current = resumeTick;
+    setChosenKey(null);
+  }, [resumeTick]);
+  const keepInPlace = useKeepRowInPlace();
+  const toggleRow = (key: string, button: HTMLElement) => {
+    keepInPlace(button);
+    setChosenKey(toggleOpen(openKey, key) as string | null);
+  };
   const rowCount = view?.kind === "rows"
     ? (showAll ? view.rows.length : (initialRowCount as (r: Row[], n: number, o: { sharedKey: string | null }) => number)(view.rows, bucketMs, { sharedKey }))
     : 0;
@@ -277,14 +338,19 @@ export default function PassSection({
   );
   const zone = observer ? (zoneLabel as (tz: string | undefined, ms: number, locale?: string) => string)(observer.tz, bucketMs) : "UTC";
 
-  // Scroll to the shared pass once, when the first rows arrive.
+  // Bring the shared pass into view once, when the first rows arrive.
   const sharedRow = useRef<HTMLLIElement | null>(null);
   const scrolled = useRef(false);
   const hasRows = view?.kind === "rows";
   useEffect(() => {
     if (!shared || scrolled.current || !hasRows) return;
     scrolled.current = true;
-    sharedRow.current?.scrollIntoView({ block: "center" });
+    // Just enough to show the pass's own row (the map is paused and framed
+    // on it), so the shared view's banner above usually stays in sight.
+    // On a phone the open row is the pass view (map and card): no scroll.
+    if (window.matchMedia(PASS_VIEW_QUERY).matches) return;
+    const head = sharedRow.current?.querySelector<HTMLElement>(".pass-row__btn") ?? sharedRow.current;
+    head?.scrollIntoView({ block: "nearest" });
   }, [shared, hasRows, sharedKey]);
 
   // Search again once the first pass has ended (never while a job runs, and
@@ -326,7 +392,7 @@ export default function PassSection({
   };
   const onClose = useCallback(() => {
     setChart(null);
-    trigger.current?.focus();
+    refocus(trigger.current);
   }, []);
 
   const onFreqChange = useCallback((hz: number | null) => {
@@ -359,45 +425,89 @@ export default function PassSection({
     downloadText(ics, icsName(track.shortName, observer.name, pass.startMs), "text/calendar");
   };
 
-  const showPrompt = !shared && hydrated && (!location || changingLocation);
+  /** One pass as the home list's compact row, opening to the home list's
+   *  open row with this page's links, tags and bearings. */
+  const passRow = (row: Row) => {
+    const pass = row.pass as unknown as HomePass;
+    const isShared = row.key === sharedKey;
+    const id = `pass-open-${row.key}`;
+    // Up when the search ran: its rise is not known here, so it reads "Now".
+    const { time, sub } = whenOf(startIsRise(pass) ? pass : { ...pass, riseUnknown: true }, nowMs, observer?.tz);
+    const rating = mode === "visual" ? passRating(pass, { mode, skyType, clouds, nowMs: bucketMs }) : undefined;
+    return (
+      <PassRow
+        key={row.key}
+        ref={isShared ? sharedRow : undefined}
+        className={isShared ? "pass-row--shared" : undefined}
+        id={id}
+        color={color}
+        time={time}
+        sub={sub}
+        now={underWay(pass, nowMs)}
+        name={track?.shortName ?? ""}
+        tag={isShared ? <span className="pass-card__tag">shared</span> : null}
+        detail={detailOf(pass)}
+        rating={<QualityBadge pass={pass} rating={rating} maxShown pill />}
+        open={row.key === openKey}
+        onToggle={(button) => toggleRow(row.key, button)}
+      >
+        {track && observer && (
+          <PassRowOpen
+            id={id}
+            name={track.shortName}
+            track={track as unknown as HomeTrack}
+            pass={pass}
+            rating={rating}
+            observer={observer}
+            mode={mode}
+            minElevDeg={minElevDeg}
+            nowMs={nowMs}
+            clouds={clouds}
+            openChart={(kind, _track, p, e) => openChart(kind, p as unknown as Pass, e)}
+            onSatPage
+            links={{
+              share: () => linkFor(pass.peakMs, null),
+              remind: () => linkFor(pass.peakMs, null),
+              calendar: () => addToCalendar(row.pass, row.inProgress),
+            }}
+          >
+            <p className="note note--sm pass-open__notes">
+              {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
+              <span>{bearings(row.pass as Pass & { startAzDeg: number; endAzDeg: number })}</span>
+            </p>
+            {row.key === oldNote?.key && <p className="note note--sm">{oldNote.text}</p>}
+          </PassRowOpen>
+        )}
+      </PassRow>
+    );
+  };
+
+  const showPrompt = !shared && hydrated && !location;
 
   return (
     <section id="passes" className="sat-passes" aria-labelledby="sat-passes-title">
       <div className="sat-passes__head">
-        <h2 id="sat-passes-title" className="home-heading">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes from your location"}</h2>
-        {view?.kind === "rows" && (
-          <Button size="sm" className="sat-print-chip" onClick={() => window.print()}>Print</Button>
-        )}
+        <h2 id="sat-passes-title" className="heading-section">{joint ? "Passes everyone can see" : shared && observer ? `Passes from ${observer.name}` : "Passes"}</h2>
+        {/* Location sits in the header, sky and lowest pass in Settings (the gear), as on home. */}
+        {track && <Segmented label="Pass mode" size="sm" options={MODES} value={mode} onChange={onModeChange} />}
       </div>
       {!track ? (
-        <p className="home-note">{UNAVAILABLE}</p>
+        <p className="note">{UNAVAILABLE}</p>
       ) : (
         <>
-          {showPrompt ? (
-            <LocationPrompt
-              onDone={() => setChangingLocation(false)}
-              onCancel={location ? () => setChangingLocation(false) : undefined}
-            />
-          ) : (
-            <HomeControls
-              ready={shared || hydrated}
-              mode={mode}
-              minElevDeg={minElevDeg}
-              skyType={skyType}
-              locationName={location && !shared ? location.name : null}
-              onModeChange={onModeChange}
-              onMinElevChange={onMinElevChange}
-              onSkyTypeChange={onSkyTypeChange}
-              onChangeLocation={() => setChangingLocation(true)}
-            />
-          )}
-          {observer && !showPrompt && (shared ? <ExtraObservers readOnly observers={extra} /> : <ExtraObservers />)}
+          {showPrompt && <LocationPrompt />}
           {observer && !showPrompt && (!view ? (
-            <p className="home-note" role="status">Finding passes...</p>
+            <PassSkeleton />
           ) : (
             <>
-              {busy && <p className="home-note" role="status">Finding passes...</p>}
-              {sharedHit?.kind === "past" && <p className="home-note sat-shared-past">{sharedHit.text}</p>}
+              {busy && <p className="sr-only" role="status">Finding passes...</p>}
+              {placesText && (
+                <div className="sat-places-line" role="status">
+                  <p>{placesText}</p>
+                  {!shared && <Button size="sm" onClick={clearObservers}>Turn off</Button>}
+                </div>
+              )}
+              {sharedHit?.kind === "past" && <p className="note sat-shared-past">{sharedHit.text}</p>}
               {view.kind === "rows" && (
                 <p className="print-only sat-print-meta">
                   {`Location: ${observers.map((o) => o.name).join(", ")}. Mode: ${mode}. Minimum elevation: ${minElevDeg}°. Times are ${zone}.`}
@@ -444,91 +554,16 @@ export default function PassSection({
                   </tbody>
                 </table>
               )}
-              {view.kind === "rows" && <p className="home-note sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>}
               {view.kind === "rows" ? (
                 <>
                 <div className="sat-passlist">
                   {groups.map((group) => (
-                    <section key={group.heading} className="sat-day-group">
-                      <h3 className="sat-day">{group.heading}</h3>
-                      <ul className="sat-day__list">
-                        {group.rows.map((row) => {
-                          const open = rowOpen(row.key, sharedKey, openRows);
-                          const moreId = `pass-more-${row.key}`;
-                          const rated = row.pass as NextPass & RatedPass & { peakMs: number };
-                          const visual = mode === "visual";
-                          const rating = visual ? visualRating(rated, { skyType, cloud: passCloud(clouds, rated, bucketMs) }) : undefined;
-                          const mag = visual ? peakMagText(rated) : null;
-                          // Under Lasts: brightness when watching, time above 10° for radio.
-                          // The pass as of now, so a pass already up reads Ends and Left.
-                          const statPass = { ...(row.pass as NextPass & { peakMs: number; durationMs: number; maxElevDeg: number; peakAzDeg?: number; msAbove10?: number }), inProgress: row.inProgress };
-                          const lastSub = visual ? mag : aboveTenText(statPass);
-                          return (
-                            <li
-                              key={row.key}
-                              ref={row.key === sharedKey ? sharedRow : undefined}
-                              className={row.key === sharedKey ? "sat-pass pass-row--shared" : "sat-pass"}
-                            >
-                              <div className="sat-pass__head">
-                                {/* The path strip says where it peaks, so Max keeps only the height. */}
-                                <PassStats pass={statPass} nowMs={nowMs} timeZone={observer?.tz} mag={lastSub} maxSub={null} weekday={false} className="sat-pass__stats">
-                                  <PassPath pass={statPass} mode={mode} minElevDeg={minElevDeg} timeZone={observer?.tz} />
-                                </PassStats>
-                                <span className="rating-pair sat-pass__rating">
-                                  <QualityBadge pass={rated} rating={rating} maxShown pill />
-                                  {visual && <CloudBadge forecast={clouds} pass={rated} nowMs={bucketMs} />}
-                                </span>
-                              </div>
-                              {!visual && track && observer && (
-                                <RadioPanel
-                                  track={track as unknown as RadioTrack} observer={observer} pass={statPass} nowMs={nowMs} banded={banded}
-                                  onMore={(e) => openChart("radio", row.pass, e)}
-                                />
-                              )}
-                              {(row.key === sharedKey || (!visual && row.visible) || row.runsPastEnd) && (
-                                <p className="sat-pass__line2">
-                                  {row.key === sharedKey && <span className="pass-card__tag">shared pass</span>}
-                                  {!visual && row.visible && <span className="pass-card__tag">visible</span>}
-                                  {row.runsPastEnd && <span className="pass-card__tag">continues past the {DEFAULT_SEARCH_DAYS}-day search</span>}
-                                </p>
-                              )}
-                              {row.key === oldNote?.key && <p className="sat-how">{oldNote.text}</p>}
-                              <div className="pass-card__actions">
-                                {liveOk(row.pass, bucketMs) && (
-                                  <Button size="sm" variant="primary" onClick={(e) => openChart("live", row.pass, e)}><span className="live-dot" aria-hidden="true" />Live</Button>
-                                )}
-                                {/* The chart for the mode leads; the other waits under More, as on the home cards. */}
-                                {visual
-                                  ? <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>
-                                  : <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>}
-                                <Disclosure
-                                  id={moreId}
-                                  open={open}
-                                  onToggle={() => toggleRow(row.key)}
-                                  label={`the ${row.timesLabel} pass`}
-                                >
-                                  <p className="more-panel__note">{bearings(row.pass as Pass & { startAzDeg: number; endAzDeg: number })}</p>
-                                  {visual
-                                    ? <Button size="sm" onClick={(e) => openChart("radio", row.pass, e)}>Radio chart</Button>
-                                    : <Button size="sm" onClick={(e) => openChart("sky", row.pass, e)}>Sky chart</Button>}
-                                  <Button size="sm" title="Add to calendar" onClick={() => addToCalendar(row.pass, row.inProgress)}>
-                                    <span aria-hidden="true">{"📅"}</span> Calendar
-                                  </Button>
-                                  {track && (
-                                    <AlertBell
-                                      noradId={track.noradId}
-                                      name={track.shortName}
-                                      pass={row.pass as NextPass}
-                                      url={() => linkFor((row.pass as { peakMs?: number }).peakMs ?? null, null)}
-                                    />
-                                  )}
-                                </Disclosure>
-                              </div>
-                            </li>
-                          );
-                        })}
+                    <div key={group.heading} className="pass-list__group">
+                      <h3 className="heading-group pass-list__day">{group.heading}</h3>
+                      <ul className={passRowsClass}>
+                        <LowFold rows={group.rows} nowMs={nowMs} openKey={openKey} renderRow={passRow} />
                       </ul>
-                    </section>
+                    </div>
                   ))}
                 </div>
                 {view.rows.length > rowCount && (
@@ -536,10 +571,14 @@ export default function PassSection({
                     {`Show all ${view.rows.length} passes`}
                   </Button>
                 )}
+                <div className="sat-passes__foot">
+                  <p className="note note--sm sat-zone" suppressHydrationWarning>{`Times are ${zone}.`}</p>
+                  <Button size="sm" variant="link" className="sat-print-chip" onClick={() => window.print()}>Print</Button>
+                </div>
                 </>
               ) : (
                 <>
-                  <p className="home-note">{view.text}</p>
+                  <p className="note">{view.text}</p>
                   {/* Never sets here: no pass to chart, so chart the next 24 hours. */}
                   {alwaysUp && (
                     <div className="sat-day-charts">
@@ -556,6 +595,13 @@ export default function PassSection({
               )}
             </>
           ))}
+          {observer && !showPrompt && (shared ? (
+            <ExtraObservers readOnly observers={extra} />
+          ) : (
+            <Details className="sat-observers-fold" summary="Also seen from other places" defaultOpen={joint}>
+              <ExtraObservers untitled />
+            </Details>
+          ))}
           {chartsLoaded && (
             <PassChartModals
               subject={subject}
@@ -564,6 +610,7 @@ export default function PassSection({
               onClose={onClose}
               preferredFreqHz={preferredFreqHz}
               onFreqChange={onFreqChange}
+              mode={mode}
             />
           )}
         </>

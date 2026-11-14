@@ -68,9 +68,10 @@ test('hidden satellites are not drawn and ghosts have no track', () => {
   }
   const ghost = data['ss-sats'].features.find((f) => f.properties.noradId === 3);
   assert.ok(ghost);
-  assert.equal(ghost.properties.name, '');
+  // A ghost keeps its name (drawn small and faint, giving way when crowded).
+  assert.equal(ghost.properties.name, 'SAT 3');
   assert.equal(ghost.properties.emphasis, 'ghost');
-  for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) {
+  for (const id of ['ss-track-past', 'ss-track-future', 'ss-pass', 'ss-marks']) {
     assert.ok(!ids(data[id]).includes(3), `ghost in ${id}`);
   }
   const keys = Object.fromEntries(data['ss-sats'].features.map((f) => [f.properties.noradId, f.properties.sortKey]));
@@ -163,7 +164,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-marks', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-horizon', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-sight-label', 'ss-marks', 'ss-live-sight-label', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -189,7 +190,7 @@ test('overlayLayers keeps the overlay order', () => {
   assert.equal(focus.paint['icon-opacity'], 0);
   assert.equal(focus.paint['text-opacity'], 0);
   assert.notEqual(sats.paint['icon-opacity'], 0);
-  assert.equal(sats.paint['text-opacity'], 1);
+  assert.notEqual(sats.paint['text-opacity'], 0);
 });
 
 function iconNames(expr) {
@@ -247,7 +248,28 @@ test('trackDetail curves extra points into past and future tracks', () => {
   );
 });
 
-test('tracks: false leaves out the track sources without reading the tracks', () => {
+test('tracks: false leaves out the track line sources but still builds the marks', () => {
+  let reads = 0;
+  const watched = SATS.map((s) => {
+    const copy = { ...s };
+    for (const k of ['trackPast']) {
+      Object.defineProperty(copy, k, { get: () => { reads++; return s[k]; }, enumerable: true });
+    }
+    return copy;
+  });
+  const data = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8, tracks: false });
+  assert.equal(reads, 0);
+  for (const id of ['ss-track-past', 'ss-track-future', 'ss-pass']) assert.ok(!(id in data), id);
+  assert.ok(data['ss-marks'].features.length > 0);
+  assert.equal(data['ss-sats'].features.length, 3);
+  assert.equal(data['ss-footprint'].features.length, 1);
+  assert.equal(data['ss-observer'].features.length, 1);
+  // The default still builds them.
+  const all = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8 });
+  for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(all[id].features.length > 0, id);
+});
+
+test('marks: false leaves out ss-marks without reading the tracks or ticks', () => {
   let reads = 0;
   const watched = SATS.map((s) => {
     const copy = { ...s };
@@ -256,15 +278,10 @@ test('tracks: false leaves out the track sources without reading the tracks', ()
     }
     return copy;
   });
-  const data = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8, tracks: false });
+  const data = overlayData({ sats: watched, observer: OBSERVER, tracks: false, marks: false });
   assert.equal(reads, 0);
-  for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(!(id in data), id);
+  assert.ok(!('ss-marks' in data));
   assert.equal(data['ss-sats'].features.length, 3);
-  assert.equal(data['ss-footprint'].features.length, 1);
-  assert.equal(data['ss-observer'].features.length, 1);
-  // The default still builds them.
-  const all = overlayData({ sats: watched, observer: OBSERVER, trackDetail: 8 });
-  for (const id of ['ss-track-past', 'ss-track-future', 'ss-marks']) assert.ok(all[id].features.length > 0, id);
 });
 
 test('the footprint is a faint fill with no outline, so it is not read as a track', () => {
@@ -355,4 +372,84 @@ test('the radio mark: a flag on dots with downlinks, drawn round normal dots onl
   // Names on the left sit further out on a dot with arcs.
   const sats = overlayLayers(COLORS).find((l) => l.id === 'ss-sats');
   assert.equal(sats.layout['text-variable-anchor-offset'][0], 'case');
+});
+
+test('an opened pass draws its path and a sight line from the observer to its peak', () => {
+  const sat = { ...SATS[0], passPath: { type: 'MultiLineString', coordinates: [[[0, 0], [5, 5], [10, 8]]] }, passPeak: { lonDeg: 5, latDeg: 5 } };
+  const data = overlayData({ sats: [sat], observer: { latDeg: 2, lonDeg: 3 } });
+  const parts = data['ss-pass'].features.map((f) => f.properties.part).sort();
+  assert.deepEqual(parts, ['sight', 'sunlit']);
+  const sight = data['ss-pass'].features.find((f) => f.properties.part === 'sight').geometry.coordinates;
+  assert.ok(Math.abs(sight[0][0] - 3) < 1e-9 && Math.abs(sight[0][1] - 2) < 1e-9);
+  assert.ok(Math.abs(sight.at(-1)[0] - 5) < 1e-9 && Math.abs(sight.at(-1)[1] - 5) < 1e-9);
+  // With a reach, a ring around the observer of that radius.
+  const withReach = overlayData({ sats: [{ ...sat, passReachDeg: 20 }], observer: { latDeg: 40, lonDeg: -90 } });
+  const ring = withReach['ss-pass'].features.find((f) => f.properties.part === 'reach').geometry.coordinates;
+  assert.deepEqual(ring[0], ring.at(-1));
+  const lats = ring.map((c) => c[1]);
+  assert.ok(Math.abs(Math.max(...lats) - 60) < 0.5 && Math.abs(Math.min(...lats) - 20) < 0.5);
+  // Split by light, with rise and set marks.
+  const lit = overlayData({ sats: [{
+    ...sat,
+    passSunlit: { type: 'MultiLineString', coordinates: [[[0, 0], [5, 5]]] },
+    passShadow: { type: 'MultiLineString', coordinates: [[[5, 5], [10, 8]]] },
+    passEnds: [{ lonDeg: 0, latDeg: 0, label: '5:41 PM' }, { lonDeg: 10, latDeg: 8, label: '5:48 PM' }],
+  }] });
+  const f = lit['ss-pass'].features;
+  // The rise and set marks are HTML markers, not features.
+  assert.deepEqual(f.map((x) => x.properties.part).sort(), ['shadow', 'sunlit']);
+  // No peak, no observer: path only.
+  assert.equal(overlayData({ sats: [{ ...sat, passPeak: undefined }] })['ss-pass'].features.length, 1);
+});
+
+test('a live open pass draws a sight line with the distance, only while the satellite is up', async () => {
+  const { awayText, altText } = await import('../lib/map/overlays.mjs');
+  assert.equal(altText(421.4), '421 km up');
+  assert.equal(awayText(1578.2), '1,578 km away');
+  const observer = { latDeg: 40, lonDeg: -90 };
+  const up = { ...SATS[0], position: { lonDeg: -88, latDeg: 41 }, altKm: 420, passLive: true };
+  const { sightFeatures } = await import('../lib/map/overlays.mjs');
+  const marks = sightFeatures(up, observer);
+  // The map's source takes only the label; the map draws the line.
+  assert.deepEqual(overlayData({ sats: [up], observer })['ss-sight'].features.map((f) => f.properties.kind), ['sight-label']);
+  assert.equal(marks.filter((f) => f.properties.kind === 'sight').length, 1);
+  // The label sits at the line's middle, turned along it (never upside down).
+  const label = marks.find((f) => f.properties.kind === 'sight-label');
+  assert.match(label.properties.label, /^\d[\d,]* km away$/);
+  assert.equal(label.geometry.type, 'Point');
+  assert.ok(label.properties.rotate > -90 && label.properties.rotate <= 90);
+  const line = marks.find((f) => f.properties.kind === 'sight').geometry.coordinates;
+  const [lon, lat] = label.geometry.coordinates;
+  const lons = line.map((c) => c[0]);
+  assert.ok(lon > Math.min(...lons) && lon < Math.max(...lons) && Math.abs(lat - (line[0][1] + line.at(-1)[1]) / 2) < 2);
+  // Below the horizon (half a world away): no sight line, a faint dotted one
+  // toward it, labelled not up yet.
+  const down = { ...up, position: { lonDeg: 90, latDeg: -40 } };
+  const downMarks = sightFeatures(down, observer);
+  assert.equal(downMarks.filter((f) => f.properties.kind === 'sight').length, 0);
+  assert.equal(downMarks.filter((f) => f.properties.kind === 'sight-below').length, 1);
+  assert.match(downMarks.find((f) => f.properties.kind === 'sight-label').properties.label, /not up yet$/);
+});
+
+test('after its pass has set, the live line toward the satellite says already set', () => {
+  const observer = { latDeg: 40, lonDeg: -90 };
+  const gone = { ...SATS[0], position: { lonDeg: 90, latDeg: -40 }, altKm: 420, passLive: true, passAfter: true };
+  const label = overlayData({ sats: [gone], observer })['ss-sight'].features.find((f) => f.properties.kind === 'sight-label');
+  assert.match(label.properties.label, /, already set$/);
+});
+
+test('sightFrom gives the refracted elevation, as the circle and pass times use', async () => {
+  const { sightFrom } = await import('../lib/map/overlays.mjs');
+  const { satAltitudeDeg } = await import('../lib/pass-finder/visibility.js');
+  const { geodeticToEcef } = await import('../lib/coords.js');
+  const observer = { latDeg: 40, lonDeg: -90 };
+  // A satellite just under the geometric horizon still reads as up.
+  for (let lon = -110; lon > -130; lon -= 0.05) {
+    const geo = satAltitudeDeg(observer, geodeticToEcef(40, lon, 420_000));
+    if (geo < 0 && geo > -0.4) {
+      assert.ok(sightFrom(observer, lon, 40, 420).elDeg >= 0, `geometric ${geo}`);
+      return;
+    }
+  }
+  assert.fail('no sample just below the horizon');
 });

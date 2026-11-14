@@ -18,15 +18,16 @@ const GPS_GIVE_UP_MS = 20_000;
 interface Props {
   /** Called once a location is saved. */
   onDone?: () => void;
-  /** Shows a Cancel button (when changing an existing location). */
-  onCancel?: () => void;
+  /** "card" is the standalone card with its heading; "sheet" sits in the
+   *  location sheet, which names it: the search first, then the device. */
+  variant?: "card" | "sheet";
 }
 
 // Where the cards are computed from: the device's position, or a place,
 // "lat, lon" or grid square typed in. Saves to prefs with its source.
-export default function LocationPrompt({ onDone, onCancel }: Props) {
+export default function LocationPrompt({ onDone, variant = "card" }: Props) {
   const uid = useId();
-  const setPrefs = useHomeStore((s) => s.setPrefs);
+  const choosePlace = useHomeStore((s) => s.choosePlace);
   const [text, setText] = useState("");
   const [gpsBusy, setGpsBusy] = useState(false);
   const [textBusy, setTextBusy] = useState(false);
@@ -48,7 +49,7 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
   const save = (location: HomeLocation) => {
     attempt.current += 1;
     stopWaiting();
-    setPrefs({ location });
+    choosePlace(location);
     setMessage(null);
     onDone?.();
   };
@@ -119,43 +120,62 @@ export default function LocationPrompt({ onDone, onCancel }: Props) {
     const found = await geocodeOne(parsed.query);
     setTextBusy(false);
     if (attempt.current !== mine) return;
+    if (found && "busy" in found) {
+      setMessage("The place search is busy. Try again in a moment, or enter coordinates or a grid square.");
+      return;
+    }
     if (!found || !Number.isFinite(found.latDeg) || !Number.isFinite(found.lonDeg)) {
       setMessage(`No place found for "${typed}".`);
       return;
     }
-    save({ name: typed, latDeg: found.latDeg, lonDeg: found.lonDeg, source: "place" });
+    // Named as the map knows it ("nyc" saves as "New York, New York"),
+    // or as typed when the lookup gives no name.
+    save({ name: found.placeName || typed, latDeg: found.latDeg, lonDeg: found.lonDeg, source: "place" });
   };
+
+  const form = (
+    <form className="location-prompt__form" onSubmit={onSubmit}>
+      <Field label="Place, coordinates or grid square" hideLabel>
+        <input
+          type="text"
+          autoComplete="off"
+          placeholder='Place, "lat, lon" or grid (EN52ve)'
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setMessage(null);
+          }}
+        />
+      </Field>
+      <Button type="submit" disabled={textBusy || !text.trim()}>
+        {textBusy ? "Looking..." : "Set"}
+      </Button>
+    </form>
+  );
+  const error = message && <p className="home-error" role="alert">{message}</p>;
+
+  if (variant === "sheet") {
+    return (
+      <div className="location-prompt location-prompt--sheet">
+        {form}
+        {error}
+        <Button className="location-prompt__device" disabled={gpsBusy} onClick={useDevice}>
+          <span>{gpsBusy ? "Finding you..." : "Use my location"}</span>
+          <span className="location-prompt__sub">Stays on this device</span>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <section className="location-prompt" aria-labelledby={`${uid}-title`}>
-      <h2 id={`${uid}-title`} className="home-heading">Where are you?</h2>
-      <p className="location-prompt__hint">SeekSat shows where satellites are now and when they pass over you. Your location stays on this device.</p>
+      <h2 id={`${uid}-title`} className="heading-section">Where are you?</h2>
+      <p className="note">SeekSat shows where satellites are now and when they pass over you. Your location stays on this device.</p>
       <Button variant="primary" disabled={gpsBusy} onClick={useDevice}>
         {gpsBusy ? "Finding you..." : "Use my location"}
       </Button>
-      <form className="location-prompt__form" onSubmit={onSubmit}>
-        <Field label="Place, coordinates or grid square" hideLabel>
-          <input
-            type="text"
-            autoComplete="off"
-            placeholder='Place, "lat, lon" or grid (EN52ve)'
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setMessage(null);
-            }}
-          />
-        </Field>
-        <Button type="submit" disabled={textBusy || !text.trim()}>
-          {textBusy ? "Looking..." : "Set"}
-        </Button>
-      </form>
-      {message && <p className="home-error" role="alert">{message}</p>}
-      {onCancel && (
-        <Button variant="link" onClick={onCancel}>
-          Cancel
-        </Button>
-      )}
+      {form}
+      {error}
     </section>
   );
 }
@@ -171,7 +191,7 @@ export function PopularList({ names }: { names: ReadonlyMap<number, string> }) {
 
   return (
     <section className="popular" aria-labelledby={`${uid}-title`}>
-      <h2 id={`${uid}-title`} className="home-heading">Popular satellites</h2>
+      <h2 id={`${uid}-title`} className="heading-section">Popular satellites</h2>
       <ul className="popular__list">
         {POPULAR_IDS.map((id) => {
           const on = following.includes(id);
@@ -182,12 +202,12 @@ export function PopularList({ names }: { names: ReadonlyMap<number, string> }) {
               <Button
                 variant="primary"
                 pressed={on}
-                aria-label={`Follow ${name}`}
+                aria-label={`Save ${name}`}
                 disabled={!on && full}
-                title={!on && full ? `You can follow up to ${MAX_FOLLOWING} satellites` : undefined}
+                title={!on && full ? `You can save up to ${MAX_FOLLOWING} satellites` : undefined}
                 onClick={() => (on ? unfollow(id) : follow(id))}
               >
-                {on ? "Following" : "Follow"}
+                {on ? "Saved" : "Save"}
               </Button>
             </li>
           );

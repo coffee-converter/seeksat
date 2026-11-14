@@ -46,7 +46,7 @@ test('ghost and hidden satellites are not listed; ghosts get one faint-dot line'
     minElevDeg: 10,
   });
   assert.deepEqual(items.map((i) => i.kind), ['sat', 'ghost', 'track', 'footprint', 'night', 'note']);
-  assert.equal(items[1].label, 'Faint dots: the other satellites you follow');
+  assert.equal(items[1].label, 'Faint dots: the other satellites you saved');
 });
 
 test('the tick copy ignores ghosts', () => {
@@ -77,4 +77,13 @@ test('the radio mark is explained only when a listed dot has it', () => {
   const keys = (sats) => legendItems({ sats, observer: null, minElevDeg: 0 }).map((i) => i.key);
   assert.ok(keys([sat(1, true), sat(2, false)]).includes('radio'));
   assert.ok(!keys([sat(1, false)]).includes('radio'));
+});
+
+test('the opened pass legend mentions shadow only when the pass has a shadow part', async () => {
+  const { legendItems } = await import('../lib/map/legend.mjs');
+  const base = { noradId: 1, color: '#fff', emphasis: 'focus', passPath: { type: 'MultiLineString', coordinates: [] } };
+  const radio = legendItems({ sats: [{ ...base, passShadow: null }], observer: null, minElevDeg: 10 }).find((i) => i.key === 'pass');
+  assert.equal(radio.label, 'Bold line: the opened pass, rise to set');
+  const visual = legendItems({ sats: [{ ...base, passShadow: { type: 'MultiLineString', coordinates: [[[0, 0], [1, 1]]] } }], observer: null, minElevDeg: 10 }).find((i) => i.key === 'pass');
+  assert.match(visual.label, /dashed in Earth's shadow/);
 });

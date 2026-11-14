@@ -1,5 +1,7 @@
 "use client";
 
+import { useUnits } from "@/lib/ui/use-units";
+import { distanceText } from "@/lib/units.mjs";
 import { formatNumber, periodText } from "@/lib/sat/numbers.mjs";
 import { isoUtc, type Elements } from "./LiveNumbers";
 import Badge from "@/components/ui/Badge";
@@ -14,7 +16,7 @@ export function AgeLine({ age, source, fetchedText, accuracyLink = true }: {
   accuracyLink?: boolean;
 }) {
   return (
-    <p className="home-note sat-age">
+    <p className="note sat-age">
       {`${age.text}, from ${source}`}
       {fetchedText ? `, ${fetchedText}.` : "."}
       {age.level === "old" ? <Badge tone="warn">old elements</Badge> : null}
@@ -38,19 +40,21 @@ export default function ElementsTable({
   epochMs: number | null;
 }) {
   const ecc = elements.eccentricity;
+  const units = useUnits();
+  const dist = (km: number, digits: number) => (distanceText as (km: number, u: string, d: number) => string)(km, units, digits);
   const rows: Array<[string, string]> = [
-    ["Perigee", `${formatNumber(elements.perigeeAltKm, 0)} km`],
-    ["Apogee", `${formatNumber(elements.apogeeAltKm, 0)} km`],
+    ["Perigee", dist(elements.perigeeAltKm, 0)],
+    ["Apogee", dist(elements.apogeeAltKm, 0)],
     ["Period", periodText(elements.periodMin)],
     ["Inclination", `${formatNumber(elements.inclinationDeg, 2)}°`],
     ["Eccentricity", formatNumber(ecc, ecc < 0.01 ? 7 : 4)],
-    ["Semi-major axis", `${formatNumber(elements.semiMajorAxisKm, 1)} km`],
+    ["Semi-major axis", dist(elements.semiMajorAxisKm, 1)],
   ];
   return (
     <section className="sat-elements" aria-labelledby="sat-elements-title">
-      <h2 id="sat-elements-title" className="home-heading">Mean elements</h2>
+      <h2 id="sat-elements-title" className="heading-section">Mean elements</h2>
       <AgeLine age={age} source={source} fetchedText={fetchedText} />
-      <dl className="sat-etable num">
+      <dl className="kv sat-etable num">
         {rows.map(([k, v]) => (
           <div key={k} className="sat-etable__row">
             <dt>{k}</dt>

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePublishMapScene } from "@/lib/map/scene-store";
+import { useLiveHeldRow, useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
 import { HEADER_PINNED_EVENT } from "@/components/HeaderPinned";
-import FocusBar from "@/components/home/FocusBar";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
 import ElementsTable, { AgeLine } from "./ElementsTable";
@@ -35,7 +35,7 @@ import { useClouds } from "@/lib/sky/use-clouds";
 import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
-import SatChips, { type Chip } from "@/components/home/SatChips";
+import SatChips, { type Chip, type PendingChip } from "@/components/home/SatChips";
 import { CATALOG } from "@/lib/catalog.mjs";
 import Button from "@/components/ui/Button";
 import SiteFooter from "@/components/home/SiteFooter";
@@ -98,12 +98,6 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     if (shared) setShared((s) => (s ? { ...s, mode } : s));
     else setPrefs({ mode });
   }, [shared, setPrefs]);
-  const onMinElevChange = useCallback((minElevDeg: number) => {
-    if (shared) setShared((s) => (s ? { ...s, minElevDeg } : s));
-    else setPrefs({ minElevDeg });
-  }, [shared, setPrefs]);
-  // The sky type is personal: a shared view never carries or changes it.
-  const onSkyTypeChange = useCallback((skyType: string) => setPrefs({ skyType }), [setPrefs]);
   const leaveShared = () => {
     setShared(null);
     // Through the router, so its tree and usePathname move off the share URL
@@ -196,6 +190,18 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     toggleHidden(id);
     if (id === data.noradId && hiding) onClose();
   }, [toggleHidden, data.noradId, onClose]);
+  // A shared pass link (/sat/ID/share/BLOB) has been read into the page:
+  // the address bar drops back to the satellite's own path, as a shared
+  // view's parameters do (the query is left for the shell to read and strip).
+  // A reload or a copied address is then the visitor's own view.
+  useEffect(() => {
+    if (!sharedIn) return;
+    const { pathname, search, hash } = window.location;
+    const plain = satPath(data.noradId) as string;
+    if (pathname !== plain) window.history.replaceState(window.history.state, "", plain + search + hash);
+    // Once, for the link the page opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Old Show all links carried ?map=all; drop it from the URL. (A shared
   // view's map=globe|flat is the shell's to read.)
   useEffect(() => {
@@ -233,8 +239,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const layers = useMemo(() => pageLayersOf({
     followed: prefs.following, hidden: prefs.hidden, pageId: data.noradId,
   }), [prefs.following, prefs.hidden, data.noradId]);
+  // An opened pass pauses the map at its peak.
+  const [openRow, setOpenRow] = useState<OpenPassRow | null>(null);
+  const mapRow = useLiveHeldRow(openRow);
+  const { mapNowMs, mapPass } = useMapPause(mapRow, {
+    nowMs, track: usable ? mapTracks.get(data.noradId) : null, observer: settings.observer, minElevDeg: settings.minElevDeg,
+  });
   const { sats } = useMapSats({
-    layers, tracks: mapTracks, colors, nowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio",
+    layers, tracks: mapTracks, colors, nowMs: mapNowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio", pass: mapPass,
   });
   // One chip per followed satellite, as on the home page: tap to focus,
   // the eye to hide or show.
@@ -253,6 +265,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const following = prefs.following.includes(data.noradId);
   const blocked = followBlockedMessage(prefs.following, data.noradId) as string | null;
   const toggleFollow = () => (following ? unfollow(data.noradId) : follow(data.noradId));
+  // This page's satellite, not followed: a dashed chip after the others, with Follow.
+  const pending: PendingChip | null = following ? null : {
+    noradId: data.noradId,
+    name: mapTracks.get(data.noradId)?.shortName ?? CATALOG.find((c) => c.noradId === data.noradId)?.shortName ?? data.name,
+    color: colors.get(data.noradId) ?? SAT_PALETTES[theme][0],
+    radio: settings.mode === "radio" && (mapTracks.get(data.noradId)?.downlinks.length ?? 0) > 0,
+    blocked,
+  };
 
   usePublishMapScene({
     sats,
@@ -263,17 +283,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     minElevDeg: settings.minElevDeg,
     onSelect: selectOrClose,
     chips: hydrated && (
-      <SatChips chips={chips} focusId={focusId} onFocus={selectOrClose} onToggleHidden={onChipHide} />
-    ),
-    top: usable && (
-      <FocusBar
-        name={data.shortName}
-        followed={following}
-        blocked={blocked}
-        mode="page"
-        onToggleFollow={toggleFollow}
-        onClose={onClose}
-      />
+      <SatChips chips={chips} pending={pending} onFollow={follow} focusId={focusId} onFocus={selectOrClose} onToggleHidden={onChipHide} />
     ),
     // A search result opens that satellite's page; Esc in an empty search closes.
     search: { onView: openOther, onClearFocus: onClose },
@@ -360,12 +370,12 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         >
           {"← Your satellites"}
         </Link>
-        <h1 className="sat-title">{data.name}</h1>
-        <p className="home-note">
+        <h1 className="heading-page sat-title">{data.name}</h1>
+        <p className="note">
           {`NORAD ${data.noradId}`}
           {data.intlDesignator ? ` · ${data.intlDesignator}` : ""}
         </p>
-        {data.note ? <p className="home-note">{data.note}</p> : null}
+        {data.note ? <p className="note">{data.note}</p> : null}
         <div className="sat-follow">
           <Button
             variant="primary"
@@ -374,13 +384,13 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
             disabled={!following && Boolean(blocked)}
             onClick={toggleFollow}
           >
-            {following ? "Following" : "Follow"}
+            {following ? "Saved" : "Save"}
           </Button>
           {settings.observer && (
             <ShareButton url={headerLink} title={data.name} size="button" />
           )}
         </div>
-        {!following && blocked ? <p className="home-note">{blocked}</p> : null}
+        {!following && blocked ? <p className="note">{blocked}</p> : null}
         <NextPassLine
           report={nextPass}
           nowMs={nowMs}
@@ -407,7 +417,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
       ) : (
         <>
           <AgeLine age={age} source={data.source} fetchedText={fetchedText} accuracyLink={false} />
-          <p className="home-note">These elements can&apos;t be used to compute a position.</p>
+          <p className="note">These elements can&apos;t be used to compute a position.</p>
         </>
       )}
 
@@ -419,14 +429,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
         nowMs={nowMs}
         settings={settings}
         onModeChange={onModeChange}
-        onMinElevChange={onMinElevChange}
         skyType={prefs.skyType}
-        onSkyTypeChange={onSkyTypeChange}
         sharedPassMs={shared?.passTimeMs ?? null}
         preferredFreqHz={shared?.freqHz ?? linkFreq}
         onFreqPicked={(hz) => { pickedFreq.current = hz; setLinkFreq(hz); }}
         onNextPass={setNextPass}
         clouds={clouds}
+        color={colors.get(data.noradId)}
+        onOpenRow={setOpenRow}
       />
 
       {usable && liveNow && elementsNow ? (

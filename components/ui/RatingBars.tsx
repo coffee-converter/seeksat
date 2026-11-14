@@ -1,6 +1,6 @@
 const BAR_COUNT = 5;
 
-/** One to five signal bars, coloured red to green (--q1..--q5). `label` is the
+/** One to five signal bars, coloured grey to green (--q1..--q5). `label` is the
  *  accessible name (e.g. "3 of 5"); the bars carry the meaning, colour only backs it up.
  *  Without a label the bars are decorative (aria-hidden): the caller speaks the
  *  count itself, where it reads best. */

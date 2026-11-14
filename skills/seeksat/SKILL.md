@@ -1,35 +1,48 @@
 ---
 name: seeksat
-description: Use when the user asks where a satellite (like the ISS, Hubble, Tiangong) is right now, or when it will next be visible / pass over a location - connects to the SeekSat MCP server for SGP4-accurate passes, positions, and viewing conditions.
+description: Use when the user asks where a satellite (like the ISS, Hubble, Tiangong) is, when it will pass over or be visible from a place, what the best pass tonight is, what a moving light in the sky was, or radio pass details (frequencies, Doppler) - connects to the SeekSat MCP server for SGP4 passes, positions, sky charts and viewing conditions.
 ---
 
 # SeekSat
 
-SeekSat answers "where is this satellite and when can I see it?" using the same
-SGP4 + visibility engine that powers the SeekSat 3D web app, exposed over MCP.
+SeekSat answers "where is this satellite and when can I see it?" with the
+same SGP4 and visibility engine that powers seeksat.com, over MCP.
 
 ## Connect
 
-Streamable HTTP endpoint: `https://seeksat.com/api/mcp`
+Endpoint `https://seeksat.com/api/mcp`, Streamable HTTP, no sign-in:
 
 ```bash
 claude mcp add --transport http seeksat https://seeksat.com/api/mcp
 ```
 
+Full parameter reference: https://seeksat.com/mcp (or /llms.txt).
+
 ## Tools
 
-- `list_satellites` - what's trackable + each satellite's TLE freshness and tier.
-- `find_passes` - upcoming passes (magnitude, sunlit, quality) for a satellite over a location.
-- `get_position` - live sub-point latitude/longitude, altitude, and sunlit state.
-- `next_visible_pass` - one-call "when can I next see X from here?"
-- `get_pass_weather` - cloud-cover forecast + viewing probability (network-dependent).
-- `get_pass_chart` - a rendered polar sky chart (PNG) of the next pass: where to look, with the moon, planets, and stars in place.
+- `best_pass` - the best passes over a place. Omit `satellite` to scan: visual mode scans the popular satellites plus CelesTrak's visual group with the cloud forecast folded in; radio mode scans every satellite with known downlinks. Use for "what's the best pass tonight?".
+- `find_passes` - every pass of one satellite over a place, in time order (windowHours up to 240).
+- `next_visible_pass` - the next pass of one satellite; `chart: true` adds its sky chart.
+- `get_pass_chart` - a polar sky chart (PNG) of the next pass, or of the pass at `time`.
+- `get_pass_weather` - cloud cover and clear-sky chance at a time; `available: false` with a reason when there is no forecast.
+- `whats_up_now` - what is in the sky over a place right now, from the whole catalog.
+- `identify_satellite` - "what was that moving light?" from where and when it was seen.
+- `get_radio_pass` - frequencies, Doppler, when to tune where, and pointing for one pass.
+- `get_position` - the point below a satellite, its altitude and whether it is sunlit.
+- `search_satellites` - turn a name into a NORAD number, across the whole catalog.
+- `list_satellites` - the popular satellites and their orbit data freshness.
 
-Locations accept either `lat`/`lon` or a place-name string (geocoded). Passes
-carry a `quality` score and `tier`/freshness metadata.
+## How to call it
+
+- Place: `lat` and `lon` in decimal degrees (west negative), or `location` (a place name).
+- Satellite: a NORAD number (25544 or "25544") or a name ("iss"); use `search_satellites` for others.
+- Times: results are UTC with a local twin on the observer's clock (`rise` and `riseLocal`), and `resolvedLocation.timeZone`. A time input with no offset, like "2026-11-14T21:00", is read in the observer's time zone; the result says how it read it (`interpretedAs`).
+- Give the user `passUrl` (or `url`) to open the pass on seeksat.com.
+- Check `elementAge`: old or stale elements come with a warning. An empty pass list comes with a `note` explaining why.
 
 ## Example prompts
 
-- "When can I next see the ISS from Tokyo?"
-- "Is the ISS sunlit right now, and where is it?"
-- "Find tonight's visible passes of Tiangong over Paris, and will it be cloudy?"
+- "What's the best satellite pass tonight from Chicago, and will it be cloudy?"
+- "When can I next see the ISS from Tokyo? Show me the sky chart."
+- "I saw a bright moving light heading north-east at about 40 degrees up at 9:15pm in Denver. What was it?"
+- "Give me the Doppler table for the next SO-50 pass over Chicago that peaks at 30 degrees or higher."

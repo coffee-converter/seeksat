@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { dashboardValues, formatNumber } from "@/lib/sat/numbers.mjs";
+import { useUnits } from "@/lib/ui/use-units";
 import { useFlash } from "@/lib/ui/use-flash";
 import StatTile from "@/components/ui/StatTile";
 import type { SatPageData } from "./SatApp";
@@ -10,7 +11,7 @@ import { Details } from "@/components/ui/Disclosure";
 export type Live = NonNullable<SatPageData["live"]>;
 export type Elements = NonNullable<SatPageData["elements"]>;
 type Tile = { key: string; label: string; value: string; unit: string; note: string };
-const tilesOf = dashboardValues as (live: unknown, elements: unknown) => Tile[];
+const tilesOf = dashboardValues as (live: unknown, elements: unknown, units: string) => Tile[];
 
 export function isoUtc(ms: number): string {
   return new Date(ms).toISOString().slice(0, 19) + "Z";
@@ -35,7 +36,7 @@ export function OrbitCheck({ live }: { live: Live }) {
   const within = diff < 0.001 ? "better than 0.001%" : `within ${formatNumber(diff, diff >= 1 ? 1 : diff >= 0.1 ? 2 : 3)}%`;
   return (
     <section className="sat-orbit-check" aria-labelledby="sat-orbit-check-title">
-      <h2 id="sat-orbit-check-title" className="home-heading">Orbit check</h2>
+      <h2 id="sat-orbit-check-title" className="heading-section">Orbit check</h2>
       <p className="sat-orbit-check__lead">
         The live speed and distance fit this orbit to{" "}
         <Flashing className="sat-orbit-check__pct num" value={within} />.
@@ -53,7 +54,8 @@ export function OrbitCheck({ live }: { live: Live }) {
  * under the title; the vis-viva check is the Orbit check section.
  */
 export default function DashboardTiles({ live, elements }: { live: Live; elements: Elements }) {
-  const tiles = tilesOf(live, elements);
+  const units = useUnits();
+  const tiles = tilesOf(live, elements, units);
   return (
     <section className="sat-dash" aria-label="Right now">
       {tiles.map((t) => (

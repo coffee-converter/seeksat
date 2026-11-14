@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { searchQuery, searchUrl } from "@/lib/home/search.mjs";
 import { followBlockedMessage } from "@/lib/home/actions.mjs";
-import { followLabel } from "@/lib/home/focus.mjs";
 import { useHomeStore } from "@/lib/home/store";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
@@ -27,9 +26,12 @@ interface Props {
   onView: (noradId: number) => void;
   /** Esc in an empty search with the list closed: leave focus. */
   onClearFocus: () => void;
+  /** After following from the results: the search is done (the phone's
+   *  search row closes). */
+  onDone?: () => void;
 }
 
-export function SearchBar({ onView, onClearFocus }: Props) {
+export function SearchBar({ onView, onClearFocus, onDone }: Props) {
   const uid = useId();
   const listId = `${uid}-list`;
   const [text, setText] = useState("");
@@ -105,7 +107,21 @@ export function SearchBar({ onView, onClearFocus }: Props) {
     }, DEBOUNCE_MS);
   }
 
-  // The star: follow or unfollow, keeping the list open.
+  /** Empty the search and close its list. */
+  function reset() {
+    if (timer.current) clearTimeout(timer.current);
+    abort.current?.abort();
+    setLimitError(null);
+    setOpen(false);
+    setText("");
+    setResults([]);
+    setStatus("idle");
+    setActive(-1);
+  }
+
+  // The Follow button: following is what the search was for, so it empties
+  // the search and closes it (the new chip or Following count shows it);
+  // Unfollow keeps the list open. Following does not select the satellite.
   function toggleFollow(r: Result) {
     if (following.includes(r.noradId)) {
       setLimitError(null);
@@ -119,18 +135,13 @@ export function SearchBar({ onView, onClearFocus }: Props) {
       return;
     }
     follow(r.noradId);
+    reset();
+    onDone?.();
   }
 
   function choose(r: Result) {
-    if (timer.current) clearTimeout(timer.current);
-    abort.current?.abort();
+    reset();
     onView(r.noradId);
-    setLimitError(null);
-    setOpen(false);
-    setText("");
-    setResults([]);
-    setStatus("idle");
-    setActive(-1);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -195,7 +206,7 @@ export function SearchBar({ onView, onClearFocus }: Props) {
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={active >= 0 ? `${uid}-opt-${active}` : undefined}
-            placeholder="Name or NORAD ID"
+            placeholder="Satellite name or NORAD ID"
             autoComplete="off"
             value={text}
             onChange={(e) => onChange(e.target.value)}
@@ -243,19 +254,18 @@ export function SearchBar({ onView, onClearFocus }: Props) {
               </span>
               {/* Out of the tab order: the focus bar has the same toggle for keyboards. */}
               <Button
-                variant="quiet"
-                iconOnly
+                size="sm"
+                on={followed}
+                pressedLook="accent"
                 tabIndex={-1}
-                className="search-bar__star"
-                aria-label={followLabel(r.name, followed)}
+                className="search-bar__follow"
+                aria-label={`${followed ? "Saved" : "Save"} ${r.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFollow(r);
                 }}
               >
-                <span className={`search-bar__star-glyph${followed ? " search-bar__star-glyph--on" : ""}`} aria-hidden="true">
-                  {followed ? "\u2605" : "\u2606"}
-                </span>
+                {followed ? "Saved" : "Save"}
               </Button>
             </li>
           );

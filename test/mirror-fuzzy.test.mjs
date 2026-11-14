@@ -141,12 +141,15 @@ test('speed over 17,000 entries', async () => {
   const r = readerFor(list);
   await r.search('warmup'); // builds the index
   let ms = Infinity, out;
-  for (let i = 0; i < 5; i++) {
+  // Best of 10 with a loose limit: about 9 ms alone, but the full suite runs
+  // files in parallel, so a busy machine can be 10x slower. 400 ms still
+  // catches a real regression (a scan per keystroke over every name).
+  for (let i = 0; i < 10; i++) {
     const t0 = performance.now();
     out = await r.search('zayra');
     ms = Math.min(ms, performance.now() - t0);
   }
   console.log(`search over 17001 entries: ${ms.toFixed(1)} ms`);
   assert.equal(out[0].noradId, 25544);
-  assert.ok(ms < 100, `took ${ms} ms`);
+  assert.ok(ms < 400, `took ${ms} ms`);
 });

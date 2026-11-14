@@ -17,7 +17,7 @@ const ORDER: Array<[keyof typeof HOW_WE_COMPUTE, string]> = [
 export default function HowWeCompute() {
   return (
     <section className="sat-how-section" aria-labelledby="sat-how-title">
-      <h2 id="sat-how-title" className="home-heading">How we compute these</h2>
+      <h2 id="sat-how-title" className="heading-section">How we compute these</h2>
       <dl className="sat-how-list">
         {ORDER.map(([key, term]) => (
           <div key={key} id={`how-${key}`} className="sat-how-list__row">

@@ -299,3 +299,42 @@ test('radio-mode search: satellites with downlinks first, and downlink words fin
   // Outside radio mode the same word is an ordinary name search.
   assert.deepEqual((await reader.search('sstv')).filter((r) => r.noradId >= 70000), []);
 });
+
+test('radioIds: curated and SatNOGS satellites with downlinks that the snapshot has orbits for', async () => {
+  // ISS is curated with downlinks; Tiangong is curated without, and has none
+  // in the snapshot either; 70002 has SatNOGS downlinks; 70004 has downlinks
+  // but no orbit in the snapshot (so a scan never asks CelesTrak for it).
+  const s = snap([rec(25544, 'ISS (ZARYA)'), rec(48274, 'CSS (TIANHE)'), rec(70001, 'QUIET'), rec(70002, 'TALKER')]);
+  s.downlinks = {
+    70002: [{ hz: 145_800_000, label: 'Mode V SSTV', mode: 'sstv', source: 'satnogs', default: true }],
+    70004: [{ hz: 437_000_000, label: 'Telemetry', mode: 'fm', source: 'satnogs', default: true }],
+  };
+  const { reader, calls } = make({ store: createMemorySnapshotStore(s) });
+  assert.deepEqual(await reader.radioIds(), [25544, 70002]);
+  assert.deepEqual(calls, []);
+  // No snapshot: nothing, rather than an on-demand lookup.
+  const { reader: empty } = make({ store: createMemorySnapshotStore(null) });
+  assert.deepEqual(await empty.radioIds(), []);
+});
+
+test('visualIds: snapshot satellites in the visual group, ascending', async () => {
+  const s = snap([rec(70003, 'R/B', { groups: ['visual'] }), rec(25544, 'ISS (ZARYA)', { groups: ['active', 'visual'] }), rec(70001, 'QUIET')]);
+  const { reader, calls } = make({ store: createMemorySnapshotStore(s) });
+  assert.deepEqual(await reader.visualIds(), [25544, 70003]);
+  assert.deepEqual(calls, []);
+  const { reader: empty } = make({ store: createMemorySnapshotStore(null) });
+  assert.deepEqual(await empty.visualIds(), []);
+});
+
+test('skyCatalog: every snapshot satellite with its downlinks, one list per snapshot', async () => {
+  const s = snap([rec(25544, 'ISS (ZARYA)'), rec(70001, 'QUIET'), rec(70002, 'TALKER')]);
+  s.downlinks = { 70002: [{ hz: 145_800_000, label: 'Mode V SSTV', mode: 'sstv', source: 'satnogs', default: true }] };
+  const { reader, calls } = make({ store: createMemorySnapshotStore(s) });
+  const list = await reader.skyCatalog();
+  assert.deepEqual(list.map((x) => [x.noradId, x.downlinks.length]).sort((a, b) => a[0] - b[0]), [[25544, 2], [70001, 0], [70002, 1]]);
+  assert.equal(list.find((x) => x.noradId === 70001).record, s.objects['70001']);
+  assert.equal(await reader.skyCatalog(), list, 'built once per snapshot');
+  assert.deepEqual(calls, []);
+  const { reader: empty } = make({ store: createMemorySnapshotStore(null) });
+  assert.deepEqual(await empty.skyCatalog(), []);
+});

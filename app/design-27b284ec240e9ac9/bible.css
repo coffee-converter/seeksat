@@ -158,3 +158,7 @@
 .bible__tap { color: inherit; }
 .bible__modal-body { display: flex; flex-direction: column; gap: var(--sp-12); max-width: 480px; padding: var(--sp-8) var(--sp-4); }
 .bible__modal-body--wide { width: min(900px, 92vw); max-width: none; }
+
+/* Icon and label/value specimens. */
+.bible__icon { display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-4); min-width: 72px; color: var(--map-text); }
+.bible__kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin: 0; }

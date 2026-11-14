@@ -49,9 +49,9 @@
   --danger-rgb: 248, 113, 113;
   --danger-text: #ff9a9a;
   --danger-soft-text: #ffc4c4;
-  /* Pass rating bars, 1 (red) to 5 (green). The bar count carries the
+  /* Pass rating bars, 1 (neutral grey) to 5 (green). The bar count carries the
      rating; the colour backs it up. Each passes 4.5:1 on the panel. */
-  --q1: #f87171;
+  --q1: #96a0ae; /* Poor: neutral, not an alarm */
   --q2: #fb923c;
   --q3: #facc15;
   --q4: #a3e635;
@@ -73,6 +73,8 @@
   --input-border: #626d7e;
   --tile-bg: #171c24;
   --tile-hover: #1c222c;
+  /* An opened pass row, lifted off the list. */
+  --row-open-bg: #212836;
   --flash-bg: rgba(143, 180, 230, 0.24);
   --flash-text: #ffffff;
   /* --modal-dark-bg, the always-dark chart dialogs' panel (Modal tone="dark"),
@@ -138,7 +140,7 @@
   --danger-rgb: 220, 38, 38;
   --danger-text: #b42318;
   --danger-soft-text: #8f1d1d;
-  --q1: #c42b2b;
+  --q1: #5a6475; /* Poor: neutral, not an alarm */
   --q2: #b45309;
   --q3: #8a6500;
   --q4: #4d7c0f;
@@ -158,6 +160,7 @@
   --input-border: #808a99;
   --tile-bg: #ffffff;
   --tile-hover: #f3f5f8;
+  --row-open-bg: #ffffff;
   --flash-bg: rgba(44, 90, 153, 0.16);
   --flash-text: #0b1220;
   /* A shade firmer than --border: the light land and panels are close in tone. */
@@ -178,7 +181,10 @@
    overscroll colour. An element in native full screen (the map) renders
    in the top layer, outside the root's filter, so it gets the same one. */
 html[data-night='1'] {
-  --night-filter: grayscale(1) brightness(0.3) sepia(1) saturate(12) hue-rotate(-25deg) brightness(0.71);
+  /* Contrast is stretched before the dimming: dark greys go darker and mid
+     tones lighter, so lines and labels stand apart, while the brightest
+     thing on screen stays as dim as before (dark adaptation is kept). */
+  --night-filter: grayscale(1) contrast(1.15) brightness(0.32) sepia(1) saturate(12) hue-rotate(-25deg) brightness(0.71);
   background: #0a0303;
   filter: var(--night-filter);
 }
@@ -206,7 +212,7 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
   --lh-tight: 1.2; --lh-snug: 1.4; --lh-body: 1.5;
   --sp-2: 2px; --sp-4: 4px; --sp-6: 6px; --sp-8: 8px; --sp-12: 12px; --sp-16: 16px; --sp-24: 24px; --sp-32: 32px;
   --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px; --radius-full: 999px;
-  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms;
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms; --dur-flash: 700ms; --dur-pulse: 1600ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
 }
 /* Declared per scope: var() resolves where it is declared, so a .theme-dark
@@ -215,9 +221,13 @@ html[data-night='1'] :fullscreen { filter: var(--night-filter); }
   --line-subtle: 1px solid var(--border);
   --line-control: 1px solid var(--btn-line);
   --line-input: 1px solid var(--input-border);
+  /* A list option that is hovered or chosen (search results). */
+  --option-on: rgba(var(--accent-rgb), 0.16);
+  /* The part of a live pass already flown (progress bar, sky dome track). */
+  --live-flown: color-mix(in srgb, var(--map-muted) 45%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
-  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; }
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; --dur-flash: 0ms; --dur-pulse: 0ms; }
 }
 /* theme-tokens:end */
 /* On mobile, browser chrome (URL bar etc.) makes 100vh smaller than

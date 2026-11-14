@@ -21,3 +21,16 @@ test('headingFromOrientation adds the screen angle in landscape', () => {
   assert.equal(headingFromOrientation({ absolute: true, alpha: 90 }, 90), 0);
   assert.equal(headingFromOrientation({ absolute: false, alpha: 90 }, 90), null);
 });
+
+test('compassOffered needs a touch screen and the orientation event', async () => {
+  const { compassOffered } = await import('../lib/live/heading.mjs');
+  const win = (coarse, event) => ({
+    ...(event ? { DeviceOrientationEvent: function DeviceOrientationEvent() {} } : {}),
+    matchMedia: (q) => ({ matches: q === '(pointer: coarse)' && coarse }),
+  });
+  assert.equal(compassOffered(win(true, true)), true);
+  assert.equal(compassOffered(win(false, true)), false, 'a laptop with the event');
+  assert.equal(compassOffered(win(true, false)), false, 'a touch screen without it');
+  assert.equal(compassOffered(null), false);
+  assert.equal(compassOffered({ DeviceOrientationEvent: 1, matchMedia: () => { throw new Error('x'); } }), false);
+});

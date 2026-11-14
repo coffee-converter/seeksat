@@ -1,23 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // Types only: the library itself loads in an effect, in its own chunk.
 import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
-import { overlayColors, overlayData, overlayImages, overlayLayers } from "@/lib/map/overlays.mjs";
+import { altText, awayText, overlayColors, overlayData, overlayImages, overlayLayers, sightFeatures as sightFeaturesOf, sightFrom } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
-import { footprintFeature, footprintRadiusDeg, trackDetailFor } from "@/lib/map/geometry.mjs";
+import { footprintFeature, footprintRadiusDeg, greatCircle as greatCircleOf, trackDetailFor } from "@/lib/map/geometry.mjs";
+import { sightPathD } from "@/lib/map/sight-path.mjs";
 import { edgeCrossings, gridCovers, labelSteps, viewGrid } from "@/lib/map/grid.mjs";
 import { createFootprintLayer, drawsGlobeCap } from "@/lib/map/footprint-layer.mjs";
-import { PROJECTIONS, MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
-import { trueNow } from "@/lib/pass-finder/clock-sync.js";
+import { MAX_ZOOM, nightRefreshMs, homeCamera, homeCentresFocus as homeCentresFocusOf, minZoomFor, presetCamera, easeZoom as easeZoomOf } from "@/lib/map/view.mjs";
+import { mapNow, useMapClock } from "@/lib/map/map-clock";
+import { useUnits } from "@/lib/ui/use-units";
+import { currentUnits } from "@/lib/units.mjs";
 import { canvasMismatch } from "@/lib/map/canvas-check.mjs";
 import { reportNotice } from "@/lib/site/report.mjs";
-import { useFollow } from "@/lib/map/follow-store";
+import { useLock } from "@/lib/map/lock-store";
 import { peekPendingCamera, registerCameraReader, setPendingCamera } from "@/lib/map/share-camera";
 import Button from "@/components/ui/Button";
-import Segmented from "@/components/ui/Segmented";
+import MapLayers from "@/components/map/MapLayers";
+import Icon from "@/components/ui/Icon";
 
 // Minimal GeoJSON shapes; the geometry helpers produce these.
 type GeoShape = { type: string; coordinates: unknown };
@@ -31,6 +35,8 @@ export interface MapSat {
   trackPast: GeoShape;
   trackFuture: GeoShape;
   trackTicks: { lonDeg: number; latDeg: number; minutes: number }[];
+  /** The time ticks relative to a time (ms); the map refreshes them every second. */
+  ticksAt?(ms: number): MapSat["trackTicks"];
   position: { lonDeg: number; latDeg: number };
   /** The sub-point at a time (ms), or null when the track cannot place it. */
   positionAt(ms: number): SelectedSub | null;
@@ -43,12 +49,35 @@ export interface MapSat {
   tickMin: number;
   /** Known radio downlinks: the dot gets the radio mark. */
   radio?: boolean;
+  /** Height above the ellipsoid, km: shown under the name. */
+  altKm?: number;
+  /** An opened pass's ground path, rise to set, drawn bold. */
+  passPath?: GeoShape;
+  /** That path split by light: solid in sunlight, dashed in Earth's shadow. */
+  passSunlit?: GeoShape;
+  passShadow?: GeoShape;
+  /** The rise and set points, with their times. */
+  passEnds?: { lonDeg: number; latDeg: number; label: string }[];
+  /** Paused: where that pass comes closest (its highest point), the sight line's end. */
+  passPeak?: { lonDeg: number; latDeg: number; altKm?: number };
+  /** Live with its pass open: a sight line to where it is now, while it is up. */
+  passLive?: boolean;
+  /** That pass has set: below the horizon now reads "already set". */
+  passAfter?: boolean;
+  /** The visibility circle's radius around the observer, in degrees. */
+  passReachDeg?: number;
+  /** That circle traced on the ellipsoid (a closed [lon, lat] line), when known. */
+  passRing?: number[][];
+  /** The horizon's circle, when the lowest pass setting is above 0 (drawn faint). */
+  passRingHorizon?: number[][];
 }
 
 export interface MapObserver {
   name: string;
   latDeg: number;
   lonDeg: number;
+  /** The ground's height in metres, when known: distances and the sight line use it. */
+  elevM?: number;
 }
 
 export interface SelectedSub {
@@ -71,12 +100,12 @@ interface Props {
   onSelect: (noradId: number | null) => void;
   /** Shown above the map, inside the full screen frame (the focus bar). */
   top?: React.ReactNode;
-  /** Laid over the top of the map, left of the view toggle (the chips). */
+  /** Laid over the top of the map, left of the layers and full screen buttons (the chips). */
   chips?: React.ReactNode;
   /** Sized by its container (MapShell): docked full height on desktop, with the
-   *  focus bar and a collapsible legend laid over the map. */
+   *  focus bar laid over the map. */
   fill?: boolean;
-  /** The Share button, after the zoom and full screen buttons. */
+  /** The Share button for the whole view, in the layers menu. */
   share?: React.ReactNode;
 }
 
@@ -89,8 +118,19 @@ type LngLat = [number, number];
 type Camera = { center: LngLat; zoom: number };
 /** A camera move; no zoom keeps the current zoom. */
 type Move = { center: LngLat; zoom?: number };
-type Preset = "you" | "sat" | "north" | "south" | "night";
+export type Preset = "you" | "sat" | "north" | "south" | "night";
 type LegendItem = { key: string; kind: string; label: string; color?: string };
+const altLine = altText as (altKm: number) => string;
+const awayLabel = awayText as (rangeKm: number) => string;
+const greatCircle = greatCircleOf as (a: [number, number], b: [number, number], n?: number) => [number, number][];
+/** The live sight line starts this far (px) from your location's centre: at its icon's edge. */
+const SIGHT_TRIM_PX = 7;
+const sightFeatures = sightFeaturesOf as (s: MapSat, observer: MapObserver | null, o?: { lines?: boolean }) => unknown[];
+const sightOf = sightFrom as (o: { latDeg: number; lonDeg: number; elevM?: number }, lon: number, lat: number, altKm: number) => { rangeKm: number; elDeg: number };
+/** The distance label's width per character (9.5 px text) and the room the
+ *  icons at the line's ends take (your crosshair, the dot and its radio arcs). */
+const SIGHT_CHAR_PX = 5.4;
+const SIGHT_ICON_ROOM_PX = 40;
 const legend = legendItems as (o: { sats: MapSat[]; observer: MapObserver | null; minElevDeg: number }) => LegendItem[];
 type SourceData = Record<string, unknown>;
 const buildData = overlayData as (o: {
@@ -100,6 +140,7 @@ const buildData = overlayData as (o: {
   shortTrackIds?: Set<number>;
   trackDetail?: number;
   tracks?: boolean;
+  marks?: boolean;
   graticule?: boolean;
 }) => SourceData;
 const detailFor = trackDetailFor as (zoom: number, latDeg: number) => number;
@@ -114,8 +155,9 @@ const shapeId = (o: object | null | undefined) => {
   return id;
 };
 function trackKey(sats: MapSat[], short: Set<number>, detail: number): string {
-  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}`);
-  return `${detail}|${[...short].sort().join(",")}|${parts.join(";")}`;
+  // The units too: the pass's sight label is built with the tracks.
+  const parts = sats.map((s) => `${s.noradId}:${s.emphasis}:${s.color}:${shapeId(s.trackPast)}:${shapeId(s.trackFuture)}:${shapeId(s.passPath)}:${shapeId(s.passSunlit)}:${shapeId(s.passRing)}`);
+  return `${detail}|${(currentUnits as () => string)()}|${[...short].sort().join(",")}|${parts.join(";")}`;
 }
 const home = homeCamera as (
   view: View,
@@ -159,11 +201,16 @@ type Theme = "dark" | "light";
 /** The focused satellite now, as its dot, the footprint and the follow jump need it. */
 type LiveFocus = SelectedSub & { name: string; color: string; footprint: boolean; radio: boolean };
 /** The focused satellite's dot and name: a marker the frame loop moves. */
-type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; shown: boolean; label: string; color: string; radio: boolean };
+type FocusMark = { marker: Marker; el: HTMLElement; name: HTMLElement; nameText: HTMLElement; alt: HTMLElement; shown: boolean; label: string; color: string; radio: boolean };
 /** A Lock on zoom, eased by the frame loop's jump: from and to zoom, start (ms) and length. */
 type ZoomGoal = { from: number; to: number; t0: number; dur: number };
 /** The frame loop's controls while a satellite is focused (the frame effect). */
-type Frames = { running: () => boolean; wake: () => void; tick: () => void; measure: () => void };
+type Frames = {
+  running: () => boolean;
+  wake: () => void;
+  tick: () => void;
+  measure: () => void;
+};
 
 /** How often the other dots and the GeoJSON footprint move; the focus moves every frame. */
 const DOT_MS = 200;
@@ -179,10 +226,18 @@ const DBLCLICK_MS = 500;
 const GRID_INSET_PX = 6;
 const GRID_SAMPLE_PX = 12;
 // What a label must not sit under: the map's buttons and panels.
-const GRID_BLOCKERS = "button, .map-legend-box, .flat-map__head, .maplibregl-ctrl-attrib";
+const GRID_BLOCKERS = "button, .flat-map__head, .maplibregl-ctrl-attrib";
 // A 9 px label's rough size, for the overlap test.
 const GRID_CHAR_PX = 5.6;
 const GRID_LINE_PX = 11;
+/** Folds MapLibre's compact attribution to its info button, as its own drag
+ *  and button do; the button still opens it. */
+function foldAttribution(map: MlMap | null) {
+  const attrib = map?.getContainer().querySelector(".maplibregl-ctrl-attrib.maplibregl-compact-show");
+  if (!attrib) return;
+  attrib.classList.remove("maplibregl-compact-show");
+  attrib.setAttribute("open", "");
+}
 /** The satellite dot layer tapped through (lib/map/overlays.mjs). The focus
  *  layer draws nothing (the focus marker does), so the marker is tested apart. */
 const SAT_LAYERS = ["ss-sats"];
@@ -191,7 +246,7 @@ const SHORT_TRACK_PX = 16;
 /** The globe camera buttons, in order. */
 const PRESETS: { id: Preset; label: string }[] = [
   { id: "you", label: "On you" },
-  { id: "sat", label: "Satellite GP" },
+  { id: "sat", label: "On satellite" },
   { id: "north", label: "North pole" },
   { id: "south", label: "South pole" },
   { id: "night", label: "Night side" },
@@ -217,6 +272,18 @@ const LOCK_ZOOM_MS = 250;
 const LOCK_SETTLE_MS = 150;
 /** How long turning Lock on eases to the satellite before following it. */
 const LOCK_EASE_MS = 600;
+/** A far camera move flies (MapLibre flyTo): its arc, and how long it takes,
+ *  from FLY_MIN_MS for a short hop to FLY_MAX_MS for a third of the world or
+ *  more, so tiles have time to load on the way. */
+const FLY_CURVE = 1.42;
+const FLY_MIN_MS = 1200;
+const FLY_MAX_MS = 2600;
+/** The angle (degrees) between two places on the Earth. */
+const arcDeg = (lon1: number, lat1: number, lon2: number, lat2: number) => {
+  const r = Math.PI / 180;
+  const h = Math.sin(((lat2 - lat1) * r) / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lon2 - lon1) * r) / 2) ** 2;
+  return (2 * Math.asin(Math.min(1, Math.sqrt(h)))) / r;
+};
 /** Lock on starts with an ease only when the satellite is this far (px) off centre. */
 const LOCK_EASE_PX = 4;
 /** Not following, the focus moves every frame only when it moves more than
@@ -230,6 +297,12 @@ const TRACKPAD_RATE = 1 / 100;
 const zoomFloor = minZoomFor as (view: View, size: { width: number; height: number }) => number;
 const easeZoom = easeZoomOf as (current: number, target: number) => number;
 const wrapLon = (d: number) => d - 360 * Math.round(d / 360);
+/** The copy of a longitude nearest `ref`: Mercator's project uses the raw
+ *  longitude, so a point across the date line from the camera would land a
+ *  world away. (The globe treats every copy alike.) */
+const nearLon = (lon: number, ref: number) => lon + 360 * Math.round((ref - lon) / 360);
+/** Project a point at its copy nearest the camera. */
+const projectNear = (map: MlMap, lon: number, lat: number) => map.project([nearLon(lon, map.getCenter().lng), lat]);
 const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const readTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 const reducedMotion = () =>
@@ -320,25 +393,24 @@ export default function FlatMap({
   // keep it), Reset view, another preset or a new focus stops it. A shared
   // store, so other controls can show and toggle it; the dot loop reads it
   // with getState.
-  const followOn = useFollow((s) => s.following);
-  const setFollowing = useFollow((s) => s.setFollowing);
-  const [legendOpen, setLegendOpen] = useState(false);
-  // Phones: whether the View button has the globe camera buttons open.
-  const [viewsOpen, setViewsOpen] = useState(false);
-  const presetsId = useId();
-  const legendId = useId();
+  // The units the labels read in; a change re-renders, so they rebuild.
+  useUnits();
+  const lockOn = useLock((s) => s.locked);
+  const setLocked = useLock((s) => s.setLocked);
+  const paused = useMapClock((s) => s.paused);
+  const backToLive = useMapClock((s) => s.backToLive);
 
   // Latest props, read by map event handlers without re-binding them.
   const latest = useRef({ sats, observer, view, onSelect, minElevDeg });
   latest.current = { sats, observer, view, onSelect, minElevDeg };
 
   /** The satellites as of now: props arrive about once a second, so each dot
-   *  and the focus footprint move to trueNow(). A satellite the track cannot
+   *  and the focus footprint move to mapNow(). A satellite the track cannot
    *  place now stays where the props put it, so a failed sample never drops
    *  it (or changes the track key). */
-  const liveSats = useCallback((): MapSat[] => {
+  const liveSats = useCallback((withTicks = true): MapSat[] => {
     const { sats: s, minElevDeg: elev } = latest.current;
-    const ms = trueNow();
+    const ms = mapNow();
     const out: MapSat[] = [];
     for (const x of s) {
       const sub = x.positionAt(ms);
@@ -349,10 +421,54 @@ export default function FlatMap({
       out.push({
         ...x,
         position: { lonDeg: sub.lonDeg, latDeg: sub.latDeg },
+        altKm: sub.altKm,
         footprint: x.footprint ? footprintOf(sub, sub.altKm, elev) : null,
+        ...(withTicks && x.ticksAt && { trackTicks: x.ticksAt(ms) }),
       });
     }
     return out;
+  }, []);
+  // The live sight line, drawn over the canvas (lib/map/sight-path.mjs).
+  const sightSvg = useRef<{ svg: SVGSVGElement; path: SVGPathElement; key: string } | null>(null);
+  /** Draw the live sight line to where the satellite's dot is now: the focus
+   *  marker's own placed sample when it is the focus, so the two match in
+   *  the same frame. Cleared when no live pass is open. */
+  const drawSight = useCallback((map: MlMap) => {
+    const el = sightSvg.current;
+    if (!el) return;
+    const { sats: s, observer: o, view: v } = latest.current;
+    const live = o ? s.find((x) => x.passLive) : undefined;
+    let pos: { lonDeg: number; latDeg: number; altKm: number } | null = null;
+    if (live && o) {
+      const last = lastFocus.current;
+      pos = live.emphasis === "focus" && last && last.noradId === live.noradId ? last.focus : live.positionAt(mapNow());
+    }
+    if (!live || !o || !pos) {
+      if (el.key) {
+        el.path.setAttribute("d", "");
+        el.key = "";
+      }
+      return;
+    }
+    const below = sightOf(o, pos.lonDeg, pos.latDeg, pos.altKm).elDeg < 0;
+    const key = `${live.color}|${below}`;
+    if (key !== el.key) {
+      el.key = key;
+      el.path.setAttribute("stroke", live.color);
+      el.path.classList.toggle("flat-map__sight--below", below);
+    }
+    const globe = v === "globe";
+    // MapLibre's own occlusion test, as its markers use (internal: guarded).
+    type Occl = { isLocationOccluded?: (ll: { lng: number; lat: number }) => boolean };
+    const tr = (map as unknown as { _camera?: { transform?: Occl } })._camera?.transform;
+    const occluded = globe && typeof tr?.isLocationOccluded === "function" ? tr.isLocationOccluded.bind(tr) : null;
+    // The line from your copy nearest the camera; greatCircle keeps it continuous.
+    const oLon = nearLon(o.lonDeg, map.getCenter().lng);
+    const points = greatCircle([oLon, o.latDeg], [pos.lonDeg + (oLon - o.lonDeg), pos.latDeg], 48).map(([lon, lat]) => {
+      const p = map.project([lon, lat]);
+      return { x: p.x, y: p.y, hidden: occluded ? occluded({ lng: lon, lat }) : false };
+    });
+    el.path.setAttribute("d", sightPathD(points, SIGHT_TRIM_PX));
   }, []);
   // The focus's last placed sample, kept for a sample that fails.
   const lastFocus = useRef<{ noradId: number; focus: LiveFocus } | null>(null);
@@ -360,7 +476,7 @@ export default function FlatMap({
    *  Worked out once per update and shared by the dot, the footprint and the
    *  follow jump. A sample the track cannot place keeps the last one, as
    *  liveSats keeps the dot, so the dot and the globe cap do not blink off. */
-  const liveFocus = useCallback((s: MapSat[], ms = trueNow()): LiveFocus | null => {
+  const liveFocus = useCallback((s: MapSat[], ms = mapNow()): LiveFocus | null => {
     const f = s.find((x) => x.emphasis === "focus");
     if (!f) {
       lastFocus.current = null;
@@ -409,7 +525,25 @@ export default function FlatMap({
     map.setMinZoom(zoomFloor(v, { width: el.clientWidth || 1, height: el.clientHeight || 1 }));
   }, []);
   const moveTo = useCallback((map: MlMap, cam: Move) => {
-    if (reducedMotion()) map.jumpTo(cam);
+    if (reducedMotion()) {
+      map.jumpTo(cam);
+      return;
+    }
+    // A short move eases straight there. A far one (more than about a screen
+    // away at this zoom, or a big change of zoom) flies: out, across, and back
+    // in, so it never whips across tiles that are not loaded yet.
+    // Measured as an angle over the Earth against how much of it the screen
+    // spans (on the globe, the far side projects near the middle, so screen
+    // distance would call any jump short).
+    const el = map.getContainer();
+    const c = map.getCenter();
+    const zoom = Math.min(map.getZoom(), cam.zoom ?? map.getZoom());
+    const screenDeg = (360 * Math.max(el.clientWidth || 1, el.clientHeight || 1)) / (512 * 2 ** zoom);
+    const far = arcDeg(c.lng, c.lat, cam.center[0], cam.center[1]) > screenDeg || Math.abs((cam.zoom ?? map.getZoom()) - map.getZoom()) > 3;
+    // Its length set from the distance (MapLibre's maxDuration would not cap
+    // a long trip: past it, the move jumps instead).
+    const arc = arcDeg(c.lng, c.lat, cam.center[0], cam.center[1]);
+    if (far) map.flyTo({ ...cam, curve: FLY_CURVE, duration: FLY_MIN_MS + (FLY_MAX_MS - FLY_MIN_MS) * Math.min(1, arc / 120), essential: false });
     else map.easeTo(cam);
   }, []);
   /** Refit an untouched home view: eased once the map is on screen, a jump before. */
@@ -459,7 +593,7 @@ export default function FlatMap({
    *  running ease or gesture (a preset's, a held pointer or pinch) to end, so a
    *  pinch still lets the satellite drift until the fingers lift. True when it jumped. */
   const followJump = useCallback((map: MlMap, f: LiveFocus | null, zoom?: number): boolean => {
-    if (!f || handHeld.current || map.isMoving() || !useFollow.getState().following) return false;
+    if (!f || handHeld.current || map.isMoving() || !useLock.getState().locked) return false;
     selfJump.current = true;
     try {
       const center: LngLat = [f.lonDeg, f.latDeg];
@@ -571,8 +705,10 @@ export default function FlatMap({
       if (!alive) return;
       const field = stars.starField(data.STARS);
       // The Milky Way image, read once into pixels; drawn when it arrives.
-      let milky: { data: Uint8ClampedArray; width: number; height: number; floor: number } | null = null;
+      let milky: { data: Uint8ClampedArray; width: number; height: number; floor: number; styled: boolean } | null = null;
       const low = document.createElement("canvas");
+      // The frame's pixel buffer, kept while its size holds.
+      let buf: ImageData | null = null;
       const img = new Image();
       img.decoding = "async";
       img.onload = () => {
@@ -584,7 +720,8 @@ export default function FlatMap({
         if (!x2) return;
         x2.drawImage(img, 0, 0);
         const px = x2.getImageData(0, 0, c2.width, c2.height);
-        milky = { data: px.data, width: px.width, height: px.height, floor: stars.skyFloor(px.data) };
+        const floor = stars.skyFloor(px.data);
+        milky = { ...stars.styleMilkyWay(px, floor), floor };
         schedule();
       };
       img.src = "/sky/milkyway.jpg";
@@ -601,7 +738,7 @@ export default function FlatMap({
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
         const c = map.getCenter();
-        const now = new Date(trueNow());
+        const now = new Date(mapNow());
         const cam = { lonDeg: c.lng, latDeg: c.lat, bearingDeg: map.getBearing(), fovDeg: map.getVerticalFieldOfView(), width: w, height: h };
         const gmstRad = coords.gmstFromDate(now);
         // Light theme: the sky as a printed atlas (dark dots, no Milky Way).
@@ -613,13 +750,15 @@ export default function FlatMap({
         if (milky && !atlas) {
           // Sampled as finely as the image has detail, smoothed up; nothing
           // computed behind the globe (a little inside its edge).
-          const step = stars.milkyWayStep(camToCenterPx, milky.width);
+          // While the map moves, half as fine (a quarter of the work); the
+          // full detail is drawn again as it stops (moveend).
+          const step = stars.milkyWayStep(camToCenterPx, milky.width) * (map.isMoving() ? 2 : 1);
           const hide = Math.max(0, stars.globeRadiusPx(camDistKm, camToCenterPx) - step * 1.5);
           const ow = Math.ceil(w / step), oh = Math.ceil(h / step);
           if (low.width !== ow || low.height !== oh) { low.width = ow; low.height = oh; }
           const lctx = low.getContext("2d");
           if (lctx) {
-            const buf = lctx.createImageData(ow, oh);
+            if (!buf || buf.width !== ow || buf.height !== oh) buf = lctx.createImageData(ow, oh);
             stars.renderMilkyWay(milky, milky.floor, buf.data, ow, oh, step, cam, gmstRad, hide);
             lctx.putImageData(buf, 0, 0);
             ctx.imageSmoothingEnabled = true;
@@ -649,12 +788,14 @@ export default function FlatMap({
       draw();
     });
     map.on("move", schedule);
+    map.on("moveend", schedule);
     map.on("resize", schedule);
     window.addEventListener("seeksat:theme", schedule);
     const tick = window.setInterval(schedule, STAR_TICK_MS);
     return () => {
       alive = false;
       map.off("move", schedule);
+      map.off("moveend", schedule);
       map.off("resize", schedule);
       window.removeEventListener("seeksat:theme", schedule);
       window.clearInterval(tick);
@@ -715,6 +856,44 @@ export default function FlatMap({
       window.visualViewport?.removeEventListener("resize", check);
     };
   }, [mapReady]);
+  /** Set the focus name beside its dot, square to the way it is moving, so it
+   *  never sits on the track; paused on a pass, on the side away from you (the
+   *  sight line). Rechecked at most twice a second. */
+  const labelAt = useRef<{ t: number; nx: number; ny: number }>({ t: 0, nx: 1, ny: 0 });
+  const placeLabel = useCallback((map: MlMap, mark: FocusMark, f: LiveFocus) => {
+    const now = performance.now();
+    if (now - labelAt.current.t < 500) return;
+    labelAt.current.t = now;
+    const sat = latest.current.sats.find((s) => s.selected);
+    const ms = mapNow();
+    const ahead = sat?.positionAt(ms + 60_000);
+    if (!ahead) return;
+    const p0 = projectNear(map, f.lonDeg, f.latDeg);
+    const p1 = projectNear(map, ahead.lonDeg, ahead.latDeg);
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;
+    // The perpendicular on the right of travel, or the left one when that
+    // side faces the observer (the sight line) or the label would go up-left
+    // of a mostly level track (names read best to the right).
+    let nx = -dy / len;
+    let ny = dx / len;
+    const o = latest.current.observer;
+    if (o && useMapClock.getState().paused) {
+      const po = projectNear(map, o.lonDeg, o.latDeg);
+      if (nx * (po.x - p0.x) + ny * (po.y - p0.y) > 0) { nx = -nx; ny = -ny; }
+    } else if (f.radio ? nx + ny < 0 : nx < 0) {
+      // Live: names read best to the right; a dot with the radio mark (its
+      // arcs up and to the left) takes the side toward down-right instead.
+      nx = -nx; ny = -ny;
+    }
+    const prev = labelAt.current;
+    if (Math.abs(prev.nx - nx) < 0.05 && Math.abs(prev.ny - ny) < 0.05) return;
+    labelAt.current = { t: now, nx, ny };
+    mark.el.style.setProperty("--label-nx", nx.toFixed(3));
+    mark.el.style.setProperty("--label-ny", ny.toFixed(3));
+  }, []);
   /** Put the focus marker at f, or hide it when the track cannot place it. */
   const placeMark = useCallback((map: MlMap, f: LiveFocus | null) => {
     const mark = focusMark.current;
@@ -728,33 +907,38 @@ export default function FlatMap({
       mark.color = f.color;
       mark.el.style.setProperty("--focus-color", f.color);
     }
-    if (f.name !== mark.label) {
-      mark.label = f.name;
-      mark.name.textContent = f.name;
+    const alt = altLine(f.altKm);
+    if (`${f.name}|${alt}` !== mark.label) {
+      mark.label = `${f.name}|${alt}`;
+      mark.nameText.textContent = f.name;
+      mark.alt.textContent = alt;
     }
     if (f.radio !== mark.radio) {
       mark.radio = f.radio;
       mark.el.classList.toggle("flat-map__focus--radio", f.radio);
     }
     mark.marker.setLngLat([f.lonDeg, f.latDeg]);
+    placeLabel(map, mark, f);
     if (!mark.shown) {
       mark.marker.addTo(map);
       mark.shown = true;
     }
-  }, []);
+  }, [placeLabel]);
 
   /** Night bands, rebuilt once they would have moved about a pixel at this
    *  zoom (nightRefreshMs); true when rebuilt. */
   const refreshNight = useCallback((zoom: number): boolean => {
-    const now = Date.now();
-    if (night.current && now - night.current.at < nightRefreshMs(zoom)) return false;
+    // The map's clock: a paused pass jumps it, so the gap can be either way.
+    const now = mapNow();
+    if (night.current && Math.abs(now - night.current.at) < nightRefreshMs(zoom)) return false;
     night.current = { at: now, data: buildData({ nightDate: new Date(now) })["ss-night"] };
     return true;
   }, []);
   const sentTrackKey = useRef<string | null>(null);
   /** Source data for the map. Tracks change once a minute (or on a zoom that
-   *  changes their detail) while the dots change every second, so unless all
-   *  is set the track sources are only built when their key has changed. */
+   *  changes their detail) while the dots and the marks (chevron and time
+   *  ticks) change every second, so unless all is set the track line sources
+   *  are only built when their key has changed; ss-marks goes every push. */
   const sourceData = useCallback((map: MlMap, all: boolean): SourceData => {
     const s = liveSats();
     const o = latest.current.observer;
@@ -768,6 +952,36 @@ export default function FlatMap({
   }, [liveSats]);
 
   // Push the latest props into the overlay sources.
+  /** The sight line's distance label shows while its text fits between the
+   *  two icons at the line's ends, and hides once it would not: the line's
+   *  length on screen against the text's width plus the icons' room. Run as
+   *  the camera moves and as the data updates. */
+  const syncSightLabels = useCallback((map: MlMap) => {
+    if (!styleReady.current) return;
+    const o = latest.current.observer;
+    let livePos: { lonDeg: number; latDeg: number; altKm?: number } | null = null;
+    let liveAfter = false;
+    const show = (layer: string, target: { lonDeg: number; latDeg: number; altKm?: number } | null) => {
+      if (!map.getLayer(layer)) return;
+      let fits = false;
+      if (o && target) {
+        const a = projectNear(map, o.lonDeg, o.latDeg);
+        const b = projectNear(map, target.lonDeg, target.latDeg);
+        const sight = sightOf(o, target.lonDeg, target.latDeg, target.altKm ?? 0);
+        const below = target === livePos && liveAfter ? "already set" : "not up yet";
+        const text = sight.elDeg < 0 ? `${awayLabel(sight.rangeKm)}, ${below}` : awayLabel(sight.rangeKm);
+        fits = Math.hypot(b.x - a.x, b.y - a.y) >= text.length * SIGHT_CHAR_PX + SIGHT_ICON_ROOM_PX;
+      }
+      const want = fits ? 1 : 0;
+      if (map.getPaintProperty(layer, "text-opacity") !== want) map.setPaintProperty(layer, "text-opacity", want);
+    };
+    const sats = latest.current.sats;
+    show("ss-pass-sight-label", sats.find((x) => x.passPeak)?.passPeak ?? null);
+    const live = sats.find((x) => x.passLive);
+    livePos = live ? live.positionAt(mapNow()) : null;
+    liveAfter = live?.passAfter === true;
+    show("ss-live-sight-label", livePos);
+  }, []);
   const push = useCallback(() => {
     const map = mapRef.current;
     if (!map || !styleReady.current) return;
@@ -775,7 +989,8 @@ export default function FlatMap({
     if (refreshNight(map.getZoom())) data["ss-night"] = night.current?.data;
     else delete data["ss-night"];
     setOverlayData(map, data);
-  }, [sourceData, refreshNight]);
+    syncSightLabels(map);
+  }, [sourceData, refreshNight, syncSightLabels]);
 
   const syncGestures = useCallback(() => {
     const map = mapRef.current;
@@ -827,6 +1042,14 @@ export default function FlatMap({
     window.addEventListener("blur", letGo);
     window.addEventListener("contextmenu", letGo);
     window.addEventListener("mousemove", onMove);
+    // The map can take a while to go idle (moving satellites, a slow phone),
+    // so the credit may still be open. Scrolling the page down folds it: on
+    // phones the list then slides over the map, and the open credit would
+    // fill the strip left showing. A scroll event at the top leaves it open.
+    const onScroll = () => {
+      if (window.scrollY > 0) foldAttribution(made);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     (async () => {
       let gl: typeof import("maplibre-gl");
       try {
@@ -868,6 +1091,13 @@ export default function FlatMap({
           // Labels and dots switch at once instead of fading: the fade also
           // delays hiding dots that turn to the far side of the globe.
           fadeDuration: 0,
+          // Keep tiles from many zoom levels in memory (MapLibre's default is
+          // about 5 levels' worth), so zooming far in and back out again
+          // redraws from what is loaded instead of fetching it all again; and
+          // let half-loaded tiles finish while zooming, so detail fills in as
+          // it goes rather than all at the end.
+          maxTileCacheZoomLevels: 12,
+          cancelPendingTileRequestsWhileZooming: false,
           cooperativeGestures: !(docked.current || fullRef.current),
         });
       } catch {
@@ -885,16 +1115,32 @@ export default function FlatMap({
       markDot.className = "flat-map__focus-dot";
       const markName = document.createElement("span");
       markName.className = "flat-map__focus-name";
+      const markNameText = document.createElement("span");
+      const markAlt = document.createElement("span");
+      markAlt.className = "flat-map__focus-alt";
+      markName.append(markNameText, markAlt);
       markEl.append(markDot, markName);
+      markerOf.current = gl.Marker;
       focusMark.current = {
         marker: new gl.Marker({ element: markEl, subpixelPositioning: true, opacityWhenCovered: "0" }),
         el: markEl,
         name: markName,
+        nameText: markNameText,
+        alt: markAlt,
         shown: false,
         label: "",
         color: "",
         radio: false,
       };
+      // Over the canvas, under the markers (added later, so after it).
+      const svgNs = "http://www.w3.org/2000/svg";
+      const sightEl = document.createElementNS(svgNs, "svg");
+      sightEl.setAttribute("class", "flat-map__sight");
+      sightEl.setAttribute("aria-hidden", "true");
+      const sightPath = document.createElementNS(svgNs, "path");
+      sightEl.append(sightPath);
+      map.getCanvasContainer().append(sightEl);
+      sightSvg.current = { svg: sightEl, path: sightPath, key: "" };
       setMapReady(true);
       capLayer.current = makeFootprintLayer({
         // It fails inside a frame: change the style after it.
@@ -906,21 +1152,18 @@ export default function FlatMap({
       pushFootprint(liveFocus(latest.current.sats));
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
-      syncZoomAround(map, useFollow.getState().following);
+      syncZoomAround(map, useLock.getState().locked);
       syncGestures();
       const canvas = map.getCanvas();
       canvas.setAttribute("role", "img");
-      canvas.setAttribute("aria-label", "Map of followed satellites");
+      canvas.setAttribute("aria-label", "Map of your saved satellites");
       canvas.tabIndex = 0;
       // MapLibre opens the compact attribution at start and folds it only on a
       // drag, which cooperative gestures never send on a phone. Fold it once the
       // map has drawn, as its info button does; that button still opens it.
       map.once("idle", () => {
         settled.current = true;
-        const attrib = map.getContainer().querySelector(".maplibregl-ctrl-attrib.maplibregl-compact-show");
-        if (!attrib) return;
-        attrib.classList.remove("maplibregl-compact-show");
-        attrib.setAttribute("open", "");
+        foldAttribution(map);
       });
       // A flat home camera already centres on a focus that exists now; the
       // globe's centres on the observer, so it still eases to the focus.
@@ -984,6 +1227,15 @@ export default function FlatMap({
             best = focusId;
           }
         }
+        // Your location marker, when no satellite was hit: pan to it, at
+        // the zoom you are at.
+        if (best == null) {
+          const you = map.queryRenderedFeatures([[x - HIT_PX, y - HIT_PX], [x + HIT_PX, y + HIT_PX]], { layers: ["ss-observer"] });
+          if (you.length) {
+            panToYou.current?.();
+            return;
+          }
+        }
         if (best == null || !Number.isFinite(best)) return;
         // A tap on the focused satellite leaves it, unless it was the first
         // click of a double-click (a zoom): MapLibre sends a click for each.
@@ -997,6 +1249,22 @@ export default function FlatMap({
           }, DBLCLICK_MS);
         } else latest.current.onSelect(best);
       });
+      // A pointing hand over what a click acts on (a satellite or your
+      // location marker), checked at most once a frame.
+      let hoverRaf = 0;
+      let hoverAt: { x: number; y: number } | null = null;
+      map.on("mousemove", (e: MapMouseEvent) => {
+        hoverAt = e.point;
+        if (hoverRaf) return;
+        hoverRaf = requestAnimationFrame(() => {
+          hoverRaf = 0;
+          if (!styleReady.current || !hoverAt) return;
+          const { x, y } = hoverAt;
+          const hits = map.queryRenderedFeatures([[x - HIT_PX, y - HIT_PX], [x + HIT_PX, y + HIT_PX]], { layers: [...SAT_LAYERS, "ss-observer"] });
+          map.getCanvas().style.cursor = hits.length ? "pointer" : "";
+        });
+      });
+      map.on("mouseout", () => { map.getCanvas().style.cursor = ""; });
       // A second click or tap, or a zoom by hand, means it was not a plain
       // tap: on touch MapLibre's double-tap zoom stops the second click and
       // dblclick, and with Lock on no double-tap zoom stops the second click.
@@ -1018,7 +1286,7 @@ export default function FlatMap({
       // carry no originalEvent. A single wheel tick starts its move without
       // one, so the wheel handler is asked too.
       const release = () => {
-        if (useFollow.getState().following) setFollowing(false);
+        if (useLock.getState().locked) setLocked(false);
       };
       map.on("movestart", (e: { originalEvent?: Event }) => {
         if (!e.originalEvent && !map.scrollZoom.isActive()) return;
@@ -1067,14 +1335,14 @@ export default function FlatMap({
       // It starts after MapLibre's own handling of the event, which stops any
       // camera move begun inside a listener while a handler is active.
       map.on("dblclick", (e: MapMouseEvent) => {
-        if (!useFollow.getState().following) return;
+        if (!useLock.getState().locked) return;
         lockZoomBy(map, e.originalEvent.shiftKey ? -1 : 1);
       });
       // Following, the wheel and the +/- keys zoom through the frame loop too
       // (MapLibre's scroll zoom is off then; its keyboard handler is skipped).
       const box = map.getCanvasContainer();
       const onWheel = (e: WheelEvent) => {
-        if (!useFollow.getState().following) return;
+        if (!useLock.getState().locked) return;
         // Cooperative gestures: a plain wheel scrolls the page, as MapLibre's does.
         const coop = map.cooperativeGestures;
         if (coop.isEnabled() && !e.ctrlKey && !coop.isBypassed(e)) {
@@ -1089,7 +1357,7 @@ export default function FlatMap({
         if (dz) lockZoomBy(map, dz, wheel ? LOCK_ZOOM_MS : 0);
       };
       const onKey = (e: KeyboardEvent) => {
-        if (!useFollow.getState().following || e.altKey || e.ctrlKey || e.metaKey) return;
+        if (!useLock.getState().locked || e.altKey || e.ctrlKey || e.metaKey) return;
         const dir = e.key === "+" || e.key === "=" ? 1 : e.key === "-" || e.key === "_" ? -1 : 0;
         if (!dir) return;
         e.preventDefault();
@@ -1107,7 +1375,17 @@ export default function FlatMap({
       map.on("zoomend", () => {
         if (!selfJump.current) syncGestures();
       });
-      map.on("move", () => layoutGridLabels(map));
+      // Once a frame, however many move events it brings (each reads layout).
+      let gridRaf = 0;
+      map.on("move", () => {
+        if (!gridRaf) gridRaf = requestAnimationFrame(() => { gridRaf = 0; layoutGridLabels(map); });
+      });
+      // The camera moved or the map drew: the line follows in the same frame.
+      map.on("render", () => drawSight(map));
+      let sightRaf = 0;
+      map.on("move", () => {
+        if (!sightRaf) sightRaf = requestAnimationFrame(() => { sightRaf = 0; syncSightLabels(map); });
+      });
       // Past zoom 11 the globe flattens toward Mercator and the GeoJSON fill takes over.
       map.on("zoom", syncFill);
       // Zooming changes which tracks are too short for direction marks.
@@ -1129,18 +1407,21 @@ export default function FlatMap({
       window.removeEventListener("blur", letGo);
       window.removeEventListener("contextmenu", letGo);
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("scroll", onScroll);
       detach?.();
       styleReady.current = false;
       mapRef.current = null;
       capLayer.current = null;
       focusMark.current?.marker.remove();
       focusMark.current = null;
+      sightSvg.current?.svg.remove();
+      sightSvg.current = null;
       setMapReady(false);
       made?.remove();
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setFollowing, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setLocked, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy, drawSight, layoutGridLabels, syncGrid, syncSightLabels]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {
@@ -1162,11 +1443,11 @@ export default function FlatMap({
   // be when the ease ends, then the frame loop's jumps take over (they wait
   // for the ease). The Satellite GP preset is already easing there.
   useEffect(() => {
-    if (!followOn) zoomGoal.current = null;
+    if (!lockOn) zoomGoal.current = null;
     const map = mapRef.current;
-    if (map) syncZoomAround(map, followOn);
-    if (map && followOn && !map.isMoving() && !reducedMotion()) {
-      const f = liveFocus(latest.current.sats, trueNow() + LOCK_EASE_MS);
+    if (map) syncZoomAround(map, lockOn);
+    if (map && lockOn && !map.isMoving() && !reducedMotion()) {
+      const f = liveFocus(latest.current.sats, mapNow() + LOCK_EASE_MS);
       if (f) {
         const c = map.project(map.getCenter());
         const p = map.project([f.lonDeg, f.latDeg]);
@@ -1177,7 +1458,7 @@ export default function FlatMap({
       }
     }
     frames.current?.wake();
-  }, [followOn, syncZoomAround, liveFocus]);
+  }, [lockOn, syncZoomAround, liveFocus]);
 
   const toggleFull = useCallback(() => {
     const shell = shellRef.current;
@@ -1219,7 +1500,8 @@ export default function FlatMap({
     if (!full) return;
     const fallback = !nativeFull.current;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && fallback) {
+      // An open dialog over the map (the layers menu) takes Esc first.
+      if (e.key === "Escape" && fallback && !(e.target as Element | null)?.closest?.('[role="dialog"]')) {
         // Leaving full screen is all this Esc does (it does not also clear focus).
         e.preventDefault();
         setFull(false);
@@ -1240,7 +1522,7 @@ export default function FlatMap({
     const prev = shownView.current;
     if (prev === view) return;
     shownView.current = view;
-    setFollowing(false);
+    setLocked(false);
     const map = mapRef.current;
     if (!map) return;
     // Before the style loads, style.load applies the projection.
@@ -1252,15 +1534,32 @@ export default function FlatMap({
     limitZoom(map);
     syncFill();
     syncGestures();
-  }, [view, homeView, setFollowing, limitZoom, syncFill, syncGestures]);
+    // With the live view open, frame it again as it framed on opening (a
+    // paused pass reframes itself).
+    if (useMapClock.getState().liveView) useLock.getState().fitFootprint();
+  }, [view, homeView, setLocked, limitZoom, syncFill, syncGestures]);
 
-  // An untouched home view follows the observer (it arrives after mount, once prefs load).
+  // An untouched home view follows the observer (it arrives after mount, once
+  // prefs load). Choosing a new place moves there even if the map was moved:
+  // it is a deliberate change of where you are.
   const obsLon = observer?.lonDeg ?? null;
   const obsLat = observer?.latDeg ?? null;
+  const lastObs = useRef<string | null>(null);
   useEffect(() => {
     const map = mapRef.current;
-    if (map && atHome.current) refitHome(map);
-  }, [obsLon, obsLat, refitHome]);
+    const key = obsLon == null || obsLat == null ? null : `${obsLon},${obsLat}`;
+    const moved = lastObs.current != null && key != null && key !== lastObs.current;
+    if (key != null) lastObs.current = key;
+    if (!map) return;
+    if (moved) {
+      // The open pass closes with the new place (and the map goes live): do
+      // not go back to the camera from before it.
+      beforePause.current = null;
+      atHome.current = true;
+      setLocked(false);
+    }
+    if (atHome.current) refitHome(map);
+  }, [obsLon, obsLat, refitHome, setLocked]);
   // An untouched flat home view refits when the dots first arrive or the set
   // shown changes, so they are in view; not on every tick as they move.
   const dotsKey = sats.filter((s) => s.emphasis !== "hidden").map((s) => s.noradId).join(",");
@@ -1269,14 +1568,291 @@ export default function FlatMap({
     if (map && atHome.current && view === "flat") refitHome(map);
   }, [dotsKey, view, refitHome]);
 
+  // The opened pass's rise and set: a dot and its time each, as HTML markers
+  // (like the focus name), which MapLibre hides on the far side of the globe;
+  // its own text labels there showed through the Earth.
+  const centreOnYou = useRef<(() => void) | null>(null);
+  /** A tap on your location marker: pan to it, keeping the zoom. */
+  const panToYou = useRef<(() => void) | null>(null);
+  const markerOf = useRef<(typeof import("maplibre-gl"))["Marker"] | null>(null);
+  const endMarks = useRef<{ marker: Marker; el: HTMLElement; time: HTMLElement }[]>([]);
+  useEffect(() => {
+    const map = mapRef.current;
+    const MarkerCtor = markerOf.current;
+    if (!map || !mapReady || !MarkerCtor) return;
+    const sat = sats.find((s) => s.passEnds?.length);
+    const ends = sat?.passEnds ?? [];
+    const marks = endMarks.current;
+    while (marks.length > ends.length) marks.pop()?.marker.remove();
+    ends.forEach((end, i) => {
+      let m = marks[i];
+      if (!m) {
+        const el = document.createElement("div");
+        el.className = "flat-map__end";
+        el.setAttribute("aria-hidden", "true");
+        const dot = document.createElement("span");
+        dot.className = "flat-map__end-dot";
+        const time = document.createElement("span");
+        time.className = "flat-map__end-time";
+        el.append(dot, time);
+        m = { marker: new MarkerCtor({ element: el, subpixelPositioning: true, opacityWhenCovered: "0" }), el, time };
+        marks.push(m);
+        m.marker.setLngLat([end.lonDeg, end.latDeg]).addTo(map);
+      }
+      if (sat) m.el.style.setProperty("--end-color", sat.color);
+      if (m.time.textContent !== end.label) m.time.textContent = end.label;
+      m.marker.setLngLat([end.lonDeg, end.latDeg]);
+    });
+    // Each time sits on the outer side of its dot, away from the observer
+    // (the ends lie on the visibility circle), so it clears the pass line
+    // and the satellite's own label. Kept as the camera moves.
+    const o = latest.current.observer;
+    if (!marks.length || !o) return;
+    let raf = 0;
+    const place = () => {
+      raf = 0;
+      const po = projectNear(map, o.lonDeg, o.latDeg);
+      marks.forEach((m, i) => {
+        const end = ends[i];
+        if (!end) return;
+        const p = projectNear(map, end.lonDeg, end.latDeg);
+        const dx = p.x - po.x;
+        const dy = p.y - po.y;
+        const len = Math.hypot(dx, dy) || 1;
+        m.el.style.setProperty("--label-nx", (dx / len).toFixed(3));
+        m.el.style.setProperty("--label-ny", (dy / len).toFixed(3));
+      });
+    };
+    const onMove = () => {
+      if (!raf) raf = requestAnimationFrame(place);
+    };
+    place();
+    map.on("move", onMove);
+    return () => {
+      map.off("move", onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [sats, mapReady]);
+  useEffect(() => () => {
+    for (const m of endMarks.current) m.marker.remove();
+    endMarks.current = [];
+  }, []);
+
+  /** The zoom at which a ring (a closed [lon, lat] line) around `center`
+   *  fills the view inside `pad`: the camera is tried at a zoom, the ring
+   *  measured on screen and the zoom corrected, then put back. Those trial
+   *  jumps are ours (selfJump), so nothing else reacts to them. */
+  const fitRingZoom = useCallback((
+    map: MlMap, center: LngLat, ring: number[][],
+    pad: { top: number; bottom: number; left: number; right: number }, start: number,
+  ): number => {
+    const el = map.getContainer();
+    const availW = (el.clientWidth || 1) - pad.left - pad.right;
+    const availH = (el.clientHeight || 1) - pad.top - pad.bottom;
+    const was = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+    let zoom = start;
+    selfJump.current = true;
+    try {
+      for (let i = 0; i < 4; i++) {
+        map.jumpTo({ center, zoom });
+        const o = map.project(center);
+        let mx = 0;
+        let my = 0;
+        for (const [lon, lat] of ring) {
+          const q = map.project([nearLon(lon, center[0]), lat]);
+          mx = Math.max(mx, Math.abs(q.x - o.x));
+          my = Math.max(my, Math.abs(q.y - o.y));
+        }
+        const scale = Math.min(availW / (2 * mx), availH / (2 * my));
+        if (!Number.isFinite(scale) || scale <= 0) break;
+        const next = Math.min(7, Math.max(map.getMinZoom(), zoom + Math.log2(scale)));
+        const done = Math.abs(next - zoom) < 0.01;
+        zoom = next;
+        if (done) break;
+      }
+    } finally {
+      map.jumpTo(was);
+      selfJump.current = false;
+    }
+    return zoom;
+  }, []);
+
+  // The docked live view asks for a framing as it opens. With its pass open
+  // (a visibility circle known), the circle centred on you, widened to take
+  // in the satellite before it rises: you, the satellite and its whole pass
+  // in view, with no lock (the circle holds the pass while it is up).
+  // Otherwise (a high orbit, or opened from the Up now line) it stays locked
+  // on, zoomed so the satellite's footprint fills the map.
+  const fitTick = useLock((s) => s.fitTick);
+  const fitDone = useRef(0);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || fitTick === fitDone.current) return;
+    const f = liveFocus(latest.current.sats);
+    const sat = latest.current.sats.find((x) => x.selected);
+    const o = latest.current.observer;
+    const el = map.getContainer();
+    const h = el.clientHeight || 1;
+    const w = el.clientWidth || 1;
+    const pad = { top: Math.min(60, h / 4), bottom: Math.min(48, h / 4), left: Math.min(24, w / 6), right: Math.min(24, w / 6) };
+    const passRing = sat?.passRing;
+    if (f && o && passRing && passRing.length > 2) {
+      fitDone.current = fitTick;
+      setLocked(false);
+      const center: LngLat = [o.lonDeg, o.latDeg];
+      const zoom = fitRingZoom(map, center, [...passRing, [f.lonDeg, f.latDeg]], pad, map.getZoom());
+      atHome.current = false;
+      moveTo(map, { center, zoom });
+      return;
+    }
+    // No circle (a high orbit, whose circle would cover half the planet) but
+    // its pass known: frame you, the satellite and the pass track together.
+    const path = sat?.passPath ? (sat.passPath.coordinates as number[][][]).flat() : [];
+    if (f && o && path.length > 1) {
+      fitDone.current = fitTick;
+      setLocked(false);
+      const pts = [...path, [o.lonDeg, o.latDeg], [f.lonDeg, f.latDeg]];
+      // Longitudes unwrapped around you, so a track over the date line frames as one piece.
+      const lons = pts.map(([lon]) => lon + 360 * Math.round((o.lonDeg - lon) / 360));
+      const lats = pts.map(([, lat]) => lat);
+      const cam = map.cameraForBounds(
+        [[Math.min(...lons), Math.max(-85, Math.min(...lats))], [Math.max(...lons), Math.min(85, Math.max(...lats))]],
+        { padding: pad, maxZoom: 7 },
+      );
+      if (!cam?.center) return;
+      const c = cam.center as { lng: number; lat: number } | [number, number];
+      atHome.current = false;
+      moveTo(map, { center: Array.isArray(c) ? c : [c.lng, c.lat], zoom: cam.zoom ?? map.getZoom() });
+      return;
+    }
+    const ring = (sat?.footprint?.coordinates as number[][][] | undefined)?.[0];
+    if (!f || !ring || ring.length < 3) return;
+    fitDone.current = fitTick;
+    const center: LngLat = [f.lonDeg, f.latDeg];
+    const zoom = fitRingZoom(map, center, ring, pad, map.getZoom());
+    atHome.current = false;
+    moveTo(map, { center, zoom });
+  }, [fitTick, sats, mapReady, liveFocus, fitRingZoom, moveTo, setLocked]);
+
+  // A paused pass frames its path and the observer, again after a switch
+  // between the globe and Mercator; Back to live (or closing the row) returns
+  // the camera to where it was (or the new view's home, after a switch).
+  const framedKey = useRef<string | null>(null);
+  // Stacked, the map grows while paused (MapLayoutShell): frame again once
+  // it has settled at its new size.
+  const [reframe, setReframe] = useState(0);
+  // The satellite whose pass is open (paused on it, or live while it is up).
+  const openSat = sats.find((x) => x.passPath && (x.passPath.coordinates as unknown[]).length) ?? null;
+  const passOpen = openSat != null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !passOpen) return;
+    let t: number | undefined;
+    const onResize = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        framedKey.current = null;
+        setReframe((n) => n + 1);
+      }, 150);
+    };
+    map.on("resize", onResize);
+    return () => {
+      window.clearTimeout(t);
+      map.off("resize", onResize);
+    };
+  }, [mapReady, passOpen]);
+  const beforePause = useRef<{ cam: Camera; atHome: boolean; view: View } | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    // An opened pass is framed whether the map is paused on it or it is up
+    // now (live); closing it puts the camera back.
+    const sat = openSat;
+    if (!sat?.passPath) {
+      framedKey.current = null;
+      const b = beforePause.current;
+      beforePause.current = null;
+      if (b) {
+        const sameView = b.view === view;
+        atHome.current = b.atHome || !sameView;
+        if (atHome.current) refitHome(map);
+        else moveTo(map, b.cam);
+      }
+      return;
+    }
+    const passKey = paused ? paused.key : `${sat.noradId}:${shapeId(sat.passPath)}`;
+    const frameKey = `${passKey}|${view}`;
+    if (framedKey.current === frameKey) return;
+    // A projection switch jumps to the new view's home first: frame from
+    // there at once rather than easing across it.
+    const switched = framedKey.current != null && framedKey.current.startsWith(`${passKey}|`);
+    framedKey.current = frameKey;
+    if (!beforePause.current) {
+      const c = map.getCenter();
+      beforePause.current = { cam: { center: [c.lng, c.lat], zoom: map.getZoom() }, atHome: atHome.current, view };
+    }
+    setLocked(false);
+    // Frame the visibility circle, centred on the observer: every visible
+    // pass runs inside it, so you and the whole pass are in view. Without it,
+    // the path and the observer.
+    let lons: number[];
+    let lats: number[];
+    const reach = sat.passReachDeg;
+    if (observer && reach && reach > 0) {
+      const dLon = Math.min(179, reach / Math.max(0.05, Math.cos((observer.latDeg * Math.PI) / 180)));
+      lons = [observer.lonDeg - dLon, observer.lonDeg + dLon];
+      lats = [Math.max(-89, observer.latDeg - reach), Math.min(89, observer.latDeg + reach)];
+    } else {
+      const pts = (sat.passPath.coordinates as number[][][]).flat();
+      if (observer) pts.push([observer.lonDeg, observer.latDeg]);
+      // Live, where the satellite is now too.
+      if (!paused) pts.push([sat.position.lonDeg, sat.position.latDeg]);
+      // Longitudes unwrapped around the first point, so a path over the date
+      // line frames as one piece.
+      const ref = pts[0][0];
+      lons = pts.map(([lon]) => lon + 360 * Math.round((ref - lon) / 360));
+      lats = pts.map(([, lat]) => lat);
+    }
+    const el = map.getContainer();
+    const h = el.clientHeight || 1;
+    const w = el.clientWidth || 1;
+    // Room for the chips row on top and the paused chip below.
+    // Even top and bottom, so the observer stays in the middle.
+    const pad = { top: Math.min(60, h / 4), bottom: Math.min(60, h / 4), left: Math.min(24, w / 6), right: Math.min(24, w / 6) };
+    const cam = map.cameraForBounds(
+      [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      { padding: pad, maxZoom: 7 },
+    );
+    if (!cam?.center) return;
+    const c = cam.center as { lng: number; lat: number } | [number, number];
+    const ring = sat.passRing;
+    let zoom: number = cam.zoom ?? map.getZoom();
+    let center: LngLat = Array.isArray(c) ? c : [c.lng, c.lat];
+    if (observer && reach && reach > 0) {
+      // Centred on you, zoomed so the circle's own outline fills the view: a
+      // box around it leaves room at the corners, more so on the globe. The
+      // camera is tried at a zoom, the circle measured on screen and the zoom
+      // corrected, then put back before the eased move. Those trial jumps are
+      // ours (selfJump), so nothing else reacts to them.
+      center = [observer.lonDeg, observer.latDeg];
+      // Live, take in the satellite too (before it rises it is outside).
+      if (ring && ring.length > 2) zoom = fitRingZoom(map, center, paused ? ring : [...ring, [sat.position.lonDeg, sat.position.latDeg]], pad, zoom);
+    }
+    atHome.current = false;
+    if (switched) map.jumpTo({ center, zoom });
+    else moveTo(map, { center, zoom });
+  }, [paused, openSat, observer, view, mapReady, moveTo, refitHome, setLocked, reframe, fitRingZoom]);
+
   // Entering a focus moves once to centre it, keeping the zoom. It waits for
   // the satellite to have a position, then leaves the camera alone.
   useEffect(() => {
     centreOn.current = selectedId;
-    setFollowing(false);
+    // Lock on stays on from one satellite to the next (it eases over below);
+    // clearing the selection ends it.
+    if (selectedId == null || !useLock.getState().locked) setLocked(false);
     // A pending leave was for the previous selection.
     window.clearTimeout(leaveTimer.current);
-  }, [selectedId, setFollowing]);
+  }, [selectedId, setLocked]);
   // The parent's clock tick passes new props each second. The frame loop
   // moves the cap while it runs; paused, or with no focus, this does.
   useEffect(() => {
@@ -1294,8 +1870,17 @@ export default function FlatMap({
         // shrank it far out when the focus was nearer the equator.
         // The live position, not the props one: a satellite page's first
         // props come from its cached render time, up to an hour old.
-        const at = sat.positionAt(trueNow()) ?? sat.position;
-        moveTo(map, { center: [at.lonDeg, at.latDeg] });
+        if (useLock.getState().locked) {
+          // Locked on: ease to where it will be when the ease ends, then the
+          // frame loop's jumps take over, as turning Lock on does.
+          const at = sat.positionAt(mapNow() + LOCK_EASE_MS) ?? sat.position;
+          if (reducedMotion()) map.jumpTo({ center: [at.lonDeg, at.latDeg] });
+          else map.easeTo({ center: [at.lonDeg, at.latDeg], duration: LOCK_EASE_MS });
+          frames.current?.wake();
+        } else {
+          const at = sat.positionAt(mapNow()) ?? sat.position;
+          moveTo(map, { center: [at.lonDeg, at.latDeg] });
+        }
       }
     }
     // Out of view (a phone scrolled down to the list), the push waits until
@@ -1309,7 +1894,7 @@ export default function FlatMap({
   useEffect(() => registerCameraReader(() => {
     const map = mapRef.current;
     if (!map) return null;
-    const lock = useFollow.getState().following;
+    const lock = useLock.getState().locked;
     if (atHome.current && !lock) return { zoom: null, center: null, lock: false };
     const c = map.getCenter().wrap();
     return { zoom: discZoom(latest.current.view, map.getZoom(), c.lat), center: [c.lng, c.lat], lock };
@@ -1338,8 +1923,8 @@ export default function FlatMap({
     const zoom = cam.zoom == null ? map.getZoom()
       : view === "globe" ? cam.zoom + Math.log2(Math.cos((Math.min(Math.abs(center[1]), 85.05) * Math.PI) / 180)) : cam.zoom;
     map.jumpTo({ center, zoom });
-    if (cam.lock) setFollowing(true);
-  }, [sats, view, mapReady, liveFocus, setFollowing]);
+    if (cam.lock) setLocked(true);
+  }, [sats, view, mapReady, liveFocus, setLocked]);
 
   // Between props, move the other dots and the GeoJSON footprint every
   // DOT_MS, and the focus while the frame loop idles. Nothing here sets
@@ -1353,13 +1938,22 @@ export default function FlatMap({
       // Only what moves: the dots, the focus footprint while there is one,
       // and the night bands when due. The observer and an emptied footprint
       // go with push().
-      const data = buildData({ sats: liveSats(), tracks: false });
+      const moved = liveSats(false);
+      const data = buildData({ sats: moved, tracks: false, marks: false });
       const footprint = data["ss-footprint"] as { features: unknown[] };
+      // A live pass's sight line label, at the line's middle. The line itself
+      // is drawn with the dot (drawSight).
+      const live = moved.filter((x) => x.passLive);
+      const sight = live.length > 0
+        ? { type: "FeatureCollection", features: live.flatMap((x) => sightFeatures(x, latest.current.observer, { lines: false })) }
+        : null;
       setOverlayData(map, {
         "ss-sats": data["ss-sats"],
         ...(footprint.features.length > 0 && { "ss-footprint": footprint }),
+        ...(sight ? { "ss-sight": sight } : {}),
         ...(refreshNight(map.getZoom()) && { "ss-night": night.current?.data }),
       });
+      if (live.length > 0) syncSightLabels(map);
     };
     const stop = () => {
       if (id !== undefined) window.clearInterval(id);
@@ -1392,7 +1986,7 @@ export default function FlatMap({
       io?.disconnect();
       stop();
     };
-  }, [liveSats, refreshNight, push]);
+  }, [liveSats, refreshNight, push, syncSightLabels]);
 
   // Every frame while a satellite is focused, the map is made and in view, the
   // tab shows, and the dot moves visibly per frame (or Lock on is on): place
@@ -1412,7 +2006,7 @@ export default function FlatMap({
     let fast = true;
     const measure = () => {
       const f = latest.current.sats.find((x) => x.emphasis === "focus");
-      const ms = trueNow();
+      const ms = mapNow();
       const a = f?.positionAt(ms);
       const b = f?.positionAt(ms + DOT_MS);
       if (!a || !b) {
@@ -1429,11 +2023,13 @@ export default function FlatMap({
       // The frame's own time rather than the moment this runs, which wanders
       // by a few ms: the dot then steps evenly.
       const now = performance.now();
-      const ms = at === undefined ? trueNow() : trueNow() + at - now;
+      const ms = at === undefined ? mapNow() : mapNow() + at - now;
       const f = liveFocus(latest.current.sats, ms);
       pushFootprint(f);
       placeMark(map, f);
-      if (zoomGoal.current && !useFollow.getState().following) zoomGoal.current = null;
+      // A live sight line ends on the dot: drawn with it, in the same frame.
+      drawSight(map);
+      if (zoomGoal.current && !useLock.getState().locked) zoomGoal.current = null;
       const z = zoomGoal.current ? goalAt(zoomGoal.current, at ?? now) : null;
       if (followJump(map, f, z?.zoom)) {
         map.redraw();
@@ -1462,7 +2058,7 @@ export default function FlatMap({
       placeMark(map, f);
     };
     const wanted = () =>
-      !document.hidden && inView && (fast || useFollow.getState().following || zoomGoal.current != null);
+      !document.hidden && inView && (fast || useLock.getState().locked || zoomGoal.current != null);
     const sync = () => {
       if (!wanted()) {
         if (id !== undefined) {
@@ -1509,7 +2105,7 @@ export default function FlatMap({
         mark.shown = false;
       }
     };
-  }, [hasFocus, mapReady, liveFocus, pushFootprint, placeMark, followJump, syncGestures, push]);
+  }, [hasFocus, mapReady, liveFocus, pushFootprint, placeMark, followJump, syncGestures, push, drawSight]);
   // A new focus moves at its own speed.
   const focusKey = sats.find((s) => s.emphasis === "focus")?.noradId ?? null;
   useEffect(() => {
@@ -1520,7 +2116,7 @@ export default function FlatMap({
     const map = mapRef.current;
     if (!map) return;
     atHome.current = true;
-    setFollowing(false);
+    setLocked(false);
     moveTo(map, homeView(map));
   };
   const focusNow = focusOf(sats);
@@ -1536,17 +2132,34 @@ export default function FlatMap({
       focus: focusNow,
       width: el.clientWidth || 1,
       height: el.clientHeight || 1,
-      date: new Date(trueNow()),
+      date: new Date(mapNow()),
     });
     if (!cam) return;
     atHome.current = false;
-    setFollowing(p === "sat");
+    setLocked(p === "sat");
     moveTo(map, { center: cam.center, zoom: easeZoom(map.getZoom(), cam.zoom) });
   };
+  // Picking your place again: On you on the globe, the home view on Mercator.
+  centreOnYou.current = () => (view === "globe" && observer ? goTo("you") : reset());
+  panToYou.current = () => {
+    const map = mapRef.current;
+    if (!map || !observer) return;
+    atHome.current = false;
+    setLocked(false);
+    moveTo(map, { center: [observer.lonDeg, observer.latDeg] });
+  };
+  // Picking the place you are already on (the location sheet) centres on it too.
+  const homeTick = useLock((s) => s.homeTick);
+  const homeSeen = useRef(homeTick);
+  useEffect(() => {
+    if (homeTick === homeSeen.current) return;
+    homeSeen.current = homeTick;
+    centreOnYou.current?.();
+  }, [homeTick]);
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
-    if (useFollow.getState().following) {
+    if (useLock.getState().locked) {
       lockZoomBy(map, delta);
       return;
     }
@@ -1554,25 +2167,8 @@ export default function FlatMap({
     map.zoomTo(map.getZoom() + delta, { animate: !reducedMotion() });
   };
 
-  const chipRow = (
-    <div className="flat-map__top">
-      {chips}
-      <div className="flat-map__views">
-        <Segmented
-          label="Map view"
-          size="sm"
-          options={PROJECTIONS.map((p: { id: string; label: string }) => ({ value: p.id, label: p.label }))}
-          value={view}
-          onChange={onProjectionChange}
-        />
-        {/* Share sends the whole view, so it sits with the map type; phones
-            keep it in the bottom row (one shown at a time, by width). */}
-        {share ? <span className="flat-map__share flat-map__share--top">{share}</span> : null}
-      </div>
-    </div>
-  );
   const legendList = (
-    <ul className="map-legend" id={legendId} aria-label="Map legend">
+    <ul className="map-legend" aria-label="Map legend">
       {legend({ sats, observer, minElevDeg }).map((item) => (
         <li key={item.key}>
           <span
@@ -1601,6 +2197,28 @@ export default function FlatMap({
       ))}
     </ul>
   );
+  const focusName = selectedId != null ? sats.find((s) => s.noradId === selectedId)?.name ?? null : null;
+  // Chips at the top left; layers and full screen at the top right.
+  const chipRow = (
+    <div className="flat-map__top">
+      {chips}
+      <div className="flat-map__tools">
+        <MapLayers
+          view={view}
+          onViewChange={onProjectionChange}
+          presets={presetsNow}
+          onPreset={goTo}
+          lockOn={lockOn}
+          onReset={reset}
+          share={share}
+          legend={legendList}
+        />
+        <Button variant="overlay" iconOnly aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
+          <Icon name={full ? "exit-fullscreen" : "fullscreen"} />
+        </Button>
+      </div>
+    </div>
+  );
   const shellClass = `flat-map-shell${fill ? " flat-map-shell--fill" : ""}${full ? " flat-map-shell--full" : ""}`;
 
   return (
@@ -1626,53 +2244,41 @@ export default function FlatMap({
         </p>
       ) : null}
       {fill ? null : chipRow}
-      {/* Where to look. The globe's camera views, or the flat map's way back
-          to its home view. Phones fold them behind View in the bottom row. */}
-      <div
-        id={presetsId}
-        className={`flat-map__presets${viewsOpen ? " flat-map__presets--open" : ""}`}
-        role="group"
-        aria-label={view === "globe" ? "Globe camera" : "Map view"}
-      >
-        {view === "globe" ? presetsNow.map((p) => (
-          <Button
-            key={p.id}
-            variant="overlay"
-            size="sm"
-            pressed={p.id === "sat" ? followOn : undefined}
-            onClick={() => {
-              setViewsOpen(false);
-              goTo(p.id);
-            }}
-          >
-            {p.label}
+      {/* Lock on: keep the camera on the focused satellite. A small toggle in
+          the corner, in place of a bar across the top of the map. */}
+      {paused ? (
+        <div className="flat-map__paused" role="status">
+          <Icon name="pause" />
+          {/* Phones show the short form: the time, and Live. */}
+          <span className="flat-map__paused-text"><span className="flat-map__long">Paused at </span>{paused.label}</span>
+          <Button size="sm" variant="primary" className="flat-map__live" aria-label="Back to live" onClick={() => {
+            backToLive();
+            // The chip goes: focus moves to the map rather than the page's top.
+            mapRef.current?.getCanvas().focus({ preventScroll: true });
+          }}>
+            <span className="live-dot" aria-hidden="true" /><span className="flat-map__long">Back to live</span><span className="flat-map__short">Live</span>
           </Button>
-        )) : (
-          <Button variant="overlay" size="sm" onClick={reset}>Reset view</Button>
-        )}
-      </div>
-      {/* How close: full screen above + and - at the bottom right. Phones lay
-          this out as one row: View (or Reset view), +, -, full screen, Share. */}
-      <div className="flat-map__zoom">
-        {view === "globe" ? (
-          <Button
-            variant="overlay"
-            className="flat-map__view-pick"
-            aria-expanded={viewsOpen}
-            aria-controls={presetsId}
-            onClick={() => setViewsOpen((o) => !o)}
-          >
-            View
-          </Button>
-        ) : (
-          <Button variant="overlay" className="flat-map__view-pick" onClick={reset}>Reset view</Button>
-        )}
-        <Button variant="overlay" iconOnly className="flat-map__full" aria-label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
-          {"⛶"}
+        </div>
+      ) : focusName ? (
+        <Button
+          variant="overlay"
+          size="sm"
+          className="flat-map__lock"
+          pressed={lockOn}
+          aria-label={lockOn ? `Locked on ${focusName}` : `Lock on ${focusName}`}
+          onClick={() => setLocked(!lockOn)}
+        >
+          {/* A padlock, not the crosshair your own location wears. Room
+              allowing, it names the satellite. */}
+          <Icon name={lockOn ? "lock" : "unlock"} />
+          <span className="flat-map__lock-long">{lockOn ? `Locked onto ${focusName}` : `Lock onto ${focusName}`}</span>
+          <span className="flat-map__lock-short">{lockOn ? "Locked on" : "Lock on"}</span>
         </Button>
+      ) : null}
+      {/* Zoom in and out at the bottom right, desktop only (phones pinch). */}
+      <div className="flat-map__zoom">
         <Button variant="overlay" iconOnly aria-label="Zoom in" onClick={() => zoomBy(1)}>+</Button>
         <Button variant="overlay" iconOnly aria-label="Zoom out" onClick={() => zoomBy(-1)}>{"−"}</Button>
-        {share ? <span className="flat-map__share flat-map__share--row">{share}</span> : null}
       </div>
       <table className="sr-only">
         <caption>Current satellite positions</caption>
@@ -1694,22 +2300,6 @@ export default function FlatMap({
         </tbody>
       </table>
     </div>
-    {fill ? (
-      // The toggle shows only when docked; narrower, the legend is always open below the map.
-      <div className={`map-legend-box${legendOpen ? " map-legend-box--open" : ""}`}>
-        <Button
-          variant="overlay"
-          size="sm"
-          className="map-legend__toggle"
-          aria-expanded={legendOpen}
-          aria-controls={legendId}
-          onClick={() => setLegendOpen((v) => !v)}
-        >
-          Legend
-        </Button>
-        {legendList}
-      </div>
-    ) : legendList}
     </div>
   );
 }
