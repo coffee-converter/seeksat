@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as sat from 'satellite.js';
 import {
   coarsePasses, coarseScan, createLru, scanKey, cellOf, refineWindows, hourOf, REFINE_MIN, SCAN_YIELD_EVERY,
-  stageWindowHours, stageMinElevation,
+  stageWindowHours, stageMinElevation, roughScore,
 } from '../lib/mcp/radio-scan.mjs';
 import { bestPassTool, byRadioRating, RADIO_SCAN_MAX_HOURS } from '../lib/mcp/tools.mjs';
 import { findPasses } from '../lib/mcp/passes.mjs';
@@ -261,4 +261,21 @@ test('benchmark: a 400-satellite radio scan over 24 hours takes well under a few
   // About 0.3 s on a quiet laptop; the limit leaves room for a busy machine.
   assert.ok(coldMs < 5000, `took ${coldMs} ms`);
   assert.ok(warmMs < coldMs);
+});
+
+test('every rough pass knows its range at the peak', () => {
+  const rec = synthetic(1).values().next().value;
+  const { runs } = coarsePasses(sat.json2satrec(rec.omm), { latDeg: 42.19, lonDeg: -88.21 }, NOW, NOW + 24 * 3_600_000, 10);
+  assert.ok(runs.length > 0);
+  for (const r of runs) assert.ok(Number.isFinite(r.peakRangeKm) && r.peakRangeKm > 300 && r.peakRangeKm < 3000, `${r.peakRangeKm}`);
+});
+
+test('the rough score ranks hearable, then bars, then recency, then height', () => {
+  const run = (peakElevDeg, peakRangeKm = 500) => ({ peakElevDeg, peakRangeKm, firstMs: 0, lastMs: 0 });
+  assert.ok(roughScore(run(30), { hearable: true }) > roughScore(run(89), { hearable: false }));
+  assert.ok(roughScore(run(89), { recency: 3 }) > roughScore(run(45), { recency: 0 }));
+  assert.ok(roughScore(run(45), { recency: 0 }) > roughScore(run(50), { recency: 3 }));
+  assert.ok(roughScore(run(50)) > roughScore(run(45)));
+  // Far away costs bars, as the exact rating does.
+  assert.ok(roughScore(run(89, 600)) > roughScore(run(89, 8000)));
 });
