@@ -62,7 +62,8 @@ Cursor (`~/.cursor/mcp.json`):
   rule on the endpoint (not in this code). Past that, requests get HTTP 429.
 - A tool that cannot answer returns a normal result with `isError: true` and
   the text `Error: <message>`. Inputs of the wrong type or out of range are
-  refused as JSON-RPC error -32602 naming the field.
+  refused as JSON-RPC error -32602 naming the field, and so is a parameter
+  the tool does not take (the message lists the ones it does).
 
 ## Tools
 
@@ -82,8 +83,9 @@ Cursor (`~/.cursor/mcp.json`):
 
 A place is `lat` and `lon` in decimal degrees (west negative) or a
 `location` name, geocoded with OpenStreetMap. A satellite is a NORAD number
-(as a number or a string) or a name. `minElevationDeg` and `passTime` still
-work on `get_radio_pass` as old names.
+(as a number or a string) or a name. Old names still work on every tool
+that takes the parameter: `minElevationDeg` and `minElev` for
+`minElevation`, `passTime` for an optional `time`.
 
 `best_pass` with no satellite scans: in visual mode the popular satellites
 plus CelesTrak's visual group (72 hours by default, 168 at most), ranked by

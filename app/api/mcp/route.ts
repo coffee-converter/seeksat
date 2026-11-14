@@ -1,6 +1,6 @@
 // app/api/mcp/route.ts - Streamable-HTTP MCP server. Thin adapter:
-// registers every tool in lib/mcp/tool-specs.mjs (zod input schemas the SDK
-// validates), delegates to the pure handlers in lib/mcp/tools.mjs, and
+// registers every tool in lib/mcp/tool-specs.mjs (strict zod input schemas
+// the SDK validates), delegates to the pure handlers in lib/mcp/tools.mjs, and
 // returns the result as JSON text content (plus an image for a chart).
 import { createMcpHandler } from 'mcp-handler';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -8,7 +8,7 @@ import {
   listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassWeatherTool, getPassChartTool, bestPassTool,
   searchSatellitesTool, radioPassTool, whatsUpNowTool, identifySatelliteTool,
 } from '@/lib/mcp/tools.mjs';
-import { TOOL_SPECS } from '@/lib/mcp/tool-specs.mjs';
+import { TOOL_SPECS, inputObject } from '@/lib/mcp/tool-specs.mjs';
 import { SERVER_INSTRUCTIONS } from '@/lib/mcp/discovery.mjs';
 import { getCatalogReader } from '@/lib/mirror/server.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
@@ -101,7 +101,8 @@ const mcpHandler = createMcpHandler(
         {
           title: spec.title,
           description: spec.description,
-          inputSchema: spec.inputSchema,
+          // Strict: an unknown parameter is an error naming the ones it takes.
+          inputSchema: inputObject(spec),
           annotations: spec.online ? ONLINE : LOCAL,
         },
         async (args: Args) => {

@@ -32,6 +32,18 @@ test('getPositionTool resolves a satellite and returns a sub-point', async () =>
   assert.equal(out.tleAgeHours, 1);
 });
 
+test('old parameter names work on every tool that takes the parameter', async () => {
+  const at = { satellite: 'iss', lat: 0, lon: 100, mode: 'radio' };
+  const plain = await findPassesTool({ ...at, minElevation: 60 }, deps);
+  for (const name of ['minElevationDeg', 'minElev']) {
+    const out = await findPassesTool({ ...at, [name]: 60 }, deps);
+    assert.deepEqual(out.passes.map((p) => p.rise), plain.passes.map((p) => p.rise), name);
+    for (const p of out.passes) assert.ok(p.peakElevationDeg >= 60);
+  }
+  const pos = await getPositionTool({ satellite: 'iss', passTime: '2024-01-01T14:00:00Z' }, deps);
+  assert.equal(pos.time, '2024-01-01T14:00:00.000Z');
+});
+
 test('findPassesTool geocodes a location string', async () => {
   const out = await findPassesTool({ satellite: 'iss', location: 'Tokyo', mode: 'radio' }, deps);
   assert.equal(out.resolvedLocation.displayName, 'Tokyo, Japan');

@@ -63,6 +63,37 @@ test('inputs: NORAD ids as numbers or strings, minElevation and time everywhere 
   assert.ok(shape('get_radio_pass').minElevationDeg && shape('get_radio_pass').passTime, 'old names still accepted');
 });
 
+test('schemas are strict: an unknown parameter is refused, naming the ones the tool takes; old names work everywhere', async () => {
+  const { inputObject, ALIASES } = await import('../lib/mcp/tool-specs.mjs');
+  const { toolParams } = await import('../lib/mcp/discovery.mjs');
+  for (const t of TOOL_SPECS) {
+    const schema = inputObject(t);
+    const r = schema.safeParse({ notAParameter: 1 });
+    assert.equal(r.success, false, t.name);
+    const msg = r.error.issues.map((i) => i.message).join(' ');
+    assert.match(msg, new RegExp(`unknown parameter "notAParameter" for ${t.name}\\. It takes`), t.name);
+    for (const [name, old] of Object.entries(ALIASES)) {
+      const optional = t.inputSchema[name]?.safeParse(undefined).success;
+      for (const alias of old) {
+        assert.equal(alias in t.inputSchema, Boolean(optional), `${t.name}.${alias}`);
+        if (optional) assert.match(msg, new RegExp(`${alias} for ${name}`));
+      }
+    }
+    // The docs tables list each parameter once, under its current name.
+    for (const p of toolParams(t)) assert.ok(!(p.name in (t.aliases ?? {})), `${t.name}.${p.name}`);
+  }
+  const fp = inputObject(TOOL_SPECS.find((t) => t.name === 'find_passes'));
+  assert.equal(fp.safeParse({ satellite: 25544, lat: 1, lon: 2, minElevationDeg: 60 }).success, true);
+  assert.equal(fp.safeParse({ satellite: 25544, lat: 1, lon: 2, minElev: 95 }).success, false, 'an old name is range-checked too');
+  const err = fp.safeParse({ satellite: 25544, lat: 1, lon: 2, minElevationDegrees: 60 }).error.issues[0].message;
+  assert.match(err, /It takes satellite, lat, lon, location, windowHours, minElevation, mode, skyType \(old names still accepted: minElevationDeg for minElevation, minElev for minElevation\)/);
+  // list_satellites takes nothing.
+  assert.match(inputObject(TOOL_SPECS[0]).safeParse({ x: 1 }).error.issues[0].message, /takes no parameters/);
+  // The route registers the strict schema.
+  const route = readFileSync(new URL('../app/api/mcp/route.ts', import.meta.url), 'utf8');
+  assert.match(route, /inputSchema: inputObject\(spec\),/);
+});
+
 test('the /mcp page shows the result notes, and no summary or note uses an em dash', async () => {
   const { RESULT_NOTES } = await import('../lib/mcp/discovery.mjs');
   const page = readFileSync(new URL('../app/mcp/page.tsx', import.meta.url), 'utf8');
