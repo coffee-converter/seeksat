@@ -131,3 +131,16 @@ test('a unit is not started with less than 45 s of the budget left', async () =>
   assert.equal(calls.length, 1);
   assert.equal(r.units, 1);
 });
+
+test('a one-off error skips that window and goes on; it is tried again next run', async () => {
+  const store = createMemoryReceptionStore();
+  const { calls, sweep } = fakeSweep({
+    '2026-11-13T18:good': { observations: [], pages: 0, complete: false, truncated: false, error: 'HTTP 404', stopRun: false },
+  });
+  const r = await collectReception({ store, sweep, now: () => NOW });
+  assert.equal(calls.length, 56);
+  assert.equal(r.units, 55);
+  assert.match(r.failed, /2026-11-13T18:good: HTTP 404/);
+  const t = await store.read();
+  assert.equal(pendingUnits(t, NOW)[0].key, '2026-11-13T18:good');
+});

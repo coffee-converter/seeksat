@@ -371,3 +371,23 @@ test('reception unavailable leaves rows as before', async () => {
   assert.equal('receptionSource' in plain, false);
   for (const p of plain.passes) assert.equal('reception' in p, false);
 });
+
+test('the rough score holds a probably silent satellite to Fair, as the exact rating does', () => {
+  const run = (peakElevDeg) => ({ peakElevDeg, peakRangeKm: 500, firstMs: 0, lastMs: 0 });
+  assert.ok(roughScore(run(89), { silent: true }) < roughScore(run(45)));
+  assert.ok(roughScore(run(89), { silent: true }) > roughScore(run(5)));
+});
+
+test('the cached sweep is redone once reception loads after a failed read', async () => {
+  const recs = synthetic(10);
+  let ok = false;
+  const reception = async () => { if (!ok) throw new Error('cold'); return tallyFor(recs, [[90001, 1, H]], []); };
+  const { deps, calls } = depsFor(recs, { reception });
+  const ask = { lat: 42.19, lon: -88.21, mode: 'radio', limit: 3 };
+  await bestPassTool(ask, deps);
+  await bestPassTool(ask, deps);
+  assert.equal(calls.radioIds, 1, 'same state: one sweep');
+  ok = true;
+  await bestPassTool(ask, deps);
+  assert.equal(calls.radioIds, 2, 'reception arrived: a fresh sweep');
+});

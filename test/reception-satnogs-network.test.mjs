@@ -92,6 +92,7 @@ test('sends the identifying User-Agent', async () => {
   const { calls, fetchImpl } = scripted([json(page(2))]);
   await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {} });
   assert.match(calls[0].opts.headers['User-Agent'], /^seeksat\/1\.0 \(https?:\/\//);
+  assert.match(calls[0].opts.headers['User-Agent'], /coffee\.becomes\.code@gmail\.com/);
 });
 
 test('slimObservation drops rows without a transmitter, satellite or end', () => {
@@ -130,4 +131,13 @@ test('a body that never arrives times out', async () => {
   const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {}, requestTimeoutMs: 20 });
   assert.equal(r.complete, false);
   assert.match(r.error, /timed out/);
+});
+
+test('bad data is a one-off; throttling, server errors and timeouts stop the run', async () => {
+  const one = async (resp, opts = {}) => sweepObservations({ ...ARGS, fetchImpl: scripted([resp]).fetchImpl, sleep: async () => {}, ...opts });
+  assert.equal((await one(json({}, { status: 404 }))).stopRun, false);
+  assert.equal((await one(json({ detail: 'x' }))).stopRun, false);
+  const busy = await sweepObservations({ ...ARGS, fetchImpl: scripted([json({}, { status: 503 }), json({}, { status: 503 }), json({}, { status: 503 }), json({}, { status: 503 })]).fetchImpl, sleep: async () => {} });
+  assert.equal(busy.stopRun, true);
+  assert.equal((await one(() => { throw new Error('ECONNRESET'); })).stopRun, true);
 });

@@ -59,6 +59,7 @@ test('fetchTransmitters asks SatNOGS DB once, identifies itself, and rejects a f
   assert.equal(list.length, 1);
   assert.equal(seen[0].url, SATNOGS_TRANSMITTERS_URL);
   assert.match(seen[0].opts.headers['User-Agent'], /seeksat\.com/);
+  assert.match(seen[0].opts.headers['User-Agent'], /coffee\.becomes\.code@gmail\.com/);
   await assert.rejects(fetchTransmitters({ fetchImpl: async () => new Response('busy', { status: 503 }) }), /503/);
   await assert.rejects(fetchTransmitters({ fetchImpl: async () => new Response('{"a":1}', { status: 200 }) }), /not a list/);
 });

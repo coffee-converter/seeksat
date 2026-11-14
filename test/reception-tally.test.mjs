@@ -66,14 +66,23 @@ test('passband centre matches the span', () => {
   assert.equal(receptionFor(indexTally(t), ISS, { hz: 435_110_000 }, NOW).heardLast48h, 0);
 });
 
-test('uuid wins over frequency', () => {
-  const t = tallyWith([obs(NOW - H, { uuid: 'A' }), obs(NOW - 2 * H, { uuid: 'B' }), obs(NOW - 3 * H, { uuid: 'B' })]);
+test('a uuid and every transmitter at its frequency count together', () => {
+  // A and B share 437.550 (SatNOGS lists twins; the catalog keeps one uuid).
+  // C is the downlink's own uuid, listed at a slightly different frequency.
+  const t = tallyWith([
+    obs(NOW - H, { uuid: 'A' }), obs(NOW - 2 * H, { uuid: 'B' }), obs(NOW - 3 * H, { uuid: 'B' }),
+    obs(NOW - 4 * H, { uuid: 'C', lowHz: 437_600_000, highHz: 437_600_000 }),
+  ]);
   const ix = indexTally(t);
-  assert.equal(receptionFor(ix, ISS, { hz: 437_550_000, uuid: 'B' }, NOW).heardLast48h, 2);
-  // By frequency alone both match, and are summed.
+  assert.equal(receptionFor(ix, ISS, { hz: 437_550_000, uuid: 'B' }, NOW).heardLast48h, 3);
   assert.equal(receptionFor(ix, ISS, { hz: 437_550_000 }, NOW).heardLast48h, 3);
-  // A uuid the tally does not have falls back to frequency.
+  assert.equal(receptionFor(ix, ISS, { hz: 437_550_000, uuid: 'C' }, NOW).heardLast48h, 4);
   assert.equal(receptionFor(ix, ISS, { hz: 437_550_000, uuid: 'Z' }, NOW).heardLast48h, 3);
+});
+
+test('a twin heard on the same frequency keeps a satellite from reading silent', () => {
+  const t = tallyWith([obs(NOW - H, { uuid: 'HEARD' })], [obs(NOW - H, { uuid: 'KEPT' }), obs(NOW - 2 * H, { uuid: 'KEPT' }), obs(NOW - 3 * H, { uuid: 'KEPT' })]);
+  assert.equal(receptionFor(indexTally(t), ISS, { hz: 437_550_000, uuid: 'KEPT' }, NOW).state, 'heard');
 });
 
 test('prune drops old times, empty transmitters and old swept days', () => {
