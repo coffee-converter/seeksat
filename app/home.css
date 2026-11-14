@@ -68,6 +68,8 @@
 /* An opened pass's rise and set: a dot in its colour and the time beside it. */
 .flat-map__end { width: 9px; height: 9px; pointer-events: none; }
 .flat-map__end.maplibregl-marker-covered { visibility: hidden; }
+/* A new pass loading (FlatMap hidePass): its end labels wait for its lines. */
+.flat-map--pass-pending .flat-map__end { visibility: hidden; }
 .flat-map__end-dot {
   position: absolute;
   inset: 0;
