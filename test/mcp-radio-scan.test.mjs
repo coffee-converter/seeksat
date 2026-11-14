@@ -8,7 +8,7 @@ import * as sat from 'satellite.js';
 import {
   coarsePasses, coarseScan, createLru, scanKey, cellOf, refineWindows, hourOf, REFINE_MIN,
 } from '../lib/mcp/radio-scan.mjs';
-import { bestPassTool, byRadioQuality, RADIO_SCAN_MAX_HOURS } from '../lib/mcp/tools.mjs';
+import { bestPassTool, byRadioRating, RADIO_SCAN_MAX_HOURS } from '../lib/mcp/tools.mjs';
 import { findPasses } from '../lib/mcp/passes.mjs';
 import { withLocalTimes } from '../lib/mcp/local-time.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
@@ -61,7 +61,7 @@ function bruteForce(recs, { latDeg, lonDeg }, windowHours = 24) {
     const { passes } = findPasses({ record, observer: { latDeg, lonDeg }, startMs: NOW, windowHours, minElevationDeg: 10, mode: 'radio' });
     for (const p of passes) all.push({ noradId: id, ...p });
   }
-  return all.sort(byRadioQuality);
+  return all.sort(byRadioRating);
 }
 
 test('the coarse sweep with jumps finds exactly what a plain 60 s sweep finds', () => {

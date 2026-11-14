@@ -101,10 +101,11 @@ test('tools say "no orbit data" when getRecord resolves undefined (unknown)', as
   await assert.rejects(() => getPositionTool({ satellite: 'iss' }, d), /no orbit data for ISS \(ZARYA\) \(25544\) yet/);
 });
 
-import { bestPassTool, byQuality } from '../lib/mcp/tools.mjs';
+import { bestPassTool, byVisualRating, byRadioRating } from '../lib/mcp/tools.mjs';
+import { passRating } from '../lib/mcp/passes.mjs';
 
 // A synthesized (non-curated) satellite has no standardMag: visual passes
-// report the engine's cautious estimate, flagged, with quality capped at Fair.
+// report the engine's cautious estimate, flagged, rated no higher than Fair.
 const SYN = { ...REC, noradId: 25485, name: 'SYNTH SAT' };
 const synDeps = { ...deps, getRecord: async (id) => (id === 25485 ? SYN : null) };
 const VIS = { lat: -30, lon: 150, mode: 'visual' };
@@ -116,7 +117,7 @@ test('find_passes / next_visible_pass / best_pass flag an estimated magnitude fo
     assert.equal(typeof p.peakMagnitude, 'number');
     assert.equal(p.peakMagnitudeEstimated, true);
     assert.match(p.brightnessNote, /estimated/i);
-    assert.ok(p.quality <= 0.4);
+    assert.ok(p.rating.bars <= 2);
   }
   const nv = await nextVisiblePassTool({ satellite: 25485, ...VIS }, synDeps);
   assert.equal(nv.pass.peakMagnitudeEstimated, true);
@@ -127,27 +128,74 @@ test('find_passes / next_visible_pass / best_pass flag an estimated magnitude fo
 
 test('best_pass ranks a known bright satellite over one with a guessed magnitude on the same orbit', async () => {
   // ISS (standardMag -1.8) and METEOR-M2 3 (unknown) flying the same orbit:
-  // identical geometry, so only the brightness cap can separate them.
+  // identical geometry, so only the brightness can separate them.
   const twin = { ...deps, getRecord: async (id) => (id === 25544 ? REC : id === 57166 ? { ...REC, noradId: 57166, name: 'METEOR-M2 3' } : null) };
   const out = await bestPassTool({ ...VIS, limit: 20 }, twin);
   assert.equal(out.best.satellite, 'ISS (ZARYA)');
   const guessed = out.passes.filter((p) => p.peakMagnitudeEstimated);
   const known = out.passes.filter((p) => !p.peakMagnitudeEstimated);
   assert.ok(guessed.length > 0 && known.length === guessed.length, 'both are listed, pass for pass');
-  for (const p of guessed) assert.ok(p.quality <= 0.4);
+  for (const p of guessed) assert.ok(p.rating.bars <= 2);
   // In this fixture every guessed pass is faint enough to rate Poor, so all of
   // the ISS passes come first.
   assert.ok(out.passes.findLastIndex((p) => !p.peakMagnitudeEstimated) < out.passes.findIndex((p) => p.peakMagnitudeEstimated));
 });
 
-test('byQuality: on equal quality a known magnitude beats a guess, then the brighter pass', () => {
+test('byVisualRating: more bars first, then a known brightness, then headroom, then capture odds', () => {
+  const row = (id, bars, headroomMag, est, cap) => ({ id, rating: { bars, headroomMag }, peakMagnitudeEstimated: est, captureProbability: cap });
   const rows = [
-    { id: 'guess', quality: 0.4, peakMagnitude: 1, peakMagnitudeEstimated: true },
-    { id: 'faint', quality: 0.4, peakMagnitude: 3, peakMagnitudeEstimated: false },
-    { id: 'bright', quality: 0.4, peakMagnitude: -2, peakMagnitudeEstimated: false },
-    { id: 'top', quality: 0.9, peakMagnitude: 4, peakMagnitudeEstimated: false },
+    row('guess', 2, 6, true, 0.9),
+    row('faint', 2, 1, false, 0.2),
+    row('dim', 2, 0.9, false, 0.8),
+    row('top', 5, 7, false, 0.1),
+    row('unknown', 2, null, false, 0.99),
   ];
-  assert.deepEqual(rows.sort(byQuality).map((r) => r.id), ['top', 'bright', 'faint', 'guess']);
+  assert.deepEqual(rows.sort(byVisualRating).map((r) => r.id), ['top', 'faint', 'dim', 'unknown', 'guess']);
+  const radio = [
+    { id: 'low', rating: { bars: 2 }, peakElevationDeg: 15, captureProbability: 0.9, durationSec: 600, rise: '2026-01-01T00:00:00Z' },
+    { id: 'high', rating: { bars: 5 }, peakElevationDeg: 70, captureProbability: 0.5, durationSec: 300, rise: '2026-01-01T02:00:00Z' },
+    { id: 'higher', rating: { bars: 5 }, peakElevationDeg: 80, captureProbability: 0.4, durationSec: 300, rise: '2026-01-01T03:00:00Z' },
+  ];
+  assert.deepEqual(radio.sort(byRadioRating).map((r) => r.id), ['higher', 'high', 'low']);
+});
+
+// The live cases from the MCP review (2026-11-14), rebuilt as engine passes
+// with the magnitudes, Sun altitudes and capture odds the scan reported. The
+// old ranking went by capture odds alone; the app's rating puts the bright
+// passes first.
+test('review cases: Sydney, Tokyo and Chicago rank as the app rates them', () => {
+  const pass = (id, peakMag, peakMagSunAltDeg, maxElevDeg, captureProbability, estimated = false) => {
+    const p = { peakMs: 0, maxElevDeg, peakMag, peakMagSunAltDeg, peakSunAltDeg: peakMagSunAltDeg, ...(estimated && { peakMagEstimated: true }) };
+    return { id, rating: passRating(p, 'visual', { skyType: 'suburban' }), peakMagnitudeEstimated: estimated, captureProbability };
+  };
+  const order = (rows) => rows.sort(byVisualRating).map((r) => r.id);
+
+  // Sydney: NOAA 19 (mag 4.7, fainter than a suburban sky shows) was ranked
+  // above an ISS pass at mag -2.8.
+  const sydney = [pass('noaa19', 4.7, -14, 60, 0.571), pass('iss', -2.8, -14, 40, 0.516)];
+  assert.deepEqual(order(sydney), ['iss', 'noaa19']);
+  assert.equal(sydney.find((r) => r.id === 'noaa19').rating.word, 'Poor');
+  assert.equal(sydney.find((r) => r.id === 'iss').rating.word, 'Excellent');
+
+  // Tokyo: a rocket body with an estimated mag 3.9 was "best" over the ISS.
+  const tokyo = [pass('sl3', 3.9, -12, 50, 0.347, true), pass('iss', -1.7, -12, 30, 0.324)];
+  assert.deepEqual(order(tokyo), ['iss', 'sl3']);
+  assert.ok(tokyo.find((r) => r.id === 'sl3').rating.bars <= 2);
+
+  // Chicago: the brighter, higher ISS pass at dusk was put below a lower one,
+  // and BlueWalker 3 above an ISS pass at mag -3.0.
+  const chicago = [
+    pass('iss-28', -1.7, -14, 28, 0.596),
+    pass('iss-63', -3.6, -14, 63, 0.312),
+    pass('bw3-a', 0.9, -14, 50, 0.28),
+    pass('bw3-b', 0.8, -9, 40, 0.237),
+    pass('iss-30', -3.0, -14, 30, 0.225),
+  ];
+  const ranked = order(chicago);
+  assert.equal(ranked[0], 'iss-63');
+  assert.ok(ranked.indexOf('iss-30') < ranked.indexOf('bw3-a'));
+  assert.ok(ranked.indexOf('iss-28') < ranked.indexOf('bw3-b'));
+  assert.deepEqual(ranked.slice(0, 3).sort(), ['iss-28', 'iss-30', 'iss-63']);
 });
 
 test('synthesized satellites are named from the record; curated ones keep the curated name', async () => {

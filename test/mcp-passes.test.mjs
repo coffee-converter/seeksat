@@ -2,7 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { compass } from '../lib/sat/pass-rows.mjs';
-import { findPasses, getPosition, nextPassWindow, ESTIMATED_MAG_NOTE, ESTIMATED_QUALITY_CAP } from '../lib/mcp/passes.mjs';
+import { findPasses, getPosition, nextPassWindow, passRating, ESTIMATED_MAG_NOTE } from '../lib/mcp/passes.mjs';
+import { visualQuality } from '../lib/sky/visual-rating.mjs';
+import { passQuality } from '../lib/passes/quality.mjs';
+import { cloudBadge } from '../lib/sky/cloud-badge.mjs';
 import { MOLNIYA_LINE1, MOLNIYA_LINE2, GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 import { ISS_OMM, ISS_LINE1, ISS_LINE2 } from './fixtures/omm-iss.mjs';
 
@@ -38,7 +41,8 @@ test('findPasses (radio mode) returns ordered windows with the expected shape', 
     assert.ok(p.durationSec > 0);
     assert.equal(typeof p.sunlit, 'boolean');
     assert.ok('peakMagnitude' in p);
-    assert.ok(p.quality >= 0 && p.quality <= 1);
+    assert.ok(p.captureProbability >= 0 && p.captureProbability <= 1);
+    assert.equal(p.quality, p.captureProbability, 'quality is the old name');
     assert.ok(p.azimuthDeg.rise >= 0 && p.azimuthDeg.rise < 360);
   }
   const rises = passes.map(p => Date.parse(p.rise));
@@ -79,7 +83,7 @@ test('getPosition works for a 6-digit, OMM-only record', () => {
 // sunlit, dark-sky passes within 48 h of START.
 const VIS_OBS = { latDeg: -30, lonDeg: 150 };
 
-test('findPasses (visual) estimates the magnitude when standardMag is null, and caps quality at Fair', () => {
+test('findPasses (visual) estimates the magnitude when standardMag is null, and rates it no higher than Fair', () => {
   const args = { record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS, startMs: START, windowHours: 72, mode: 'visual' };
   const { passes } = findPasses({ ...args, standardMag: null });
   const known = findPasses({ ...args, standardMag: -1.8 }).passes;
@@ -90,14 +94,43 @@ test('findPasses (visual) estimates the magnitude when standardMag is null, and 
     assert.equal(p.peakMagnitudeEstimated, true);
     assert.ok(p.brightnessNote.startsWith(ESTIMATED_MAG_NOTE));
     assert.match(p.brightnessNote, /Fair/);
-    assert.ok(p.quality > 0 && p.quality <= ESTIMATED_QUALITY_CAP, `quality ${p.quality}`);
-    assert.ok(p.quality <= known[i].quality);
+    assert.ok(p.rating.bars <= 2, `bars ${p.rating.bars}`);
+    assert.ok(p.rating.bars <= known[i].rating.bars);
+    assert.match(p.rating.reason, /no higher than Fair/);
+    // The capture probability leaves brightness out: the same for both.
+    assert.equal(p.captureProbability, known[i].captureProbability);
     // The cautious guess (a small satellite) is far fainter than the ISS.
     assert.ok(p.peakMagnitude > known[i].peakMagnitude + 5);
   });
-  // Even the 83-degree pass: a guessed magnitude this faint rates Poor (0.2).
-  assert.ok(passes.some((p, i) => p.quality < known[i].quality));
-  assert.equal(passes.find((p) => p.peakElevationDeg > 80).quality, 0.2);
+  // Even the 83-degree pass: a guessed magnitude this faint rates Poor.
+  assert.deepEqual(passes.find((p) => p.peakElevationDeg > 80).rating.word, 'Poor');
+  assert.ok(known.some((p) => p.rating.bars >= 4), 'the ISS itself rates well');
+});
+
+test('pass ratings are the app\'s: visualQuality with the cloud badge, or the elevation bars in radio mode', () => {
+  const args = { record: { line1: LINE1, line2: LINE2 }, observer: VIS_OBS, startMs: START, windowHours: 72, mode: 'visual', standardMag: -1.8 };
+  const plain = findPasses(args).passes;
+  assert.ok(plain.length > 1);
+  // Overcast from the start: every pass inside 4 days is Cloudy, one bar.
+  const forecast = { startMs: START - 3_600_000, hours: Array.from({ length: 120 }, () => 100) };
+  const cloudy = findPasses({ ...args, cloud: forecast, nowMs: START }).passes;
+  for (const p of cloudy) {
+    assert.equal(p.rating.bars, 1);
+    assert.match(p.rating.reason, /Cloudy forecast/);
+  }
+  // A city sky shows fewer stars, so the same pass has less headroom.
+  const city = findPasses({ ...args, skyType: 'city' }).passes;
+  plain.forEach((p, i) => assert.ok(city[i].rating.headroomMag <= p.rating.headroomMag));
+  // Straight from the app's functions on an engine-shaped pass.
+  const p = { peakMs: START + 86_400_000, maxElevDeg: 50, peakMag: -2, peakMagSunAltDeg: -15, peakSunAltDeg: -15 };
+  const app = visualQuality(p, { skyType: 'suburban', cloud: cloudBadge(45, 1) });
+  const forecast45 = { startMs: START, hours: Array.from({ length: 72 }, () => 45) };
+  const r = passRating(p, 'visual', { skyType: 'suburban', cloud: forecast45, nowMs: START });
+  assert.deepEqual([r.word, r.bars, r.level, r.reason], [app.label, app.bars, app.level, app.reason]);
+  assert.equal(r.headroomMag, 6.25); // a -15 degree Sun leaves a suburban sky at mag 4.25
+  const radio = passRating({ maxElevDeg: 35 }, 'radio');
+  const q = passQuality({ maxElevDeg: 35 });
+  assert.deepEqual(radio, { word: q.label, bars: q.bars, level: q.level, reason: q.reason });
 });
 
 test('findPasses (visual) treats a missing standardMag as unknown brightness', () => {
@@ -120,12 +153,12 @@ test('findPasses (visual) still computes a magnitude when standardMag is known',
   assert.equal('brightnessNote' in passes[0], false);
 });
 
-test('findPasses (radio) estimates an unknown magnitude without capping quality', () => {
+test('findPasses (radio) estimates an unknown magnitude without changing the rating', () => {
   const args = { record: { line1: LINE1, line2: LINE2 }, observer: { latDeg: 0, lonDeg: 100 }, startMs: START, mode: 'radio' };
   const guessed = findPasses(args).passes;
   const known = findPasses({ ...args, standardMag: -1.8 }).passes;
   assert.ok(guessed.length > 0);
-  assert.deepEqual(guessed.map((p) => p.quality), known.map((p) => p.quality));
+  assert.deepEqual(guessed.map((p) => [p.quality, p.rating]), known.map((p) => [p.quality, p.rating]));
   for (const p of guessed) {
     assert.equal(p.peakMagnitudeEstimated, true);
     assert.equal(p.brightnessNote, ESTIMATED_MAG_NOTE);
@@ -166,8 +199,8 @@ test('Molniya passes come back from the MCP search, several hours long', () => {
 test('MCP pass rows keep their shape', () => {
   const [p] = findPasses({ record: { line1: LINE1, line2: LINE2 }, observer: { latDeg: 0, lonDeg: 100 }, startMs: START, mode: 'radio' }).passes;
   assert.deepEqual(Object.keys(p).sort(), ['azimuthDeg', 'brightnessNote', 'direction', 'durationSec', 'entersShadow', 'inProgress', 'leavesShadow',
-    'peak', 'peakElevationDeg', 'peakMagnitude', 'peakMagnitudeEstimated', 'peakRangeKm', 'quality', 'rise', 'set', 'sunlit', 'visibleFrom',
-    'visibleUntil']);
+    'peak', 'peakElevationDeg', 'peakMagnitude', 'peakMagnitudeEstimated', 'peakRangeKm', 'quality', 'rating', 'rise', 'set', 'sunlit', 'visibleFrom',
+    'visibleUntil', 'captureProbability'].sort());
 });
 
 test('pass rows give compass words for each azimuth and the range at the peak', () => {

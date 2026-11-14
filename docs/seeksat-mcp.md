@@ -69,14 +69,14 @@ Cursor (`~/.cursor/mcp.json`):
 | Tool | What it does | Main inputs (defaults) |
 | --- | --- | --- |
 | `list_satellites` | The popular satellites with orbit data freshness | none |
-| `find_passes` | Every pass of one satellite, in time order | satellite, place, windowHours (48, up to 240), minElevation (10), mode (visual) |
+| `find_passes` | Every pass of one satellite, in time order | satellite, place, windowHours (48, up to 240), minElevation (10), mode (visual), skyType (suburban) |
 | `get_position` | Point below the satellite, altitude, sunlit | satellite, time (now), optional place for the time zone |
-| `next_visible_pass` | The next pass, optionally with its chart | satellite, place, windowHours (72), minElevation (10), mode, chart |
+| `next_visible_pass` | The next pass, optionally with its chart | satellite, place, windowHours (72), minElevation (10), mode, skyType, chart |
 | `get_pass_weather` | Cloud cover and clear-sky chance at one time | place, time; `available: false` with a reason when there is no forecast |
 | `get_pass_chart` | Polar sky chart (PNG) of a pass, plus its times | satellite, place, time (next pass), mode, minElevation (10) |
 | `search_satellites` | Name or number to NORAD id, whole catalog | query, limit (10, up to 20), mode |
 | `get_radio_pass` | Frequencies, Doppler, tuning and pointing for one pass | satellite, place, time (next pass), frequencyMHz, minElevation (10), windowHours (48) |
-| `best_pass` | Best passes for one satellite or from a scan | satellite (omit to scan), place, windowHours (72), minElevation (10), limit (3, up to 20), mode, bands, modes, chart |
+| `best_pass` | Best passes for one satellite or from a scan | satellite (omit to scan), place, windowHours (72), minElevation (10), limit (3, up to 20), mode, skyType, bands, modes, chart |
 | `whats_up_now` | What is in the sky right now, whole catalog | place, mode, minElevation (10), limit (10, up to 50) |
 | `identify_satellite` | "What was that moving light?" | place, time (now), azimuth or direction, elevation, travel, tolerance (10), limit (5, up to 10) |
 
@@ -86,9 +86,10 @@ A place is `lat` and `lon` in decimal degrees (west negative) or a
 work on `get_radio_pass` as old names.
 
 `best_pass` with no satellite scans: in visual mode the popular satellites
-plus CelesTrak's visual group (72 hours by default, 168 at most), ranked with
-the cloud forecast folded in; in radio mode every satellite with known
-downlinks (24 hours by default, 72 at most).
+plus CelesTrak's visual group (72 hours by default, 168 at most), ranked by
+the site's visual rating with the cloud forecast folded in; in radio mode
+every satellite with known downlinks (24 hours by default, 72 at most),
+ranked by the radio rating (peak height).
 
 ## Results
 
@@ -98,9 +99,16 @@ downlinks (24 hours by default, 72 at most).
   read in the observer's time zone and echoed back as `interpretedAs`.
 - Pass rows: rise, peak and set, peak elevation, azimuths with compass words,
   `peakRangeKm`, brightness (`peakMagnitudeEstimated` when the size is
-  unknown, which caps visual quality at Fair), quality 0-1, when it can be
-  seen by eye (`visibleFrom`, `visibleUntil`, `leavesShadow`,
-  `entersShadow`), and `passUrl`, a link to that pass on seeksat.com.
+  unknown), when it can be seen by eye (`visibleFrom`, `visibleUntil`,
+  `leavesShadow`, `entersShadow`), and `passUrl`, a link to that pass on
+  seeksat.com.
+- `rating` is the rating the site shows: `{ word, bars (1-5), level, reason }`.
+  Visual: brightness against the faintest star visible for `skyType`
+  (`headroomMag`), stepped down for a cloudy forecast, and no higher than
+  Fair when the brightness is estimated. Radio: peak height. Passes rank by it.
+- `captureProbability` (0-1) is the chance a camera captures the pass (sky
+  darkness, height, clear-sky odds, length; brightness plays no part).
+  `quality` is its old name and carries the same number.
 - `elementAge` grades the orbital elements as the site does (fresh, old over
   7 days, stale over 14) with a warning when not fresh. Whole-sky tools leave
   stale objects out (`skippedStaleElements`); a time more than 30 days from
