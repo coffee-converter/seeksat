@@ -42,3 +42,9 @@ Take one, fix it with a test, and delete its entry.
 - **Range in the site's bars:** the MCP radio rating takes a bar off per 6 dB of path loss beyond 2,000 km
   (`lib/passes/quality.mjs radioQuality`); the site's bars are still height only, so a far MEO pass reads
   higher on the site than in MCP answers. Engine passes need the peak range to use it.
+
+## Reception collector: back to every 4 hours after the backfill
+
+`vercel.json` runs `/api/refresh-reception` at :41 in every hour the catalog refresh does not use
+(18 runs a day) so the first 7 days fill in fast. Once the logs show runs with nothing left to sweep
+("0 windows", around 2026-11-16), set it back to `41 2-22/4 * * *` and drop the note in CLAUDE.md.
