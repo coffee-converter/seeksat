@@ -101,7 +101,10 @@ ranked by the radio rating (peak height).
   `resolvedLocation.timeZone` and a local twin next to every time (`rise` and
   `riseLocal: "2026-11-14T17:41:00-06:00"`). A time input with no offset is
   read in the observer's time zone and echoed back as `interpretedAs`.
-- Pass rows: rise, peak and set, peak elevation, azimuths with compass words,
+- Pass rows: rise, peak and set (rise and set are where it crosses
+  `minElevation`; in visual mode all three cover only the part that can be
+  seen, so the peak is the highest point of that part), peak elevation,
+  azimuths with compass words,
   `peakRangeKm`, brightness (`peakMagnitudeEstimated` when the size is
   unknown), when it can be seen by eye (`visibleFrom`, `visibleUntil`,
   `leavesShadow`, `entersShadow`), and `passUrl`, a link to that pass on
