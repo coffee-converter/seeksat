@@ -479,3 +479,12 @@ test('a live view with no pass open draws the sight line too, and below the hori
   assert.equal(belowWord({ passLive: true }), 'not up yet');
   assert.equal(belowWord({ passLive: true, passAfter: true }), 'already set');
 });
+
+test('a live view with no pass open draws the visibility circle around you', () => {
+  const ring = [[-90, 60], [-70, 40], [-90, 20], [-110, 40], [-90, 60]];
+  const horizon = [[-90, 62], [-68, 40], [-90, 18], [-112, 40], [-90, 62]];
+  const live = { ...SATS[0], position: { lonDeg: -88, latDeg: 41 }, altKm: 420, passLive: true, sightOnly: true, passReachDeg: 20, passRing: ring, passRingHorizon: horizon };
+  const f = overlayData({ sats: [live], observer: { latDeg: 40, lonDeg: -90 } })['ss-pass'].features;
+  assert.deepEqual(f.map((x) => x.properties.part).sort(), ['horizon', 'reach']);
+  assert.deepEqual(f.find((x) => x.properties.part === 'reach').geometry.coordinates, ring);
+});

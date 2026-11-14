@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { Emphasis, MapSat } from "./FlatMap";
 import { footprintFeature, footprintRadiusDeg, passLine, splitTrack, subpoint, trackTicks, tickStepMin } from "@/lib/map/geometry.mjs";
 import { SAT_PALETTES } from "@/lib/map/palette.mjs";
-import { geometricElevFor, splitBySun } from "@/lib/map/pass-arc.mjs";
+import { geometricElevFor, splitBySun, visibilityRing } from "@/lib/map/pass-arc.mjs";
 
 export interface Layer {
   noradId: number;
@@ -38,6 +38,8 @@ const TRACK_REFRESH_MS = 60_000;
  *  covers so much of the Earth that it wraps round the globe and says
  *  nothing; it is left out and the map frames the pass path instead. */
 const MAX_RING_DEG = 40;
+/** A live view's circle is rebuilt when the height moves this far (km). */
+const LIVE_RING_STEP_KM = 5;
 
 /** An opened pass row: its whole arc is drawn on the map (lib/map/pass-arc.mjs). */
 export interface MapPass {
@@ -59,7 +61,7 @@ export interface MapPass {
 }
 
 export function useMapSats({
-  layers, tracks, colors, nowMs, minElevDeg, radio, pass = null, liveId = null,
+  layers, tracks, colors, nowMs, minElevDeg, radio, pass = null, liveId = null, observer = null,
 }: {
   layers: Layer[];
   tracks: ReadonlyMap<number, MapTrack>;
@@ -73,6 +75,8 @@ export function useMapSats({
   /** The satellite a live view is open on: it gets the live sight line even
    *  with no pass open (however the live view was opened). */
   liveId?: number | null;
+  /** Where you are: a live view with no pass open draws its visibility circle. */
+  observer?: { latDeg: number; lonDeg: number; elevM?: number } | null;
 }): { sats: MapSat[] } {
   // Ground tracks are the costly part: once a minute, and only for the
   // satellites that draw one (not ghosts or hidden ones).
@@ -148,6 +152,25 @@ export function useMapSats({
   }, [passTrack, pass?.noradId, pass?.startMs, pass?.endMs, pass?.peakMs, pass?.riseLabel, pass?.setLabel, minElevDeg, radio]);
   const pausedId = pass?.paused ? pass.noradId : null;
 
+  // A live view with no pass open: the visibility circle around you, as an
+  // open pass draws it, at the satellite's height now. The height is rounded
+  // to LIVE_RING_STEP_KM so the circle is rebuilt only when it moves.
+  const liveTrack = liveId != null && passShape?.noradId !== liveId ? tracks.get(liveId) : undefined;
+  const liveEcef = liveTrack && nowMs != null ? liveTrack.ecefAt(new Date(nowMs)) : null;
+  const liveAltStep = liveEcef ? Math.round(subOf(liveEcef).altKm / LIVE_RING_STEP_KM) : null;
+  const obsLat = observer?.latDeg;
+  const obsLon = observer?.lonDeg;
+  const obsElev = observer?.elevM ?? 0;
+  const liveRings = useMemo(() => {
+    if (liveAltStep == null || obsLat == null || obsLon == null) return null;
+    const altKm = liveAltStep * LIVE_RING_STEP_KM;
+    const reach = (footprintRadiusDeg as (altKm: number, minElevDeg: number) => number)(altKm, (geometricElevFor as (d: number) => number)(minElevDeg));
+    if (!(reach > 0 && reach <= MAX_RING_DEG)) return null;
+    const ringAt = visibilityRing as (o: { latDeg: number; lonDeg: number; elevM?: number }, altKm: number, minElevDeg: number) => number[][];
+    const site = { latDeg: obsLat, lonDeg: obsLon, elevM: obsElev };
+    return { reachDeg: reach, ring: ringAt(site, altKm, minElevDeg), horizon: minElevDeg > 0 ? ringAt(site, altKm, 0) : null };
+  }, [liveAltStep, obsLat, obsLon, obsElev, minElevDeg]);
+
   // Positions every second.
   return useMemo(() => {
     const sats: MapSat[] = [];
@@ -194,9 +217,14 @@ export function useMapSats({
           ...(pausedId !== noradId && { passLive: true, ...(pass && nowMs >= pass.endMs && { passAfter: true }) }),
           ...(passShape.reachDeg != null && { passReachDeg: passShape.reachDeg }),
         }),
-        ...(liveId === noradId && passShape?.noradId !== noradId && pausedId !== noradId && { passLive: true, sightOnly: true }),
+        ...(liveId === noradId && passShape?.noradId !== noradId && pausedId !== noradId && {
+          passLive: true,
+          sightOnly: true,
+          ...(liveRings && { passReachDeg: liveRings.reachDeg, passRing: liveRings.ring }),
+          ...(liveRings?.horizon && { passRingHorizon: liveRings.horizon }),
+        }),
       });
     }
     return { sats };
-  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId, pass?.ring, pass?.ringHorizon, liveId]);
+  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId, pass?.ring, pass?.ringHorizon, liveId, liveRings]);
 }
