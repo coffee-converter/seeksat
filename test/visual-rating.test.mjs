@@ -168,3 +168,13 @@ test('a bright pass that stays low or is brief is capped', async () => {
   // A faint pass is not lifted by being high.
   assert.equal(visualQuality({ peakMag: 4.2, peakMagSunAltDeg: -18, maxElevDeg: 80, durationMs: 300_000 }).label, 'Poor');
 });
+
+test('Excellent is kept for passes that climb past 40 degrees', () => {
+  const bright = { peakMag: -1.6, peakMagSunAltDeg: -18, durationMs: 300_000 };
+  const mid = visualQuality({ ...bright, maxElevDeg: 31 });
+  assert.equal(mid.label, 'Great');
+  assert.match(mid.reason, /climb past 40°; this one tops out at 31°/);
+  assert.equal(visualQuality({ ...bright, maxElevDeg: 44 }).label, 'Excellent');
+  // A Great on brightness alone at 31° says nothing about the height cap.
+  assert.doesNotMatch(visualQuality({ ...bright, peakMag: 1.4, maxElevDeg: 31 }).reason, /climb past/);
+});
