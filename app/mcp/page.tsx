@@ -8,13 +8,15 @@ import {
 } from "@/lib/mcp/discovery.mjs";
 import "./mcp.css";
 
+const MCP_ALT = "SeekSat MCP server: satellite passes and radio for AI agents, at seeksat.com/api/mcp";
+
 export const metadata: Metadata = {
   title: "MCP Server",
   description:
     "Query SeekSat's satellite pass & position engine from AI agents over the Model Context Protocol.",
   alternates: { canonical: "/mcp" },
-  openGraph: { images: [{ url: "/og-mcp.png", width: 1200, height: 630 }] },
-  twitter: { card: "summary_large_image", images: ["/og-mcp.png"] },
+  openGraph: { images: [{ url: "/og-mcp.png", width: 1200, height: 630, alt: MCP_ALT }] },
+  twitter: { card: "summary_large_image", images: [{ url: "/og-mcp.png", alt: MCP_ALT }] },
 };
 
 type Param = { name: string; type: string; required: boolean; range: string; description: string };

@@ -27,12 +27,11 @@ from fontTools.subset import Subsetter, Options
 COMMIT = "95f4904fc8bcf26d3420fe315560c96417c6dec7"  # google/fonts
 URL = (f"https://github.com/google/fonts/raw/{COMMIT}/ofl/atkinsonhyperlegiblenext/"
        "AtkinsonHyperlegibleNext%5Bwght%5D.ttf")
-# Printable ASCII U+0020-007E plus: NBSP, degree, superscript 2 and 3 and 1,
-# middle dot, masculine ordinal, plus-minus, multiplication, e-acute,
-# i-diaeresis, o-diaeresis, Greek Delta and mu, en dash, em dash, curly
+# Printable ASCII U+0020-007E, Latin-1 Supplement and Latin Extended-A
+# U+00A0-017F (place names such as Zürich, São Paulo, Łódź, İstanbul, which
+# the share cards print), plus: Greek Delta and mu, en dash, em dash, curly
 # quotes, bullet, ellipsis, minus, approx, le, ge.
-UNICODES = (list(range(0x20, 0x7F)) + [
-    0xA0, 0xB0, 0xB2, 0xB3, 0xB9, 0xB7, 0xBA, 0xB1, 0xD7, 0xE9, 0xEF, 0xF6,
+UNICODES = (list(range(0x20, 0x7F)) + list(range(0xA0, 0x180)) + [
     0x394, 0x3BC, 0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022,
     0x2026, 0x2212, 0x2248, 0x2264, 0x2265])
 FACES = [(400, "Regular"), (600, "SemiBold")]
