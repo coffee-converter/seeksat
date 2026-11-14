@@ -35,9 +35,11 @@ export function useLiveHeldRow(open: OpenPassRow | null, liveId: number | null =
   const last = useRef<OpenPassRow | null>(open);
   if (open) last.current = open;
   if (!liveView) last.current = open;
-  if (open) return open;
-  const held = last.current;
-  return held && (liveId == null || held.noradId === liveId) ? held : null;
+  // A live view docked for another satellite replaces the open pass on the
+  // map, even while its row is still open in the list (its rise and set
+  // marks and sight line would otherwise stay up beside the live one).
+  const row = open ?? last.current;
+  return row && (liveId == null || row.noradId === liveId) ? row : null;
 }
 
 type Arc = { riseMs: number; setMs: number; closestMs: number };
