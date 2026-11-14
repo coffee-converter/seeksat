@@ -59,7 +59,7 @@ export interface MapPass {
 }
 
 export function useMapSats({
-  layers, tracks, colors, nowMs, minElevDeg, radio, pass = null,
+  layers, tracks, colors, nowMs, minElevDeg, radio, pass = null, liveId = null,
 }: {
   layers: Layer[];
   tracks: ReadonlyMap<number, MapTrack>;
@@ -70,6 +70,9 @@ export function useMapSats({
   radio: boolean;
   /** The opened pass, drawn bold with a sight line to its highest point. */
   pass?: MapPass | null;
+  /** The satellite a live view is open on: it gets the live sight line even
+   *  with no pass open (however the live view was opened). */
+  liveId?: number | null;
 }): { sats: MapSat[] } {
   // Ground tracks are the costly part: once a minute, and only for the
   // satellites that draw one (not ghosts or hidden ones).
@@ -191,8 +194,9 @@ export function useMapSats({
           ...(pausedId !== noradId && { passLive: true, ...(pass && nowMs >= pass.endMs && { passAfter: true }) }),
           ...(passShape.reachDeg != null && { passReachDeg: passShape.reachDeg }),
         }),
+        ...(liveId === noradId && passShape?.noradId !== noradId && pausedId !== noradId && { passLive: true, sightOnly: true }),
       });
     }
     return { sats };
-  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId, pass?.ring, pass?.ringHorizon]);
+  }, [nowMs, layers, tracks, ground, colors, minElevDeg, radio, passShape, pausedId, pass?.ring, pass?.ringHorizon, liveId]);
 }

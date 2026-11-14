@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePublishMapScene } from "@/lib/map/scene-store";
 import { useLiveHeldRow, useMapPause, type OpenPassRow } from "@/lib/map/use-map-pause";
+import { useLiveDock } from "@/lib/live/dock-store";
 import { HEADER_PINNED_EVENT } from "@/components/HeaderPinned";
 import { useMapSats, type Layer, type MapTrack } from "@/components/home/useMapSats";
 import DashboardTiles, { LiveNumbersFold, OrbitCheck } from "./LiveNumbers";
@@ -245,12 +246,14 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   }), [prefs.following, prefs.hidden, data.noradId]);
   // An opened pass pauses the map at its peak.
   const [openRow, setOpenRow] = useState<OpenPassRow | null>(null);
+  // A live view docked on the page: its satellite gets the live sight line.
+  const liveId = useLiveDock((st) => st.noradId);
   const mapRow = useLiveHeldRow(openRow);
   const { mapNowMs, mapPass } = useMapPause(mapRow, {
     nowMs, track: usable ? mapTracks.get(data.noradId) : null, observer: settings.observer, minElevDeg: settings.minElevDeg,
   });
   const { sats } = useMapSats({
-    layers, tracks: mapTracks, colors, nowMs: mapNowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio", pass: mapPass,
+    layers, tracks: mapTracks, colors, nowMs: mapNowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio", pass: mapPass, liveId,
   });
   // One chip per followed satellite, as on the home page: tap to focus,
   // the eye to hide or show.
