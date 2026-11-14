@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as sat from 'satellite.js';
 import {
   coarsePasses, coarseScan, createLru, scanKey, cellOf, refineWindows, hourOf, REFINE_MIN, SCAN_YIELD_EVERY,
-  stageWindowHours, stageMinElevation,
+  stageWindowHours, stageMinElevation, roughScore,
 } from '../lib/mcp/radio-scan.mjs';
 import { bestPassTool, byRadioRating, RADIO_SCAN_MAX_HOURS } from '../lib/mcp/tools.mjs';
 import { findPasses } from '../lib/mcp/passes.mjs';
@@ -261,4 +261,133 @@ test('benchmark: a 400-satellite radio scan over 24 hours takes well under a few
   // About 0.3 s on a quiet laptop; the limit leaves room for a busy machine.
   assert.ok(coldMs < 5000, `took ${coldMs} ms`);
   assert.ok(warmMs < coldMs);
+});
+
+test('every rough pass knows its range at the peak', () => {
+  const rec = synthetic(1).values().next().value;
+  const { runs } = coarsePasses(sat.json2satrec(rec.omm), { latDeg: 42.19, lonDeg: -88.21 }, NOW, NOW + 24 * 3_600_000, 10);
+  assert.ok(runs.length > 0);
+  for (const r of runs) assert.ok(Number.isFinite(r.peakRangeKm) && r.peakRangeKm > 300 && r.peakRangeKm < 3000, `${r.peakRangeKm}`);
+});
+
+test('the rough score ranks hearable, then bars, then recency, then height', () => {
+  const run = (peakElevDeg, peakRangeKm = 500) => ({ peakElevDeg, peakRangeKm, firstMs: 0, lastMs: 0 });
+  assert.ok(roughScore(run(30), { hearable: true }) > roughScore(run(89), { hearable: false }));
+  assert.ok(roughScore(run(89), { recency: 3 }) > roughScore(run(45), { recency: 0 }));
+  assert.ok(roughScore(run(45), { recency: 0 }) > roughScore(run(50), { recency: 3 }));
+  assert.ok(roughScore(run(50)) > roughScore(run(45)));
+  // Far away costs bars, as the exact rating does.
+  assert.ok(roughScore(run(89, 600)) > roughScore(run(89, 8000)));
+});
+
+/** synthetic(n) with every odd satellite moved to S-band only. */
+function withSBand(n) {
+  const recs = synthetic(n);
+  for (const [id, r] of recs) if (id % 2) r.downlinks = [{ hz: 2_210_000_000, mode: 'bpsk', label: 'Telemetry', default: true }];
+  return recs;
+}
+
+test('with no bands asked, satellites with a VHF or UHF downlink rank ahead of S-band-only ones', async () => {
+  const recs = withSBand(30);
+  const { deps } = depsFor(recs);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, deps);
+  const hearable = out.passes.map((p) => p.downlinks.some((d) => d.frequencyMHz < 1000));
+  assert.ok(hearable[0], 'a hearable satellite leads');
+  const firstDeaf = hearable.indexOf(false);
+  if (firstDeaf >= 0) assert.ok(hearable.slice(firstDeaf).every((h) => !h), 'no hearable one after an S-band one');
+  // By height alone an S-band satellite would have come before some hearable one.
+  const all = bruteForce(recs, { latDeg: 42.19, lonDeg: -88.21 });
+  const sBest = all.find((p) => p.noradId % 2);
+  const hearableRows = out.passes.filter((p, i) => hearable[i]);
+  assert.ok(sBest && hearableRows.some((p) => p.peakElevationDeg < sBest.peakElevationDeg), 'the order changed');
+});
+
+test('bands filter counts every satellite hearable', async () => {
+  const recs = withSBand(30);
+  const { deps } = depsFor(recs);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5, bands: ['s'] }, deps);
+  assert.equal(out.matchedSatellites, 15);
+  assert.ok(out.passes.length > 0);
+  for (const p of out.passes) assert.ok(p.downlinks.every((d) => d.frequencyMHz > 2000));
+  const bars = out.passes.map((p) => p.rating.bars);
+  assert.deepEqual(bars, [...bars].sort((a, b) => b - a));
+});
+
+import { emptyTally, addObservations, indexTally } from '../lib/reception/tally.mjs';
+const H = 3_600_000;
+const tallyOf = (good, bad) => {
+  const t = emptyTally();
+  for (const [id, n, ago] of good) addObservations(t, Array.from({ length: n }, () => ({ uuid: `G${id}`, noradId: id, endMs: NOW - ago, lowHz: null, highHz: null })), 'good');
+  for (const [id, n] of bad) addObservations(t, Array.from({ length: n }, (_, i) => ({ uuid: `B${id}`, noradId: id, endMs: NOW - (i + 1) * H, lowHz: null, highHz: null })), 'bad');
+  return t;
+};
+/** Transmitters matched by frequency: give each synthetic one its downlink's. */
+function tallyFor(recs, good, bad) {
+  const t = tallyOf(good, bad);
+  for (const tx of Object.values(t.tx)) tx.lowHz = tx.highHz = recs.get(tx.noradId).downlinks[0].hz;
+  return indexTally(t);
+}
+
+test('silent satellite is capped and flagged', async () => {
+  const recs = synthetic(30);
+  const plain = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 1 }, depsFor(recs).deps);
+  const top = plain.best;
+  assert.ok(top.rating.bars >= 3, 'the top pass rates above Fair');
+  const reception = tallyFor(recs, [], [[top.noradId, 3]]);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, depsFor(recs, { reception: async () => reception }).deps);
+  const row = out.passes.find((p) => p.noradId === top.noradId);
+  if (row) {
+    assert.equal(row.rating.bars, 2);
+    assert.equal(row.reception.state, 'silent');
+    assert.match(row.rating.reason, /tried 3 times in 30 days and heard nothing/);
+  }
+  assert.notEqual(out.best.noradId, top.noradId);
+  assert.match(out.receptionSource, /CC BY-SA 4\.0/);
+});
+
+test('heard breaks a tie', async () => {
+  const recs = synthetic(30);
+  const plain = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, depsFor(recs).deps);
+  // Two passes on the same bars: the lower one's satellite was heard lately.
+  const topBars = plain.passes[0].rating.bars;
+  const same = plain.passes.filter((p) => p.rating.bars === topBars);
+  assert.ok(same.length >= 2, 'two passes share the top bars');
+  const lower = same.at(-1);
+  assert.notEqual(lower.noradId, same[0].noradId);
+  const reception = tallyFor(recs, [[lower.noradId, 5, 2 * H]], []);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, depsFor(recs, { reception: async () => reception }).deps);
+  assert.equal(out.best.noradId, lower.noradId);
+  assert.equal(out.best.reception.heardLast48h, 5);
+  assert.equal(out.best.downlinks[0].reception.state, 'heard');
+});
+
+test('reception unavailable leaves rows as before', async () => {
+  const recs = synthetic(30);
+  const plain = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs).deps);
+  const broken = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs, { reception: async () => { throw new Error('x'); } }).deps);
+  assert.deepEqual(broken, plain);
+  const empty = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs, { reception: async () => indexTally(emptyTally()) }).deps);
+  assert.deepEqual(empty, plain);
+  assert.equal('receptionSource' in plain, false);
+  for (const p of plain.passes) assert.equal('reception' in p, false);
+});
+
+test('the rough score holds a probably silent satellite to Fair, as the exact rating does', () => {
+  const run = (peakElevDeg) => ({ peakElevDeg, peakRangeKm: 500, firstMs: 0, lastMs: 0 });
+  assert.ok(roughScore(run(89), { silent: true }) < roughScore(run(45)));
+  assert.ok(roughScore(run(89), { silent: true }) > roughScore(run(5)));
+});
+
+test('the cached sweep is redone once reception loads after a failed read', async () => {
+  const recs = synthetic(10);
+  let ok = false;
+  const reception = async () => { if (!ok) throw new Error('cold'); return tallyFor(recs, [[90001, 1, H]], []); };
+  const { deps, calls } = depsFor(recs, { reception });
+  const ask = { lat: 42.19, lon: -88.21, mode: 'radio', limit: 3 };
+  await bestPassTool(ask, deps);
+  await bestPassTool(ask, deps);
+  assert.equal(calls.radioIds, 1, 'same state: one sweep');
+  ok = true;
+  await bestPassTool(ask, deps);
+  assert.equal(calls.radioIds, 2, 'reception arrived: a fresh sweep');
 });

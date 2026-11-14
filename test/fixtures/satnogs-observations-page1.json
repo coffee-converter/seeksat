@@ -1,0 +1,32 @@
+[
+ {
+  "id": 15433113,
+  "start": "2026-11-13T00:52:05Z",
+  "end": "2026-11-13T00:56:32Z",
+  "status": "good",
+  "norad_cat_id": 59774,
+  "transmitter_uuid": "dfNhMzVxVwCRU27ZKGYXPR",
+  "transmitter_downlink_low": 401005000,
+  "transmitter_downlink_high": 401005000
+ },
+ {
+  "id": 15421255,
+  "start": "2026-11-13T00:50:45Z",
+  "end": "2026-11-13T00:56:49Z",
+  "status": "good",
+  "norad_cat_id": 57175,
+  "transmitter_uuid": "URhhV9R4FTpwpUJNGNuQWu",
+  "transmitter_downlink_low": 436990000,
+  "transmitter_downlink_high": 436990000
+ },
+ {
+  "id": 15418655,
+  "start": "2026-11-13T00:48:04Z",
+  "end": "2026-11-13T00:55:04Z",
+  "status": "good",
+  "norad_cat_id": 25544,
+  "transmitter_uuid": "bSPmbvvAavnj9XHMim8yEc",
+  "transmitter_downlink_low": 437550000,
+  "transmitter_downlink_high": 437550000
+ }
+]

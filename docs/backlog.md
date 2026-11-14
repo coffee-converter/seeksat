@@ -32,3 +32,13 @@ Take one, fix it with a test, and delete its entry.
   duplicates the one lib/mcp/sky.mjs exports. Import it.
 - **`staleDuring(epoch, t, t)` is just `staleAt(epoch, t)`.** Three calls in lib/mcp/tools.mjs
   (the scans and the multi-satellite best_pass loop) pass the same time twice. Call `staleAt`.
+
+## Site follow-ups from the SatNOGS reception work
+
+- **Radio pass cards:** show the reception line ("heard 24 times in the last 2 days", "SatNOGS stations
+  tried 5 times and heard nothing") from `lib/reception/` on the site's radio pass cards and live view.
+  The MCP rows already carry it; the site needs the tally served (a small `/api/reception` or folded into
+  `/api/sats`).
+- **Range in the site's bars:** the MCP radio rating takes a bar off per 6 dB of path loss beyond 2,000 km
+  (`lib/passes/quality.mjs radioQuality`); the site's bars are still height only, so a far MEO pass reads
+  higher on the site than in MCP answers. Engine passes need the peak range to use it.

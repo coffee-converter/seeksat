@@ -297,3 +297,24 @@ test('radio pass rows say when the pass can be seen: null in daylight, cut short
   // One of them goes into shadow before it sets: seen until then, not to the set.
   assert.ok(seen.some((p) => p.entersShadow && p.entersShadow < p.set && p.visibleUntil === p.entersShadow));
 });
+
+test('radio rows rate by height and by range at the peak', async () => {
+  const { radioQuality } = await import('../lib/passes/quality.mjs');
+  const { rankKey } = await import('../lib/mcp/passes.mjs');
+  const record = recordFrom(MOLNIYA_LINE1, MOLNIYA_LINE2);
+  const { passes } = findPasses({ record, observer: EN52VE, startMs: MOLNIYA_T0, windowHours: 48, minElevationDeg: 10, mode: 'radio' });
+  assert.ok(passes.length > 0);
+  let cut = 0;
+  for (const row of passes) {
+    const q = radioQuality({ maxElevDeg: row.peakElevationDeg }, row.peakRangeKm);
+    assert.equal(row.rating.bars, q.bars, `${row.peak}`);
+    if (q.bars < passQuality({ maxElevDeg: row.peakElevationDeg }).bars) cut++;
+  }
+  assert.ok(cut > 0, 'a Molniya orbit is far enough to lose bars');
+  // The rank key rates the same pass the same way.
+  const track = makeTrack(record);
+  const obs = { id: 'o', name: 'o', latDeg: EN52VE.latDeg, lonDeg: EN52VE.lonDeg, tz: 'UTC' };
+  const r = engineFindPasses({ track, observers: [obs], mode: 'radio', minElevDeg: 10, startMs: MOLNIYA_T0, endMs: MOLNIYA_T0 + 48 * 3_600_000 });
+  const key = rankKey(r.passes[0], track, obs, 'radio', 10);
+  assert.equal(key.rating.bars, passes[0].rating.bars);
+});

@@ -77,3 +77,65 @@ test('search_satellites: a downlink kind passed as mode is refused with how to a
   assert.equal(schema.safeParse({ query: 'sstv', mode: 'radio' }).success, true);
   assert.match(spec.inputSchema.query.description, /downlink kind as the whole query/);
 });
+
+// Reception from SatNOGS: a tally with the ISS's 437.550 SSTV downlink heard
+// 24 times in the last day, and nothing for its 437.800 default.
+import { emptyTally, addObservations, indexTally } from '../lib/reception/tally.mjs';
+function sstvHeard(nowMs) {
+  const t = emptyTally();
+  addObservations(t, Array.from({ length: 24 }, (_, i) => ({ uuid: 'SSTV', noradId: 25544, endMs: nowMs - (i + 1) * 3_600_000, lowHz: 437_550_000, highHz: 437_550_000 })), 'good');
+  return indexTally(t);
+}
+
+test('heard downlink leads and becomes the default', async () => {
+  const reception = sstvHeard(NOW);
+  const out = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, { ...deps, reception: async () => reception });
+  assert.equal(out.downlinks[0].frequencyMHz, 437.55);
+  assert.equal(out.downlinks[0].isDefault, true);
+  assert.equal(out.downlinks[0].reception.heardLast48h, 24);
+  assert.equal(out.downlinks[0].reception.state, 'heard');
+  assert.equal(out.downlinks.filter((d) => d.isDefault).length, 1);
+  assert.equal(out.downlinks.find((d) => d.frequencyMHz === 437.8).reception.state, 'unknown');
+  assert.equal(out.frequencyMHz, 437.55);
+  assert.match(out.receptionSource, /SatNOGS/);
+});
+
+test('given frequency wins', async () => {
+  const reception = sstvHeard(NOW);
+  const out = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg, frequencyMHz: 437.8 }, { ...deps, reception: async () => reception });
+  assert.equal(out.frequencyMHz, 437.8);
+});
+
+test('reception unavailable leaves get_radio_pass as before', async () => {
+  const plain = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, deps);
+  const broken = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, { ...deps, reception: async () => { throw new Error('blob down'); } });
+  assert.deepEqual(broken, plain);
+  const empty = await radioPassTool({ satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, { ...deps, reception: async () => indexTally(emptyTally()) });
+  assert.deepEqual(empty, plain);
+  assert.equal('receptionSource' in plain, false);
+  assert.equal('reception' in plain.downlinks[0], false);
+  assert.equal(plain.frequencyMHz, 437.8);
+});
+
+test('find_passes and next_visible_pass (radio) cap a silent satellite and carry its reception', async () => {
+  const { nextVisiblePassTool } = await import('../lib/mcp/tools.mjs');
+  const t = emptyTally();
+  addObservations(t, [1, 2, 3, 4].map((i) => ({ uuid: 'DEAD', noradId: 25544, endMs: NOW - i * 3_600_000, lowHz: 437_800_000, highHz: 437_800_000 })), 'bad');
+  // Every ISS downlink: tried and never heard.
+  for (const hz of [437_550_000, 145_800_000]) addObservations(t, [1, 2, 3].map((i) => ({ uuid: `D${hz}`, noradId: 25544, endMs: NOW - i * 3_600_000, lowHz: hz, highHz: hz })), 'bad');
+  const ix = indexTally(t);
+  const ask = { satellite: 'iss', lat: EN52VE.latDeg, lon: EN52VE.lonDeg, mode: 'radio', minElevation: 0 };
+  const plain = await findPassesTool(ask, deps);
+  const high = plain.passes.find((p) => p.rating.bars > 2);
+  assert.ok(high, 'a pass above Fair to cap');
+  const out = await findPassesTool(ask, { ...deps, reception: async () => ix });
+  assert.equal(out.passes.find((p) => p.rise === high.rise).rating.bars, 2);
+  assert.equal(out.reception.state, 'silent');
+  assert.match(out.receptionSource, /SatNOGS/);
+  const next = await nextVisiblePassTool(ask, { ...deps, reception: async () => ix });
+  assert.ok(next.pass.rating.bars <= 2);
+  assert.equal(next.reception.state, 'silent');
+  // Visual mode is untouched.
+  const vis = await findPassesTool({ ...ask, mode: 'visual' }, { ...deps, reception: async () => ix });
+  assert.equal('reception' in vis, false);
+});

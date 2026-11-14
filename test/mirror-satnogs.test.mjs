@@ -59,6 +59,7 @@ test('fetchTransmitters asks SatNOGS DB once, identifies itself, and rejects a f
   assert.equal(list.length, 1);
   assert.equal(seen[0].url, SATNOGS_TRANSMITTERS_URL);
   assert.match(seen[0].opts.headers['User-Agent'], /seeksat\.com/);
+  assert.match(seen[0].opts.headers['User-Agent'], /coffee\.becomes\.code@gmail\.com/);
   await assert.rejects(fetchTransmitters({ fetchImpl: async () => new Response('busy', { status: 503 }) }), /503/);
   await assert.rejects(fetchTransmitters({ fetchImpl: async () => new Response('{"a":1}', { status: 200 }) }), /not a list/);
 });
@@ -71,4 +72,11 @@ test('a repeater keeps its uplink, mode, inversion and tone', () => {
   assert.deepEqual(out['27607'][0].uplink, { hz: 145_850_000, mode: 'fm', tone: 67 });
   assert.deepEqual(out['44909'][0].uplink, { hz: 145_935_000, highHz: 145_995_000, mode: 'lsb', invert: true });
   assert.equal(downlinksFromTransmitters([tx({})])['25544'][0].uplink, undefined);
+});
+
+test('downlinks keep their SatNOGS transmitter uuid', () => {
+  const out = downlinksFromTransmitters([tx({ uuid: 'ism4mBBuTeSBYsF67yno8j' }), tx({ downlink_low: 145_800_000, uuid: '' })]);
+  const byHz = Object.fromEntries(out['25544'].map((d) => [d.hz, d]));
+  assert.equal(byHz[437_800_000].uuid, 'ism4mBBuTeSBYsF67yno8j');
+  assert.equal('uuid' in byHz[145_800_000], false);
 });
