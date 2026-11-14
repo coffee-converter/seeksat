@@ -2,8 +2,11 @@
 // left out of whole-sky answers, and times too far from the epoch refused.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { elementAgeAt, staleAt, assertNearEpoch, MAX_EPOCH_GAP_DAYS } from '../lib/mcp/freshness.mjs';
-import { getPositionTool, findPassesTool, getPassChartTool, whatsUpNowTool, identifySatelliteTool, bestPassTool, listSatellites } from '../lib/mcp/tools.mjs';
+import { elementAgeAt, staleAt, staleDuring, assertNearEpoch, assertWindowNearEpoch, MAX_EPOCH_GAP_DAYS } from '../lib/mcp/freshness.mjs';
+import {
+  getPositionTool, findPassesTool, getPassChartTool, whatsUpNowTool, identifySatelliteTool, bestPassTool, listSatellites,
+  nextVisiblePassTool, radioPassTool,
+} from '../lib/mcp/tools.mjs';
 import { createLru } from '../lib/mcp/radio-scan.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
 
@@ -34,6 +37,14 @@ test('staleAt and assertNearEpoch', () => {
   assert.throws(() => assertNearEpoch(EPOCH, Date.parse('1990-01-01T00:00:00Z')), /time 1990-01-01T00:00:00\.000Z is 13209 days from the orbital elements' epoch \(2026-03-01\)\. Predictions that far from the epoch are not meaningful; ask about a time within 30 days of it\./);
 });
 
+test('staleDuring and assertWindowNearEpoch check both ends of a window', () => {
+  assert.equal(staleDuring(EPOCH, EPOCH + 10 * DAY, EPOCH + 13 * DAY), false);
+  assert.equal(staleDuring(EPOCH, EPOCH + 10 * DAY, EPOCH + 17 * DAY), true);
+  assert.doesNotThrow(() => assertWindowNearEpoch(EPOCH, EPOCH + 20 * DAY, EPOCH + 30 * DAY));
+  assert.throws(() => assertWindowNearEpoch(EPOCH, EPOCH + 29 * DAY, EPOCH + 31 * DAY), /the search runs to 2026-04-01T12:00:00\.000Z, 31 days from the orbital elements' epoch \(2026-03-01\)\. .* use a windowHours of at most 24\./);
+  assert.throws(() => assertWindowNearEpoch(EPOCH, EPOCH + 40 * DAY, EPOCH + 41 * DAY), /^Error: the time now/);
+});
+
 const ISS = { noradId: 25544, name: 'ISS (ZARYA)', omm: ISS_OMM, epochMs: EPOCH, source: 'fixture', fetchedAtMs: 0 };
 const depsAt = (nowMs, extra = {}) => ({
   now: () => nowMs,
@@ -58,6 +69,20 @@ test('satellite results carry elementAge, and a far-off time is refused', async 
   await assert.rejects(() => getPassChartTool({ satellite: 'iss', ...AT, time: '2027-01-01T00:00:00Z' }, depsAt(EPOCH)), /days from the orbital elements' epoch/);
   const list = await listSatellites(depsAt(EPOCH + 20 * DAY));
   assert.equal(list.satellites.find((s) => s.noradId === 25544).elementAge.level, 'stale');
+});
+
+test('every time a single-satellite tool works out is checked against the epoch, not only a time asked about', async () => {
+  const far = depsAt(EPOCH + 45 * DAY);
+  const at = { satellite: 'iss', ...AT, mode: 'radio' };
+  for (const tool of [getPositionTool, findPassesTool, nextVisiblePassTool, getPassChartTool, radioPassTool, bestPassTool]) {
+    await assert.rejects(() => tool(at, far), /the time now .* is 45 days from the orbital elements' epoch/, tool.name);
+  }
+  // A window that runs past the line: refused with a window that fits.
+  const late = depsAt(EPOCH + 29 * DAY);
+  await assert.rejects(() => findPassesTool({ ...at, windowHours: 72 }, late), /use a windowHours of at most 24/);
+  await assert.rejects(() => bestPassTool({ ...at, windowHours: 72 }, late), /use a windowHours of at most 24/);
+  const ok = await findPassesTool({ ...at, windowHours: 20 }, late);
+  assert.equal(ok.elementAge.level, 'stale');
 });
 
 /** n low-orbit satellites, the first `staleCount` with elements 30 days old. */
@@ -103,4 +128,14 @@ test('scans leave out stale elements and count them', async () => {
   assert.equal(visual.skippedStaleElements, 4);
   assert.equal(visual.satellitesScanned, 8);
   for (const p of [...radio.passes, ...visual.passes]) assert.equal(p.elementAge.level, 'fresh');
+  // Ten days old now, so past the 14-day line before a week-long sweep ends.
+  const later = depsAt(EPOCH + 10 * DAY, {
+    getRecord: async (id) => recs.get(id) ?? null,
+    visualIds: async () => [...recs.keys()],
+    visualScanCache: createLru(4),
+  });
+  const week = await bestPassTool({ ...AT, windowHours: 168 }, later);
+  assert.equal(week.skippedStaleElements, 12);
+  const day = await bestPassTool({ ...AT, windowHours: 24 }, later);
+  assert.equal(day.skippedStaleElements, 4);
 });

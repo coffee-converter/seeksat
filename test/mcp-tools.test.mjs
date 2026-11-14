@@ -273,10 +273,16 @@ const DEAD_LOC = { lat: 42, lon: -88, mode: 'radio' };
 
 test('unavailable elements: tools throw or skip with a clear reason', async () => {
   assert.equal(makeTrack(DEAD).ecefAt(new Date(deadDeps.now())), null, 'fixture really does not propagate');
+  // Elements this old are refused before any propagation.
+  for (const tool of [findPassesTool, nextVisiblePassTool, bestPassTool]) {
+    await assert.rejects(() => tool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), /the time now .* is \d+ days from the orbital elements' epoch \(2018-01-01\)/);
+  }
+  // Recent by their stated epoch but still not propagating: said plainly.
+  const recent = { ...deadDeps, getRecord: async (id) => (id === 25544 ? { ...DEAD, epochMs: deadDeps.now() - 86_400_000 } : null) };
   const msg = "elements for ISS (ZARYA) can't be propagated";
-  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), { message: msg });
-  await assert.rejects(() => nextVisiblePassTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps), { message: msg });
-  const out = await bestPassTool({ satellite: 'iss', ...DEAD_LOC }, deadDeps);
+  await assert.rejects(() => findPassesTool({ satellite: 'iss', ...DEAD_LOC }, recent), { message: msg });
+  await assert.rejects(() => nextVisiblePassTool({ satellite: 'iss', ...DEAD_LOC }, recent), { message: msg });
+  const out = await bestPassTool({ satellite: 'iss', ...DEAD_LOC }, recent);
   assert.deepEqual(out.skipped, [{ satellite: 'ISS (ZARYA)', reason: "elements can't be propagated" }]);
 });
 

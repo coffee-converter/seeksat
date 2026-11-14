@@ -114,9 +114,11 @@ ranked by the radio rating (peak height).
   darkness, height, clear-sky odds, length; brightness plays no part).
   `quality` is its old name and carries the same number.
 - `elementAge` grades the orbital elements as the site does (fresh, old over
-  7 days, stale over 14) with a warning when not fresh. Whole-sky tools leave
-  stale objects out (`skippedStaleElements`); a time more than 30 days from
-  the elements' epoch is refused.
+  7 days, stale over 14) with a warning when not fresh. Whole-sky tools and
+  best_pass scans leave stale objects out (`skippedStaleElements`), checking
+  the whole window. A tool for one satellite refuses any time more than 30
+  days from the elements' epoch: now, a time asked about, the end of its
+  search window, or the pass it answers with.
 - An empty pass list carries a `note` saying why.
 
 ## Design decisions
