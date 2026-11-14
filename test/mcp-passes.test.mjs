@@ -2,7 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { compass } from '../lib/sat/pass-rows.mjs';
-import { findPasses, getPosition, nextPassWindow, passRating, ESTIMATED_MAG_NOTE } from '../lib/mcp/passes.mjs';
+import { findPasses, getPosition, nextPassWindow, passRating, windowMagnitude, ESTIMATED_MAG_NOTE } from '../lib/mcp/passes.mjs';
+import { findPasses as engineFindPasses } from '../lib/passes/engine.mjs';
+import { makeTrack } from '../lib/sat/track.mjs';
+import { peakMagnitudeInWindow } from '../lib/pass-finder/scoring.js';
 import { visualQuality } from '../lib/sky/visual-rating.mjs';
 import { passQuality } from '../lib/passes/quality.mjs';
 import { cloudBadge } from '../lib/sky/cloud-badge.mjs';
@@ -151,6 +154,30 @@ test('findPasses (visual) still computes a magnitude when standardMag is known',
   assert.equal(typeof passes[0].peakMagnitude, 'number');
   assert.equal(passes[0].peakMagnitudeEstimated, false);
   assert.equal('brightnessNote' in passes[0], false);
+});
+
+test('known magnitudes include the atmosphere\'s dimming, as the app shows them', () => {
+  const record = { line1: LINE1, line2: LINE2 };
+  const args = { record, observer: VIS_OBS, startMs: START, windowHours: 48, standardMag: -1.8 };
+  // Visual: exactly the engine's peak magnitude, the number the app shows.
+  const track = makeTrack(record, null);
+  track.standardMag = -1.8;
+  const engine = engineFindPasses({ track, observers: [{ id: 'o', ...VIS_OBS }], mode: 'visual', minElevDeg: 10, startMs: START, endMs: START + 48 * 3_600_000 });
+  const rows = findPasses({ ...args, mode: 'visual' }).passes;
+  assert.deepEqual(rows.map((p) => p.peakMagnitude), engine.passes.map((p) => Math.round(p.peakMag * 10) / 10));
+  // Radio: the window's brightest moment, dimmer than without extinction.
+  const radio = findPasses({ ...args, observer: { latDeg: 0, lonDeg: 100 }, mode: 'radio' }).passes;
+  const lit = radio.filter((p) => p.peakMagnitude != null);
+  assert.ok(lit.length > 0);
+  for (const p of lit) {
+    const raw = peakMagnitudeInWindow({ startMs: Date.parse(p.rise), endMs: Date.parse(p.set) }, [{ latDeg: 0, lonDeg: 100 }], track.ecefAt, -1.8);
+    assert.ok(p.peakMagnitude >= Math.round(raw * 10) / 10, `${p.peakMagnitude} vs ${raw}`);
+  }
+  // A high site has thinner air above it, so less dimming.
+  const win = { startMs: Date.parse(lit[0].rise), endMs: Date.parse(lit[0].set) };
+  const low = windowMagnitude(win, { latDeg: 0, lonDeg: 100 }, track.ecefAt, -1.8);
+  const high = windowMagnitude(win, { latDeg: 0, lonDeg: 100, elevM: 3000 }, track.ecefAt, -1.8);
+  assert.ok(high < low);
 });
 
 test('findPasses (radio) estimates an unknown magnitude without changing the rating', () => {
