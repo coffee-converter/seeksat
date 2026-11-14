@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 // App Router serves this as /manifest.webmanifest and links it from every
 // page. Same-origin, so the CSP's default-src 'self' already covers it.
-// Icons: the favicon (app/icon.svg), the touch icon (app/apple-icon.png) and
-// two PNGs that scripts/build-icons.mjs rasterizes from the favicon.
+// Icons: the mark (public/icon.svg), the touch icon (app/apple-icon.png) and
+// two app icons, all written by scripts/build-icons.mjs from lib/brand/marks.mjs.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "SeekSat",
