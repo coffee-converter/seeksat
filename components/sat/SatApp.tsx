@@ -253,7 +253,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     nowMs, track: usable ? mapTracks.get(data.noradId) : null, observer: settings.observer, minElevDeg: settings.minElevDeg,
   });
   const { sats } = useMapSats({
-    layers, tracks: mapTracks, colors, nowMs: mapNowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio", pass: mapPass, liveId,
+    layers, tracks: mapTracks, colors, nowMs: mapNowMs, minElevDeg: settings.minElevDeg, radio: settings.mode === "radio", pass: mapPass, liveId, observer: settings.observer,
   });
   // One chip per followed satellite, as on the home page: tap to focus,
   // the eye to hide or show.
