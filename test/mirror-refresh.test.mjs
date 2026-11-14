@@ -15,7 +15,8 @@ test('all groups OK writes and counts unique ids', async () => {
   const store = createMemorySnapshotStore(null);
   const data = { stations: [ISS_OMM], active: [ISS_OMM, other] };
   const r = await refreshMirror({ store, groups: GROUPS, fetchGroup: async (g) => data[g], now: () => NOW, log: quiet });
-  assert.deepEqual(r, { written: true, objectCount: 2, failedGroups: [], skippedGroups: [] });
+  // A first run reports nothing new: every page would be.
+  assert.deepEqual(r, { written: true, objectCount: 2, failedGroups: [], skippedGroups: [], addedIds: [], removedIds: [] });
   assert.equal(Object.keys((await store.read()).objects).length, 2);
 });
 
@@ -97,7 +98,7 @@ test('a group fetched under 2 hours ago is skipped and carried forward', async (
   const fetchGroup = async (g) => { asked.push(g); return [other]; };
   const r = await refreshMirror({ store, groups: GROUPS, fetchGroup, now: () => NOW, log: quiet });
   assert.deepEqual(asked, ['active']);
-  assert.deepEqual(r, { written: true, objectCount: 2, failedGroups: [], skippedGroups: ['stations'] });
+  assert.deepEqual(r, { written: true, objectCount: 2, failedGroups: [], skippedGroups: ['stations'], addedIds: [99999], removedIds: [] });
   const s = await store.read();
   assert.ok(s.objects['25544'], 'skipped group records carry forward');
   assert.equal(s.groupFetchedAtMs.stations, NOW - 2 * HOUR + 1, 'skipped group keeps its fetch time');
@@ -212,4 +213,11 @@ test('downlinks: fetched on the first run, kept within a day, kept when a fetch 
   assert.equal(failed.downlinksFailed, true);
   assert.deepEqual((await store.read()).downlinks, DL);
   assert.equal((await store.read()).downlinksFetchedAtMs, NOW);
+});
+
+test('a refresh reports the satellites it added and the ones gone, for search engines', async () => {
+  const previous = buildSnapshot({ results: { stations: { ok: true, omms: [ISS_OMM, other] } }, previous: null, nowMs: NOW - 30 * HOUR });
+  const r = await refreshMirror({ store: createMemorySnapshotStore(previous), groups: ['stations'], fetchGroup: async () => [ISS_OMM], now: () => NOW, log: quiet });
+  assert.deepEqual(r.addedIds, []);
+  assert.deepEqual(r.removedIds, [99999]);
 });
