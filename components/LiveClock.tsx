@@ -24,7 +24,7 @@ export function localClock(ms: number, timeZone?: string): string {
  * A null `nowMs` (a page whose clock starts after mount) shows dashes.
  */
 export default function LiveClock({
-  nowMs, timeZone, compact = false, pausedMs = null, place = null,
+  nowMs, timeZone, compact = false, pausedMs = null, place = null, onResume,
 }: {
   nowMs: number | null;
   timeZone?: string;
@@ -34,6 +34,9 @@ export default function LiveClock({
   /** The location the passes are for: when its clock differs from the
    *  viewer's, the second line gives its time ("at Mendoza"), not "your time". */
   place?: { name: string; timeZone: string } | null;
+  /** Paused: the clock's first line becomes a button back to live (its
+   *  word turns to "Go live" on hover and focus). */
+  onResume?: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -52,10 +55,21 @@ export default function LiveClock({
       aria-label={paused ? "Map time, paused" : "Current time"}
     >
       <p className="live-clock__utc">
-        {paused
-          ? <Icon name="pause" className="live-clock__pause" />
-          : <span className="live-clock__dot" aria-hidden="true" />}
-        <span className="live-clock__live">{paused ? "Paused" : "Live"}</span>
+        {paused && onResume ? (
+          <button type="button" className="live-clock__resume" onClick={onResume} aria-label="Paused: back to live">
+            <Icon name="pause" className="live-clock__pause" />
+            <span className="live-clock__dot live-clock__dot--resume" aria-hidden="true" />
+            <span className="live-clock__live live-clock__word-paused">Paused</span>
+            <span className="live-clock__live live-clock__word-live">Go live</span>
+          </button>
+        ) : (
+          <>
+            {paused
+              ? <Icon name="pause" className="live-clock__pause" />
+              : <span className="live-clock__dot" aria-hidden="true" />}
+            <span className="live-clock__live">{paused ? "Paused" : "Live"}</span>
+          </>
+        )}
         <time className="live-clock__time num" dateTime={ms == null ? undefined : new Date(ms).toISOString()}>
           {utc}
         </time>

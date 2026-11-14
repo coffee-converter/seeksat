@@ -104,7 +104,7 @@ export default function SiteHeader() {
         >
           <Icon name="search" size={20} />
         </Button>
-        <LiveClock nowMs={nowMs} pausedMs={pausedMs} place={clockPlace} compact />
+        <LiveClock nowMs={nowMs} pausedMs={pausedMs} place={clockPlace} compact onResume={() => useMapClock.getState().backToLive()} />
         <Button variant="quiet" iconOnly className="map-shell__more" aria-label="Settings" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
           <Icon name="settings" size={20} />
         </Button>
