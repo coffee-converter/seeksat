@@ -36,7 +36,7 @@ import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import SatChips, { type Chip, type PendingChip } from "@/components/home/SatChips";
-import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
+import { SIDE_QUERY, WIDE_QUERY } from "@/lib/ui/layout";
 import { useMediaQuery } from "@/lib/ui/use-media-query";
 import { CATALOG } from "@/lib/catalog.mjs";
 import Button from "@/components/ui/Button";
@@ -67,7 +67,8 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const router = useRouter();
   const prefs = useHomeStore((s) => s.prefs);
   const hydrated = useHomeStore((s) => s.hydrated);
-  const docked = useMediaQuery(DOCKED_QUERY);
+  // Chips: desktop only (WIDE), not a phone held sideways.
+  const docked = useMediaQuery(WIDE_QUERY);
   const hydrate = useHomeStore((s) => s.hydrate);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
@@ -332,7 +333,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     if (!bar || !inner) return;
     let applied: HTMLElement | null = null;
     const set = () => {
-      const docked = window.matchMedia("(min-width: 1100px)").matches;
+      const docked = window.matchMedia(SIDE_QUERY).matches;
       const el = docked ? document.querySelector<HTMLElement>(".map-shell__panel") : document.documentElement;
       if (applied && applied !== el) applied.style.scrollPaddingTop = "";
       applied = el;

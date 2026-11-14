@@ -5,7 +5,9 @@ import { keptScrollTop } from "@/lib/ui/open-row.mjs";
 import { PASS_VIEW_QUERY } from "@/lib/ui/pass-view";
 
 /** The docked layout: the side panel scrolls, not the window. */
-export const DOCKED_QUERY = "(min-width: 1100px)";
+/** The map beside a scrolling panel (lib/ui/layout.ts SIDE_QUERY). */
+export { SIDE_QUERY as DOCKED_QUERY } from "@/lib/ui/layout";
+import { SIDE_QUERY as DOCKED_QUERY } from "@/lib/ui/layout";
 
 const keep = keptScrollTop as (o: { beforeTop: number; afterTop: number; scrollTop: number; maxScrollTop: number }) => number;
 

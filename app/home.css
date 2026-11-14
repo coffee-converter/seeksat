@@ -695,7 +695,7 @@
    turns the screen into the map, pinned under the header, and that pass's
    card filling the rest and scrolling inside itself. The list stays behind
    it, scrolled where it was, and the page itself cannot scroll. */
-@media (max-width: 699.98px) {
+@media (max-width: 699.98px) and (orientation: portrait), (max-width: 699.98px) and (min-height: 520.02px) {
   html:has(.map-shell.pass-view) { overflow: hidden; }
   /* The card is as tall as its content (PassRow measures it into
      --pass-card-h) and the map takes the rest, at least 260px; a taller
@@ -1418,7 +1418,7 @@
    above the map, and the map is capped at 40vh under it. Before hydration
    the pre-paint mark on <html> (lib/home/first-visit.mjs) sets the same
    height, so the map is never resized as the page loads. */
-@media (max-width: 1099.98px) {
+@media (max-width: 1099.98px) and (orientation: portrait), (max-width: 1099.98px) and (min-height: 520.02px), (max-width: 559.98px) {
   .home-first-visit .map-shell__map > .location-prompt { margin-bottom: var(--sp-8); }
   .home-first-visit .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map,
   html[data-first-visit] .flat-map-shell--fill:not(.flat-map-shell--full) .flat-map {
@@ -1429,7 +1429,7 @@
 
 /* Satellite page on phones: a map tall enough to see past its controls with
    the title just below it. */
-@media (max-width: 699.98px) {
+@media (max-width: 699.98px) and (orientation: portrait), (max-width: 699.98px) and (min-height: 520.02px) {
   .map-shell.sat { --map-h: max(220px, 55vh); }
   @supports (height: 1svh) { .map-shell.sat { --map-h: max(220px, 55svh); } }
 }
@@ -1437,7 +1437,7 @@
 /* Stacked (under 1100 px): the map takes about a third of the screen, home and
    satellite page alike, so more of the list shows. Full screen is unaffected
    (its rule sets the height to auto). */
-@media (max-width: 1099.98px) {
+@media (max-width: 1099.98px) and (orientation: portrait), (max-width: 1099.98px) and (min-height: 520.02px), (max-width: 559.98px) {
   .map-shell, .map-shell.sat { --map-h: max(220px, 33vh); }
   @supports (height: 1svh) { .map-shell, .map-shell.sat { --map-h: max(220px, 33svh); } }
   /* Paused on a pass, the map takes more of the screen so the pass and its
@@ -1453,7 +1453,7 @@
    map's bottom edge reads as the top of a sheet the rows slide into. Plain
    sticky, no scroll script. The satellite page keeps its plain scroll: its
    sticky title bar sits right under the top bar, where the strip would be. */
-@media (max-width: 1099.98px) {
+@media (max-width: 1099.98px) and (orientation: portrait), (max-width: 1099.98px) and (min-height: 520.02px), (max-width: 559.98px) {
   .map-shell:not(.sat) .map-shell__map {
     position: sticky;
     top: calc(var(--header-h) - var(--map-h) + 72px);
@@ -1498,8 +1498,13 @@
   .map-shell:not(.sat) .pass-list .pass-row--open { scroll-margin-top: calc(var(--header-h) + 72px + var(--sp-8) + var(--row-peek)); }
 }
 
+/* Phone landscape (a short screen, under 1100 px): the docked layout below,
+   with a panel that leaves the map most of the width. */
+@media (orientation: landscape) and (max-height: 520px) and (min-width: 560px) and (max-width: 1099.98px) {
+  .map-shell { grid-template-columns: minmax(0, 1fr) min(380px, 46vw); }
+}
 /* Docked: the map fills the window under the top bar, beside the panel. */
-@media (min-width: 1100px) {
+@media (min-width: 1100px), (orientation: landscape) and (max-height: 520px) and (min-width: 560px) {
   .map-shell {
     height: 100vh;
     height: 100dvh;
@@ -1678,7 +1683,7 @@
    own content hides while the dock host holds it, and stays mounted. The
    empty host makes no box, so it adds no gap. */
 .live-dock-host { display: contents; }
-@media (min-width: 1100px) {
+@media (min-width: 1100px), (orientation: landscape) and (max-height: 520px) and (min-width: 560px) {
   .map-shell__panel:has(> .live-dock-host > .live-dock) > :not(.live-dock-host) { display: none; }
 }
 .live-dock { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; container: live-dock / inline-size; }
