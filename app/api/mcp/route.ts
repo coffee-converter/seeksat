@@ -15,6 +15,7 @@ import { geocodeOne } from '@/lib/pass-finder/geocode.js';
 import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
 import { parseProKeys, resolveTier } from '@/lib/mcp/auth.mjs';
 import { runWithRequestContext, getRequestContext } from '@/lib/mcp/request-context.mjs';
+import { callerOf, createHeavyGate } from '@/lib/mcp/heavy-gate.mjs';
 import { logUsage } from '@/lib/mcp/usage.mjs';
 import { createLru } from '@/lib/mcp/radio-scan.mjs';
 
@@ -80,8 +81,7 @@ type Args = Record<string, unknown>;
 
 /** Tools that scan many satellites or draw an image. */
 const HEAVY_TOOLS = new Set(['best_pass', 'whats_up_now', 'identify_satellite', 'get_pass_chart']);
-const MAX_HEAVY = 3;
-let heavyRunning = 0;
+const heavyGate = createHeavyGate();
 type Tier = 'free' | 'pro';
 
 // The handler behind each tool in TOOL_SPECS.
@@ -113,16 +113,19 @@ const mcpHandler = createMcpHandler(
           annotations: spec.online ? ONLINE : LOCAL,
         },
         async (args: Args) => {
-          const { tier, keyId } = getRequestContext();
+          const { tier, keyId, caller } = getRequestContext() as { tier: string; keyId: string | null; caller?: string };
           logUsage({ tool: spec.name, tier, keyId, satellite: args.satellite == null ? null : String(args.satellite) });
           // JSON first and a chart image (when there is one) LAST, so it is
           // the trailing content block clients are likeliest to show inline.
-          // The scans and the chart render are heavy: a few at a time per
-          // instance, and the rest are told to try again.
-          const heavy = HEAVY_TOOLS.has(spec.name);
-          if (heavy && heavyRunning >= MAX_HEAVY) return asError(new Error('busy with other searches: try again in a few seconds'));
-          if (heavy) heavyRunning++;
-          try { return asResult(await run(args, tier as Tier)); } catch (e) { return asError(e); } finally { if (heavy) heavyRunning--; }
+          // The scans and the chart render are heavy: one at a time per caller,
+          // in a pool per tier (lib/mcp/heavy-gate.mjs).
+          let release: (() => void) | null = null;
+          if (HEAVY_TOOLS.has(spec.name)) {
+            const slot = heavyGate.enter(tier, caller ?? 'anon');
+            if (typeof slot !== 'function') return asError(new Error(slot.busy));
+            release = slot;
+          }
+          try { return asResult(await run(args, tier as Tier)); } catch (e) { return asError(e); } finally { release?.(); }
         },
       );
     }
@@ -149,7 +152,7 @@ async function handler(req: Request): Promise<Response> {
     req = new Request(req.url, { method: 'POST', headers: req.headers, body: text });
   }
   const { tier, keyId } = resolveTier(presentedKey(req), PRO_KEYS);
-  return runWithRequestContext({ tier, keyId }, () => mcpHandler(req));
+  return runWithRequestContext({ tier, keyId, caller: callerOf(keyId, req.headers) }, () => mcpHandler(req));
 }
 
 const MAX_BODY_CHARS = 64 * 1024;

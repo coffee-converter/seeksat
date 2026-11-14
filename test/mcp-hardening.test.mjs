@@ -41,3 +41,23 @@ test('the fuzzy search reads at most MAX_QUERY characters', () => {
   assert.ok(performance.now() - t0 < 200);
   assert.equal(MAX_QUERY, 64);
 });
+
+test('heavy calls: one at a time per caller, and a pool per tier', async () => {
+  const { createHeavyGate, callerOf } = await import('../lib/mcp/heavy-gate.mjs');
+  const gate = createHeavyGate({ perCaller: 1, pools: { free: 2, pro: 1 } });
+  const a = gate.enter('free', 'ip:1');
+  assert.equal(typeof a, 'function');
+  assert.match(gate.enter('free', 'ip:1').busy, /one search at a time/);
+  const b = gate.enter('free', 'ip:2');
+  assert.equal(typeof b, 'function');
+  assert.match(gate.enter('free', 'ip:3').busy, /busy with other searches/);
+  // Free callers filling their pool leave the pro pool open.
+  const p = gate.enter('pro', 'key:k1');
+  assert.equal(typeof p, 'function');
+  a(); a();
+  assert.equal(typeof gate.enter('free', 'ip:3'), 'function');
+  assert.equal(callerOf('k1', new Headers()), 'key:k1');
+  assert.equal(callerOf(null, new Headers({ 'x-forwarded-for': '1.2.3.4, 5.6.7.8' })), 'ip:1.2.3.4');
+  assert.equal(callerOf(null, new Headers({ 'x-real-ip': '9.9.9.9' })), 'ip:9.9.9.9');
+  assert.equal(callerOf(null, new Headers()), 'anon');
+});
