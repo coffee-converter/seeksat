@@ -5,7 +5,7 @@ import { paintRadioChart } from '../lib/pass-finder/radio-chart.js';
 import { paintPolarModalStatic } from '../lib/pass-finder/polar-modal-frame.js';
 import { radioPassSamples } from '../lib/pass-finder/radio-pass.js';
 import { geodeticToEcef } from '../lib/coords.js';
-import { buildCardSVG } from '../lib/og/build-card.mjs';
+import { buildGlobeCardSvg, globeCentre } from '../lib/og/globe-card.mjs';
 import { buildSatCardSvg } from '../lib/og/sat-card.mjs';
 
 const FACE = /@font-face\s*\{[^}]*font-family:\s*'Atkinson Hyperlegible Next'[^}]*data:font\/woff2;base64,/;
@@ -39,7 +39,7 @@ test('sky chart export embeds Atkinson Hyperlegible Next and uses it for text', 
 });
 
 test('OG cards name Atkinson Hyperlegible Next for their text', () => {
-  const site = buildCardSVG('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>');
+  const site = buildGlobeCardSvg({ centre: globeCentre(0, 0), lines: ['Satellite passes over you'] });
   assert.match(site, /font-family="'Atkinson Hyperlegible Next'/);
   const sat = buildSatCardSvg({ name: 'ISS (ZARYA)', noradId: 25544, intlDesignator: '98067A', elements: null, ageText: '2 hours old' });
   assert.match(sat, /font-family="'Atkinson Hyperlegible Next'/);
