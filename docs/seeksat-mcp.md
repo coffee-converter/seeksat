@@ -76,7 +76,7 @@ Cursor (`~/.cursor/mcp.json`):
 | `get_position` | Point below the satellite, altitude, sunlit | satellite, time (now), optional place for the time zone |
 | `next_visible_pass` | The next pass, optionally with its chart | satellite, place, windowHours (72), minElevation (10), mode, skyType, chart |
 | `get_pass_weather` | Cloud cover and clear-sky chance at one time | place, time; `available: false` with a reason when there is no forecast |
-| `get_pass_chart` | Polar sky chart (PNG) of a pass, plus its times | satellite, place, time (next pass), mode, minElevation (10) |
+| `get_pass_chart` | Polar sky chart (PNG) of a pass, plus its pass row | satellite, place, time (next pass), mode, minElevation (10), skyType |
 | `search_satellites` | Name or number to NORAD id, whole catalog | query, limit (10, up to 20), mode |
 | `get_radio_pass` | Frequencies, Doppler, tuning and pointing for one pass | satellite, place, time (next pass), frequencyMHz, minElevation (10), windowHours (48) |
 | `best_pass` | Best passes for one satellite or from a scan | satellite (omit to scan), place, windowHours (72), minElevation (10), limit (3, up to 20), mode, skyType, bands, modes, chart |

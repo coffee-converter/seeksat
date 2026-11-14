@@ -1,7 +1,7 @@
 // test/mcp-tools.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool } from '../lib/mcp/tools.mjs';
+import { listSatellites, findPassesTool, getPositionTool, nextVisiblePassTool, getPassChartTool } from '../lib/mcp/tools.mjs';
 import { GOES16_LINE1, GOES16_LINE2, EN52VE, recordFrom } from './fixtures/orbits.mjs';
 import { makeTrack } from '../lib/sat/track.mjs';
 import { ISS_OMM } from './fixtures/omm-iss.mjs';
@@ -231,6 +231,18 @@ test('best_pass skips a synthesized satellite with no record under its NORAD nam
 });
 
 
+test('get_pass_chart returns the charted pass as a full row, the one find_passes gives first', async () => {
+  const at = { satellite: 'iss', lat: 0, lon: 100, mode: 'radio' };
+  const chart = await getPassChartTool(at, deps);
+  const [first] = (await findPassesTool({ ...at, windowHours: 72 }, deps)).passes;
+  assert.ok(chart.pngBase64.length > 1000);
+  assert.equal(chart.pass.rise, first.rise);
+  assert.deepEqual(chart.pass.rating, first.rating);
+  assert.equal(chart.pass.passUrl, first.passUrl);
+  assert.equal(chart.pass.peakAzimuthDeg, first.azimuthDeg.peak);
+  assert.equal(chart.stationary, null);
+});
+
 test('best_pass skips a geostationary satellite with a reason', async () => {
   const goes = { ...recordFrom(GOES16_LINE1, GOES16_LINE2, 'GOES 16'), epochMs: Date.parse('2026-10-31T14:00:00Z') };
   const d = { ...deps, now: () => Date.parse('2026-10-31T15:00:00Z'), getRecord: async (id) => (id === 41866 ? goes : null) };
@@ -242,6 +254,16 @@ test('best_pass skips a geostationary satellite with a reason', async () => {
   const nv = await nextVisiblePassTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
   assert.equal(nv.pass, null);
   assert.ok(nv.stationary);
+  // best_pass's note points at stationary, so it gives it.
+  assert.deepEqual(out.stationary, fp.stationary);
+  assert.match(out.note, /see stationary/);
+  // The chart tool says it is geostationary and where to point, with no image.
+  const chart = await getPassChartTool({ satellite: 41866, lat: EN52VE.latDeg, lon: EN52VE.lonDeg }, d);
+  assert.equal(chart.pass, null);
+  assert.deepEqual(chart.stationary, fp.stationary);
+  assert.match(chart.note, /^Geostationary: it stays at one spot in your sky/);
+  assert.match(chart.summary, /azimuth [\d.]+° \([A-Z]+\), elevation [\d.]+°/);
+  assert.equal('pngBase64' in chart, false);
 });
 
 // Decayed-orbit elements: years old and high drag, so SGP4 gives up.
