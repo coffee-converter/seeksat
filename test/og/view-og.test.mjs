@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildViewCardSvg, viewTracks } from '../../lib/og/view-og.mjs';
+import { buildViewCardSvg, commonName, viewTracks } from '../../lib/og/view-og.mjs';
 import { parseView } from '../../lib/share/view-link.mjs';
 import { ISS_TLE } from './fixtures/iss-tle.mjs';
 
@@ -37,4 +37,12 @@ test('many satellites: the count is all of them, the names give way to "and N mo
   assert.equal(tracks.length, 10, 'at most one track per palette colour');
   const svg = buildViewCardSvg(view, tracks);
   assert.ok(svg.includes('20 satellites') && svg.includes('and 1'));
+});
+
+test('a catalog name gives way to the common name in its brackets', () => {
+  assert.equal(commonName('GSAT0201 (GALILEO 5)'), 'GALILEO 5');
+  assert.equal(commonName('EYESAT A (AO-27)'), 'AO-27');
+  assert.equal(commonName('SMILE'), 'SMILE');
+  assert.equal(commonName('RS-44 & BREEZE-KM R/B'), 'RS-44 & BREEZE-KM R/B');
+  assert.equal(commonName(undefined), undefined);
 });
