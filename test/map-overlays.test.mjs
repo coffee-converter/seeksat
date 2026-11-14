@@ -467,3 +467,15 @@ test('light-map labels are larger, with bold ticks and a thinner, soft halo; the
   assert.ok(of('light', 'ss-marks').paint['text-halo-blur'] > 0);
   assert.equal(of('dark', 'ss-marks').paint['text-halo-blur'], 0);
 });
+
+test('a live view with no pass open draws the sight line too, and below the horizon says so', async () => {
+  const { sightFeatures, belowWord } = await import('../lib/map/overlays.mjs');
+  const observer = { latDeg: 40, lonDeg: -90 };
+  const up = { ...SATS[0], position: { lonDeg: -88, latDeg: 41 }, altKm: 420, passLive: true, sightOnly: true };
+  assert.equal(sightFeatures(up, observer).filter((f) => f.properties.kind === 'sight').length, 1);
+  const down = { ...up, position: { lonDeg: 90, latDeg: -40 } };
+  assert.match(sightFeatures(down, observer).find((f) => f.properties.kind === 'sight-label').properties.label, /, below the horizon$/);
+  assert.equal(belowWord(down), 'below the horizon');
+  assert.equal(belowWord({ passLive: true }), 'not up yet');
+  assert.equal(belowWord({ passLive: true, passAfter: true }), 'already set');
+});
