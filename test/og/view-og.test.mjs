@@ -24,3 +24,17 @@ test('several satellites: a count for the title and their names underneath', asy
   assert.ok(svg.includes('2 satellites'));
   assert.ok(svg.includes('ISS · Tiangong') || svg.includes('ISS · CSS'), svg.match(/<text[^>]*>[^<]*·[^<]*<\/text>/)?.[0]);
 });
+
+test('many satellites: the count is all of them, the names give way to "and N more"', async () => {
+  const { namesLine } = await import('../../lib/og/view-og.mjs');
+  assert.equal(namesLine(['ISS', 'Tiangong'], 2), 'ISS · Tiangong');
+  const line = namesLine(['ISS', 'Tiangong', 'Hubble', 'SO-50', 'NOAA 19', 'NOAA 18', 'NOAA 15', 'Meteor-M2 3'], 20);
+  assert.match(line, /^ISS · Tiangong · .* and \d+ more$/);
+  assert.ok(line.length <= 44, line);
+  const ids = Array.from({ length: 20 }, (_, i) => 25544 + i);
+  const view = parseView(`?map=globe&sats=${ids.join(',')}`);
+  const tracks = await viewTracks(view, { reader: reader(ids), nowMs: NOW });
+  assert.equal(tracks.length, 8, 'at most eight tracks drawn');
+  const svg = buildViewCardSvg(view, tracks);
+  assert.ok(svg.includes('20 satellites') && svg.includes('and 1'));
+});
