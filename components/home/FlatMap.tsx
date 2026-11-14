@@ -1443,13 +1443,13 @@ export default function FlatMap({
       // Once a frame, however many move events it brings (each reads layout).
       let gridRaf = 0;
       map.on("move", () => {
-        if (!gridRaf) gridRaf = requestAnimationFrame(() => { gridRaf = 0; layoutGridLabels(map); });
+        if (!gridRaf) gridRaf = requestAnimationFrame(() => { gridRaf = 0; if (alive) layoutGridLabels(map); });
       });
       // The camera moved or the map drew: the line follows in the same frame.
       map.on("render", () => drawSight(map));
       let sightRaf = 0;
       map.on("move", () => {
-        if (!sightRaf) sightRaf = requestAnimationFrame(() => { sightRaf = 0; syncSightLabels(map); });
+        if (!sightRaf) sightRaf = requestAnimationFrame(() => { sightRaf = 0; if (alive) syncSightLabels(map); });
       });
       // Past zoom 11 the globe flattens toward Mercator and the GeoJSON fill takes over.
       map.on("zoom", syncFill);
@@ -1468,6 +1468,10 @@ export default function FlatMap({
     return () => {
       alive = false;
       window.clearTimeout(leaveTimer.current);
+      // A pass still hidden for loading: no reveal on a map that is gone (a
+      // frame that already asked for one finds nothing pending).
+      if (passPending.current) window.clearTimeout(passPending.current.timer);
+      passPending.current = null;
       window.removeEventListener("mouseup", letGo);
       window.removeEventListener("blur", letGo);
       window.removeEventListener("contextmenu", letGo);

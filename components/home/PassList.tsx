@@ -219,8 +219,8 @@ export default function PassList({
   const keyList = keys.join(" ");
   useEffect(() => {
     const live = keyList.split(" ");
-    setOpenKey((prev) => carryKey(prev, live, Date.now()));
-  }, [keyList]);
+    setOpenKey((prev) => carryKey(prev, live, nowMs));
+  }, [keyList, nowMs]);
 
   // Report the open row while it is still in the list, or carried over (the
   // effect above lands a render later).
