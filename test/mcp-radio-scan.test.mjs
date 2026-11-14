@@ -6,7 +6,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as sat from 'satellite.js';
 import {
-  coarsePasses, coarseScan, createLru, scanKey, cellOf, refineWindows, hourOf, REFINE_MIN,
+  coarsePasses, coarseScan, createLru, scanKey, cellOf, refineWindows, hourOf, REFINE_MIN, SCAN_YIELD_EVERY,
+  stageWindowHours, stageMinElevation,
 } from '../lib/mcp/radio-scan.mjs';
 import { bestPassTool, byRadioRating, RADIO_SCAN_MAX_HOURS } from '../lib/mcp/tools.mjs';
 import { findPasses } from '../lib/mcp/passes.mjs';
@@ -91,11 +92,28 @@ test('the coarse sweep sees every engine pass, with its peak to a fraction of a 
   }
 });
 
-test('coarse sweep: elements that do not propagate are unavailable', () => {
+test('coarse sweep: elements that do not propagate are unavailable', async () => {
   const dead = sat.json2satrec({ ...ISS_OMM, MEAN_MOTION: 17.5, EPOCH: '2018-01-01T00:00:00.000000', BSTAR: 0.01 });
-  const r = coarseScan([{ noradId: 1, satrec: dead }], { latDeg: 0, lonDeg: 0 }, NOW, NOW + 3_600_000, 8);
+  const r = await coarseScan([{ noradId: 1, satrec: dead }], { latDeg: 0, lonDeg: 0 }, NOW, NOW + 3_600_000, 8);
   assert.deepEqual(r.unavailable, [1]);
   assert.deepEqual(r.passes, []);
+});
+
+test('stage keys round the window up to whole hours and the elevation down to half a degree', () => {
+  assert.equal(stageWindowHours(167.5), 168);
+  assert.equal(stageWindowHours(24), 24);
+  assert.equal(stageMinElevation(10.2), 10);
+  assert.equal(stageMinElevation(10.7), 10.5);
+  assert.equal(stageMinElevation(10), 10);
+});
+
+test('the coarse sweep hands the event loop back between satellites', async () => {
+  const sats = [...synthetic(SCAN_YIELD_EVERY * 2 + 1).values()].map((r) => ({ noradId: r.noradId, satrec: sat.json2satrec(r.omm) }));
+  const order = [];
+  const scan = coarseScan(sats, { latDeg: 42.19, lonDeg: -88.21 }, NOW, NOW + 3_600_000, 10).then(() => order.push('scan'));
+  setImmediate(() => order.push('other work'));
+  await scan;
+  assert.deepEqual(order, ['other work', 'scan']);
 });
 
 test('createLru keeps the most recently used entries', () => {
@@ -186,6 +204,13 @@ test('radio scan: the coarse sweep is cached per cell and hour, and the window i
   assert.equal(calls.radioIds, 1, 'the second ask in the same cell and hour reuses the sweep');
   assert.ok(a.best && b.best);
   assert.deepEqual(b.resolvedLocation, { latDeg: 42.2, lonDeg: -88.2, displayName: null, timeZone: 'America/Chicago' });
+  // A fraction of an hour or of a degree shares the sweep, and answers as
+  // a sweep of its own would.
+  const frac = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', windowHours: 23.5, minElevation: 10.2 }, deps);
+  assert.equal(calls.radioIds, 1, 'rounded keys share the sweep');
+  const { deps: fresh } = depsFor(recs);
+  const alone = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', windowHours: 23.5, minElevation: 10.2 }, fresh);
+  assert.deepEqual(frac.passes.map((p) => p.rise), alone.passes.map((p) => p.rise));
   await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', minElevation: 30 }, deps);
   assert.equal(calls.radioIds, 2, 'another minimum elevation is another sweep');
   const long = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', windowHours: 200 }, deps);
