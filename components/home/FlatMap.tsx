@@ -272,6 +272,21 @@ const LOCK_ZOOM_MS = 250;
 const LOCK_SETTLE_MS = 150;
 /** How long turning Lock on eases to the satellite before following it. */
 const LOCK_EASE_MS = 600;
+/** The sources a pass switch redraws: the opened pass, the tracks (the
+ *  pass's satellite gets its track, the others turn faint) and their marks. */
+const PASS_SOURCES = new Set(["ss-pass", "ss-track-past", "ss-track-future", "ss-marks"]);
+/** The paint properties that fade each kind of layer. */
+type PaintProp = Parameters<MlMap["setPaintProperty"]>[1];
+const OPACITY_PROPS: Record<string, PaintProp[]> = {
+  line: ["line-opacity"],
+  fill: ["fill-opacity"],
+  circle: ["circle-opacity", "circle-stroke-opacity"],
+  symbol: ["text-opacity", "icon-opacity"],
+};
+const passLayersOf = (map: MlMap) =>
+  (map.getStyle()?.layers ?? []).filter((l) => "source" in l && PASS_SOURCES.has(l.source as string)).map((l) => l.id);
+/** Longest the pass stays hidden while a new one loads. */
+const PASS_REVEAL_MAX_MS = 700;
 /** A far camera move flies (MapLibre flyTo): its arc, and how long it takes,
  *  from FLY_MIN_MS for a short hop to FLY_MAX_MS for a third of the world or
  *  more, so tiles have time to load on the way. */
@@ -991,6 +1006,49 @@ export default function FlatMap({
     setOverlayData(map, data);
     syncSightLabels(map);
   }, [sourceData, refreshNight, syncSightLabels]);
+
+  // Switching passes: the new pass's lines take MapLibre's worker a few
+  // frames to build, while the clock, the dots and the end labels move at
+  // once, so the old lines would show at the new time, in the wrong place.
+  // The pass's layers and end labels hide the moment the pass changes and
+  // come back together when the new data has loaded (or after
+  // PASS_REVEAL_MAX_MS).
+  const passPending = useRef<{ timer: number; sent: boolean; saved: Map<string, [PaintProp, unknown][]> } | null>(null);
+  const revealPass = useCallback((map: MlMap) => {
+    const pending = passPending.current;
+    if (!pending) return;
+    window.clearTimeout(pending.timer);
+    passPending.current = null;
+    // Opacities back as they were (kept while hidden).
+    for (const [id, props] of pending.saved) {
+      if (!map.getLayer(id)) continue;
+      for (const [prop, value] of props) map.setPaintProperty(id, prop, value as Parameters<MlMap["setPaintProperty"]>[2]);
+    }
+    // The end labels a frame later, once the lines have drawn.
+    requestAnimationFrame(() => shellRef.current?.classList.remove("flat-map--pass-pending"));
+    syncSightLabels(map);
+  }, [syncSightLabels]);
+  const hidePass = useCallback((map: MlMap) => {
+    if (passPending.current) {
+      passPending.current.sent = false;
+      return;
+    }
+    // Faded to nothing rather than switched off: a layer switched off leaves
+    // its tiles, and switching it back on waits for the worker again.
+    const saved = new Map<string, [PaintProp, unknown][]>();
+    for (const id of passLayersOf(map)) {
+      const props = OPACITY_PROPS[map.getLayer(id)?.type ?? ""] ?? [];
+      saved.set(id, props.map((prop) => [prop, map.getPaintProperty(id, prop)]));
+      for (const prop of props) {
+        // At once, not MapLibre's default fade of a paint change.
+        map.setPaintProperty(id, `${prop}-transition` as PaintProp, { duration: 0, delay: 0 } as Parameters<MlMap["setPaintProperty"]>[2]);
+        map.setPaintProperty(id, prop, 0);
+      }
+    }
+    shellRef.current?.classList.add("flat-map--pass-pending");
+    passPending.current = { timer: window.setTimeout(() => revealPass(map), PASS_REVEAL_MAX_MS), sent: false, saved };
+  }, [revealPass]);
+  const shownPass = useRef<string | null>(null);
 
   const syncGestures = useCallback(() => {
     const map = mapRef.current;
@@ -1883,11 +1941,40 @@ export default function FlatMap({
         }
       }
     }
+    // A new pass (or none): hidden until its lines have loaded.
+    const open = sats.find((x) => x.passPath);
+    const passId = open ? `${open.noradId}:${shapeId(open.passPath)}` : "";
+    if (map && shownPass.current !== null && passId !== shownPass.current) hidePass(map);
+    shownPass.current = passId;
     // Out of view (a phone scrolled down to the list), the push waits until
     // the map shows again.
     if (mapInView.current) push();
     else pushWaiting.current = true;
-  }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, liveFocus]);
+    if (passPending.current && mapInView.current) passPending.current.sent = true;
+  }, [sats, observer, selectedId, minElevDeg, push, pushFootprint, moveTo, liveFocus, hidePass]);
+
+  // The paused time changing (a new pass picked) hides the old pass at once,
+  // before the new pass's props arrive; and the new lines show once loaded.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const unsub = useMapClock.subscribe((st, prev) => {
+      if (st.paused?.key !== prev.paused?.key) hidePass(map);
+    });
+    // Shown again once every redrawn source has loaded, a frame later so the
+    // lines are drawn by then.
+    const onData = (e: { sourceId?: string }) => {
+      const pending = passPending.current;
+      if (!pending?.sent || !e.sourceId || !PASS_SOURCES.has(e.sourceId)) return;
+      for (const id of PASS_SOURCES) if (map.getSource(id) && !map.isSourceLoaded(id)) return;
+      requestAnimationFrame(() => revealPass(map));
+    };
+    map.on("sourcedata", onData);
+    return () => {
+      unsub();
+      map.off("sourcedata", onData);
+    };
+  }, [mapReady, hidePass, revealPass]);
 
   // A Share button reads the camera: none while it is the untouched home view
   // (each visitor gets their own), else the zoom and, unless locked, the centre.

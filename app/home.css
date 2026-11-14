@@ -68,6 +68,8 @@
 /* An opened pass's rise and set: a dot in its colour and the time beside it. */
 .flat-map__end { width: 9px; height: 9px; pointer-events: none; }
 .flat-map__end.maplibregl-marker-covered { visibility: hidden; }
+/* A new pass loading (FlatMap hidePass): its end labels wait for its lines. */
+.flat-map--pass-pending .flat-map__end { visibility: hidden; }
 .flat-map__end-dot {
   position: absolute;
   inset: 0;
@@ -429,6 +431,25 @@
 .live-clock--compact .live-clock__live { font-size: var(--fs-xs); }
 .live-clock--paused .live-clock__live { color: var(--warn); }
 .live-clock__pause { align-self: center; flex: none; width: 10px; height: 10px; color: var(--warn); }
+/* Paused, the clock's first part is a button back to live: on hover or
+   focus the pause mark and word turn to the live dot and "Go live". */
+.live-clock__resume {
+  display: inline-flex; align-items: baseline; gap: var(--sp-6);
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.live-clock__resume:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.live-clock__dot--resume,
+.live-clock__word-live { display: none; }
+.live-clock--paused .live-clock__word-live { color: var(--ok); }
+.live-clock__resume:hover .live-clock__pause,
+.live-clock__resume:hover .live-clock__word-paused,
+.live-clock__resume:focus-visible .live-clock__pause,
+.live-clock__resume:focus-visible .live-clock__word-paused { display: none; }
+.live-clock__resume:hover .live-clock__dot--resume,
+.live-clock__resume:focus-visible .live-clock__dot--resume { display: inline-block; animation: none; }
+.live-clock__resume:hover .live-clock__word-live,
+.live-clock__resume:focus-visible .live-clock__word-live { display: inline; }
 .live-clock--compact .live-clock__zone { font-size: var(--fs-xs); }
 .live-clock--compact .live-clock__local { font-size: var(--fs-xs); }
 @keyframes live-pulse {
