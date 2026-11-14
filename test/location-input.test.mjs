@@ -237,3 +237,25 @@ test('geocoder: no match is null; a failed request is null and tried again next 
   assert.equal((await geocodeOne(q, { fetchImpl: flaky.fetchImpl, gapMs: 0 })).latDeg, 35.68);
   assert.equal(await geocodeOne('   ', { fetchImpl: flaky.fetchImpl, gapMs: 0 }), null);
 });
+
+test('long or hostile text is cheap to reject', () => {
+  const hostile = [
+    'N1 '.repeat(66), '1 '.repeat(100), 'N'.repeat(199) + '1', ('1'.repeat(30) + ' ').repeat(6), "1°1'1\"".repeat(30),
+    'a'.repeat(5000), `${'1 '.repeat(3000)}N`,
+  ];
+  const t0 = performance.now();
+  for (const t of hostile) {
+    parseLatLonText(t);
+    parseLocationInput(t);
+  }
+  assert.ok(performance.now() - t0 < 200, `took ${performance.now() - t0} ms`);
+  assert.equal(parseLatLonText('1'.repeat(201)), null);
+  assert.equal(parseLocationInput('x'.repeat(201)).kind, 'invalid');
+});
+
+test('geocoder: a long queue says busy at once instead of waiting', async () => {
+  const f = fakeFetch(() => ok(place));
+  const answers = await Promise.all([1, 2, 3, 4, 5, 6].map(() => geocodeOne(unique('Flood'), { fetchImpl: f.fetchImpl, gapMs: 1000 })));
+  assert.ok(answers.some((a) => a && a.busy), 'some callers are told busy');
+  assert.ok(f.calls.length <= 5);
+});
