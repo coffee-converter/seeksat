@@ -15,7 +15,8 @@ import { geocodeOne } from '@/lib/pass-finder/geocode.js';
 import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
 import { parseProKeys, resolveTier } from '@/lib/mcp/auth.mjs';
 import { runWithRequestContext, getRequestContext } from '@/lib/mcp/request-context.mjs';
-import { callerOf, createHeavyGate } from '@/lib/mcp/heavy-gate.mjs';
+import { callerOf, createHeavyGate, isHeavyCall } from '@/lib/mcp/heavy-gate.mjs';
+import { readCappedText } from '@/lib/mcp/body.mjs';
 import { createHash } from 'node:crypto';
 import { logUsage } from '@/lib/mcp/usage.mjs';
 import { createLru } from '@/lib/mcp/radio-scan.mjs';
@@ -98,7 +99,6 @@ const ONLINE = { ...LOCAL, openWorldHint: true };
 type Args = Record<string, unknown>;
 
 /** Tools that scan many satellites or draw an image. */
-const HEAVY_TOOLS = new Set(['best_pass', 'whats_up_now', 'identify_satellite', 'get_pass_chart']);
 const heavyGate = createHeavyGate();
 type Tier = 'free' | 'pro';
 
@@ -138,7 +138,7 @@ const mcpHandler = createMcpHandler(
           // The scans and the chart render are heavy: one at a time per caller,
           // in a pool per tier (lib/mcp/heavy-gate.mjs).
           let release: (() => void) | null = null;
-          if (HEAVY_TOOLS.has(spec.name)) {
+          if (isHeavyCall(spec.name, args)) {
             const slot = heavyGate.enter(tier, caller ?? 'anon');
             if (typeof slot !== 'function') return asError(new Error(slot.busy));
             release = slot;
@@ -164,8 +164,9 @@ async function handler(req: Request): Promise<Response> {
   // HTTP request (all the firewall's rate limit counts) carry a hundred tool
   // calls, and a huge body costs memory before any check runs.
   if (req.method === 'POST') {
-    const text = await req.text();
-    if (text.length > MAX_BODY_CHARS) return jsonRpcRefusal(413, 'request too large');
+    // Read up to the cap and no further (UTF-8 is at most 4 bytes a character).
+    const text = await readCappedText(req, MAX_BODY_CHARS * 4);
+    if (text == null || text.length > MAX_BODY_CHARS) return jsonRpcRefusal(413, 'request too large');
     if (text.trimStart().startsWith('[')) return jsonRpcRefusal(400, 'batches are not supported: send one message per request');
     req = new Request(req.url, { method: 'POST', headers: req.headers, body: text });
   }

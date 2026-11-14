@@ -135,8 +135,11 @@ test('scans leave out stale elements and count them', async () => {
     visualIds: async () => [...recs.keys()],
     visualScanCache: createLru(4),
   });
-  const week = await bestPassTool({ ...AT, windowHours: 168 }, later);
+  const week = await bestPassTool({ ...AT, windowHours: 168, limit: 20 }, later);
   assert.equal(week.skippedStaleElements, 4);
+  // Kept, but no pass is predicted more than 14 days from its elements.
+  assert.ok(week.passes.length > 0);
+  for (const p of week.passes) assert.ok(Date.parse(p.peak) <= EPOCH + 14 * DAY, `${p.satellite} at ${p.peak}`);
   const day = await bestPassTool({ ...AT, windowHours: 24 }, later);
   assert.equal(day.skippedStaleElements, 4);
 });

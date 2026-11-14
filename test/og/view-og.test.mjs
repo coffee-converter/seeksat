@@ -71,3 +71,12 @@ test('one satellite: its height on the first line, and "shared live map" said on
   assert.match(svg, />Where it is now, [\d,]+ km up</);
   assert.equal((svg.match(/[Ss]hared live map/g) || []).length, 1);
 });
+
+test('no names drawn: no bare "and 3 more", the card falls back to its own line', async () => {
+  const { namesLine } = await import('../../lib/og/view-og.mjs');
+  assert.equal(namesLine([], 3), '');
+  const view = parseView('?map=globe&sats=11111,22222,33333');
+  const svg = buildViewCardSvg(view, await viewTracks(view, { reader: reader([]), nowMs: Date.parse('2026-03-01T12:00:00Z') }));
+  assert.doesNotMatch(svg, /> and \d+ more</);
+  assert.match(svg, />3 satellites</);
+});
