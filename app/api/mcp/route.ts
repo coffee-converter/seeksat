@@ -22,10 +22,12 @@ import { createLru } from '@/lib/mcp/radio-scan.mjs';
 
 const PRO_KEYS = parseProKeys(process.env.MCP_PRO_KEYS);
 
+// Trimmed here, once: the tier check and the caller's identity both use it.
 function presentedKey(req: Request): string | null {
   const auth = req.headers.get('authorization');
-  if (auth && auth.startsWith('Bearer ')) return auth.slice(7).trim();
-  return req.headers.get('x-api-key');
+  const raw = auth && auth.startsWith('Bearer ') ? auth.slice(7) : req.headers.get('x-api-key');
+  const key = raw?.trim();
+  return key ? key : null;
 }
 
 export const runtime = 'nodejs';
@@ -152,8 +154,8 @@ async function handler(req: Request): Promise<Response> {
     if (text.trimStart().startsWith('[')) return jsonRpcRefusal(400, 'batches are not supported: send one message per request');
     req = new Request(req.url, { method: 'POST', headers: req.headers, body: text });
   }
-  const { tier, keyId } = resolveTier(presentedKey(req), PRO_KEYS);
   const key = presentedKey(req);
+  const { tier, keyId } = resolveTier(key, PRO_KEYS);
   const keyHash = tier === 'pro' && key ? createHash('sha256').update(key).digest('hex') : null;
   return runWithRequestContext({ tier, keyId, caller: callerOf(keyHash, tier, req.headers) }, () => mcpHandler(req));
 }
