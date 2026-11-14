@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.{mjs,js} test/og/*.{mjs,js}",
     "og:build": "node scripts/build-og-image.mjs",
-    "icons:build": "node scripts/build-icons.mjs"
+    "icons:build": "node scripts/build-icons.mjs",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "dependencies": {
     "@photostructure/tz-lookup": "11.7.0",
