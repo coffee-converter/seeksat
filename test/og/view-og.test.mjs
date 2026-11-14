@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildViewCardSvg, commonName, viewTracks } from '../../lib/og/view-og.mjs';
+import { bestCentre, buildViewCardSvg, commonName, viewTracks } from '../../lib/og/view-og.mjs';
+import { onCard, globeCentre } from '../../lib/og/globe-card.mjs';
+import { periodMinOf } from '../../lib/og/tle.mjs';
 import { parseView } from '../../lib/share/view-link.mjs';
 import { ISS_TLE } from './fixtures/iss-tle.mjs';
 
@@ -45,4 +47,19 @@ test('a catalog name gives way to the common name in its brackets', () => {
   assert.equal(commonName('SMILE'), 'SMILE');
   assert.equal(commonName('RS-44 & BREEZE-KM R/B'), 'RS-44 & BREEZE-KM R/B');
   assert.equal(commonName(undefined), undefined);
+});
+
+test('tracks run one orbit around now: the period comes from the elements', () => {
+  // 15.5 revolutions a day.
+  assert.ok(Math.abs(periodMinOf(ISS_TLE) - 1440 / 15.5) < 0.2);
+});
+
+test('without a place of its own, the card faces where the satellites are', () => {
+  const tracks = [
+    { sat: { lonDeg: 120, latDeg: 10 }, ground: [[100, 0], [120, 10], [140, 20]] },
+    { sat: { lonDeg: 135, latDeg: 30 }, ground: [[125, 20], [135, 30], [145, 40]] },
+  ];
+  const at = bestCentre(tracks);
+  for (const t of tracks) assert.ok(onCard(globeCentre(at[0], at[1]), t.sat.lonDeg, t.sat.latDeg));
+  assert.equal(bestCentre([]), null);
 });
