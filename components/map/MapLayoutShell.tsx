@@ -72,10 +72,8 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
   // over them with its older copy.
   useEffect(() => watchPrefs(), []);
 
-  // Lock on is off whenever a page loads, including a hop between satellites.
-  useEffect(() => {
-    useLock.getState().setLocked(false);
-  }, [pathname]);
+  // Lock on carries over a hop between satellites (the map eases over to the
+  // new one); it ends where nothing is selected (the map's own rule).
 
   // A shared link's view (lib/share/view-link.mjs): laid over the prefs until
   // kept, its camera handed to the map. The parameters then leave the address

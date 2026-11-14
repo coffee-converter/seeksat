@@ -42,15 +42,26 @@ export function usePassView(open: boolean, close: () => void) {
   closeRef.current = close;
   useEffect(() => {
     if (!active) return;
+    // Caught first (capture) and kept to itself, so the page's own Esc
+    // (leave a satellite page, clear a focus) does not run as well. Typing in
+    // a field keeps its Esc.
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       // A chart or sheet over the card closes first (it handles its own Esc).
       if (document.querySelector("dialog[open], [role='dialog'][aria-modal='true']")) return;
+      e.preventDefault();
+      e.stopPropagation();
       closeRef.current();
     };
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    // Everything around the card, inert; again whenever the list changes
+    // under it (a new day's group, rows added), so nothing slips back in and
+    // the card is never left inside an inert group.
     const made: Element[] = [];
-    const id = requestAnimationFrame(() => {
+    const apply = () => {
+      for (const el of made.splice(0)) el.removeAttribute("inert");
       const card = document.querySelector(".map-shell .pass-row--open");
       const panel = card?.closest(".map-shell__panel");
       for (let el: Element | null | undefined = card; el && panel && el !== panel; el = el.parentElement) {
@@ -61,10 +72,18 @@ export function usePassView(open: boolean, close: () => void) {
           }
         }
       }
+    };
+    let raf = requestAnimationFrame(apply);
+    const panelEl = document.querySelector(".map-shell__panel");
+    const watch = new MutationObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(apply);
     });
+    if (panelEl) watch.observe(panelEl, { childList: true, subtree: true });
     return () => {
-      window.removeEventListener("keydown", onKey);
-      cancelAnimationFrame(id);
+      window.removeEventListener("keydown", onKey, true);
+      watch.disconnect();
+      cancelAnimationFrame(raf);
       for (const el of made) el.removeAttribute("inert");
     };
   }, [active]);

@@ -33,7 +33,10 @@ export function useBackCloses(open: boolean, close: () => void) {
     if (!open) {
       if (pushed.current) {
         pushed.current = false;
-        if (ours()) window.history.back();
+        // Step back over this entry and any opened over it (a chart over the
+        // pass view closes with it), so no empty entry is left for Back.
+        const over = depthNow() - depth.current;
+        if (over >= 0) window.history.go(-(over + 1));
       }
       return;
     }
