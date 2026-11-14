@@ -63,6 +63,16 @@ test('inputs: NORAD ids as numbers or strings, minElevation and time everywhere 
   assert.ok(shape('get_radio_pass').minElevationDeg && shape('get_radio_pass').passTime, 'old names still accepted');
 });
 
+test('the error notes describe validation failures as the SDK returns them: a tool result with isError', async () => {
+  const { ERROR_NOTES } = await import('../lib/mcp/discovery.mjs');
+  const text = ERROR_NOTES.join(' ');
+  assert.match(text, /isError: true \(not a JSON-RPC error\)/);
+  assert.match(text, /"MCP error -32602: Input validation error"/);
+  const md = readFileSync(new URL('../docs/seeksat-mcp.md', import.meta.url), 'utf8');
+  assert.match(md, /not a JSON-RPC error/);
+  assert.equal(/as JSON-RPC error -32602/.test(text + md), false);
+});
+
 test('schemas are strict: an unknown parameter is refused, naming the ones the tool takes; old names work everywhere', async () => {
   const { inputObject, ALIASES } = await import('../lib/mcp/tool-specs.mjs');
   const { toolParams } = await import('../lib/mcp/discovery.mjs');

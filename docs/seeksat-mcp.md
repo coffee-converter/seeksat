@@ -61,9 +61,11 @@ Cursor (`~/.cursor/mcp.json`):
 - Rate limit: 120 requests per 60 seconds per IP address, a Vercel firewall
   rule on the endpoint (not in this code). Past that, requests get HTTP 429.
 - A tool that cannot answer returns a normal result with `isError: true` and
-  the text `Error: <message>`. Inputs of the wrong type or out of range are
-  refused as JSON-RPC error -32602 naming the field, and so is a parameter
-  the tool does not take (the message lists the ones it does).
+  the text `Error: <message>`. Inputs of the wrong type or out of range, and
+  parameters the tool does not take, are refused before it runs, also as a
+  tool result with `isError: true` (not a JSON-RPC error): its text starts
+  `MCP error -32602: Input validation error` and names the field (or lists
+  the parameters the tool takes).
 
 ## Tools
 
