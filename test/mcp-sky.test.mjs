@@ -255,3 +255,17 @@ test('whats_up_now (radio): VHF and UHF satellites list ahead of higher S-band-o
   }
   assert.ok(checked > 0, 'an S-band satellite was up at one of the times');
 });
+
+test('whats_up_now (radio): a satellite heard lately lists ahead of a higher unknown one', async () => {
+  const { emptyTally, addObservations, indexTally } = await import('../lib/reception/tally.mjs');
+  const before = await whatsUpNowTool({ ...SYDNEY, mode: 'radio', minElevation: 0, limit: 50 }, depsAt(NOON));
+  assert.ok(before.satellites.length >= 2);
+  const low = before.satellites.at(-1);
+  const t = emptyTally();
+  addObservations(t, [{ uuid: 'X', noradId: low.noradId, endMs: NOON - 3_600_000, lowHz: low.downlinks[0].frequencyMHz * 1e6, highHz: null }], 'good');
+  const ix = indexTally(t);
+  const out = await whatsUpNowTool({ ...SYDNEY, mode: 'radio', minElevation: 0, limit: 50 }, { ...depsAt(NOON), reception: async () => ix });
+  assert.equal(out.satellites[0].noradId, low.noradId);
+  assert.equal(out.satellites[0].reception.state, 'heard');
+  assert.match(out.receptionSource, /SatNOGS/);
+});

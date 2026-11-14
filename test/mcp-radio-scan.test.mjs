@@ -312,3 +312,60 @@ test('bands filter counts every satellite hearable', async () => {
   const bars = out.passes.map((p) => p.rating.bars);
   assert.deepEqual(bars, [...bars].sort((a, b) => b - a));
 });
+
+import { emptyTally, addObservations, indexTally } from '../lib/reception/tally.mjs';
+const H = 3_600_000;
+const tallyOf = (good, bad) => {
+  const t = emptyTally();
+  for (const [id, n, ago] of good) addObservations(t, Array.from({ length: n }, () => ({ uuid: `G${id}`, noradId: id, endMs: NOW - ago, lowHz: null, highHz: null })), 'good');
+  for (const [id, n] of bad) addObservations(t, Array.from({ length: n }, (_, i) => ({ uuid: `B${id}`, noradId: id, endMs: NOW - (i + 1) * H, lowHz: null, highHz: null })), 'bad');
+  return t;
+};
+/** Transmitters matched by frequency: give each synthetic one its downlink's. */
+function tallyFor(recs, good, bad) {
+  const t = tallyOf(good, bad);
+  for (const tx of Object.values(t.tx)) tx.lowHz = tx.highHz = recs.get(tx.noradId).downlinks[0].hz;
+  return indexTally(t);
+}
+
+test('silent satellite is capped and flagged', async () => {
+  const recs = synthetic(30);
+  const plain = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 1 }, depsFor(recs).deps);
+  const top = plain.best;
+  assert.ok(top.rating.bars >= 3, 'the top pass rates above Fair');
+  const reception = tallyFor(recs, [], [[top.noradId, 3]]);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, depsFor(recs, { reception: async () => reception }).deps);
+  const row = out.passes.find((p) => p.noradId === top.noradId);
+  if (row) {
+    assert.equal(row.rating.bars, 2);
+    assert.equal(row.reception.state, 'silent');
+    assert.match(row.rating.reason, /tried 3 times in 30 days and heard nothing/);
+  }
+  assert.notEqual(out.best.noradId, top.noradId);
+  assert.match(out.receptionSource, /CC BY-SA 4\.0/);
+});
+
+test('heard breaks a tie', async () => {
+  const recs = synthetic(30);
+  const plain = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, depsFor(recs).deps);
+  // Two passes on the same bars: the lower one's satellite was heard lately.
+  const topBars = plain.passes[0].rating.bars;
+  const same = plain.passes.filter((p) => p.rating.bars === topBars);
+  assert.ok(same.length >= 2, 'two passes share the top bars');
+  const lower = same.at(-1);
+  assert.notEqual(lower.noradId, same[0].noradId);
+  const reception = tallyFor(recs, [[lower.noradId, 5, 2 * H]], []);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, depsFor(recs, { reception: async () => reception }).deps);
+  assert.equal(out.best.noradId, lower.noradId);
+  assert.equal(out.best.reception.heardLast48h, 5);
+  assert.equal(out.best.downlinks[0].reception.state, 'heard');
+});
+
+test('reception unavailable leaves rows as before', async () => {
+  const recs = synthetic(30);
+  const plain = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs).deps);
+  const broken = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5 }, depsFor(recs, { reception: async () => { throw new Error('x'); } }).deps);
+  assert.deepEqual(broken, plain);
+  assert.equal('receptionSource' in plain, false);
+  for (const p of plain.passes) assert.equal('reception' in p, false);
+});

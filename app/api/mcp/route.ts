@@ -20,6 +20,11 @@ import { readCappedText } from '@/lib/mcp/body.mjs';
 import { createHash } from 'node:crypto';
 import { logUsage } from '@/lib/mcp/usage.mjs';
 import { createLru } from '@/lib/mcp/radio-scan.mjs';
+import { createReceptionReader } from '@/lib/reception/reader.mjs';
+import { createBlobReceptionStore } from '@/lib/reception/store.mjs';
+
+// SatNOGS reception (lib/reception/), read at most hourly per instance.
+const receptionReader = createReceptionReader({ store: createBlobReceptionStore() });
 
 const PRO_KEYS = parseProKeys(process.env.MCP_PRO_KEYS);
 
@@ -50,6 +55,7 @@ const deps = {
   visualIds: () => getCatalogReader().visualIds(),
   visualScanCache: createLru(32),
   skyCatalog: () => getCatalogReader().skyCatalog(),
+  reception: () => receptionReader.index(),
 };
 
 const asText = (obj: unknown) => ({
