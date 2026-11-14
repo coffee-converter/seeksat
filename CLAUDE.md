@@ -38,6 +38,8 @@ Once the production deploy is live (check the commit status on GitHub, or the si
 - Never call `/api/cron/*`, `/api/refresh-tle` or `/api/refresh-reception` by hand.
 - Crons (`vercel.json`, UTC): the catalog refresh at :23 past every fourth hour from 00; the reception
   collector at :41 past every fourth hour from 02. Keep new ones off these hours and off round minutes.
+  (Temporarily, for the first backfill, the collector runs at :41 every hour the refresh does not use;
+  see `docs/backlog.md`.)
 - `npm test` (node:test) and `npx tsc --noEmit` before a merge; the tests also guard the CSS tokens,
   allowed origins and accessibility rules.
 - Pin new or bumped dependencies to versions at least two weeks old.

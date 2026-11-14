@@ -146,3 +146,10 @@ test('a one-off error skips that window and goes on; it is tried again next run'
   const t = await store.read();
   assert.equal(pendingUnits(t, NOW)[0].key, '2026-11-13T18:good');
 });
+
+test('runSummary says what a run did in one line', async () => {
+  const { runSummary } = await import('../lib/reception/collect.mjs');
+  assert.equal(runSummary({ units: 4, observations: 812, truncated: 0, failed: null, written: true }), 'refresh-reception: 4 windows, 812 observations, saved');
+  assert.equal(runSummary({ units: 0, observations: 0, truncated: 0, failed: '2026-11-13T00:good: HTTP 429', written: false }), 'refresh-reception: 0 windows, 0 observations, not saved; stopped at 2026-11-13T00:good: HTTP 429');
+  assert.equal(runSummary({ units: 2, observations: 10, truncated: 1, failed: null, written: true }), 'refresh-reception: 2 windows (1 cut short), 10 observations, saved');
+});

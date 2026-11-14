@@ -43,7 +43,7 @@ test('follows next links to the end', async () => {
 });
 
 test('stops at the page cap', async () => {
-  assert.equal(MAX_PAGES, 120);
+  assert.equal(MAX_PAGES, 80);
   const { fetchImpl } = scripted([json(page(1), { headers: { link: `<${NEXT}>; rel="next"` } })]);
   const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {}, maxPages: 1 });
   assert.equal(r.truncated, true);
@@ -151,4 +151,11 @@ test('a throttled answer is discarded before the retry', async () => {
   const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {} });
   assert.equal(r.complete, true);
   assert.ok(cancelled);
+});
+
+test('pages are 1.5 s apart, and a refusal to wait says how long SatNOGS asked for', async () => {
+  assert.equal(PAGE_GAP_MS, 1500);
+  const { fetchImpl } = scripted([json({}, { status: 429, headers: { 'retry-after': '600' } })]);
+  const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {}, now: () => 0, deadlineMs: 10_000 });
+  assert.match(r.error, /429.*600 s/);
 });
