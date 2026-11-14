@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type R
 import QualityBadge, { type Quality } from "@/components/passes/QualityBadge";
 import Button from "@/components/ui/Button";
 import Segmented from "@/components/ui/Segmented";
-import { passKey, passList, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
+import { carryKey, passKey, passList, quietLines, rowDetail, rowWhen, ROW_LIMIT } from "@/lib/home/pass-list.mjs";
 import { bestLine, upNowLine, upNowPass } from "@/lib/home/best-line.mjs";
 import { satAltAzDeg } from "@/lib/pass-finder/visibility.js";
 import { underWay as underWayAt } from "@/lib/passes/under-way.mjs";
@@ -213,16 +213,18 @@ export default function PassList({
     ...always.map((c) => `${c.noradId}:always`),
   ];
 
-  // Forget the open row once it leaves the list (a pass ended, the mode changed).
+  // Forget the open row once it leaves the list (a pass ended, the mode
+  // changed); keep it open across a refresh that only nudged its key
+  // (carryKey: the rise's minute tipped over, or the pass is now under way).
   const keyList = keys.join(" ");
   useEffect(() => {
-    const live = new Set(keyList.split(" "));
-    setOpenKey((prev) => (prev != null && !live.has(prev) ? null : prev));
-  }, [keyList]);
+    const live = keyList.split(" ");
+    setOpenKey((prev) => carryKey(prev, live, nowMs));
+  }, [keyList, nowMs]);
 
-  // Report the open row while it is still in the list (the prune above
-  // lands a render later).
-  const viewerOpen = openKey != null && keys.includes(openKey) ? openKey : null;
+  // Report the open row while it is still in the list, or carried over (the
+  // effect above lands a render later).
+  const viewerOpen = carryKey(openKey, keys, nowMs);
   const openPass = !viewerOpen ? null
     : viewerOpen === pinnedKey ? (viewingCard?.kind === "pass" ? viewingCard.pass : null)
       : groups.flatMap((g) => g.rows).find((r) => r.key === viewerOpen)?.pass ?? null;

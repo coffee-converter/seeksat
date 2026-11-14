@@ -224,7 +224,7 @@ test('geocoder: a refusal is busy, not "no such place", and is not cached', asyn
   }
 });
 
-test('geocoder: no match is null; a failed request is null and tried again next time', async () => {
+test('geocoder: no match is null; a failed request says so (busy, failed) and is tried again next time', async () => {
   const none = fakeFetch(() => ok([]));
   assert.equal(await geocodeOne(unique('Nothing'), { fetchImpl: none.fetchImpl, gapMs: 0 }), null);
   let fail = true;
@@ -233,7 +233,7 @@ test('geocoder: no match is null; a failed request is null and tried again next 
   const warn = console.warn;
   console.warn = () => {};
   try {
-    assert.equal(await geocodeOne(q, { fetchImpl: flaky.fetchImpl, gapMs: 0 }), null);
+    assert.deepEqual(await geocodeOne(q, { fetchImpl: flaky.fetchImpl, gapMs: 0 }), { busy: true, failed: true });
   } finally {
     console.warn = warn;
   }
@@ -261,4 +261,14 @@ test('geocoder: a long queue says busy at once instead of waiting', async () => 
   const answers = await Promise.all([1, 2, 3, 4, 5, 6].map(() => geocodeOne(unique('Flood'), { fetchImpl: f.fetchImpl, gapMs: 1000 })));
   assert.ok(answers.some((a) => a && a.busy), 'some callers are told busy');
   assert.ok(f.calls.length <= 5);
+});
+
+test('a negative zero-degree coordinate keeps its sign (Quito, written signed)', () => {
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  for (const s of ['-0 13 30, -78 30', "-0°13'30\", -78°30'", '-0° 13.5′, -78° 30′']) {
+    const r = parseLatLonText(s);
+    assert.ok(r && near(r.latDeg, -0.225) && near(r.lonDeg, -78.5), `${s}: ${JSON.stringify(r)}`);
+  }
+  assert.ok(near(parseLatLonText('0 13 30, -78 30').latDeg, 0.225));
+  assert.equal(parseLatLonText('-0 13 30 S, 78 30 W'), null);
 });

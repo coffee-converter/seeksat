@@ -62,6 +62,8 @@ test('periodText rounds total minutes before splitting hours', () => {
   assert.equal(periodText(92.87), '92.87 min');
   assert.equal(periodText(719.7), '719.70 min (12 h 0 min)');
   assert.equal(periodText(1436.1), '1,436.10 min (23 h 56 min)');
+  assert.equal(periodText(3030.9), '3,030.90 min (2 d 3 h)');
+  assert.equal(periodText(2879.9), '2,879.90 min (48 h 0 min)');
 });
 test('relativeTime', () => {
   const M = 60_000, H = 60 * M, D = 24 * H;
@@ -70,4 +72,18 @@ test('relativeTime', () => {
   assert.equal(relativeTime(0, 3 * H), '3 h ago');
   assert.equal(relativeTime(0, D + H), '1 day ago');
   assert.equal(relativeTime(0, 2 * D), '2 days ago');
+});
+
+test('periodShort: minutes, then hours, then days, never a carried 60', async () => {
+  const { periodShort } = await import('../lib/sat/numbers.mjs');
+  assert.equal(periodShort(92.87), '92.9 min');
+  assert.equal(periodShort(119.94), '119.9 min');
+  assert.equal(periodShort(119.96), '2 h');
+  assert.equal(periodShort(719.7), '12 h');
+  assert.equal(periodShort(1436.1), '23 h 56 min');
+  assert.equal(periodShort(2879.6), '2.0 days');
+  assert.equal(periodShort(3030.9), '2.1 days');
+  assert.equal(periodShort(13.7 * 1440), '13.7 days');
+  assert.equal(periodShort(250 * 1440), '250 days');
+  for (const bad of [0, -5, NaN, Infinity, null, undefined]) assert.equal(periodShort(bad), '');
 });

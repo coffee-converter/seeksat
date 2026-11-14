@@ -62,3 +62,29 @@ test('heavy calls: one at a time per caller, and a pool per tier', async () => {
   assert.equal(callerOf(null, 'free', new Headers({ 'x-forwarded-for': '1.2.3.4, 5.6.7.8' })), 'ip:1.2.3.4');
   assert.equal(callerOf(null, 'free', new Headers()), 'anon');
 });
+
+test('a chart request is heavy whatever the tool, and pro never has fewer slots than free', async () => {
+  const { isHeavyCall, createHeavyGate } = await import('../lib/mcp/heavy-gate.mjs');
+  assert.ok(isHeavyCall('next_visible_pass', { satellite: 'iss', chart: true }));
+  assert.ok(!isHeavyCall('next_visible_pass', { satellite: 'iss' }));
+  assert.ok(!isHeavyCall('next_visible_pass', { chart: 'yes' }));
+  assert.ok(isHeavyCall('best_pass', {}));
+  assert.ok(isHeavyCall('get_pass_chart', undefined));
+  // The default pools: three pro callers at once all get a slot.
+  const gate = createHeavyGate();
+  for (const k of ['k1', 'k2', 'k3', 'k4']) assert.equal(typeof gate.enter('pro', `key:${k}`), 'function', k);
+});
+
+test('a request body is read only up to its cap', async () => {
+  const { readCappedText } = await import('../lib/mcp/body.mjs');
+  const post = (body, headers = {}) => new Request('https://x/api/mcp', { method: 'POST', body, headers, duplex: 'half' });
+  assert.equal(await readCappedText(post('{"a":1}'), 100), '{"a":1}');
+  assert.equal(await readCappedText(post('x'.repeat(101)), 100), null);
+  assert.equal(await readCappedText(post('{}', { 'content-length': '5000000' }), 100), null);
+  // A streamed body with no length stops at the cap, without reading the rest.
+  let pulled = 0;
+  const stream = new ReadableStream({ pull(c) { pulled++; c.enqueue(new Uint8Array(64)); if (pulled > 1000) c.close(); } });
+  assert.equal(await readCappedText(post(stream), 256), null);
+  assert.ok(pulled < 20, `pulled ${pulled} chunks`);
+  assert.equal(await readCappedText(post('héllo'), 100), 'héllo');
+});

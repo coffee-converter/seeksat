@@ -36,6 +36,8 @@ import { satPath, type satPageData } from "@/lib/sat/page-data.mjs";
 import { effectiveSettings, sharedBannerText, sharedSettings } from "@/lib/sat/shared-view.mjs";
 import type { decodeStateBlob } from "@/lib/pass-finder/state-blob.js";
 import SatChips, { type Chip, type PendingChip } from "@/components/home/SatChips";
+import { DOCKED_QUERY } from "@/components/home/useKeepRowInPlace";
+import { useMediaQuery } from "@/lib/ui/use-media-query";
 import { CATALOG } from "@/lib/catalog.mjs";
 import Button from "@/components/ui/Button";
 import SiteFooter from "@/components/home/SiteFooter";
@@ -65,6 +67,7 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
   const router = useRouter();
   const prefs = useHomeStore((s) => s.prefs);
   const hydrated = useHomeStore((s) => s.hydrated);
+  const docked = useMediaQuery(DOCKED_QUERY);
   const hydrate = useHomeStore((s) => s.hydrate);
   const follow = useHomeStore((s) => s.follow);
   const unfollow = useHomeStore((s) => s.unfollow);
@@ -282,7 +285,9 @@ export default function SatApp({ data, shared: sharedIn = null }: { data: SatPag
     selectedId: focusId,
     minElevDeg: settings.minElevDeg,
     onSelect: selectOrClose,
-    chips: hydrated && (
+    // Desktop only, as on the home page: phones keep the map clear (the page
+    // itself names this satellite, and the map labels the others).
+    chips: hydrated && docked && (
       <SatChips chips={chips} pending={pending} onFollow={follow} focusId={focusId} onFocus={selectOrClose} onToggleHidden={onChipHide} />
     ),
     // A search result opens that satellite's page; Esc in an empty search closes.

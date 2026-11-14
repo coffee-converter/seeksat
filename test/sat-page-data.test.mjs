@@ -103,8 +103,10 @@ test('satMetadata', () => {
   assert.equal(m.alternates.canonical, '/sat/25544');
   assert.match(m.description, /^Live position, speed and passes for ISS \(ZARYA\), NORAD 25544\. Orbit \d+ by \d+ km, period \d+\.\d min, inclination 51\.6°\.$/);
   assert.ok(!m.description.includes('—'));
-  assert.deepEqual(m.openGraph.images, [{ url: '/api/og/sat/25544', width: 1200, height: 630 }]);
-  assert.deepEqual(m.twitter, { card: 'summary_large_image', title: m.title, description: m.description, images: ['/api/og/sat/25544'] });
+  const alt = `${m.openGraph.images[0].alt}`;
+  assert.match(alt, / on a globe: where it is now, with its orbit track$/);
+  assert.deepEqual(m.openGraph.images, [{ url: '/api/og/sat/25544', width: 1200, height: 630, alt }]);
+  assert.deepEqual(m.twitter, { card: 'summary_large_image', title: m.title, description: m.description, images: [{ url: '/api/og/sat/25544', alt }] });
   assert.equal(m.openGraph.title, m.title);
   assert.equal(m.openGraph.description, m.description);
   assert.equal(m.openGraph.url, '/sat/25544');

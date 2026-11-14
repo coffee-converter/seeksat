@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, blob } = await params;
   try {
     const { data } = await load(id, blob);
-    return shareMetadata(satMetadata(data), { noradId: data.noradId, blob }) as Metadata;
+    return shareMetadata(satMetadata(data), { noradId: data.noradId, blob, name: data.name }) as Metadata;
   } catch (err) {
     await asBusy(err, id);
     return BUSY_METADATA;

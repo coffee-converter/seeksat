@@ -70,3 +70,20 @@ test("start and end markers draw for a horizon-to-horizon pass", () => {
   const markers = svg.match(/class="event-marker"/g) ?? [];
   assert.equal(markers.length, 6);
 });
+
+test("the full chart's watermark carries the SeekSat mark, drawn shape by shape; the cropped card drops it", async () => {
+  const at = ecefAtFactory(ISS_TLE);
+  const sel = selectPass(
+    { observers: [{ name: "Chicago", latDeg: 41.8781, lonDeg: -87.6298 }], passTimeMs: null, mode: "visual", minElevDeg: 10 },
+    at, { nowMs: Date.parse("2026-03-01T00:00:00Z"), scanDays: 5 });
+  const full = renderPassChartSVG({ ...sel, ecefAt: at, full: true });
+  const mark = full.match(/<svg[^>]*class="brand-mark"[^>]*>([\s\S]*?)<\/svg>/);
+  assert.ok(mark, "mark present");
+  assert.equal((mark[1].match(/<circle\b/g) || []).length, 3);
+  assert.equal((mark[1].match(/<path\b/g) || []).length, 2);
+  assert.doesNotMatch(renderPassChartSVG({ ...sel, ecefAt: at }), /class="brand-mark"/);
+  // The mark is placed from the wordmark's real width, which the share cards' outlines also hold.
+  const { WORDMARK_EM_WIDTH } = await import("../../lib/pass-finder/brand-mark.js");
+  const { WORDMARK_PATHS } = await import("../../lib/og/wordmark-paths.mjs");
+  assert.equal(WORDMARK_EM_WIDTH, WORDMARK_PATHS.width);
+});

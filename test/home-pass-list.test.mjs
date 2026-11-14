@@ -140,3 +140,21 @@ test('a long pass reads in hours, not thousands of minutes', () => {
   assert.equal(durationWords(120 * 60_000), '2 h');
   assert.equal(durationWords(1648 * 60_000), '27 h');
 });
+
+test('carryKey keeps an open row across a refresh that nudged its key, and only then', async () => {
+  const { carryKey } = await import('../lib/home/pass-list.mjs');
+  const M = 60_000;
+  // Still listed: unchanged.
+  assert.equal(carryKey('25544:1000', ['25544:1000', '48274:1003'], 0), '25544:1000');
+  // The rise's minute tipped over: the same pass.
+  assert.equal(carryKey('25544:1000', ['25544:1001', '48274:1003'], 0), '25544:1001');
+  // Its next pass, 90 minutes on, is another pass: closed.
+  assert.equal(carryKey('25544:1000', ['25544:1090'], 0), null);
+  // Risen by now and listed as under way: carried; not yet risen: closed.
+  assert.equal(carryKey('25544:1000', ['25544:now'], 1005 * M), '25544:now');
+  assert.equal(carryKey('25544:1000', ['25544:now'], 900 * M), null);
+  // An under-way row that is no longer listed has ended.
+  assert.equal(carryKey('25544:now', ['25544:1090'], 1005 * M), null);
+  assert.equal(carryKey(null, ['25544:1000'], 0), null);
+  assert.equal(carryKey('25544:always', ['25544:1000'], 0), null);
+});

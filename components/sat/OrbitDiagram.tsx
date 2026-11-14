@@ -34,7 +34,7 @@ export default function OrbitDiagram({ track, nowMs }: { track: unknown; nowMs: 
         <text x={d.perigee.x} y={d.perigee.y + labelDy(d.perigee.y)} textAnchor="end" className="sat-diagram-label">perigee</text>
         <circle cx={d.apogee.x} cy={d.apogee.y} r="3" stroke="var(--bg)" strokeWidth="1" style={{ fill: "var(--text-strong)" }} />
         <text x={d.apogee.x} y={d.apogee.y + labelDy(d.apogee.y)} textAnchor="start" className="sat-diagram-label">apogee</text>
-        {d.dot ? <circle cx={d.dot.x} cy={d.dot.y} r="5" fill={SAT_PALETTES[theme][0]} stroke="var(--bg)" strokeWidth="1.5" /> : null}
+        {d.dot ? <circle cx={d.dot.x} cy={d.dot.y} r="5" fill={SAT_PALETTES[theme][0]} stroke="var(--sat-casing)" strokeWidth="1.5" /> : null}
       </svg>
       <figcaption className="note">
         Drawn to scale in the orbit&apos;s own plane, from mean elements. Earth&apos;s center is at one focus.

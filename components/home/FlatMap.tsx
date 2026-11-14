@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Types only: the library itself loads in an effect, in its own chunk.
 import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
+import { labelInkOf } from "@/lib/map/palette.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { altText, awayText, overlayColors, overlayData, overlayImages, overlayLayers, sightFeatures as sightFeaturesOf, sightFrom } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
@@ -444,7 +445,7 @@ export default function FlatMap({
     return out;
   }, []);
   // The live sight line, drawn over the canvas (lib/map/sight-path.mjs).
-  const sightSvg = useRef<{ svg: SVGSVGElement; path: SVGPathElement; key: string } | null>(null);
+  const sightSvg = useRef<{ svg: SVGSVGElement; path: SVGPathElement; casing: SVGPathElement; key: string } | null>(null);
   /** Draw the live sight line to where the satellite's dot is now: the focus
    *  marker's own placed sample when it is the focus, so the two match in
    *  the same frame. Cleared when no live pass is open. */
@@ -461,6 +462,7 @@ export default function FlatMap({
     if (!live || !o || !pos) {
       if (el.key) {
         el.path.setAttribute("d", "");
+        el.casing.setAttribute("d", "");
         el.key = "";
       }
       return;
@@ -471,6 +473,7 @@ export default function FlatMap({
       el.key = key;
       el.path.setAttribute("stroke", live.color);
       el.path.classList.toggle("flat-map__sight--below", below);
+      el.casing.classList.toggle("flat-map__sight--below", below);
     }
     const globe = v === "globe";
     // MapLibre's own occlusion test, as its markers use (internal: guarded).
@@ -483,7 +486,9 @@ export default function FlatMap({
       const p = map.project([lon, lat]);
       return { x: p.x, y: p.y, hidden: occluded ? occluded({ lng: lon, lat }) : false };
     });
-    el.path.setAttribute("d", sightPathD(points, SIGHT_TRIM_PX));
+    const d = sightPathD(points, SIGHT_TRIM_PX);
+    el.casing.setAttribute("d", d);
+    el.path.setAttribute("d", d);
   }, []);
   // The focus's last placed sample, kept for a sample that fails.
   const lastFocus = useRef<{ noradId: number; focus: LiveFocus } | null>(null);
@@ -921,6 +926,7 @@ export default function FlatMap({
     if (f.color !== mark.color) {
       mark.color = f.color;
       mark.el.style.setProperty("--focus-color", f.color);
+      mark.el.style.setProperty("--focus-ink", labelInkOf(f.color));
     }
     const alt = altLine(f.altKm);
     if (`${f.name}|${alt}` !== mark.label) {
@@ -1195,10 +1201,13 @@ export default function FlatMap({
       const sightEl = document.createElementNS(svgNs, "svg");
       sightEl.setAttribute("class", "flat-map__sight");
       sightEl.setAttribute("aria-hidden", "true");
+      // Under the line, its casing (--sat-casing), so it reads on any ground.
+      const sightCasing = document.createElementNS(svgNs, "path");
+      sightCasing.setAttribute("class", "flat-map__sight-casing");
       const sightPath = document.createElementNS(svgNs, "path");
-      sightEl.append(sightPath);
+      sightEl.append(sightCasing, sightPath);
       map.getCanvasContainer().append(sightEl);
-      sightSvg.current = { svg: sightEl, path: sightPath, key: "" };
+      sightSvg.current = { svg: sightEl, path: sightPath, casing: sightCasing, key: "" };
       setMapReady(true);
       capLayer.current = makeFootprintLayer({
         // It fails inside a frame: change the style after it.
@@ -1436,13 +1445,13 @@ export default function FlatMap({
       // Once a frame, however many move events it brings (each reads layout).
       let gridRaf = 0;
       map.on("move", () => {
-        if (!gridRaf) gridRaf = requestAnimationFrame(() => { gridRaf = 0; layoutGridLabels(map); });
+        if (!gridRaf) gridRaf = requestAnimationFrame(() => { gridRaf = 0; if (alive) layoutGridLabels(map); });
       });
       // The camera moved or the map drew: the line follows in the same frame.
       map.on("render", () => drawSight(map));
       let sightRaf = 0;
       map.on("move", () => {
-        if (!sightRaf) sightRaf = requestAnimationFrame(() => { sightRaf = 0; syncSightLabels(map); });
+        if (!sightRaf) sightRaf = requestAnimationFrame(() => { sightRaf = 0; if (alive) syncSightLabels(map); });
       });
       // Past zoom 11 the globe flattens toward Mercator and the GeoJSON fill takes over.
       map.on("zoom", syncFill);
@@ -1461,6 +1470,10 @@ export default function FlatMap({
     return () => {
       alive = false;
       window.clearTimeout(leaveTimer.current);
+      // A pass still hidden for loading: no reveal on a map that is gone (a
+      // frame that already asked for one finds nothing pending).
+      if (passPending.current) window.clearTimeout(passPending.current.timer);
+      passPending.current = null;
       window.removeEventListener("mouseup", letGo);
       window.removeEventListener("blur", letGo);
       window.removeEventListener("contextmenu", letGo);
@@ -1657,7 +1670,10 @@ export default function FlatMap({
         marks.push(m);
         m.marker.setLngLat([end.lonDeg, end.latDeg]).addTo(map);
       }
-      if (sat) m.el.style.setProperty("--end-color", sat.color);
+      if (sat) {
+        m.el.style.setProperty("--end-color", sat.color);
+        m.el.style.setProperty("--end-ink", labelInkOf(sat.color));
+      }
       if (m.time.textContent !== end.label) m.time.textContent = end.label;
       m.marker.setLngLat([end.lonDeg, end.latDeg]);
     });

@@ -165,3 +165,19 @@ test('roughVisualScore: rated like the app (bars, then known before a guess, the
   assert.equal(knownFair.bars, 2);
   assert.ok(knownFair.score > guess.score);
 });
+
+test('the rough score rates the part that can be seen: its peak and how long, as the real row does', async () => {
+  const { roughVisualScore } = await import('../lib/mcp/visual-scan.mjs');
+  const M = 60_000;
+  const s = (i, elDeg) => ({ ms: i * M, elDeg, sunAltDeg: -20, mag: -2 });
+  const whole = { firstMs: 0, lastMs: 10 * M, peakElevDeg: 70, estimated: false };
+  // Seen the whole way: the whole pass's peak, Excellent.
+  const all = roughVisualScore({ ...whole, seen: Array.from({ length: 11 }, (_, i) => s(i, i === 5 ? 70 : 30)) });
+  assert.equal(all.bars, 5);
+  // Seen only low, before it goes into shadow: no better than the low part allows.
+  const low = roughVisualScore({ ...whole, seen: [s(0, 12), s(1, 13), s(2, 14)] });
+  assert.ok(low.bars <= 3, `low part only: ${low.bars}`);
+  // Seen for about a minute: the short cap.
+  const brief = roughVisualScore({ ...whole, seen: [s(5, 70)] });
+  assert.ok(brief.bars <= 3, `brief: ${brief.bars}`);
+});

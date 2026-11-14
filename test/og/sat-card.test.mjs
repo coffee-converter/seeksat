@@ -40,14 +40,17 @@ test('card omits orbit line without elements', () => {
   assert.ok(!svg.includes('Orbit '));
 });
 
-test('long names wrap to two lines with ellipsis', () => {
+test('names shrink to fit the square-safe middle, cut with an ellipsis only past the smallest size', () => {
+  const size = (svg) => Number(/data-title="1"[^>]*font-size="(\d+)"/.exec(svg)[1]);
+  const short = buildSatCardSvg({ name: 'ISS', noradId: 1, intlDesignator: null, elements: null, ageText: 'x' });
+  assert.equal(size(short), 100);
+  const mid = buildSatCardSvg({ name: 'STARLINK-1008', noradId: 1, intlDesignator: null, elements: null, ageText: 'x' });
+  assert.ok(size(mid) < 100 && size(mid) >= 44 && !mid.includes('…<'));
   const name = 'VERY LONG SATELLITE NAME NUMBER ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE';
-  const svg = buildSatCardSvg({ name, noradId: 1, intlDesignator: null, elements: null, ageText: 'x' });
-  assert.equal((svg.match(/data-name-line=/g) || []).length, 2);
-  assert.ok(svg.includes('...<'));
-  const short = buildSatCardSvg({ name: 'LONG NAME FOR WRAPPING TEST ONLY', noradId: 1, intlDesignator: null, elements: null, ageText: 'x' });
-  assert.equal((short.match(/data-name-line=/g) || []).length, 2);
-  assert.ok(!short.includes('...'));
+  const long = buildSatCardSvg({ name, noradId: 1, intlDesignator: null, elements: null, ageText: 'x' });
+  assert.equal((long.match(/data-title=/g) || []).length, 1);
+  assert.ok(size(long) >= 44 && size(long) < 52);
+  assert.ok(long.includes('…<'));
 });
 
 test('satOgResponse 404s for invalid and missing ids', async () => {

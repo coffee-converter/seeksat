@@ -1,170 +1,67 @@
-// scripts/build-icons.mjs - generate the site icons from the app's OWN
-// renderers (no recreation), both showing the SAME real ISS pass:
+// scripts/build-icons.mjs - write the site icons from the two hand-drawn
+// marks below (no network, no orbit data):
 //
-//   app/icon.svg       - the chunky Cesium globe-label plot icon: horizon
-//                        disc + single altitude ring + north marker + a fat
-//                        (stroke-width 8) pass arc, painted by the real
-//                        computeArcSamples/renderArcSegments.
-//   app/apple-icon.png - the full polar sky chart (renderPassChartSVG, the
-//                        same output the OG card + get_pass_chart MCP tool
-//                        produce), rasterized 180×180.
-//   public/icon-192.png,
-//   public/icon-512.png - the favicon above on the page background, for the
-//                        web app manifest (app/manifest.ts).
-//   app/favicon.ico    - the favicon at 16/32/48 for clients that ask for
-//                        /favicon.ico. Not written here; after a rerun:
-//                        rsvg-convert -w N -h N app/icon.svg (N = 16, 32,
-//                        48), then magick the three PNGs into app/favicon.ico.
+//   COMPASS (A2)  the pass card's sky plot, simplified: rim, a faint inner
+//                 ring, one bold pass with its rise ring and set arrow.
+//   SMALL (A16)   the same with only the disc and the arc, for 16 and 32 px,
+//                 where the ring and arrow would blur.
 //
-// Pass selection (pickPass, below) scans real passes and prefers a HIGH,
-// CURVED overhead pass whose peak falls in medium twilight (sun ≈ -6°), so
-// the horizon shades a contrasty blue and the arc has real curvature -
-// rather than selectPass's first-visible pick, which tends to be a low,
-// straight, deep-night graze. Rendering is still 100% the app's code.
+// Outputs:
+//   public/icon.svg               COMPASS, for the manifest (any size)
+//   app/icon1.png, app/icon2.png  SMALL at 16 and 32 px: browsers pick these
+//                                 for tabs (Next links them with their sizes)
+//   app/icon3.png                 COMPASS at 48 px
+//   app/favicon.ico               SMALL at 16 and 32, COMPASS at 48 and 64,
+//                                 for clients that ask for /favicon.ico
+//   app/apple-icon.png            COMPASS on a full square, 180 px
+//   public/icon-192.png, -512.png COMPASS on a full square, for the manifest
 //
-// Rerun to refresh against the current TLE. OBS_* env overrides observer.
-// `--png-only` skips the pass and only rasterizes the existing app/icon.svg
-// into the two manifest PNGs (no orbit record, no network).
-import { readFileSync, writeFileSync } from "node:fs";
+// Rerun after changing a mark: node scripts/build-icons.mjs
+import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { getIssTle, ecefAtFactory } from "../lib/og/tle.mjs";
-import { firstObserver } from "../lib/og/pass-select.mjs";
-import { renderPassChartSVG } from "../lib/og/render-pass-chart.mjs";
 import { rasterizeSvg } from "../lib/og/rasterize.mjs";
-import { newSvgRoot, serialize } from "../lib/og/dom.mjs";
-import { computeArcSamples, renderArcSegments } from "../lib/pass-finder/polar-arc.js";
-import { satAltAzDeg, satIlluminated, sunAltitudeDeg } from "../lib/pass-finder/visibility.js";
-import { sunPositionEcef } from "../lib/pass-finder/sun.js";
-import { passWindowAtMsForObserver } from "../lib/pass-finder/observer-pass.js";
-import { passPeakMs } from "../lib/pass-finder/polar-events.js";
-import { skyShadeForSunAlt, chartPalette, SVG_NS } from "../lib/pass-finder/sky-helpers.js";
+import { COMPASS, SMALL, onSquare } from "../lib/brand/marks.mjs";
 
-// Above-horizon crossings around a peak - the same fallback selectPass uses
-// when passWindowAtMsForObserver returns null (horizonWindow isn't exported).
-function horizonWindow(obs, ecefAt, peakMs) {
-  const STEP = 1000, CAP = 12 * 60 * 1000;
-  let s = peakMs, e = peakMs;
-  for (let t = peakMs; t >= peakMs - CAP; t -= STEP) {
-    const p = ecefAt(new Date(t)); if (!p || satAltAzDeg(obs, p).alt <= 0) break; s = t;
+/** An .ico holding PNG images (each { size, png }). */
+export function icoFile(images) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(images.length, 4);
+  const entries = [];
+  let offset = 6 + 16 * images.length;
+  for (const { size, png } of images) {
+    const e = Buffer.alloc(16);
+    e.writeUInt8(size >= 256 ? 0 : size, 0);
+    e.writeUInt8(size >= 256 ? 0 : size, 1);
+    e.writeUInt8(0, 2);
+    e.writeUInt8(0, 3);
+    e.writeUInt16LE(1, 4);
+    e.writeUInt16LE(32, 6);
+    e.writeUInt32LE(png.length, 8);
+    e.writeUInt32LE(offset, 12);
+    offset += png.length;
+    entries.push(e);
   }
-  for (let t = peakMs; t <= peakMs + CAP; t += STEP) {
-    const p = ecefAt(new Date(t)); if (!p || satAltAzDeg(obs, p).alt <= 0) break; e = t;
-  }
-  return { startMs: s, endMs: e };
+  return Buffer.concat([header, ...entries, ...images.map((i) => i.png)]);
 }
 
-// Scan real passes and pick the best HIGH + TWILIGHT one. Same pass-walk as
-// pass-select's findNextVisiblePass; different scoring.
-function pickPass(obs, ecefAt, nowMs, scanDays) {
-  const t1 = nowMs + scanDays * 86400_000, STEP = 30_000;
-  let inPass = false, cur = null; const passes = [];
-  for (let t = nowMs; t <= t1; t += STEP) {
-    const e = ecefAt(new Date(t)); if (!e) continue;
-    const { alt } = satAltAzDeg(obs, e);
-    if (alt > 0) {
-      if (!inPass) { inPass = true; cur = { peakMs: t, peakAlt: alt }; }
-      else if (alt > cur.peakAlt) { cur.peakAlt = alt; cur.peakMs = t; }
-    } else if (inPass) { inPass = false; passes.push(cur); cur = null; }
-  }
-  if (inPass && cur) passes.push(cur);
+const out = (rel) => fileURLToPath(new URL(`../${rel}`, import.meta.url));
+const png = (svg, size) => rasterizeSvg(svg, { width: size });
 
-  const scored = passes.map((p) => {
-    const d = new Date(p.peakMs);
-    return { ...p, sunAlt: sunAltitudeDeg(obs, d),
-             lit: satIlluminated(ecefAt(d), sunPositionEcef(d)) };
-  });
-  // Want a SOLID, curved arc on a still-blue sky. Solid needs the ISS
-  // naked-eye visible (sun below ~-6 → the renderer stops dashing);
-  // "medium twilight" keeps the sky blue by staying above astronomical
-  // dark (sun down to ~-11). Within that band, take the HIGHEST pass -
-  // higher peak = the arc curves harder around the zenith.
-  const band = (lo, hi) => scored.filter((p) =>
-    p.lit && p.sunAlt <= hi && p.sunAlt >= lo);
-  const pool = band(-11, -6).length ? band(-11, -6)   // ideal: solid + blue
-    : band(-14, -4).length ? band(-14, -4)            // widen if none
-    : scored.filter((p) => p.lit);                    // last resort: any lit
-  if (!pool.length) return null;
-  return pool.sort((a, b) => b.peakAlt - a.peakAlt)[0];
+if (import.meta.url === `file://${process.argv[1]}`) {
+  writeFileSync(out("public/icon.svg"), `${COMPASS}\n`);
+  const small16 = await png(SMALL, 16);
+  const small32 = await png(SMALL, 32);
+  const compass48 = await png(COMPASS, 48);
+  const compass64 = await png(COMPASS, 64);
+  writeFileSync(out("app/icon1.png"), small16);
+  writeFileSync(out("app/icon2.png"), small32);
+  writeFileSync(out("app/icon3.png"), compass48);
+  writeFileSync(out("app/favicon.ico"), icoFile([
+    { size: 16, png: small16 }, { size: 32, png: small32 }, { size: 48, png: compass48 }, { size: 64, png: compass64 },
+  ]));
+  writeFileSync(out("app/apple-icon.png"), await png(onSquare(COMPASS), 180));
+  for (const size of [192, 512]) writeFileSync(out(`public/icon-${size}.png`), await png(onSquare(COMPASS), size));
+  console.log("Wrote public/icon.svg, app/icon1-3.png, app/favicon.ico, app/apple-icon.png, public/icon-192.png, public/icon-512.png");
 }
-
-// The manifest PNGs: the favicon glyph on the page background, so the
-// installed icon is never a transparent disc on a launcher's own colour.
-async function writeManifestPngs(iconSvg) {
-  const onBg = iconSvg.replace(/(<svg\b[^>]*>)/, '$1<rect width="100" height="100" fill="#0a0e1a"/>');
-  for (const size of [192, 512]) {
-    const png = await rasterizeSvg(onBg, { width: size });
-    writeFileSync(fileURLToPath(new URL(`../public/icon-${size}.png`, import.meta.url)), png);
-    console.log(`Wrote public/icon-${size}.png (${png.length} bytes)`);
-  }
-}
-
-if (process.argv.includes("--png-only")) {
-  await writeManifestPngs(readFileSync(fileURLToPath(new URL("../app/icon.svg", import.meta.url)), "utf8"));
-  process.exit(0);
-}
-
-const decoded = {
-  observers: [{
-    name: process.env.OBS_NAME || "Chicago",
-    latDeg: process.env.OBS_LAT ? +process.env.OBS_LAT : 41.8781,
-    lonDeg: process.env.OBS_LON ? +process.env.OBS_LON : -87.6298,
-  }],
-};
-
-const ecefAt = ecefAtFactory(await getIssTle());
-const observer = firstObserver(decoded);
-const best = pickPass(observer, ecefAt, Date.now(), 45);
-if (!best) throw new Error("no suitable high/twilight pass found");
-const win = passWindowAtMsForObserver(observer, best.peakMs, "visual", 10, ecefAt)
-          ?? horizonWindow(observer, ecefAt, best.peakMs);
-const peakMs = passPeakMs(win, observer, ecefAt);
-const sel = { observer, win, peakMs, maxAlt: best.peakAlt };
-console.log(`Pass: peak ${best.peakAlt.toFixed(0)}° alt, sun ${best.sunAlt.toFixed(1)}° ` +
-            `at ${new Date(peakMs).toISOString()}`);
-
-const addNs = (s) => s.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
-
-// Render the full chart FIRST - it stamps the exact sky shade + arc color
-// it used onto the root (data-sky-shade / data-arc-stroke). We reuse those
-// for the favicon so the two icons share one palette by construction,
-// rather than recomputing (which risked a hue mismatch).
-const chart = addNs(renderPassChartSVG({ ...sel, ecefAt, satName: "ISS", full: false }));
-const pick = (re, fb) => (chart.match(re)?.[1]) ?? fb;
-const shade = pick(/data-sky-shade="([^"]+)"/, skyShadeForSunAlt(sunAltitudeDeg(observer, new Date(peakMs))));
-const arcStroke = pick(/data-arc-stroke="([^"]+)"/, chartPalette(sunAltitudeDeg(observer, new Date(peakMs))).arc);
-
-// ---- Favicon: the chunky globe-label plot icon -------------------------
-// Geometry + styling from the old globe observer label.
-const R = 42, cx = 50, cy = 50;
-
-const label = newSvgRoot("0 0 100 100");
-const style = document.createElementNS(SVG_NS, "style");
-style.textContent =
-  `.horizon{fill:${shade};stroke:rgba(126,184,255,0.55);stroke-width:1.6}` +
-  `.grid{fill:none;stroke:rgba(126,184,255,0.18);stroke-width:0.8}` +
-  `.arc line,.arc polyline{fill:none;stroke-width:8;stroke-linecap:round;stroke-linejoin:round}`;
-label.appendChild(style);
-const mk = (tag, attrs) => {
-  const el = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-  return el;
-};
-label.appendChild(mk("circle", { class: "horizon", cx, cy, r: R }));
-label.appendChild(mk("circle", { class: "grid", cx, cy, r: ((90 - 60) / 90) * R }));
-label.appendChild(mk("path", { d: "M 50 2 L 57 11 L 43 11 Z", fill: "rgba(126,184,255,0.85)" }));
-const arc = mk("g", { class: "arc" });
-label.appendChild(arc);
-const samples = computeArcSamples(observer, win, cx, cy, R, 30, ecefAt);
-renderArcSegments(arc, samples, arcStroke, "6 11");
-
-const iconSvg = addNs(serialize(label));
-writeFileSync(fileURLToPath(new URL("../app/icon.svg", import.meta.url)), iconSvg + "\n");
-console.log(`Wrote app/icon.svg (${iconSvg.length} bytes)`);
-await writeManifestPngs(iconSvg);
-
-// ---- Apple touch icon: the full real chart (rendered above) ------------
-const pngSvg = chart.replace(/(<svg\b[^>]*>)/,
-  '$1<rect x="-8" y="-8" width="216" height="216" fill="#0a0e1a"/>');
-const png = await rasterizeSvg(pngSvg, { width: 180 });
-writeFileSync(fileURLToPath(new URL("../app/apple-icon.png", import.meta.url)), png);
-console.log(`Wrote app/apple-icon.png (${png.length} bytes)`);

@@ -2,7 +2,6 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { MODES, themeControlHint } from "@/lib/ui/theme.mjs";
-import { useResolvedTheme } from "@/lib/ui/use-theme";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
@@ -126,7 +125,6 @@ function SwatchList({ swatches }: { swatches: Swatch[] }) {
 type ModalKind = null | "page" | "dark" | "wide" | "bare" | "full";
 
 export default function DesignBible({ data }: { data: BibleData }) {
-  const theme = useResolvedTheme();
   const [seg, setSeg] = useState<"globe" | "mercator">("globe");
   const [segSm, setSegSm] = useState<"visual" | "radio" | null>(null);
   const [pressed, setPressed] = useState(true);
@@ -138,7 +136,7 @@ export default function DesignBible({ data }: { data: BibleData }) {
 
   const fs = tokensOf(data.scale, "--fs-");
   // The chips take the satellite palette of the theme on show, as the map does.
-  const satPalette = data.palettes[0]?.columns[theme === "light" ? 1 : 0]?.swatches.map((s) => s.value) ?? ["var(--accent)"];
+  const satPalette = data.palettes[0]?.columns[0]?.swatches.map((s) => s.value) ?? ["var(--accent)"];
 
   return (
     <div className="bible">

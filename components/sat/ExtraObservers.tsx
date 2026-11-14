@@ -65,7 +65,9 @@ export default function ExtraObservers({ readOnly = false, observers: given, unt
     const found = await geocodeOne(parsed.query);
     setBusy(false);
     if (found && "busy" in found) {
-      setMessage("The place search is busy. Try again in a moment, or enter coordinates or a grid square.");
+      setMessage("failed" in found
+        ? "Couldn't reach the place search. Check your connection, or enter coordinates or a grid square."
+        : "The place search is busy. Try again in a moment, or enter coordinates or a grid square.");
       return;
     }
     if (!found || !Number.isFinite(found.latDeg) || !Number.isFinite(found.lonDeg)) {
