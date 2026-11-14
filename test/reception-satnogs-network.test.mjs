@@ -104,3 +104,13 @@ test('slimObservation drops rows without a transmitter, satellite or end', () =>
   // No high edge: the low one.
   assert.equal(slimObservation({ ...ok, transmitter_downlink_high: null }).highHz, 401_005_000);
 });
+
+test('a next link off SatNOGS Network observations stops the sweep', async () => {
+  for (const next of ['https://evil.example/api/observations/?cursor=x', 'http://network.satnogs.org/api/observations/?cursor=x', 'https://network.satnogs.org/admin/?cursor=x']) {
+    const { calls, fetchImpl } = scripted([json(page(1), { headers: { link: `<${next}>; rel="next"` } }), json(page(2))]);
+    const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {} });
+    assert.equal(calls.length, 1, next);
+    assert.equal(r.complete, false);
+    assert.match(r.error, /next link/);
+  }
+});

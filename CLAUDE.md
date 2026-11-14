@@ -35,7 +35,9 @@ Once the production deploy is live (check the commit status on GitHub, or the si
 
 - Never call CelesTrak from a laptop (it blocks the IP). Local servers and scripts read SeekSat's own
   `/api/sats` or the snapshot; browser automation aborts `celestrak` and `nominatim` requests.
-- Never call `/api/cron/*` or `/api/refresh-tle` by hand.
+- Never call `/api/cron/*`, `/api/refresh-tle` or `/api/refresh-reception` by hand.
+- Crons (`vercel.json`, UTC): the catalog refresh at :23 past every fourth hour from 00; the reception
+  collector at :41 past every fourth hour from 02. Keep new ones off these hours and off round minutes.
 - `npm test` (node:test) and `npx tsc --noEmit` before a merge; the tests also guard the CSS tokens,
   allowed origins and accessibility rules.
 - Pin new or bumped dependencies to versions at least two weeks old.
@@ -72,6 +74,10 @@ look at a screenshot before calling it done.
   are what agents read: changing one changes behaviour for every client. Heavy calls (scans, chart
   renders) go through `lib/mcp/heavy-gate.mjs`.
 - **Catalog:** the snapshot in Blob, refreshed by the cron; `lib/mirror/`.
+- **Radio reception:** `lib/reception/` sweeps SatNOGS Network observations (good and bad, a settled UTC
+  day at a time, the last 7 days) into a 30-day per-transmitter tally in its own Blob file
+  (`catalog/reception.json.gz`, never inside the snapshot). Data CC BY-SA 4.0; name the source wherever
+  it shows.
 
 ## Writing
 
