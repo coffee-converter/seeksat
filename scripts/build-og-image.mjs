@@ -36,7 +36,8 @@ const write = async (name, o) => {
 await write("og.png", opts);
 // The MCP page's card: the same globe and pass, for developers and agents.
 await write("og-mcp.png", { ...opts, card: {
+  // "SeekSat" in the wordmark's two tones (lib/og/globe-card.mjs), "MCP" in the text white.
   title: "SeekSat MCP",
-  titleColor: "#7eb8ff",
+  titleColor: "#e6ecf8",
   lines: ["Satellite passes and radio for AI agents", "Endpoint: seeksat.com/api/mcp"],
 } });

@@ -63,3 +63,11 @@ test('without a place of its own, the card faces where the satellites are', () =
   for (const t of tracks) assert.ok(onCard(globeCentre(at[0], at[1]), t.sat.lonDeg, t.sat.latDeg));
   assert.equal(bestCentre([]), null);
 });
+
+test('one satellite: its height on the first line, and "shared live map" said once', async () => {
+  const view = parseView('?map=globe&sats=25544');
+  const tracks = await viewTracks(view, { reader: reader([25544]), nowMs: Date.parse('2026-03-01T12:00:00Z') });
+  const svg = buildViewCardSvg(view, tracks);
+  assert.match(svg, />Where it is now, [\d,]+ km up</);
+  assert.equal((svg.match(/[Ss]hared live map/g) || []).length, 1);
+});
