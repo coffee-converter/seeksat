@@ -274,7 +274,7 @@ export default function HomeApp({ initialRecords = [] }: Props) {
     track: mapRow ? allTracks.get(mapRow.noradId) : null, observer: location, minElevDeg: prefs.minElevDeg,
   });
   const { sats } = useMapSats({
-    layers, tracks: allTracks, colors, nowMs: mapNowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio", pass: mapPass,
+    layers, tracks: allTracks, colors, nowMs: mapNowMs, minElevDeg: prefs.minElevDeg, radio: prefs.mode === "radio", pass: mapPass, liveId,
   });
 
   // Cards: on any input change, every 10 min, and when a pass starts or ends.
