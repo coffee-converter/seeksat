@@ -21,7 +21,20 @@ and supply your own observation sample data under `_data/`
 Built on Next.js (App Router) + React. SGP4 propagation via
 `satellite.js`.
 
-- [SeekSat MCP server](docs/seeksat-mcp.md)
+## MCP server
+
+SeekSat is also an MCP server for AI agents: Streamable HTTP at
+`https://seeksat.com/api/mcp`, no sign-in.
+
+```sh
+claude mcp add --transport http seeksat https://seeksat.com/api/mcp
+```
+
+Setup for Claude Desktop, claude.ai and Cursor, the optional API key header,
+the rate limit (120 requests per 60 seconds per IP, a Vercel firewall rule)
+and every tool's parameters are on [/mcp](https://seeksat.com/mcp) and in
+[docs/seeksat-mcp.md](docs/seeksat-mcp.md). Tool definitions live in
+`lib/mcp/tool-specs.mjs`; the handlers are in `lib/mcp/tools.mjs`.
 
 ## Run
 
@@ -99,6 +112,7 @@ localStorage.
 
 - `CRON_SECRET` - random string; Vercel Cron sends it as a Bearer token to `/api/refresh-tle`.
 - `BLOB_READ_WRITE_TOKEN` - Vercel Blob token (auto-set when a Blob store is linked to the project). The cron writes the catalog snapshot to `catalog/snapshot.json.gz` and the site reads it back.
+- `MCP_PRO_KEYS` - optional, comma-separated API keys for the `pro` tier (`lib/mcp/auth.mjs`). Callers send one as `Authorization: Bearer <key>` or `X-API-Key: <key>`. Nothing is gated today; leave it unset.
 
 ### Deploy order
 

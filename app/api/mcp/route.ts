@@ -9,6 +9,7 @@ import {
   searchSatellitesTool, radioPassTool, whatsUpNowTool, identifySatelliteTool,
 } from '@/lib/mcp/tools.mjs';
 import { TOOL_SPECS } from '@/lib/mcp/tool-specs.mjs';
+import { SERVER_INSTRUCTIONS } from '@/lib/mcp/discovery.mjs';
 import { getCatalogReader } from '@/lib/mirror/server.mjs';
 import { geocodeOne } from '@/lib/pass-finder/geocode.js';
 import { fetchCloudForecast } from '@/lib/pass-finder/weather.js';
@@ -113,8 +114,8 @@ const mcpHandler = createMcpHandler(
       );
     }
   },
-  // serverOptions
-  { serverInfo: { name: 'seeksat', version: '1.0.0' } },
+  // serverOptions: the instructions reach every client at initialize.
+  { serverInfo: { name: 'seeksat', version: '1.0.0' }, instructions: SERVER_INSTRUCTIONS },
   // config - route lives at /api/mcp, so basePath '/api' derives the
   // streamable-HTTP endpoint to '/api/mcp'. No redisUrl needed: redis is
   // only used for SSE session resumability, not streamable HTTP.

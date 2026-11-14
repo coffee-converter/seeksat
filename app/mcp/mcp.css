@@ -11,7 +11,9 @@
 .mcp-doc h1 .sat { color: var(--accent); }
 .mcp-doc .lede { opacity: 0.8; margin: 0 0 var(--sp-8); }
 .mcp-doc h2 { font-size: var(--fs-xl); margin: calc(var(--sp-32) + var(--sp-8)) 0 var(--sp-12); color: var(--text-heading); }
+.mcp-doc h3 { font-size: var(--fs-lg); margin: var(--sp-24) 0 var(--sp-8); color: var(--text-heading); }
 .mcp-doc p { margin: 0 0 var(--sp-12); }
+.mcp-doc p code, .mcp-doc li code, .mcp-doc h3 code { font-family: var(--font-code); font-size: var(--fs-md); }
 .mcp-doc pre {
   background: var(--code-bg); border: 1px solid rgba(var(--ink-rgb), 0.12);
   border-radius: var(--radius-lg); padding: var(--sp-12) var(--sp-16); overflow-x: auto; margin: 0 0 var(--sp-16);

@@ -68,4 +68,52 @@ test('the /mcp page shows the result notes, and no summary or note uses an em da
   const page = readFileSync(new URL('../app/mcp/page.tsx', import.meta.url), 'utf8');
   assert.match(page, /RESULT_NOTES\.map/);
   for (const text of [...TOOL_SUMMARIES.map((t) => t.summary), ...RESULT_NOTES]) assert.equal(text.includes('\u2014'), false, text);
+  for (const t of TOOL_SPECS) assert.equal(t.description.includes('\u2014'), false, t.name);
+});
+
+test('client setup: Claude Code JSON says type http, Claude Desktop bridges with mcp-remote, Cursor takes a url', async () => {
+  const d = await import('../lib/mcp/discovery.mjs');
+  const o = 'https://seeksat.com';
+  assert.deepEqual(JSON.parse(d.claudeCodeJsonConfig(o)), { mcpServers: { seeksat: { type: 'http', url: 'https://seeksat.com/api/mcp' } } });
+  assert.deepEqual(JSON.parse(d.claudeDesktopBridgeConfig(o)).mcpServers.seeksat, { command: 'npx', args: ['-y', 'mcp-remote', 'https://seeksat.com/api/mcp'] });
+  assert.deepEqual(JSON.parse(d.cursorJsonConfig(o, { withKey: true })).mcpServers.seeksat.headers, { Authorization: 'Bearer YOUR_KEY' });
+  assert.match(d.claudeDesktopSteps(o), /Settings > Connectors > Add custom connector/);
+  assert.match(d.claudeAddCommandWithKey(o), /--header "Authorization: Bearer YOUR_KEY"$/);
+  assert.equal(d.TRANSPORT, 'Streamable HTTP');
+  assert.match(d.RATE_LIMIT_NOTE, /120 requests per 60 seconds per IP address/);
+  // The header names the route reads.
+  const route = readFileSync(new URL('../app/api/mcp/route.ts', import.meta.url), 'utf8');
+  assert.match(route, /headers\.get\('authorization'\)/);
+  assert.match(route, /headers\.get\('x-api-key'\)/);
+  assert.deepEqual(d.API_KEY_HEADERS, ['Authorization: Bearer <key>', 'X-API-Key: <key>']);
+  assert.match(route, /instructions: SERVER_INSTRUCTIONS/);
+});
+
+test('toolDocs gives every parameter with its type, range and default from the schema', async () => {
+  const { toolDocs } = await import('../lib/mcp/discovery.mjs');
+  const docs = toolDocs();
+  assert.deepEqual(docs.map((t) => t.name), TOOL_SPECS.map((t) => t.name));
+  const fp = docs.find((t) => t.name === 'find_passes').params;
+  const by = Object.fromEntries(fp.map((p) => [p.name, p]));
+  assert.deepEqual(by.satellite, { ...by.satellite, type: 'string or whole number', required: true });
+  assert.equal(by.windowHours.range, 'above 0, up to 240');
+  assert.match(by.windowHours.description, /Default 48/);
+  assert.equal(by.minElevation.range, '0 to 90');
+  assert.equal(by.mode.type, '"visual" | "radio"');
+  const bp = Object.fromEntries(docs.find((t) => t.name === 'best_pass').params.map((p) => [p.name, p]));
+  assert.equal(bp.limit.range, '1 to 20');
+  assert.equal(bp.satellite.required, false);
+});
+
+test('the written docs and the skill name every tool and the endpoint, with no em dashes', () => {
+  for (const file of ['../docs/seeksat-mcp.md', '../skills/seeksat/SKILL.md', '../README.md']) {
+    const text = readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.ok(text.includes('https://seeksat.com/api/mcp'), file);
+    assert.ok(text.includes('claude mcp add --transport http seeksat https://seeksat.com/api/mcp'), file);
+    if (file === '../README.md') continue;
+    for (const t of TOOL_SPECS) assert.ok(text.includes(`\`${t.name}\``), `${file} names ${t.name}`);
+    assert.equal(text.includes('\u2014'), false, file);
+  }
+  const page = readFileSync(new URL('../app/mcp/page.tsx', import.meta.url), 'utf8');
+  for (const fn of ['claudeCodeJsonConfig', 'claudeDesktopSteps', 'claudeDesktopBridgeConfig', 'cursorJsonConfig', 'toolDocs', 'RATE_LIMIT_NOTE', 'ERROR_NOTES']) assert.ok(page.includes(fn), fn);
 });
