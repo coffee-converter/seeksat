@@ -923,7 +923,7 @@ export default function FlatMap({
       mark.marker.addTo(map);
       mark.shown = true;
     }
-  }, []);
+  }, [placeLabel]);
 
   /** Night bands, rebuilt once they would have moved about a pixel at this
    *  zoom (nightRefreshMs); true when rebuilt. */
@@ -1421,7 +1421,7 @@ export default function FlatMap({
     };
     // Made once (the callbacks are stable); later props reach it through
     // latest and the effects below.
-  }, [refreshNight, sourceData, push, homeView, syncGestures, setLocked, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy]);
+  }, [refreshNight, sourceData, push, homeView, syncGestures, setLocked, limitZoom, syncFill, pushFootprint, liveFocus, syncZoomAround, lockZoomBy, drawSight, layoutGridLabels, syncGrid, syncSightLabels]);
 
   // Docked or not: switches the gesture mode.
   useEffect(() => {

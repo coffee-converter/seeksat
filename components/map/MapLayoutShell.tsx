@@ -92,7 +92,6 @@ export default function MapLayoutShell({ children }: { children: ReactNode }) {
     const { pathname: path, search, hash } = window.location;
     window.history.replaceState(window.history.state, "", path + stripView(search) + hash);
     // Once, on the page the link opened.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The live view docked in the panel locks the camera on its satellite
