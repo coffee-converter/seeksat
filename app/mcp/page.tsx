@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   description:
     "Query SeekSat's satellite pass & position engine from AI agents over the Model Context Protocol.",
   alternates: { canonical: "/mcp" },
+  openGraph: { images: [{ url: "/og-mcp.png", width: 1200, height: 630 }] },
+  twitter: { card: "summary_large_image", images: ["/og-mcp.png"] },
 };
 
 type Param = { name: string; type: string; required: boolean; range: string; description: string };

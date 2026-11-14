@@ -1,4 +1,5 @@
-// scripts/build-og-image.mjs - write public/og.png: the site's own share
+// scripts/build-og-image.mjs - write public/og.png (and og-mcp.png, the MCP
+// page's): the site's own share
 // image (the SeekSat wordmark over the globe, with a real upcoming ISS pass
 // from a default place). Same lib/og pipeline as the live /api/og route.
 //
@@ -26,8 +27,16 @@ if (process.env.OG_RECORD_FILE) {
 }
 if (process.env.OG_NOW) opts.nowMs = Date.parse(process.env.OG_NOW);
 
-const out = fileURLToPath(new URL("../public/og.png", import.meta.url));
-const png = await renderOgPng(decoded, opts);
 mkdirSync(fileURLToPath(new URL("../public/", import.meta.url)), { recursive: true });
-writeFileSync(out, png);
-console.log(`Wrote public/og.png (${png.length} bytes)`);
+const write = async (name, o) => {
+  const png = await renderOgPng(decoded, o);
+  writeFileSync(fileURLToPath(new URL(`../public/${name}`, import.meta.url)), png);
+  console.log(`Wrote public/${name} (${png.length} bytes)`);
+};
+await write("og.png", opts);
+// The MCP page's card: the same globe and pass, for developers and agents.
+await write("og-mcp.png", { ...opts, card: {
+  title: "MCP server",
+  titleColor: "#7eb8ff",
+  lines: ["Satellite passes and radio for AI agents", "Endpoint: seeksat.com/api/mcp"],
+} });

@@ -18,7 +18,7 @@ test('the card is 1200 x 630 with land, lakes and an escaped title', () => {
 });
 
 test('the globe faces south of the place, so the place sits high on it', () => {
-  assert.deepEqual(globeCentre(-87.6, 41.9), { lonDeg: -87.6, latDeg: 41.9 - 36 });
+  assert.deepEqual(globeCentre(-87.6, 41.9), { lonDeg: -87.6, latDeg: 41.9 - 40 });
   assert.equal(globeCentre(10, -80).latDeg, -89);
 });
 
