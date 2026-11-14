@@ -27,6 +27,8 @@ function presentedKey(req: Request): string | null {
 }
 
 export const runtime = 'nodejs';
+// A ceiling on any one call (the scans take a few seconds at most).
+export const maxDuration = 60;
 
 const deps = {
   getRecord: (id: number) => getCatalogReader().getRecord(id),
@@ -75,6 +77,11 @@ const LOCAL = { readOnlyHint: true, destructiveHint: false, idempotentHint: true
 const ONLINE = { ...LOCAL, openWorldHint: true };
 
 type Args = Record<string, unknown>;
+
+/** Tools that scan many satellites or draw an image. */
+const HEAVY_TOOLS = new Set(['best_pass', 'whats_up_now', 'identify_satellite', 'get_pass_chart']);
+const MAX_HEAVY = 3;
+let heavyRunning = 0;
 type Tier = 'free' | 'pro';
 
 // The handler behind each tool in TOOL_SPECS.
@@ -110,7 +117,12 @@ const mcpHandler = createMcpHandler(
           logUsage({ tool: spec.name, tier, keyId, satellite: args.satellite == null ? null : String(args.satellite) });
           // JSON first and a chart image (when there is one) LAST, so it is
           // the trailing content block clients are likeliest to show inline.
-          try { return asResult(await run(args, tier as Tier)); } catch (e) { return asError(e); }
+          // The scans and the chart render are heavy: a few at a time per
+          // instance, and the rest are told to try again.
+          const heavy = HEAVY_TOOLS.has(spec.name);
+          if (heavy && heavyRunning >= MAX_HEAVY) return asError(new Error('busy with other searches: try again in a few seconds'));
+          if (heavy) heavyRunning++;
+          try { return asResult(await run(args, tier as Tier)); } catch (e) { return asError(e); } finally { if (heavy) heavyRunning--; }
         },
       );
     }
@@ -127,8 +139,22 @@ const mcpHandler = createMcpHandler(
 // run the whole dispatch inside the ALS scope so the tool callbacks above
 // can read it. Fail-open - an unknown/absent key is simply 'free'.
 async function handler(req: Request): Promise<Response> {
+  // One message per request, of a modest size: a JSON-RPC batch would let one
+  // HTTP request (all the firewall's rate limit counts) carry a hundred tool
+  // calls, and a huge body costs memory before any check runs.
+  if (req.method === 'POST') {
+    const text = await req.text();
+    if (text.length > MAX_BODY_CHARS) return jsonRpcRefusal(413, 'request too large');
+    if (text.trimStart().startsWith('[')) return jsonRpcRefusal(400, 'batches are not supported: send one message per request');
+    req = new Request(req.url, { method: 'POST', headers: req.headers, body: text });
+  }
   const { tier, keyId } = resolveTier(presentedKey(req), PRO_KEYS);
   return runWithRequestContext({ tier, keyId }, () => mcpHandler(req));
+}
+
+const MAX_BODY_CHARS = 64 * 1024;
+function jsonRpcRefusal(status: number, message: string): Response {
+  return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32600, message } }, { status });
 }
 
 export { handler as GET, handler as POST };
