@@ -467,3 +467,13 @@ test('on the light map, satellite labels are each colour\'s ink on a light halo;
   const dark = overlayLayers(overlayColors('dark')).find((l) => l.id === 'ss-sats');
   assert.deepEqual(dark.paint['text-color'], ['get', 'color']);
 });
+
+test('light-map labels are larger, with bold ticks and a wider halo; the dark map is unchanged', () => {
+  const of = (theme, id) => overlayLayers(overlayColors(theme)).find((l) => l.id === id);
+  const sizeOf = (l) => l.layout['text-size'];
+  assert.equal(sizeOf(of('dark', 'ss-marks')), 9);
+  assert.ok(sizeOf(of('light', 'ss-marks')) > 10);
+  assert.deepEqual(of('dark', 'ss-marks').layout['text-font'], ['Noto Sans Regular']);
+  assert.deepEqual(of('light', 'ss-marks').layout['text-font'], ['Noto Sans Bold']);
+  assert.ok(of('light', 'ss-marks').paint['text-halo-width'] > of('dark', 'ss-marks').paint['text-halo-width']);
+});
