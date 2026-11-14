@@ -62,7 +62,9 @@ test('pass rows link to that pass on seeksat.com from that place', async () => {
     assert.ok(m, p.passUrl);
     const state = decodeStateBlob(m[1]);
     assert.equal(state.noradId, 25544);
-    assert.equal(state.passTimeMs, Date.parse(p.peak));
+    // The middle of the row, safely inside the span the site matches on.
+    assert.equal(state.passTimeMs, Math.round((Date.parse(p.rise) + Date.parse(p.set)) / 2));
+    assert.ok(state.passTimeMs > Date.parse(p.rise) && state.passTimeMs < Date.parse(p.set));
     assert.equal(state.mode, 'radio');
     assert.equal(state.minElevDeg, 20);
     assert.deepEqual(state.observers, [{ name: '-33.90, 151.20', latDeg: -33.9, lonDeg: 151.2 }]);
