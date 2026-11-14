@@ -141,8 +141,8 @@
 }
 /* The light map labels in each colour's darker ink (lib/map/palette.mjs
    SAT_LABEL_INK) on a light halo, as the map's own labels are. */
-:root[data-theme='light'] .flat-map__focus-name { color: var(--focus-ink, var(--focus-color, var(--map-accent))); font-size: var(--fs-md); -webkit-text-stroke-width: 0; text-shadow: 0 0 2px var(--sat-label-halo), 0 0 2px var(--sat-label-halo), 0 0 1px var(--sat-label-halo); }
-:root[data-theme='light'] .flat-map__end-time { color: var(--end-ink, var(--end-color, var(--map-accent))); font-size: var(--fs-md); -webkit-text-stroke-width: 0; text-shadow: 0 0 2px var(--sat-label-halo), 0 0 2px var(--sat-label-halo), 0 0 1px var(--sat-label-halo); }
+:root[data-theme='light'] .flat-map__focus-name { color: var(--focus-ink, var(--focus-color, var(--map-accent))); font-size: var(--fs-md); -webkit-text-stroke-width: 2.5px; text-shadow: 0 0 2px var(--sat-label-halo); }
+:root[data-theme='light'] .flat-map__end-time { color: var(--end-ink, var(--end-color, var(--map-accent))); font-size: var(--fs-md); -webkit-text-stroke-width: 2.5px; text-shadow: 0 0 2px var(--sat-label-halo); }
 /* The focused satellite's height, a smaller line under its name. */
 .flat-map__focus-alt { display: block; margin-top: var(--sp-2); font-size: 0.85em; font-weight: var(--fw-regular); }
 .flat-map__focus-alt:empty { display: none; }

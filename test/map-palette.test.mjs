@@ -69,9 +69,9 @@ test('emphasisOf defaults to focus when selected, else normal', () => {
   assert.equal(emphasisOf({ selected: true, emphasis: 'ghost' }), 'ghost');
 });
 
-test('light-map label inks: one per colour, in order, each 4.5:1 on the label halo', () => {
+test('light-map label inks: one per colour, in order, each 7:1 on the label halo', () => {
   assert.equal(SAT_LABEL_INK.length, SAT_PALETTE.length);
-  for (const ink of SAT_LABEL_INK) assert.ok(ratio(ink, SAT_LABEL_HALO.light) >= 4.5, `${ink}: ${ratio(ink, SAT_LABEL_HALO.light).toFixed(2)}`);
+  for (const ink of SAT_LABEL_INK) assert.ok(ratio(ink, SAT_LABEL_HALO.light) >= 7, `${ink}: ${ratio(ink, SAT_LABEL_HALO.light).toFixed(2)}`);
   assert.equal(labelInkOf(SAT_PALETTE[0].toUpperCase()), SAT_LABEL_INK[0]);
   assert.equal(labelInkOf('#123456'), '#123456');
   assert.equal(SAT_LABEL_HALO.dark, SAT_CASING.dark);
