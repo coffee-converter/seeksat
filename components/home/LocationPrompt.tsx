@@ -120,6 +120,10 @@ export default function LocationPrompt({ onDone, variant = "card" }: Props) {
     const found = await geocodeOne(parsed.query);
     setTextBusy(false);
     if (attempt.current !== mine) return;
+    if (found && "busy" in found) {
+      setMessage("The place search is busy. Try again in a moment, or enter coordinates or a grid square.");
+      return;
+    }
     if (!found || !Number.isFinite(found.latDeg) || !Number.isFinite(found.lonDeg)) {
       setMessage(`No place found for "${typed}".`);
       return;

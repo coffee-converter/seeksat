@@ -64,6 +64,10 @@ export default function ExtraObservers({ readOnly = false, observers: given, unt
     setBusy(true);
     const found = await geocodeOne(parsed.query);
     setBusy(false);
+    if (found && "busy" in found) {
+      setMessage("The place search is busy. Try again in a moment, or enter coordinates or a grid square.");
+      return;
+    }
     if (!found || !Number.isFinite(found.latDeg) || !Number.isFinite(found.lonDeg)) {
       setMessage(`No place found for "${typed}".`);
       return;
