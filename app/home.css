@@ -54,6 +54,8 @@
   stroke-opacity: 0.9;
   stroke-dasharray: 3 3;
 }
+.flat-map__sight path.flat-map__sight-casing { stroke: var(--sat-casing); stroke-width: 3.5; }
+.flat-map__sight path.flat-map__sight-casing.flat-map__sight--below { stroke-width: 4; }
 .flat-map__sight path.flat-map__sight--below {
   stroke-width: 2;
   stroke-linecap: round;
@@ -75,7 +77,7 @@
   inset: 0;
   border-radius: 50%;
   background: var(--end-color, var(--map-accent));
-  box-shadow: 0 0 0 1.5px var(--map-ocean);
+  box-shadow: 0 0 0 1.5px var(--sat-casing);
 }
 /* Out from the dot along --label-nx/-ny (FlatMap: away from the observer),
    its near edge 0.9em off, as the focus name is placed. */
@@ -91,7 +93,7 @@
   line-height: 1;
   white-space: nowrap;
   color: var(--end-color, var(--map-accent));
-  -webkit-text-stroke: 3px var(--map-ocean);
+  -webkit-text-stroke: 3px var(--sat-casing);
   paint-order: stroke fill;
 }
 .flat-map__focus-dot {
@@ -99,7 +101,7 @@
   inset: 0;
   border-radius: 50%;
   background: var(--focus-color, var(--map-accent));
-  box-shadow: 0 0 0 2px var(--map-ocean);
+  box-shadow: 0 0 0 2px var(--sat-casing);
 }
 /* Known radio downlinks: two arcs up and to the left of the dot, as on the
    map's other dots (lib/map/overlays.mjs ss-radio). The name, on the right,
@@ -112,7 +114,7 @@
   left: 50%;
   box-sizing: border-box;
   border: 1.5px solid transparent;
-  border-top-color: var(--focus-color, var(--map-accent));
+  border-top-color: color-mix(in oklab, var(--focus-color, var(--map-accent)), var(--sat-casing) var(--sat-ink-mix));
   border-radius: 50%;
   transform: translate(-50%, -50%) rotate(-45deg);
 }
@@ -134,7 +136,7 @@
   line-height: 1;
   white-space: nowrap;
   color: var(--focus-color, var(--map-accent));
-  -webkit-text-stroke: 3px var(--map-ocean);
+  -webkit-text-stroke: 3px var(--sat-casing);
   paint-order: stroke fill;
 }
 /* The focused satellite's height, a smaller line under its name. */
@@ -676,7 +678,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border: 1.5px solid color-mix(in srgb, var(--sat-color, var(--map-muted)) 70%, transparent);
+  border: 1.5px solid color-mix(in srgb, color-mix(in oklab, var(--sat-color, var(--map-muted)), var(--sat-casing) var(--sat-ink-mix)) 70%, transparent);
   border-radius: var(--radius-md);
   pointer-events: none;
 }
@@ -771,7 +773,7 @@
   bottom: var(--sp-8);
   width: 3px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--sat-color, var(--map-muted));
+  background: color-mix(in oklab, var(--sat-color, var(--map-muted)), var(--sat-casing) var(--sat-ink-mix));
 }
 .pass-row__when {
   display: flex;
@@ -921,9 +923,9 @@
 /* The arc: 2 px in the satellite's colour in both themes. It is solid where
    the satellite can be seen by eye and dashed elsewhere, with the opacity
    raised so both read on a thumbnail. Dashes keep the painter's butt caps. */
-.pass-open__plot .polar-plot .arc { color: var(--sat-color, var(--map-muted)); }
+.pass-open__plot .polar-plot .arc { color: color-mix(in oklab, var(--sat-color, var(--map-muted)), var(--sat-casing) var(--sat-ink-mix)); }
 /* Rise dot and set arrowhead (polar-icon.js), in the arc's colour. */
-.pass-open__plot .polar-plot .events { color: var(--sat-color, var(--map-muted)); }
+.pass-open__plot .polar-plot .events { color: color-mix(in oklab, var(--sat-color, var(--map-muted)), var(--sat-casing) var(--sat-ink-mix)); }
 .pass-open__plot .polar-plot .events .rise { fill: var(--row-open-bg, var(--panel)); stroke: currentColor; stroke-width: 1.6; }
 .pass-open__plot .polar-plot .events .set { fill: currentColor; }
 .pass-open__plot .polar-plot .arc line,
@@ -1156,7 +1158,7 @@
   height: 12px;
   box-sizing: border-box;
 }
-.map-legend__swatch--sat { width: 10px; height: 10px; margin: 0 var(--sp-6); border-radius: 50%; background: var(--swatch, var(--map-accent)); }
+.map-legend__swatch--sat { width: 10px; height: 10px; margin: 0 var(--sp-6); border-radius: 50%; background: var(--swatch, var(--map-accent)); box-shadow: 0 0 0 var(--sat-ring-w) var(--sat-casing); }
 /* As the map draws a track: dotted where it has been, then solid and fading. */
 .map-legend__swatch--track {
   height: 2px;
@@ -1173,8 +1175,9 @@
 .map-legend__swatch--pass {
   height: 4px;
   background:
-    linear-gradient(var(--swatch, var(--map-accent)), var(--swatch, var(--map-accent))) left / 50% 100% no-repeat,
-    repeating-linear-gradient(90deg, var(--swatch, var(--map-accent)) 0 3px, transparent 3px 6px) right / 50% 100% no-repeat;
+    linear-gradient(var(--swatch-ink), var(--swatch-ink)) left / 50% 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--swatch-ink) 0 3px, transparent 3px 6px) right / 50% 100% no-repeat;
+  --swatch-ink: color-mix(in oklab, var(--swatch, var(--map-accent)), var(--sat-casing) var(--sat-ink-mix));
 }
 /* The visibility circle around you: a dashed ring in your colour. */
 .map-legend__swatch--reach { border: 1.5px dashed var(--map-observer); border-radius: 50%; }
@@ -1716,7 +1719,7 @@
   position: absolute;
   inset: 2px 0;
   border-radius: var(--radius-sm);
-  background-color: var(--sat-color);
+  background-color: color-mix(in oklab, var(--sat-color), var(--sat-casing) var(--sat-ink-mix));
   box-shadow: 0 0 0 1px var(--timeline-day);
   transition: inset var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }

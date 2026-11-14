@@ -164,7 +164,7 @@ test('night and footprint run on past the date line in one piece', () => {
 
 const COLORS = overlayColors('dark');
 const LAYER_IDS = [
-  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past', 'ss-track-future', 'ss-pass-horizon', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-sight-label', 'ss-marks', 'ss-live-sight-label', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
+  'ss-graticule', 'ss-graticule-fine', 'ss-night', 'ss-footprint-fill', 'ss-track-past-casing', 'ss-track-past', 'ss-track-future-casing', 'ss-track-future', 'ss-pass-horizon', 'ss-pass-reach', 'ss-pass-casing', 'ss-pass-shadow', 'ss-pass-sunlit', 'ss-pass-sight', 'ss-pass-sight-label', 'ss-marks', 'ss-live-sight-label', 'ss-observer', 'ss-sats-radio', 'ss-sats', 'ss-sats-focus',
 ];
 
 test('overlayLayers keeps the overlay order', () => {
@@ -180,8 +180,8 @@ test('overlayLayers keeps the overlay order', () => {
     assert.equal(l.layout['text-optional'], true);
     assert.ok(l.layout['text-variable-anchor-offset'], 'names to the right, else the left');
     assert.deepEqual(l.layout['symbol-sort-key'], ['get', 'sortKey']);
-    assert.equal(l.paint['text-halo-color'], COLORS.water);
-    assert.equal(l.paint['icon-halo-color'], COLORS.water);
+    assert.equal(l.paint['text-halo-color'], COLORS.casing);
+    assert.equal(l.paint['icon-halo-color'], COLORS.casing);
   }
   // The focus is placed first, on its own layer; ss-sats has everything else.
   assert.deepEqual(focus.filter, ['==', ['get', 'emphasis'], 'focus']);
@@ -225,11 +225,11 @@ test('a dot image is a signed distance disc with room for its ring', () => {
   assert.ok(alpha(edge, Math.floor(c)) > 0 && alpha(edge, Math.floor(c)) < 192);
 });
 
-test('overlayColors takes water from the basemap and keeps the canvas observer and night', () => {
+test('overlayColors takes water from the basemap, the satellite casing, and keeps the canvas observer and night', () => {
   assert.equal(overlayColors('dark').water, basemapColors('dark').water);
   assert.equal(overlayColors('light').water, basemapColors('light').water);
-  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, observer: '#8fb4e6', night: 'rgba(3, 5, 12, 0.24)', graticule: '#a7b0bf', gridOpacity: 0.26 });
-  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, observer: '#2c5a99', night: 'rgba(20, 30, 60, 0.07)', graticule: '#3d4757', gridOpacity: 0.17 });
+  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, casing: '#131a26', observer: '#8fb4e6', night: 'rgba(3, 5, 12, 0.24)', graticule: '#a7b0bf', gridOpacity: 0.26 });
+  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, casing: '#1f2430', observer: '#2c5a99', night: 'rgba(20, 30, 60, 0.07)', graticule: '#3d4757', gridOpacity: 0.17 });
 });
 
 test('trackDetail curves extra points into past and future tracks', () => {

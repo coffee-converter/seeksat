@@ -34,7 +34,7 @@ test('many satellites: the count is all of them, the names give way to "and N mo
   const ids = Array.from({ length: 20 }, (_, i) => 25544 + i);
   const view = parseView(`?map=globe&sats=${ids.join(',')}`);
   const tracks = await viewTracks(view, { reader: reader(ids), nowMs: NOW });
-  assert.equal(tracks.length, 8, 'at most eight tracks drawn');
+  assert.equal(tracks.length, 10, 'at most one track per palette colour');
   const svg = buildViewCardSvg(view, tracks);
   assert.ok(svg.includes('20 satellites') && svg.includes('and 1'));
 });

@@ -444,7 +444,7 @@ export default function FlatMap({
     return out;
   }, []);
   // The live sight line, drawn over the canvas (lib/map/sight-path.mjs).
-  const sightSvg = useRef<{ svg: SVGSVGElement; path: SVGPathElement; key: string } | null>(null);
+  const sightSvg = useRef<{ svg: SVGSVGElement; path: SVGPathElement; casing: SVGPathElement; key: string } | null>(null);
   /** Draw the live sight line to where the satellite's dot is now: the focus
    *  marker's own placed sample when it is the focus, so the two match in
    *  the same frame. Cleared when no live pass is open. */
@@ -461,6 +461,7 @@ export default function FlatMap({
     if (!live || !o || !pos) {
       if (el.key) {
         el.path.setAttribute("d", "");
+        el.casing.setAttribute("d", "");
         el.key = "";
       }
       return;
@@ -471,6 +472,7 @@ export default function FlatMap({
       el.key = key;
       el.path.setAttribute("stroke", live.color);
       el.path.classList.toggle("flat-map__sight--below", below);
+      el.casing.classList.toggle("flat-map__sight--below", below);
     }
     const globe = v === "globe";
     // MapLibre's own occlusion test, as its markers use (internal: guarded).
@@ -483,7 +485,9 @@ export default function FlatMap({
       const p = map.project([lon, lat]);
       return { x: p.x, y: p.y, hidden: occluded ? occluded({ lng: lon, lat }) : false };
     });
-    el.path.setAttribute("d", sightPathD(points, SIGHT_TRIM_PX));
+    const d = sightPathD(points, SIGHT_TRIM_PX);
+    el.casing.setAttribute("d", d);
+    el.path.setAttribute("d", d);
   }, []);
   // The focus's last placed sample, kept for a sample that fails.
   const lastFocus = useRef<{ noradId: number; focus: LiveFocus } | null>(null);
@@ -1195,10 +1199,13 @@ export default function FlatMap({
       const sightEl = document.createElementNS(svgNs, "svg");
       sightEl.setAttribute("class", "flat-map__sight");
       sightEl.setAttribute("aria-hidden", "true");
+      // Under the line, its casing (--sat-casing), so it reads on any ground.
+      const sightCasing = document.createElementNS(svgNs, "path");
+      sightCasing.setAttribute("class", "flat-map__sight-casing");
       const sightPath = document.createElementNS(svgNs, "path");
-      sightEl.append(sightPath);
+      sightEl.append(sightCasing, sightPath);
       map.getCanvasContainer().append(sightEl);
-      sightSvg.current = { svg: sightEl, path: sightPath, key: "" };
+      sightSvg.current = { svg: sightEl, path: sightPath, casing: sightCasing, key: "" };
       setMapReady(true);
       capLayer.current = makeFootprintLayer({
         // It fails inside a frame: change the style after it.

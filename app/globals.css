@@ -89,6 +89,12 @@
   --map-footprint: rgba(143, 180, 230, 0.16);
   /* The timeline strip: daylight lifted, night sunk, clearly apart. */
   --timeline-day: #2a3344;
+  /* Satellite colours (lib/map/palette.mjs, one palette for both themes) on
+     UI surfaces: dots get a ring in --sat-casing, and lines and borders an
+     ink mixed toward the casing, so they keep 3:1 on pale cards.
+     Dark surfaces need none of it. */
+  --sat-ring-w: 0px;
+  --sat-ink-mix: 0%;
   --timeline-night: #0d1117;
   --map-accent: var(--accent);
   --map-text: var(--text);
@@ -169,6 +175,8 @@
   --map-space: #b4bfcf;
   --map-footprint: rgba(44, 90, 153, 0.14);
   --timeline-day: #e4e8ee;
+  --sat-ring-w: 1.5px;
+  --sat-ink-mix: 50%;
   --timeline-night: #b7c0cc;
 }
 /* Night vision (lib/ui/theme.mjs sets data-night, with data-theme forced to

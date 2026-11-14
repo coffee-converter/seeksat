@@ -4,7 +4,7 @@ import path from "node:path";
 import { mapCssVars } from "@/lib/ui/map-tokens.mjs";
 import { chartCssVars } from "@/lib/ui/chart-tokens.mjs";
 import { readTokenBlock } from "@/lib/ui/token-block.mjs";
-import { SAT_PALETTES } from "@/lib/map/palette.mjs";
+import { SAT_CASING, SAT_PALETTE } from "@/lib/map/palette.mjs";
 import { CANVAS_COLORS } from "@/lib/map/overlays.mjs";
 import { basemapColors } from "@/lib/map/basemap.mjs";
 import { POLAR_ARC_COLOR } from "@/lib/passes/charts.js";
@@ -90,9 +90,12 @@ function bibleData(): BibleData {
   const palettes: Palette[] = [
     {
       title: "Satellite colours",
-      source: "lib/map/palette.mjs SAT_PALETTES",
-      note: "One hue per slot in both themes; slot 7 is the neutral.",
-      columns: (["dark", "light"] as const).map((t) => ({ label: t === "dark" ? "Dark" : "Light", swatches: SAT_PALETTES[t].map((value: string, i: number) => ({ name: `${i + 1}`, value })) })),
+      source: "lib/map/palette.mjs SAT_PALETTE, SAT_CASING",
+      note: "One palette for both themes, ordered so the first few are the most different. Every track, dot and label sits on the casing: the dark map's water, near-black on the light map.",
+      columns: [
+        { label: "Both themes", swatches: SAT_PALETTE.map((value: string, i: number) => ({ name: `${i + 1}`, value })) },
+        { label: "Casing", swatches: swatches(SAT_CASING) },
+      ],
     },
     {
       title: "Map overlays",
