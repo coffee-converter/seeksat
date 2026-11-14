@@ -279,3 +279,36 @@ test('the rough score ranks hearable, then bars, then recency, then height', () 
   // Far away costs bars, as the exact rating does.
   assert.ok(roughScore(run(89, 600)) > roughScore(run(89, 8000)));
 });
+
+/** synthetic(n) with every odd satellite moved to S-band only. */
+function withSBand(n) {
+  const recs = synthetic(n);
+  for (const [id, r] of recs) if (id % 2) r.downlinks = [{ hz: 2_210_000_000, mode: 'bpsk', label: 'Telemetry', default: true }];
+  return recs;
+}
+
+test('with no bands asked, satellites with a VHF or UHF downlink rank ahead of S-band-only ones', async () => {
+  const recs = withSBand(30);
+  const { deps } = depsFor(recs);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 20 }, deps);
+  const hearable = out.passes.map((p) => p.downlinks.some((d) => d.frequencyMHz < 1000));
+  assert.ok(hearable[0], 'a hearable satellite leads');
+  const firstDeaf = hearable.indexOf(false);
+  if (firstDeaf >= 0) assert.ok(hearable.slice(firstDeaf).every((h) => !h), 'no hearable one after an S-band one');
+  // By height alone an S-band satellite would have come before some hearable one.
+  const all = bruteForce(recs, { latDeg: 42.19, lonDeg: -88.21 });
+  const sBest = all.find((p) => p.noradId % 2);
+  const hearableRows = out.passes.filter((p, i) => hearable[i]);
+  assert.ok(sBest && hearableRows.some((p) => p.peakElevationDeg < sBest.peakElevationDeg), 'the order changed');
+});
+
+test('bands filter counts every satellite hearable', async () => {
+  const recs = withSBand(30);
+  const { deps } = depsFor(recs);
+  const out = await bestPassTool({ lat: 42.19, lon: -88.21, mode: 'radio', limit: 5, bands: ['s'] }, deps);
+  assert.equal(out.matchedSatellites, 15);
+  assert.ok(out.passes.length > 0);
+  for (const p of out.passes) assert.ok(p.downlinks.every((d) => d.frequencyMHz > 2000));
+  const bars = out.passes.map((p) => p.rating.bars);
+  assert.deepEqual(bars, [...bars].sort((a, b) => b - a));
+});

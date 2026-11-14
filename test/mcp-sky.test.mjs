@@ -237,3 +237,21 @@ test('premium satellites stay out of the whole-sky tools for a free caller', asy
   assert.equal(ids(await identifySatelliteTool(sighting, d)).includes(99001), false);
   assert.equal(ids(await identifySatelliteTool(sighting, d, 'pro')).includes(99001), true);
 });
+
+test('whats_up_now (radio): VHF and UHF satellites list ahead of higher S-band-only ones', async () => {
+  const list = catalog().map((c, i) => (c.downlinks.length && i % 8 === 4
+    ? { ...c, downlinks: [{ hz: 2_210_000_000, mode: 'bpsk', label: 'Telemetry', default: true }] }
+    : c));
+  let checked = 0;
+  for (const ms of [DUSK, NOON]) {
+    const out = await whatsUpNowTool({ ...SYDNEY, mode: 'radio', minElevation: 0, limit: 50 }, depsAt(ms, list));
+    const hearable = out.satellites.map((s) => s.downlinks.some((d) => d.frequencyMHz < 1000));
+    const firstDeaf = hearable.indexOf(false);
+    if (firstDeaf < 0) continue;
+    checked++;
+    assert.ok(hearable.slice(firstDeaf).every((h) => !h), `no hearable one after an S-band one at ${new Date(ms).toISOString()}`);
+    const els = (from, to) => out.satellites.slice(from, to).map((s) => s.elevationDeg);
+    assert.deepEqual(els(0, firstDeaf), [...els(0, firstDeaf)].sort((a, b) => b - a));
+  }
+  assert.ok(checked > 0, 'an S-band satellite was up at one of the times');
+});
