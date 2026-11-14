@@ -80,6 +80,8 @@ look at a screenshot before calling it done.
   window at a time, the last 7 days) into a 30-day per-transmitter tally in its own Blob file
   (`catalog/reception.json.gz`, never inside the snapshot). Data CC BY-SA 4.0; name the source wherever
   it shows.
+  SatNOGS Network allows 60 observation requests an hour per IP without a token, 240 with one
+  (`SATNOGS_API_TOKEN` in Vercel); the collector's per-run page budget stays under that.
 
 ## Writing
 

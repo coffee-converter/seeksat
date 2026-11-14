@@ -159,3 +159,12 @@ test('pages are 1.5 s apart, and a refusal to wait says how long SatNOGS asked f
   const r = await sweepObservations({ ...ARGS, fetchImpl, sleep: async () => {}, now: () => 0, deadlineMs: 10_000 });
   assert.match(r.error, /429.*600 s/);
 });
+
+test('a SatNOGS API token is sent when given, and only then', async () => {
+  const a = scripted([json(page(2))]);
+  await sweepObservations({ ...ARGS, fetchImpl: a.fetchImpl, sleep: async () => {}, token: 'abc123' });
+  assert.equal(a.calls[0].opts.headers.Authorization, 'Token abc123');
+  const b = scripted([json(page(2))]);
+  await sweepObservations({ ...ARGS, fetchImpl: b.fetchImpl, sleep: async () => {} });
+  assert.equal('Authorization' in b.calls[0].opts.headers, false);
+});

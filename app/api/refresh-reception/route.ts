@@ -2,7 +2,7 @@
 // Network observations (good and bad, a UTC day at a time) into the rolling
 // 30-day reception tally in Blob (lib/reception/). Guarded like the catalog
 // refresh: CRON_SECRET, production only.
-import { collectReception, runSummary } from '@/lib/reception/collect.mjs';
+import { collectReception, runSummary, RUN_PAGES_ANON, RUN_PAGES_TOKEN } from '@/lib/reception/collect.mjs';
 import { createBlobReceptionStore } from '@/lib/reception/store.mjs';
 import { sweepObservations } from '@/lib/reception/satnogs-network.mjs';
 
@@ -22,7 +22,13 @@ export async function GET(req: Request): Promise<Response> {
     return new Response('Reception collection runs only in production', { status: 403 });
   }
   try {
-    const result = await collectReception({ store: createBlobReceptionStore(), sweep: sweepObservations });
+    // A SatNOGS API token (SATNOGS_API_TOKEN) raises the hourly quota.
+    const token = process.env.SATNOGS_API_TOKEN?.trim() || null;
+    const result = await collectReception({
+      store: createBlobReceptionStore(),
+      sweep: (args: Record<string, unknown>) => sweepObservations({ ...args, token } as unknown as Parameters<typeof sweepObservations>[0]),
+      pageBudget: token ? RUN_PAGES_TOKEN : RUN_PAGES_ANON,
+    });
     // Every run leaves one line in the log; a stop is a warning.
     (result.failed ? console.warn : console.info)(runSummary(result));
     return Response.json(result, { status: result.failed && !result.units ? 500 : 200 });
