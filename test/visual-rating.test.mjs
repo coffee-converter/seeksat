@@ -148,3 +148,23 @@ test('an estimated magnitude never rates above Fair, and says it is a guess', as
   assert.equal(guess.label, 'Fair');
   assert.match(guess.reason, /^Estimated peak mag/);
 });
+
+test('a bright pass that stays low or is brief is capped', async () => {
+  const { visualQuality } = await import('../lib/sky/visual-rating.mjs');
+  // Mag 1.4 under a dark-enough suburban sky: Great on brightness alone.
+  const bright = { peakMag: 1.4, peakMagSunAltDeg: -18, durationMs: 180_000 };
+  assert.equal(visualQuality({ ...bright, maxElevDeg: 45 }).label, 'Great');
+  const low = visualQuality({ ...bright, maxElevDeg: 12 });
+  assert.equal(low.label, 'Fair');
+  assert.equal(low.level, 'low');
+  assert.equal(low.cause, 'low');
+  assert.match(low.reason, /stays low \(12° at most\)/);
+  const mid = visualQuality({ ...bright, maxElevDeg: 20 });
+  assert.equal(mid.label, 'Good');
+  assert.match(mid.reason, /fairly low \(20° at most\)/);
+  const brief = visualQuality({ ...bright, peakMag: -3, maxElevDeg: 60, durationMs: 50_000 });
+  assert.equal(brief.label, 'Good');
+  assert.match(brief.reason, /only about 50 seconds/);
+  // A faint pass is not lifted by being high.
+  assert.equal(visualQuality({ peakMag: 4.2, peakMagSunAltDeg: -18, maxElevDeg: 80, durationMs: 300_000 }).label, 'Poor');
+});
