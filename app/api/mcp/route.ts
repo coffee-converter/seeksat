@@ -77,6 +77,21 @@ const asResult = (res: unknown) => {
 // Tool hints (MCP ToolAnnotations): every tool only reads, and asking twice
 // changes nothing. Tools that can geocode a place name or fetch weather reach
 // services outside SeekSat, so they are open-world (spec.online).
+// What clients show for the server (MCP Implementation: title, website and
+// icons, the site's own). mcp-handler types only name and version, but passes
+// the object through to the SDK as is.
+const SERVER_INFO = {
+  name: 'seeksat',
+  title: 'SeekSat',
+  version: '1.0.0',
+  websiteUrl: 'https://seeksat.com',
+  icons: [
+    { src: 'https://seeksat.com/icon.svg', mimeType: 'image/svg+xml', sizes: ['any'] },
+    { src: 'https://seeksat.com/icon-512.png', mimeType: 'image/png', sizes: ['512x512'] },
+    { src: 'https://seeksat.com/icon-192.png', mimeType: 'image/png', sizes: ['192x192'] },
+  ],
+};
+
 const LOCAL = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const ONLINE = { ...LOCAL, openWorldHint: true };
 
@@ -134,7 +149,7 @@ const mcpHandler = createMcpHandler(
     }
   },
   // serverOptions: the instructions reach every client at initialize.
-  { serverInfo: { name: 'seeksat', version: '1.0.0' }, instructions: SERVER_INSTRUCTIONS },
+  { serverInfo: SERVER_INFO, instructions: SERVER_INSTRUCTIONS },
   // config - route lives at /api/mcp, so basePath '/api' derives the
   // streamable-HTTP endpoint to '/api/mcp'. No redisUrl needed: redis is
   // only used for SSE session resumability, not streamable HTTP.
