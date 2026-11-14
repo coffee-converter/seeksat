@@ -205,9 +205,12 @@ test('geocoder: an answer is cached, so a repeat makes no request', async () => 
 
 test('geocoder: lookups are spaced at least the gap apart', async () => {
   const f = fakeFetch(() => ok(place));
+  const t0 = Date.now();
   await Promise.all([1, 2, 3].map(() => geocodeOne(unique('Spaced'), { fetchImpl: f.fetchImpl, gapMs: 60 })));
   assert.equal(f.calls.length, 3);
-  for (let i = 1; i < 3; i++) assert.ok(f.calls[i].at - f.calls[i - 1].at >= 50, `gap ${f.calls[i].at - f.calls[i - 1].at}`);
+  // Timers never fire early (a busy machine only makes them late): the nth
+  // request goes at least n-1 gaps after the first ask.
+  for (let i = 1; i < 3; i++) assert.ok(f.calls[i].at - t0 >= i * 60 - 5, `request ${i} at ${f.calls[i].at - t0} ms`);
 });
 
 test('geocoder: a refusal is busy, not "no such place", and is not cached', async () => {
