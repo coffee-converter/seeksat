@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { SAT_LABEL_INK, SAT_PALETTE } from '../lib/map/palette.mjs';
 import assert from 'node:assert/strict';
 import { OVERLAY_SOURCES, overlayColors, overlayData, overlayImages, overlayLayers } from '../lib/map/overlays.mjs';
 import { basemapColors } from '../lib/map/basemap.mjs';
@@ -180,7 +181,7 @@ test('overlayLayers keeps the overlay order', () => {
     assert.equal(l.layout['text-optional'], true);
     assert.ok(l.layout['text-variable-anchor-offset'], 'names to the right, else the left');
     assert.deepEqual(l.layout['symbol-sort-key'], ['get', 'sortKey']);
-    assert.equal(l.paint['text-halo-color'], COLORS.casing);
+    assert.equal(l.paint['text-halo-color'], COLORS.labelHalo);
     assert.equal(l.paint['icon-halo-color'], COLORS.casing);
   }
   // The focus is placed first, on its own layer; ss-sats has everything else.
@@ -228,8 +229,8 @@ test('a dot image is a signed distance disc with room for its ring', () => {
 test('overlayColors takes water from the basemap, the satellite casing, and keeps the canvas observer and night', () => {
   assert.equal(overlayColors('dark').water, basemapColors('dark').water);
   assert.equal(overlayColors('light').water, basemapColors('light').water);
-  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, casing: '#131a26', observer: '#8fb4e6', night: 'rgba(3, 5, 12, 0.24)', graticule: '#a7b0bf', gridOpacity: 0.26 });
-  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, casing: '#1f2430', observer: '#2c5a99', night: 'rgba(20, 30, 60, 0.07)', graticule: '#3d4757', gridOpacity: 0.17 });
+  assert.deepEqual(overlayColors('dark'), { water: basemapColors('dark').water, casing: '#131a26', labelHalo: '#131a26', labelInk: null, observer: '#8fb4e6', night: 'rgba(3, 5, 12, 0.24)', graticule: '#a7b0bf', gridOpacity: 0.26 });
+  assert.deepEqual(overlayColors('light'), { water: basemapColors('light').water, casing: '#1f2430', labelHalo: '#f2f3f0', labelInk: SAT_LABEL_INK, observer: '#2c5a99', night: 'rgba(20, 30, 60, 0.07)', graticule: '#3d4757', gridOpacity: 0.17 });
 });
 
 test('trackDetail curves extra points into past and future tracks', () => {
@@ -452,4 +453,17 @@ test('sightFrom gives the refracted elevation, as the circle and pass times use'
     }
   }
   assert.fail('no sample just below the horizon');
+});
+
+test('on the light map, satellite labels are each colour\'s ink on a light halo; dots keep the dark casing', () => {
+  const light = overlayLayers(overlayColors('light'));
+  const sats = light.find((l) => l.id === 'ss-sats');
+  assert.equal(sats.paint['text-halo-color'], '#f2f3f0');
+  assert.equal(sats.paint['icon-halo-color'], '#1f2430');
+  const tc = sats.paint['text-color'];
+  assert.equal(tc[0], 'match');
+  assert.equal(tc[tc.indexOf(SAT_PALETTE[4]) + 1], SAT_LABEL_INK[4]);
+  // The dark map labels in the colours themselves.
+  const dark = overlayLayers(overlayColors('dark')).find((l) => l.id === 'ss-sats');
+  assert.deepEqual(dark.paint['text-color'], ['get', 'color']);
 });

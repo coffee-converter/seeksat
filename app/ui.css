@@ -354,16 +354,19 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   border-bottom: 0;
 }
-.modal--sheet .modal__panel::before {
-  content: "";
-  align-self: center;
+/* The handle: drag it (or the header) down to close (Modal.tsx). Its box is
+   taller than the bar so a thumb finds it; neither scrolls the page. */
+.modal__grab {
+  align-self: stretch;
   flex: none;
-  width: 40px;
-  height: 5px;
+  height: 20px;
+  margin: calc(-1 * var(--sp-8)) 0 calc(-1 * var(--sp-4));
+  touch-action: none;
+  cursor: grab;
+  background: linear-gradient(var(--border), var(--border)) center / 40px 5px no-repeat;
   border-radius: var(--radius-full);
-  background: var(--border);
 }
-.modal--sheet .modal__head { padding: 0 0 var(--sp-8); }
+.modal--sheet .modal__head { padding: 0 0 var(--sp-8); touch-action: none; }
 @media (prefers-reduced-motion: no-preference) {
   .modal--sheet .modal__panel { animation: sheet-up var(--dur-slow) var(--ease); }
 }
@@ -382,7 +385,8 @@ a.stat-tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset
     box-shadow: var(--shadow-modal);
     animation: none;
   }
-  .modal--sheet .modal__panel::before { display: none; }
+  .modal__grab { display: none; }
+  .modal--sheet .modal__head { touch-action: auto; }
 }
 
 /* Visually hidden, still read by screen readers (Field's hideLabel, table captions). */

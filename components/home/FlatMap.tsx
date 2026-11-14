@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Types only: the library itself loads in an effect, in its own chunk.
 import type { CustomLayerInterface, LayerSpecification, Map as MlMap, MapMouseEvent, MapTouchEvent, Marker, StyleSpecification } from "maplibre-gl";
 import { legendItems } from "@/lib/map/legend.mjs";
+import { labelInkOf } from "@/lib/map/palette.mjs";
 import { basemapStyle } from "@/lib/map/basemap.mjs";
 import { altText, awayText, overlayColors, overlayData, overlayImages, overlayLayers, sightFeatures as sightFeaturesOf, sightFrom } from "@/lib/map/overlays.mjs";
 import { addOverlays as addOverlaysTo, setOverlayData } from "@/lib/map/maplibre-overlays.mjs";
@@ -925,6 +926,7 @@ export default function FlatMap({
     if (f.color !== mark.color) {
       mark.color = f.color;
       mark.el.style.setProperty("--focus-color", f.color);
+      mark.el.style.setProperty("--focus-ink", labelInkOf(f.color));
     }
     const alt = altLine(f.altKm);
     if (`${f.name}|${alt}` !== mark.label) {
@@ -1668,7 +1670,10 @@ export default function FlatMap({
         marks.push(m);
         m.marker.setLngLat([end.lonDeg, end.latDeg]).addTo(map);
       }
-      if (sat) m.el.style.setProperty("--end-color", sat.color);
+      if (sat) {
+        m.el.style.setProperty("--end-color", sat.color);
+        m.el.style.setProperty("--end-ink", labelInkOf(sat.color));
+      }
       if (m.time.textContent !== end.label) m.time.textContent = end.label;
       m.marker.setLngLat([end.lonDeg, end.latDeg]);
     });
